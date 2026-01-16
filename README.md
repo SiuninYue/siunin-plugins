@@ -23,8 +23,8 @@ siunin的Claude插件集合仓库。
 
 ### 方法2：本地开发安装
 ```bash
-# 添加本地市场
-/plugin marketplace add /path/to/siunin-plugins
+# 添加本地市场（直接使用本仓库根目录）
+/plugin marketplace add /Users/siunin/Projects/Claude-Plugins
 
 # 安装插件
 /plugin install super-product-manager@siunin-plugins
@@ -33,7 +33,9 @@ siunin的Claude插件集合仓库。
 ## 项目结构
 
 ```
-siunin-plugins/
+claude-plugins/                    # 插件市场根目录
+├── .claude-plugin/                # 市场配置目录
+│   └── marketplace.json           # 市场配置文件（名称：siunin-plugins）
 ├── plugins/                       # 所有插件目录
 │   └── super-product-manager/     # 超级产品经理插件
 │       ├── .claude-plugin/
@@ -44,9 +46,6 @@ siunin-plugins/
 │       ├── README.md             # 插件文档
 │       ├── CHANGELOG.md          # 变更日志
 │       └── LICENSE               # MIT许可证
-├── marketplace/                   # 统一市场配置
-│   └── .claude-plugin/
-│       └── marketplace.json      # 包含所有插件的市场配置
 ├── README.md                      # 项目说明（本文件）
 └── .gitignore                     # Git忽略文件
 ```
@@ -57,14 +56,14 @@ siunin-plugins/
 
 1. 在 `plugins/` 目录下创建新插件目录
 2. 确保插件包含正确的 `.claude-plugin/plugin.json` 配置
-3. 在 `marketplace/.claude-plugin/marketplace.json` 的 `plugins` 数组中添加新条目
+3. 在根目录 `.claude-plugin/marketplace.json` 的 `plugins` 数组中添加新条目
 4. 更新版本和配置信息
 5. 提交并推送到GitHub
 
 ## 更新现有插件
 
 1. 修改对应插件目录中的代码
-2. 如果需要，更新 `marketplace.json` 中的版本号
+2. 如果需要，更新 `.claude-plugin/marketplace.json` 中的版本号
 3. 提交并推送到GitHub
 
 ## 用户安装体验
