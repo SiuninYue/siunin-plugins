@@ -23,8 +23,7 @@
       "author": {
         "name": "siunin"
       },
-      "category": "productivity",
-      "requires": ["feature-dev@claude-plugins-official"]
+      "category": "productivity"
     }
   ]
 }
