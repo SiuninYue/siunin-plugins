@@ -1,0 +1,8 @@
+{
+  "name": "progress-tracker",
+  "version": "1.0.0",
+  "description": "Track long-running AI agent tasks with feature-based progress tracking, test-driven status updates, and Git integration",
+  "author": "siunin",
+  "requires": ["feature-dev@claude-plugins-official"],
+  "settings": []
+}
