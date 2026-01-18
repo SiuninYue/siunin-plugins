@@ -10,6 +10,13 @@ siunin的Claude插件集合仓库。
 - **类别**: 生产力 (productivity)
 - **功能**: 14个命令、8个专业Agent、16个专业技能
 
+### 2. 进度追踪器 (progress-tracker)
+- **版本**: 1.0.0
+- **描述**: 跟踪长时间运行的 AI Agent 任务，支持基于功能的进度追踪、测试驱动状态更新和 Git 集成
+- **类别**: 生产力 (productivity)
+- **功能**: 4个命令、5个专业技能、会话恢复机制
+- **依赖**: feature-dev 官方插件
+
 ## 安装
 
 ### 方法1：从GitHub安装（推荐）
@@ -19,6 +26,10 @@ siunin的Claude插件集合仓库。
 
 # 安装超级产品经理插件
 /plugin install super-product-manager@siunin-plugins
+
+# 安装进度追踪器插件（需要先安装 feature-dev 依赖）
+/plugin install feature-dev@claude-plugins-official
+/plugin install progress-tracker@siunin-plugins
 ```
 
 ### 方法2：本地开发安装
@@ -28,6 +39,7 @@ siunin的Claude插件集合仓库。
 
 # 安装插件
 /plugin install super-product-manager@siunin-plugins
+/plugin install progress-tracker@siunin-plugins
 ```
 
 ## 项目结构
@@ -37,14 +49,23 @@ claude-plugins/                    # 插件市场根目录
 ├── .claude-plugin/                # 市场配置目录
 │   └── marketplace.json           # 市场配置文件（名称：siunin-plugins）
 ├── plugins/                       # 所有插件目录
-│   └── super-product-manager/     # 超级产品经理插件
+│   ├── super-product-manager/     # 超级产品经理插件
+│   │   ├── .claude-plugin/
+│   │   │   └── plugin.json       # 插件配置
+│   │   ├── commands/             # 14个命令
+│   │   ├── skills/               # 16个专业技能
+│   │   ├── agents/               # 8个专业Agent
+│   │   ├── README.md             # 插件文档
+│   │   ├── CHANGELOG.md          # 变更日志
+│   │   └── LICENSE               # MIT许可证
+│   └── progress-tracker/         # 进度追踪器插件
 │       ├── .claude-plugin/
 │       │   └── plugin.json       # 插件配置
-│       ├── commands/             # 14个命令
-│       ├── skills/               # 16个专业技能
-│       ├── agents/               # 8个专业Agent
+│       ├── commands/             # 4个命令
+│       ├── skills/               # 5个专业技能
+│       ├── hooks/                # 会话恢复钩子
+│       │   └── scripts/          # Python状态管理脚本
 │       ├── README.md             # 插件文档
-│       ├── CHANGELOG.md          # 变更日志
 │       └── LICENSE               # MIT许可证
 ├── README.md                      # 项目说明（本文件）
 └── .gitignore                     # Git忽略文件

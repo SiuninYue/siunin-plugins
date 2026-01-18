@@ -155,3 +155,19 @@ references:
 | [aarrr-funnel.md](aarrr-funnel.md) | AARRR 漏斗详细分析 |
 | [ab-testing.md](ab-testing.md) | A/B 测试设计模板 |
 | [dashboard-design.md](dashboard-design.md) | 数据看板设计指南 |
+
+---
+
+## PRD 协作引导
+
+本技能可补充 PRD 中的以下章节（仅当 PRD 已包含该章节时）：
+
+| 可补充章节 | 补充内容 | 输出位置 |
+|-----------|---------|---------|
+| **数据指标** | 北极星指标、AARRR 漏斗指标、埋点设计、验收数据标准 | `06-metrics.md` 或 PRD 对应章节 |
+
+### 协作约束
+
+- ✅ 只补充上述已有章节，不新增章节
+- ✅ 指标需包含定义、目标值、测量方式
+- ❌ 不编辑其他章节（如功能需求、技术规格等）
