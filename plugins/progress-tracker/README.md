@@ -90,9 +90,31 @@ Runs test steps, updates progress tracking, and creates a Git commit.
 **Behavior:**
 1. Executes all test steps defined for the feature
 2. If tests fail → Reports error, keeps feature in progress
-3. If tests pass → Marks complete, commits to Git
-4. Updates `progress.json` and `progress.md`
+3. If tests pass → Creates Git commit, Marks complete
+4. Updates `progress.json` (stores commit hash) and `progress.md`
 5. Suggests next action
+
+## Maintenance Phase
+
+Once development is underway, you may need to manage the project state.
+
+### `/prog undo`
+
+Revert the most recently completed feature.
+
+**Behavior:**
+1. **Safety Check**: Ensures git working directory is clean.
+2. **Git Revert**: Creates a *new* commit that inverses the changes of the feature (safe for shared repos).
+3. **Status Rollback**: Marks the feature as "pending" again in the tracker.
+
+### `/prog reset`
+
+Completely remove progress tracking from the project.
+
+**Behavior:**
+1. Asks for confirmation.
+2. Deletes `.claude/progress.json` and `.claude/progress.md`.
+3. **Does NOT** affect your code or Git history.
 
 ## Architecture
 

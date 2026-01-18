@@ -128,22 +128,9 @@ The feature will remain marked as "in progress" until tests pass.
 - Create a Git commit
 - Suggest moving to next feature
 
-### Step 6: Update Progress Tracking
+### Step 6: Create Git Commit
 
-Only executed after all tests pass:
-
-```bash
-# Mark feature as completed
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py complete <feature_id>
-```
-
-This updates:
-- `progress.json`: Sets `completed: true`, clears `current_feature_id`
-- `progress.md`: Moves feature to completed section
-
-### Step 7: Create Git Commit
-
-Execute Git commands:
+Execute Git commands only after tests pass:
 
 ```bash
 # Stage changes
@@ -159,6 +146,22 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
 - Use conventional commits: `feat:`, `fix:`, `refactor:`, etc.
 - Include feature name for clarity
 - Always include `Co-Authored-By` line
+
+### Step 7: Update Progress Tracking
+
+After successful commit, capture the hash and update progress:
+
+```bash
+# Get the new commit hash
+git rev-parse HEAD
+
+# Mark feature as completed with the hash
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py complete <feature_id> --commit <commit_hash>
+```
+
+This updates:
+- `progress.json`: Sets `completed: true`, stores `commit_hash`, clears `current_feature_id`
+- `progress.md`: Moves feature to completed section
 
 ### Step 8: Show Next Steps
 
