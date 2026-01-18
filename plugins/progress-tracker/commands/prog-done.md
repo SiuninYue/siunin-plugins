@@ -1,4 +1,5 @@
 ---
+name: prog-done
 description: Complete and commit the current feature after testing
 ---
 

@@ -1,4 +1,5 @@
 ---
+name: prog-next
 description: Start implementing the next pending feature
 ---
 

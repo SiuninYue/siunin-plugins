@@ -1,4 +1,5 @@
 ---
+name: prog
 description: Display project progress status
 ---
 
