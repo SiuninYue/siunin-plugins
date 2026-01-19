@@ -1,7 +1,17 @@
 ---
 name: progress-recovery
-description: Analyze session context to detect interrupted progress tracking and provide recovery recommendations for resuming work
-version: 1.0.0
+description: 进度恢复技能。用于分析会话上下文并检测中断的进度跟踪。
+model: haiku
+version: "1.0.0"
+scope: skill
+inputs:
+  - 用户问题或场景
+  - 约束与目标（如有）
+outputs:
+  - 方法与模板
+  - 注意事项与检查项
+evidence: optional
+references: []
 ---
 
 # Progress Recovery Skill
@@ -151,7 +161,7 @@ Or use `/prog` for full status overview.
 1. Review the uncommitted changes above
 2. If complete: Run `/prog done` to test and commit
 3. If incomplete: Continue with `/prog next`
-4. If unwanted: Run `git reset` to clean up
+4. If unwanted: Use `git stash` to save changes temporarily, or `git restore .` to discard uncommitted changes (⚠️ this cannot be undone)
 
 Use `/prog` for detailed status.
 ```

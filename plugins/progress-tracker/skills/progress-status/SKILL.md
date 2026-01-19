@@ -1,7 +1,17 @@
 ---
 name: progress-status
-description: Display current project progress by reading progress files, calculating statistics, and generating actionable next-step recommendations
-version: 1.0.0
+description: 进度状态显示技能。用于读取进度文件、计算统计信息并生成建议。
+model: haiku
+version: "1.0.0"
+scope: skill
+inputs:
+  - 用户问题或场景
+  - 约束与目标（如有）
+outputs:
+  - 方法与模板
+  - 注意事项与检查项
+evidence: optional
+references: []
 ---
 
 # Progress Status Display Skill
@@ -123,15 +133,14 @@ Interpret results:
 - Match commits to feature names when possible
 
 Example output:
-```markdown
-### Recent Git Activity
-```
-abc1234 feat: complete user database schema
-def5678 chore: initialize project tracking
-```
 
-2 files changed, 45 insertions(+)
-```
+    ### Recent Git Activity
+    ```
+    abc1234 feat: complete user database schema
+    def5678 chore: initialize project tracking
+    ```
+
+    2 files changed, 45 insertions(+)
 
 ## Recommendation Engine
 
@@ -189,16 +198,15 @@ Consider:
 **Condition**: `progress.json` doesn't exist
 
 **Recommendation**:
-```markdown
-### No Progress Tracking
 
-No active project tracking found in this directory.
+    ### No Progress Tracking
 
-Initialize tracking with:
-```
-/prog init <project description>
-```
-```
+    No active project tracking found in this directory.
+
+    Initialize tracking with:
+    ```
+    /prog init <project description>
+    ```
 
 ## Reading Strategy
 

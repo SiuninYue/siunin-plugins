@@ -1,7 +1,17 @@
 ---
 name: feature-breakdown
-description: Analyze user goals and intelligently break them down into 5-10 specific, testable features with proper ordering and dependencies
-version: 1.0.0
+description: 功能分解技能。用于分析用户目标并将其分解为5-10个具体、可测试的功能列表。
+model: opus
+version: "1.0.0"
+scope: skill
+inputs:
+  - 用户问题或场景
+  - 约束与目标（如有）
+outputs:
+  - 方法与模板
+  - 注意事项与检查项
+evidence: optional
+references: []
 ---
 
 # Feature Breakdown Skill
@@ -94,6 +104,7 @@ Each feature MUST have 2-4 specific, executable test steps.
 "Check if it works" (too vague)
 "Test the feature" (not specific)
 "Make sure code is good" (not executable)
+```
 
 ## Working with Existing Progress
 

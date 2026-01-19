@@ -1,7 +1,17 @@
 ---
 name: feature-complete
-description: Verify completed features through test execution, update progress state, and commit changes to Git with proper messages
-version: 1.0.0
+description: 功能完成验证技能。用于验证已完成功能、更新进度状态并提交到 Git。
+model: sonnet
+version: "1.0.0"
+scope: skill
+inputs:
+  - 用户问题或场景
+  - 约束与目标（如有）
+outputs:
+  - 方法与模板
+  - 注意事项与检查项
+evidence: optional
+references: []
 ---
 
 # Feature Completion Skill
@@ -92,10 +102,9 @@ Commit message: "feat: complete <feature name>"
 ```
 
 Then execute:
-1. Update `progress.json`: `completed = true`, `current_feature_id = null`
-2. Update `progress.md`: Move feature to completed section
-3. Git commit with feature name
-4. Show next steps
+1. Create Git commit (Step 6 below)
+2. Update progress tracking via progress_manager.py with commit hash (Step 7 below)
+3. Show next steps
 
 #### Test Failure
 

@@ -1,7 +1,17 @@
 ---
 name: progress-management
-description: Handle advanced project management tasks like undoing features (with git revert) and resetting progress tracking
-version: 1.0.0
+description: 进度管理技能。用于撤销功能（git revert）和重置进度跟踪。
+model: opus
+version: "1.0.0"
+scope: skill
+inputs:
+  - 用户问题或场景
+  - 约束与目标（如有）
+outputs:
+  - 方法与模板
+  - 注意事项与检查项
+evidence: optional
+references: []
 ---
 
 # Progress Management Skill

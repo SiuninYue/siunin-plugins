@@ -23,10 +23,18 @@ The Progress Tracker plugin solves a critical problem in AI-assisted development
 
 ## Dependencies
 
-This plugin requires the **feature-dev** official plugin:
+This plugin integrates with the **Superpowers** skills library for systematic development workflows:
 
 ```bash
-# Install the required dependency
+# Install Superpowers (recommended)
+/plugin marketplace add obra/superpowers-marketplace
+/plugin install superpowers@superpowers-marketplace
+```
+
+**Alternative**: You can still use the legacy **feature-dev** plugin, but Superpowers provides stronger TDD enforcement and code review processes.
+
+```bash
+# Legacy option (feature-dev)
 claude plugins install feature-dev@claude-plugins-official
 ```
 
@@ -215,25 +223,48 @@ Stored in your project's `.claude/` directory:
 /prog next
 ```
 
-## Integration with feature-dev Plugin
+## Integration with Superpowers Skills
 
-The Progress Tracker delegates implementation to the official **feature-dev** plugin:
+The Progress Tracker orchestrates **Superpowers** workflow skills for systematic, TDD-driven implementation:
 
-| Responsibility | Plugin |
-|----------------|--------|
+| Responsibility | Component |
+|----------------|-----------|
 | Feature breakdown | progress-tracker |
 | Progress state | progress-tracker |
-| Test execution | progress-tracker |
-| Git commits | progress-tracker |
-| Code exploration | feature-dev |
-| Architecture design | feature-dev |
-| Implementation | feature-dev |
-| Code review | feature-dev |
+| Acceptance testing | progress-tracker |
+| Git commits (feature-level) | progress-tracker |
+| Design exploration | superpowers:brainstorming |
+| Implementation planning | superpowers:writing-plans |
+| TDD execution | superpowers:test-driven-development |
+| Subagent coordination | superpowers:subagent-driven-development |
+| Code review (dual-stage) | superpowers reviewers |
 
-This separation ensures:
-- **Quality** - Professional implementation workflow
-- **Focus** - Each plugin does one thing well
-- **Leverage** - Reuses official plugin capabilities
+**Key benefits of Superpowers integration**:
+- ✅ **Enforced TDD**: Mandatory RED-GREEN-REFACTOR cycle
+- ✅ **Dual-stage review**: Spec compliance + code quality
+- ✅ **Task-level commits**: Clean Git history
+- ✅ **Session recovery**: Resume interrupted workflows
+- ✅ **Proven patterns**: Battle-tested development processes
+
+**Workflow example**:
+```bash
+/prog next               # Progress Tracker selects feature
+                         # → Assesses complexity
+                         # → Invokes superpowers:writing-plans
+                         # → Invokes superpowers:subagent-driven-development
+                         # → Each task: TDD + review + commit
+/prog done               # Progress Tracker runs acceptance tests
+                         # → Creates feature commit
+                         # → Updates progress.json
+```
+
+**Alternative: feature-dev plugin**
+
+The legacy integration with feature-dev is still supported:
+- Better for **legacy codebases** (has code-explorer for deep analysis)
+- Superpowers is better for **new projects** (stronger process enforcement)
+
+To use feature-dev instead, modify `skills/feature-implement/SKILL.md` to invoke `/feature-dev` as before.
 
 ## Directory Structure
 
