@@ -52,7 +52,7 @@ if no incomplete_features:
 
 ## Recovery Scenarios
 
-### Scenario 1: Feature In Progress
+### Scenario 1: Feature In Progress (Enhanced)
 
 **Condition**: `current_feature_id` is not null
 
@@ -63,36 +63,131 @@ if no incomplete_features:
 
 **Recovery Message**:
 ```markdown
-## 🔔 Resuming Work in Progress
+╔════════════════════════════════════════════════════════╗
+║  📋 Progress Tracker: Unfinished Work Detected        ║
+╚════════════════════════════════════════════════════════╝
 
-**Project**: <project_name>
-**Progress**: <completed>/<total> features completed
+**Feature**: <feature_name> (ID: <feature_id>)
+**Status**: <phase> - <completed_tasks>/<total_tasks> tasks completed
+**Plan**: <plan_path>
+**Last updated**: <time_since_last_update>
 
-### Current Feature (In Progress)
+You were in the middle of implementing this feature when the session ended.
 
-**Feature**: <current_feature_name>
-**ID**: <current_feature_id>
+### Recovery Options
 
-**Test Steps**:
-1. <step 1>
-2. <step 2>
-3. <step 3>
+1️⃣ **Resume from Task <N>** (Recommended)
+   Continue where you left off
+   Status: Tasks 1-<N-1> completed, task <N> in progress
 
-### Git Context
+2️⃣ **Restart Execution**
+   Re-run all tasks from the beginning
+   Useful if previous tasks had issues
 
-Recent commits:
-<git log output>
+3️⃣ **Re-create Plan**
+   Go back to planning phase
+   Useful if requirements changed
 
-Uncommitted changes:
-<git status if changes exist>
+4️⃣ **Skip Feature**
+   Mark as incomplete and move to next feature
+   You can come back later with `/prog next --feature <id>`
 
-### Recommended Actions
+Which option? (Enter 1-4)
+```
 
-1. **Review current state**: Check what's been implemented
-2. **Continue implementation**: Use `/prog next` to resume feature-dev
-3. **Complete and commit**: Use `/prog done` when finished
+### Auto-Recovery for Clear Cases
 
-Or use `/prog` for full status overview.
+For certain scenarios, auto-recover WITHOUT asking:
+
+**Scenario A: execution_complete**
+
+```markdown
+✅ Implementation appears complete!
+
+All tasks in the plan have been executed and committed.
+
+**Recommended Action**: Run `/prog done` to:
+  - Execute acceptance tests
+  - Create feature-level commit
+  - Mark as completed
+
+Would you like me to run `/prog done` now? [Yes/No]
+```
+
+If user says yes → automatically invoke feature-complete skill
+
+**Scenario B: execution with 80%+ tasks done**
+
+```markdown
+⚙️ Almost complete: <completed>/<total> tasks done
+
+You were working on task <current_task>: <task_description>
+
+**Recommended Action**: Resume from task <current_task>
+
+Resuming automatically in 3 seconds... (type 'stop' to cancel)
+```
+
+Wait 3 seconds, then automatically resume from current task.
+
+### Manual Recovery Actions
+
+**Option 1: Resume Execution**
+
+```markdown
+Resuming from task <N>...
+
+<CRITICAL>
+Invoke Skill tool:
+  skill: "superpowers:subagent-driven-development"
+  args: "plan:<plan_path> resume:<task_number>"
+</CRITICAL>
+
+Monitor and update workflow_state as tasks complete.
+```
+
+**Option 2: Restart Execution**
+
+```markdown
+Restarting execution from task 1...
+
+1. Clear completed_tasks in workflow_state
+2. Reset phase to "planning_complete"
+
+<CRITICAL>
+Invoke Skill tool:
+  skill: "superpowers:subagent-driven-development"
+  args: "plan:<plan_path>"
+</CRITICAL>
+```
+
+**Option 3: Re-create Plan**
+
+```markdown
+Re-creating implementation plan...
+
+1. Clear workflow_state
+2. Set phase to "design_complete" (skip brainstorming)
+
+<CRITICAL>
+Invoke Skill tool:
+  skill: "superpowers:writing-plans"
+  args: "<feature_name>: <description>"
+</CRITICAL>
+
+After completion, proceed to execution.
+```
+
+**Option 4: Skip Feature**
+
+```markdown
+Skipping feature <feature_id>...
+
+1. Clear current_feature_id
+2. Clear workflow_state
+3. Mark feature as "incomplete" (not completed, but not in progress)
+
+Run `/prog next` to start the next feature when ready.
 ```
 
 ### Scenario 2: No Active Feature, Pending Work
@@ -359,6 +454,37 @@ The progress tracking file appears to be damaged:
 3. **Re-initialize**: Use `/prog init --force` to start fresh
 
 Would you like help with any of these options?
+```
+
+### Missing Plan File
+
+If plan file from workflow_state doesn't exist:
+
+```markdown
+⚠️ Warning: Plan file not found at <plan_path>
+
+The plan file may have been deleted or moved.
+
+**Options**:
+1. **Re-create plan** (recommended) - Start from planning phase
+2. **Skip this feature** - Move to next feature
+3. **Clear workflow state** - Remove stale state and continue
+```
+
+### Corrupted workflow_state
+
+If workflow_state is invalid or inconsistent:
+
+```markdown
+⚠️ Warning: Workflow state is corrupted or invalid
+
+Detected issues:
+  - <issue_1>
+  - <issue_2>
+
+**Recommendation**: Restart this feature from planning phase.
+
+Proceed? [Yes/No]
 ```
 
 ### Branch Conflicts

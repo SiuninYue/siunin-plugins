@@ -38,6 +38,76 @@ if current_feature_id is null:
     return error "No feature currently in progress"
 ```
 
+### Step 1.5: Validate Workflow State (NEW)
+
+Before proceeding with tests, verify the Superpowers workflow was completed:
+
+```python
+workflow_state = data.get("workflow_state", {})
+phase = workflow_state.get("phase", "unknown")
+
+if phase != "execution_complete":
+    # Workflow not completed properly - guide user to recovery
+    return workflow_incomplete_message(phase)
+```
+
+**Workflow validation logic**:
+
+```markdown
+## Workflow Validation
+
+Checking workflow state... phase: <phase>
+
+<IF phase == "execution_complete">
+✅ Workflow completed successfully
+Proceeding with acceptance tests...
+
+<ELSE>
+⚠️ Incomplete Workflow Detected
+
+The Superpowers development workflow was not completed.
+
+**Current phase**: <phase>
+**Plan**: <plan_path if exists>
+
+### What This Means
+
+The feature implementation may not have gone through:
+- Planning phase (task breakdown)
+- TDD execution (RED-GREEN-REFACTOR)
+- Code review gates (spec + quality)
+
+### Recommended Actions
+
+Based on the current phase:
+
+<IF phase == "execution" OR "planning">
+1. **Resume workflow**: Continue from where you left off
+   - Use `/prog next` to resume implementation
+   - The workflow will continue from the interrupted phase
+
+<IF phase == "design_complete">
+2. **Create plan**: The design is done, but no implementation plan exists
+   - Use `/prog next` to create the plan and continue
+
+<IF phase == "unknown" OR empty>
+3. **Start implementation**: No workflow state found
+   - Use `/prog next` to start the implementation workflow
+
+### Override (Not Recommended)
+
+If you're certain the implementation is complete without the workflow:
+- Manually verify all acceptance criteria
+- Use `/prog done --skip-workflow-check` to override (if implemented)
+
+**Note**: Skipping the workflow bypasses TDD and code review gates.
+
+Cannot complete feature until workflow is verified or explicitly overridden.
+</ELSE>
+```
+
+**IMPORTANT**: Only proceed to test steps if `phase == "execution_complete"`. Otherwise, guide user to resume the workflow.
+
 ### Step 2: Get Feature Details
 
 Extract the current feature's information:
@@ -135,7 +205,13 @@ The feature will remain marked as "in progress" until tests pass.
 - Mark the feature as completed
 - Clear `current_feature_id`
 - Create a Git commit
+- Clear `workflow_state` (keep it for recovery context)
 - Suggest moving to next feature
+
+**DO**:
+- Keep `workflow_state` intact so user can resume if needed
+- Suggest fixing the implementation and retrying
+- Mention that the workflow state is preserved
 
 ### Step 6: Create Git Commit
 
@@ -166,10 +242,13 @@ git rev-parse HEAD
 
 # Mark feature as completed with the hash
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py complete <feature_id> --commit <commit_hash>
+
+# Clear workflow state since feature is complete
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py clear-workflow-state
 ```
 
 This updates:
-- `progress.json`: Sets `completed: true`, stores `commit_hash`, clears `current_feature_id`
+- `progress.json`: Sets `completed: true`, stores `commit_hash`, clears `current_feature_id`, clears `workflow_state`
 - `progress.md`: Moves feature to completed section
 
 ### Step 8: Show Next Steps

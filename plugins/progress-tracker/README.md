@@ -1,6 +1,6 @@
 # Progress Tracker Plugin
 
-Track long-running AI agent tasks with feature-based progress tracking, test-driven status updates, and Git integration.
+Track long-running AI agent tasks with feature-based progress tracking, test-driven status updates, and Git integration. An intelligent development orchestrator that guides you through systematic, TDD-driven implementation.
 
 ## Overview
 
@@ -12,6 +12,7 @@ The Progress Tracker plugin solves a critical problem in AI-assisted development
 2. **Testing Skip** - Features marked "done" without verification don't actually work
 3. **Session Interruption** - Closing the window means losing your place
 4. **No Clear Progress** - Unclear what's done vs. what remains
+5. **Skill Invocation Reliability** - Skills described but not executed
 
 ### Solutions
 
@@ -19,7 +20,9 @@ The Progress Tracker plugin solves a critical problem in AI-assisted development
 - **Test-Driven Status** - Features start `false`, only `true` after passing tests
 - **Git as Memory** - Each feature commits, creating a clear history
 - **External Persistence** - Progress stored in files, survives session restarts
-- **feature-dev Integration** - Professional implementation workflow via official plugin
+- **Superpowers Integration** - Professional TDD workflow with enforced quality gates
+- **Intelligent Session Recovery** - Auto-detects and guides resumption of interrupted work
+- **Rich Progress Feedback** - Clear visual progress indicators and phase transitions
 
 ## Dependencies
 
@@ -141,9 +144,32 @@ The plugin follows a **Commands → Skills** architecture:
 
 1. **feature-breakdown** - Analyzes goals, creates feature lists
 2. **progress-status** - Displays status and statistics
-3. **feature-implement** - Coordinates with feature-dev plugin
-4. **feature-complete** - Runs tests, commits, updates state
-5. **progress-recovery** - Analyzes context for session resumption
+3. **feature-implement** - Orchestrates Superpowers workflow with complexity assessment
+4. **feature-complete** - Validates workflow, runs tests, commits, updates state
+5. **progress-recovery** - Auto-detects incomplete work, provides recovery options
+
+### Progress Manager Commands
+
+The `progress_manager.py` script provides state management commands:
+
+```bash
+# Core commands
+python3 progress_manager.py init <project_name> [--force]
+python3 progress_manager.py status
+python3 progress_manager.py check
+python3 progress_manager.py set-current <feature_id>
+python3 progress_manager.py complete <feature_id> --commit <hash>
+
+# Workflow state commands (NEW)
+python3 progress_manager.py set-workflow-state --phase <phase> [--plan-path <path>] [--next-action <action>]
+python3 progress_manager.py update-workflow-task --task-id <id> --status completed
+python3 progress_manager.py clear-workflow-state
+
+# Feature management
+python3 progress_manager.py add-feature <name> <test_steps...>
+python3 progress_manager.py undo
+python3 progress_manager.py reset [--force]
+```
 
 ### Progress Files
 
@@ -203,24 +229,69 @@ Stored in your project's `.claude/` directory:
 
 # → Shows 0/5 complete
 
-# 3. Start first feature (auto-invokes feature-dev)
+# 3. Start first feature (auto-invokes Superpowers workflow)
 /prog next
 
-# → feature-dev guides through architecture and implementation
+╔════════════════════════════════════════════════════════╗
+║  🚀 Starting Feature Implementation                    ║
+╚════════════════════════════════════════════════════════╝
+
+**Feature**: User Database Model
+**Progress**: Feature 1/5 in project
+
+**Acceptance Test Steps**:
+✓ Run migrations successfully
+✓ Verify users table exists
+✓ Test user creation
+
+**Complexity Assessment**: Simple
+**Selected Workflow**: Direct TDD
+
+---
+
+⏳ Using superpowers:test-driven-development skill...
+[RED-GREEN-REFACTOR cycle executes]
+
+✅ Implementation Complete
+
+**Next Step**: Run `/prog done` to finalize
 
 # 4. Complete and commit
 /prog done
 
-# → Runs tests, marks complete, creates Git commit
+## ✅ All Tests Passed!
+
+Feature "User Database Model" has been successfully verified.
+
+### Creating Git Commit
+feat: complete user database model
+
+[Commit created: abc1234]
+
+**Remaining features**: 4
 
 # [Session closes or restarts]
 
 # 5. SessionStart hook detects incomplete work
-# → Shows: "Progress 1/5, use /prog to continue"
+╔════════════════════════════════════════════════════════╗
+║  📋 Progress Tracker: Unfinished Work Detected        ║
+╚════════════════════════════════════════════════════════╝
+
+**Feature**: Registration API (ID: 2)
+**Status**: execution - 2/5 tasks completed
+**Plan**: docs/plans/2024-01-24-registration-api.md
+
+### Recovery Options
+1️⃣ Resume from Task 3 (Recommended)
+2️⃣ Restart Execution
+3️⃣ Re-create Plan
+4️⃣ Skip Feature
 
 # 6. Resume and continue
-/prog
-/prog next
+# (Select option 1 - automatic resume)
+
+Resuming from task 3...
+Progress: [████░░░░] 40% - Task 3/5
 ```
 
 ## Integration with Superpowers Skills
@@ -266,6 +337,28 @@ The legacy integration with feature-dev is still supported:
 
 To use feature-dev instead, modify `skills/feature-implement/SKILL.md` to invoke `/feature-dev` as before.
 
+## Quick Start
+
+Get started with Progress Tracker in 3 steps:
+
+```bash
+# 1. Initialize your project
+/prog init Build a user authentication system
+
+# 2. Start the first feature
+/prog next
+
+# 3. Complete and commit
+/prog done
+```
+
+**That's it!** The plugin will:
+- ✅ Break down your goal into features
+- ✅ Guide you through TDD implementation
+- ✅ Run acceptance tests
+- ✅ Create clean Git commits
+- ✅ Remember your progress between sessions
+
 ## Directory Structure
 
 ```
@@ -297,22 +390,73 @@ plugins/progress-tracker/
 
 ## Session Recovery
 
-The plugin automatically detects incomplete work when you open a new session:
+The plugin automatically detects incomplete work when you open a new session and provides intelligent recovery options.
 
 **SessionStart Hook** checks:
 1. Does `.claude/progress.json` exist?
 2. Are there uncompleted features?
 3. Is there a `current_feature_id` set?
-4. Are there uncommitted Git changes?
+4. What is the `workflow_state.phase`?
+5. Are there uncommitted Git changes?
 
-If incomplete work is detected, displays:
+### Auto-Recovery Scenarios
+
+**Scenario A: Implementation Complete**
 ```
-[Progress Tracker] Unfinished project detected
-Project: User Authentication
-Progress: 2/5 complete
-Current feature: Login API
-Use /prog to view status
+✅ Implementation appears complete!
+
+All tasks in the plan have been executed and committed.
+
+**Recommended Action**: Run `/prog done` to finalize
 ```
+
+**Scenario B: Almost Complete (80%+)**
+```
+⚙️ Almost complete: 4/5 tasks done
+
+Resuming automatically in 3 seconds... (type 'stop' to cancel)
+```
+
+**Scenario C: Mid-Implementation**
+```
+╔════════════════════════════════════════════════════════╗
+║  📋 Progress Tracker: Unfinished Work Detected        ║
+╚════════════════════════════════════════════════════════╝
+
+**Feature**: Registration API (ID: 2)
+**Status**: execution - 2/5 tasks completed
+**Plan**: docs/plans/2024-01-24-registration-api.md
+
+### Recovery Options
+1️⃣ Resume from Task 3 (Recommended)
+2️⃣ Restart Execution
+3️⃣ Re-create Plan
+4️⃣ Skip Feature
+```
+
+### Workflow State Tracking
+
+The plugin tracks detailed workflow state for accurate recovery:
+
+```json
+{
+  "current_feature_id": 2,
+  "workflow_state": {
+    "phase": "execution",
+    "plan_path": "docs/plans/2024-01-24-registration-api.md",
+    "completed_tasks": [1, 2],
+    "current_task": 3,
+    "total_tasks": 5,
+    "next_action": "verify_and_complete"
+  }
+}
+```
+
+**Phase values**:
+- `design_complete` - Brainstorming done, ready for planning
+- `planning_complete` - Plan created, ready for execution
+- `execution` - Currently executing tasks
+- `execution_complete` - All tasks done, ready for verification
 
 ## Design Principles
 
@@ -322,8 +466,41 @@ Use /prog to view status
 | **Git-Native** | Each feature commits, history is progress |
 | **External State** | Progress in files, survives context loss |
 | **Clear Separation** | Commands → Skills → Scripts |
-| **Professional** | Leverages feature-dev for implementation |
+| **Professional** | Leverages Superpowers for implementation |
 | **Recoverable** | Session resumption with context |
+| **Explicit Invocation** | CRITICAL blocks ensure skills actually execute |
+| **Rich Feedback** | Progress bars, phase banners, next steps |
+| **Convention over Config** | Smart defaults, no configuration needed |
+
+## What's New (v2.0)
+
+### P0 Core Reliability Improvements
+
+1. **Skill Invocation Reliability**
+   - `<CRITICAL>` blocks force explicit Skill tool calls
+   - No more "describing skills" - skills are actually invoked
+   - Complete examples for each skill invocation
+
+2. **Workflow State Persistence**
+   - New `set-workflow-state`, `update-workflow-task`, `clear-workflow-state` commands
+   - JSON-formatted recovery information from `check` command
+   - Smart recovery action recommendations
+
+3. **Enhanced Session Recovery**
+   - Auto-recovery for clear cases (execution_complete, 80%+ done)
+   - Recovery banner with phase-based options
+   - Error handling for missing/corrupted state
+
+4. **User-Friendly Progress Feedback**
+   - Feature start banner with complexity assessment
+   - Progress bars: `[████░░] 33% - Phase 1/3 done`
+   - Phase transition indicators
+   - Completion summaries with next steps
+
+5. **Workflow Completion Validation**
+   - `/prog done` validates workflow_state before running tests
+   - Prevents completion without going through Superpowers workflow
+   - Guides recovery if workflow is incomplete
 
 ## License
 

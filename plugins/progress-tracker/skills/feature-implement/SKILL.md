@@ -50,19 +50,22 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-current <fea
 Show the user what they're about to implement:
 
 ```markdown
-## Starting Feature: <Feature Name>
+╔════════════════════════════════════════════════════════╗
+║  🚀 Starting Feature Implementation                    ║
+╚════════════════════════════════════════════════════════╝
 
+**Feature**: <Feature Name>
 **Feature ID**: <id>
-**Position**: <current>/<total> overall
+**Progress**: Feature <current>/<total> in project
 
-### Test Steps (will be verified with /prog done)
-1. <step 1>
-2. <step 2>
-3. <step 3>
+### Acceptance Test Steps (to be verified with `/prog done`)
+✓ <step 1>
+✓ <step 2>
+✓ <step 3>
 
 ---
 
-Assessing complexity and starting Superpowers workflow...
+Assessing complexity and selecting workflow...
 ```
 
 ### Step 4: Complexity Assessment
@@ -89,95 +92,417 @@ Based on complexity assessment:
 
 For straightforward implementations:
 
+Display to user:
 ```markdown
-This feature is straightforward. I'll use TDD directly.
+**Complexity Assessment**: Simple
+- Files: <N> (single file change)
+- Test steps: <N>
+- Design decisions: None
 
-**Using**: superpowers:test-driven-development skill
+**Selected Workflow**: Direct TDD
+- Skip brainstorming (clear requirements)
+- Skip planning (straightforward implementation)
+- Execute RED-GREEN-REFACTOR cycle directly
 
-Following RED-GREEN-REFACTOR cycle:
-1. RED: Write failing test
-2. GREEN: Minimal implementation to pass
-3. REFACTOR: Clean up while keeping tests green
+Estimated time: 2-5 minutes
+
+---
+
+⏳ Using **superpowers:test-driven-development** skill...
 ```
 
-Then execute TDD workflow inline.
+<CRITICAL>
+You MUST use the Skill tool to invoke superpowers:test-driven-development:
+
+DO NOT just describe or mention the skill. You MUST invoke it using the Skill tool.
+
+Use the Skill tool with these exact parameters:
+  - skill: "superpowers:test-driven-development"
+  - args: "<feature_name>: <one_line_description>"
+
+Example:
+```
+Skill("superpowers:test-driven-development", args="Fix typo in README: Change 'recieve' to 'receive'")
+```
+
+WAIT for the skill to complete.
+</CRITICAL>
+
+After TDD completes, display:
+```markdown
+✅ Implementation Complete (Simple Workflow)
+
+**Summary**:
+- RED-GREEN-REFACTOR cycle completed
+- Tests passing
+- Code ready for verification
+
+Progress: [██████████] 100%
+
+---
+
+**Next Step**: Run `/prog done` to:
+  - Execute acceptance tests
+  - Create feature-level commit
+  - Mark feature as completed
+```
+
+Update progress.json:
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state \
+  --phase "execution_complete" \
+  --next-action "verify_and_complete"
+```
 
 #### 5B: Standard Features (Planning + Subagent Execution)
 
 For typical multi-file features:
 
+Display to user:
 ```markdown
-This feature requires structured planning.
+**Complexity Assessment**: Standard
+- Files: <N> (multiple files)
+- Test steps: <N>
+- Design decisions: Minor (standard patterns)
 
-**Phase 1: Planning** (superpowers:writing-plans)
-Creating implementation plan...
+**Selected Workflow**: Planning → Subagent Execution
+- Skip brainstorming (requirements are clear)
+- Create structured implementation plan
+- Execute with fresh subagents per task (TDD + dual review)
+
+Estimated time: 5-15 minutes
+
+---
+
+## Phase 1: Planning (Step 1/2)
+
+⏳ Creating implementation plan with **superpowers:writing-plans**...
+
+This will break the feature into bite-sized tasks (2-5min each) with:
+  - Exact file paths to modify
+  - Complete code examples
+  - TDD approach per task
+  - Verification steps
+
+Estimated time: 2-3 minutes
 ```
 
-Invoke `superpowers:writing-plans` skill to create:
-- Plan file: `docs/plans/YYYY-MM-DD-<feature-name>.md`
-- Bite-sized tasks (2-5 minutes each)
-- Each task with:
-  - Exact file paths
-  - Complete code examples
-  - Verification steps
-  - TDD approach
+<CRITICAL>
+DO NOT just describe or mention these skills. You MUST invoke them using the Skill tool.
 
-Then:
+This is NOT optional. This is NOT a suggestion. You MUST execute these tool calls.
 
-**Phase 2: Execution** (superpowers:subagent-driven-development)
+NOW invoke the skill:
 
-Invoke `superpowers:subagent-driven-development` skill:
-- Creates fresh subagent for each task
-- Each subagent follows TDD (RED-GREEN-REFACTOR)
-- Two-stage review:
-  1. Spec compliance review
-  2. Code quality review
-- Automatic commits per task
+Use the Skill tool with these exact parameters:
+  - skill: "superpowers:writing-plans"
+  - args: "<feature_name>: <one_line_description>"
+
+Example:
+```
+Skill("superpowers:writing-plans", args="User Registration API: POST endpoint with bcrypt hashing")
+```
+
+WAIT for the skill to complete and return the plan file path.
+</CRITICAL>
+
+After superpowers:writing-plans completes:
+
+1. Extract the plan file path from the skill output
+2. Update progress.json immediately:
+
+   ```bash
+   python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state \
+     --phase "planning_complete" \
+     --plan-path "<returned_plan_path>" \
+     --next-action "execution"
+   ```
+
+3. Display plan summary to user:
+
+   ```markdown
+   ✅ Phase 1 Complete: Plan created
+
+   📄 Plan: <plan_path>
+
+   **Task Breakdown**:
+     1. <task_1_name> (<time>)
+     2. <task_2_name> (<time>)
+     3. <task_3_name> (<time>)
+     ...
+
+   Total estimated time: <sum_of_times>
+
+   Progress: [████░░░░░░] 33% - Phase 1/2 done
+
+   ---
+
+   ## Phase 2: Execution (Step 2/2)
+
+   ⏳ Executing tasks with **superpowers:subagent-driven-development**...
+
+   This will:
+     - Create a fresh subagent for each task
+     - Follow RED-GREEN-REFACTOR TDD cycle
+     - Run dual-review gates (spec + quality)
+     - Auto-commit after each task passes
+
+   You can monitor progress as each task completes.
+   ```
+
+<CRITICAL>
+DO NOT just describe or mention the skill. You MUST invoke it using the Skill tool.
+
+NOW invoke the skill:
+
+Use the Skill tool with these exact parameters:
+  - skill: "superpowers:subagent-driven-development"
+  - args: "plan:<plan_path>"
+
+Example:
+```
+Skill("superpowers:subagent-driven-development", args="plan:docs/plans/2026-01-24-user-registration.md")
+```
+
+As tasks complete, update workflow_state.completed_tasks:
+
+After each task:
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-workflow-task \
+  --task-id <task_number> \
+  --status completed
+```
+
+Monitor the skill execution and display progress to user:
+```markdown
+Progress: Task <N>/<total> - <task_name>
+  ⏳ RED: Writing test...
+  ⏳ GREEN: Implementing...
+  ⏳ REFACTOR: Cleaning up...
+  ✅ Spec review: PASS
+  ✅ Quality review: PASS
+  ✅ Committed: <commit_message>
+```
+</CRITICAL>
+
+After all tasks complete:
+
+1. Update progress.json:
+
+   ```bash
+   python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state \
+     --phase "execution_complete" \
+     --next-action "verify_and_complete"
+   ```
+
+2. Display completion:
+
+   ```markdown
+   ✅ Phase 2 Complete: All tasks implemented
+
+   **Summary**:
+     - Tasks completed: <N>/<N>
+     - Commits created: <N>
+     - All tests: PASSING
+
+   Progress: [██████████] 100% - Implementation done
+
+   ---
+
+   **Next Step**: Run `/prog done` to:
+     - Execute acceptance tests
+     - Create feature-level commit
+     - Mark feature as completed
+     - Move to next feature
+   ```
 
 #### 5C: Complex Features (Full Workflow)
 
 For features needing design exploration:
 
+Display to user:
 ```markdown
-This feature has design decisions to make.
+**Complexity Assessment**: Complex
+- Files: >5 (significant changes)
+- Test steps: >5 (complex verification)
+- Design decisions: Yes (architecture needs exploration)
 
-**Phase 1: Design Exploration** (superpowers:brainstorming)
-Let's explore the design space...
+**Selected Workflow**: Brainstorming → Planning → Execution
+- Design exploration for architecture decisions
+- Structured task breakdown
+- Subagent-driven TDD execution
+
+Estimated time: 15-30 minutes
+
+---
+
+## Phase 1: Design Exploration (Step 1/3)
+
+⏳ Exploring design alternatives with **superpowers:brainstorming**...
+
+This will:
+  - Ask clarifying questions (one at a time)
+  - Explore 2-3 alternative approaches
+  - Validate design against requirements
+  - Document final design decision
+
+Estimated time: 5-10 minutes
 ```
 
-Invoke `superpowers:brainstorming` skill:
-- Ask clarifying questions (one at a time)
-- Explore 2-3 alternative approaches
-- Present design in sections with validation
-- Document final design
+<CRITICAL>
+DO NOT just describe or mention this skill. You MUST invoke it using the Skill tool.
 
-Then proceed to Phase 2 (Planning) and Phase 3 (Execution) as in 5B.
+NOW invoke the skill:
+
+Use the Skill tool with these exact parameters:
+  - skill: "superpowers:brainstorming"
+  - args: "<feature_description>"
+
+Example:
+```
+Skill("superpowers:brainstorming", args="Refactor authentication system to support OAuth2 and JWT")
+```
+
+WAIT for the skill to complete.
+</CRITICAL>
+
+After superpowers:brainstorming completes:
+
+1. Update progress.json:
+
+   ```bash
+   python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state \
+     --phase "design_complete" \
+     --next-action "planning"
+   ```
+
+2. Display phase completion:
+
+   ```markdown
+   ✅ Phase 1 Complete: Design documented
+
+   **Design Summary**:
+     - <brief_summary_of_design_decision>
+
+   Progress: [██░░░░░░░░] 17% - Phase 1/3 done
+
+   ---
+
+   ## Phase 2: Planning (Step 2/3)
+
+   ⏳ Creating implementation plan with **superpowers:writing-plans**...
+   ```
+
+<CRITICAL>
+DO NOT just describe or mention the skill. You MUST invoke it using the Skill tool.
+
+NOW invoke the skill:
+
+Use the Skill tool with these exact parameters:
+  - skill: "superpowers:writing-plans"
+  - args: "<feature_name>: <one_line_description>"
+</CRITICAL>
+
+After planning completes, update state and display:
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state \
+  --phase "planning_complete" \
+  --plan-path "<plan_path>" \
+  --next-action "execution"
+```
+
+```markdown
+✅ Phase 2 Complete: Plan created
+
+📄 Plan: <plan_path>
+
+**Task Breakdown**:
+  1. <task_1> (<time>)
+  2. <task_2> (<time>)
+  ...
+
+Progress: [████░░░░░░] 50% - Phase 2/3 done
+
+---
+
+## Phase 3: Execution (Step 3/3)
+
+⏳ Executing tasks with **superpowers:subagent-driven-development**...
+```
+
+<CRITICAL>
+DO NOT just describe or mention the skill. You MUST invoke it using the Skill tool.
+
+NOW invoke the skill:
+
+Use the Skill tool with these exact parameters:
+  - skill: "superpowers:subagent-driven-development"
+  - args: "plan:<plan_path>"
+</CRITICAL>
+
+After execution completes:
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state \
+  --phase "execution_complete" \
+  --next-action "verify_and_complete"
+```
+
+```markdown
+✅ Phase 3 Complete: All tasks implemented
+
+**Summary**:
+  - Design: <design_summary>
+  - Plan: <plan_path>
+  - Tasks completed: <N>/<N>
+  - Commits created: <N>
+  - All tests: PASSING
+
+Progress: [██████████] 100% - Implementation done
+
+---
+
+**Next Step**: Run `/prog done` to finalize.
+```
 
 ### Step 6: Post-Implementation Guidance
 
 After Superpowers workflow completes, guide the user:
 
 ```markdown
-## Feature Implementation Complete ✅
+╔════════════════════════════════════════════════════════╗
+║  ✅ Feature Implementation Complete                    ║
+╚════════════════════════════════════════════════════════╝
 
-The Superpowers workflow has finished. All tasks passed TDD and code review.
+**Summary**:
+  - Plan: docs/plans/<date>-<feature>.md
+  - Tasks completed: <N>/<N>
+  - Commits created: <N>
+  - All tests: PASSING
 
-### Implementation Summary
-- Plan: docs/plans/<date>-<feature>.md
-- Commits: <N> commits created
-- Tests: All passing
+**Quality Gates Passed**:
+  ✓ TDD enforcement (RED-GREEN-REFACTOR per task)
+  ✓ Spec compliance review (matches plan requirements)
+  ✓ Code quality review (patterns, maintainability)
 
-### Next Steps
+**What's Next**:
 
-1. **Manual verification**: Test the feature end-to-end
-2. **Run acceptance tests**: Execute the test steps listed at the start
-3. **Complete and finalize**: Use `/prog done` to:
-   - Run automated test steps from progress.json
-   - Mark feature as completed
-   - Create feature-level Git commit
-   - Update progress tracking
+  1️⃣ **Manual Testing** (optional but recommended)
+     Test the feature end-to-end to ensure it works as expected
 
-Run `/prog done` when ready.
+  2️⃣ **Run Acceptance Tests**
+     Execute: `/prog done`
+
+     This will:
+     - Run the acceptance test steps defined earlier
+     - Create a feature-level Git commit
+     - Mark the feature as completed
+     - Move to the next feature
+
+---
+
+Run `/prog done` when ready to finalize this feature.
 ```
 
 ## Workflow State Tracking
@@ -192,16 +517,37 @@ To support session recovery, update `progress.json` with workflow state:
     "plan_path": "docs/plans/2026-01-20-feature-name.md",
     "completed_tasks": [1, 2],
     "current_task": 3,
-    "total_tasks": 5
+    "total_tasks": 5,
+    "next_action": "verify_and_complete"
   }
 }
 ```
 
-Update this state:
-- After creating plan → phase: "planning"
-- When starting execution → phase: "execution"
-- After each task completes → append to completed_tasks
-- When all done → phase: "complete"
+**Phase values**:
+- `design_complete` - Brainstorming done, ready for planning
+- `planning_complete` - Plan created, ready for execution
+- `execution` - Currently executing tasks
+- `execution_complete` - All tasks done, ready for verification
+
+Update this state immediately after each phase:
+1. After design → `set-workflow-state --phase "design_complete"`
+2. After planning → `set-workflow-state --phase "planning_complete" --plan-path "<path>"`
+3. During execution → `update-workflow-task --task-id <N> --status completed`
+4. After execution → `set-workflow-state --phase "execution_complete"`
+
+Use these progress_manager.py commands:
+```bash
+# Set workflow phase and metadata
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state \
+  --phase "<phase>" \
+  --plan-path "<plan_path>" \
+  --next-action "<next_action>"
+
+# Mark individual task as completed
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-workflow-task \
+  --task-id <task_number> \
+  --status completed
+```
 
 ## When No Features Remain
 
@@ -270,25 +616,41 @@ Use `/prog` to see detailed status.
 If session interrupted during Superpowers workflow:
 
 ```markdown
-## Session Recovery: Mid-Workflow
+╔════════════════════════════════════════════════════════╗
+║  📋 Progress Tracker: Unfinished Work Detected        ║
+╚════════════════════════════════════════════════════════╝
 
-Detected incomplete Superpowers workflow:
-- Feature: <feature name>
-- Phase: <phase>
-- Plan: <plan_path>
-- Completed tasks: <N>/<total>
+**Feature**: <feature_name> (ID: <feature_id>)
+**Phase**: <phase> (<completed_tasks>/<total_tasks> tasks done)
+**Plan**: <plan_path>
+**Last updated**: <time_since_last_update>
+
+You were in the middle of implementing this feature when the session ended.
 
 ### Recovery Options
 
-1. **Resume execution**: Continue from task <current_task>
-   - Recommended if tasks 1-N are committed and verified
-2. **Restart from planning**: Re-create plan and start fresh
-   - Use if plan seems incorrect or incomplete
-3. **Restart from design**: Go back to brainstorming
-   - Use if fundamental design needs revision
+1️⃣ **Resume from Task <N>** (Recommended)
+   Continue where you left off
+   Status: Tasks 1-<N-1> completed, task <N> in progress
 
-Which option? (Enter 1, 2, or 3)
+2️⃣ **Restart Execution**
+   Re-run all tasks from the beginning
+   Useful if previous tasks had issues
+
+3️⃣ **Re-create Plan**
+   Go back to planning phase
+   Useful if requirements changed
+
+4️⃣ **Skip Feature**
+   Mark as incomplete and move to next feature
+   You can come back later with `/prog next --feature <id>`
+
+Which option? (Enter 1-4)
 ```
+
+**Auto-recovery for clear cases**:
+- If `phase == "execution_complete"` → Auto-prompt for `/prog done`
+- If `phase == "execution"` AND 80%+ tasks done → Auto-resume from current task
 
 ## Integration with Superpowers
 

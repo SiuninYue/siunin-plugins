@@ -229,6 +229,8 @@ def check():
     """
     Check if progress tracking exists and has incomplete features.
     Returns exit code 0 if tracking is complete or doesn't exist, 1 if incomplete.
+
+    Outputs JSON-formatted recovery information when incomplete work is detected.
     """
     data = load_progress_json()
     if not data:
@@ -241,12 +243,58 @@ def check():
         project_name = data.get("project_name", "Unknown")
         total = len(features)
         completed = total - len(incomplete)
+        current_id = data.get("current_feature_id")
+        workflow_state = data.get("workflow_state", {})
+
+        # If there's a feature in progress, provide detailed recovery info
+        if current_id:
+            feature = next((f for f in features if f.get("id") == current_id), None)
+            if feature:
+                phase = workflow_state.get("phase", "unknown")
+                plan_path = workflow_state.get("plan_path", "")
+                completed_tasks = workflow_state.get("completed_tasks", [])
+                total_tasks = workflow_state.get("total_tasks", 0)
+
+                # Determine recovery recommendation
+                recommendation = determine_recovery_action(phase, feature, completed_tasks, total_tasks)
+
+                recovery_info = {
+                    "status": "incomplete",
+                    "feature_id": current_id,
+                    "feature_name": feature.get("name", "Unknown"),
+                    "phase": phase,
+                    "plan_path": plan_path,
+                    "completed_tasks": completed_tasks,
+                    "total_tasks": total_tasks,
+                    "recommendation": recommendation
+                }
+
+                print(json.dumps(recovery_info))
+                return 1
+
+        # General incomplete status (no specific feature in progress)
         print(f"[Progress Tracker] Unfinished project detected: {project_name}")
         print(f"Progress: {completed}/{total} completed")
         print(f"Use '/prog' to view status or '/prog next' to continue")
         return 1
 
     return 0
+
+
+def determine_recovery_action(phase, feature, completed_tasks, total_tasks):
+    """Determine the recommended recovery action based on workflow state."""
+    if phase == "execution_complete":
+        return "run_prog_done"
+    elif phase == "execution" and total_tasks > 0:
+        progress = len(completed_tasks) / total_tasks if total_tasks > 0 else 0
+        if progress >= 0.8:
+            return "auto_resume"
+        else:
+            return "manual_resume"
+    elif phase in ["planning", "design_complete", "design"]:
+        return "restart_from_planning"
+    else:
+        return "manual_review"
 
 
 def set_current(feature_id):
@@ -446,6 +494,78 @@ def reset_tracking(force=False):
         return False
 
 
+def set_workflow_state(phase=None, plan_path=None, next_action=None):
+    """Set workflow state for current feature."""
+    data = load_progress_json()
+    if not data:
+        print("No progress tracking found")
+        return False
+
+    if not data.get("current_feature_id"):
+        print("Error: No feature currently in progress")
+        return False
+
+    workflow_state = data.get("workflow_state", {})
+
+    if phase:
+        workflow_state["phase"] = phase
+    if plan_path is not None:
+        workflow_state["plan_path"] = plan_path
+    if next_action:
+        workflow_state["next_action"] = next_action
+
+    workflow_state["updated_at"] = datetime.now().isoformat() + "Z"
+
+    data["workflow_state"] = workflow_state
+    save_progress_json(data)
+
+    print(f"Workflow state updated: phase={phase or workflow_state.get('phase')}")
+    return True
+
+
+def update_workflow_task(task_id, status):
+    """Update task completion status in workflow_state."""
+    data = load_progress_json()
+    if not data:
+        print("No progress tracking found")
+        return False
+
+    workflow_state = data.get("workflow_state", {})
+
+    if status == "completed":
+        completed_tasks = workflow_state.get("completed_tasks", [])
+        if task_id not in completed_tasks:
+            completed_tasks.append(task_id)
+            workflow_state["completed_tasks"] = completed_tasks
+            workflow_state["current_task"] = task_id + 1
+
+    workflow_state["updated_at"] = datetime.now().isoformat() + "Z"
+
+    data["workflow_state"] = workflow_state
+    save_progress_json(data)
+
+    total = workflow_state.get("total_tasks", 0)
+    print(f"Task {task_id}/{total} marked as {status}")
+    return True
+
+
+def clear_workflow_state():
+    """Clear workflow state from progress tracking."""
+    data = load_progress_json()
+    if not data:
+        print("No progress tracking found")
+        return False
+
+    if "workflow_state" in data:
+        del data["workflow_state"]
+        save_progress_json(data)
+        print("Workflow state cleared")
+        return True
+
+    print("No workflow state to clear")
+    return True
+
+
 def generate_progress_md(data):
     """Generate markdown content from progress data."""
     project_name = data.get("project_name", "Unknown Project")
@@ -540,6 +660,24 @@ def main():
         "--force", action="store_true", help="Force reset without confirmation"
     )
 
+    # Set workflow state command
+    workflow_parser = subparsers.add_parser(
+        "set-workflow-state", help="Set workflow state for current feature"
+    )
+    workflow_parser.add_argument("--phase", help="Workflow phase")
+    workflow_parser.add_argument("--plan-path", help="Path to plan file")
+    workflow_parser.add_argument("--next-action", help="Next action to take")
+
+    # Update workflow task command
+    task_parser = subparsers.add_parser(
+        "update-workflow-task", help="Update task completion status"
+    )
+    task_parser.add_argument("task_id", type=int, help="Task ID")
+    task_parser.add_argument("status", choices=["completed"], help="Task status")
+
+    # Clear workflow state command
+    subparsers.add_parser("clear-workflow-state", help="Clear workflow state")
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -558,6 +696,14 @@ def main():
         return undo_last_feature()
     elif args.command == "reset":
         return reset_tracking(force=args.force)
+    elif args.command == "set-workflow-state":
+        return set_workflow_state(
+            phase=args.phase, plan_path=args.plan_path, next_action=args.next_action
+        )
+    elif args.command == "update-workflow-task":
+        return update_workflow_task(args.task_id, args.status)
+    elif args.command == "clear-workflow-state":
+        return clear_workflow_state()
     else:
         parser.print_help()
         return 1
