@@ -4,5 +4,16 @@
   "description": "Track long-running AI agent tasks with feature-based progress tracking, test-driven status updates, and Git integration",
   "author": {
     "name": "siunin"
-  }
+  },
+  "license": "MIT",
+  "keywords": [
+    "progress-tracking",
+    "tdd",
+    "feature-development",
+    "git-integration",
+    "session-recovery",
+    "task-management",
+    "ai-agent",
+    "workflow"
+  ]
 }

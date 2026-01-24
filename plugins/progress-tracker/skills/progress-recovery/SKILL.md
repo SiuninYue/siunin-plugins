@@ -1,7 +1,7 @@
 ---
 name: progress-recovery
 description: 进度恢复技能。用于分析会话上下文并检测中断的进度跟踪。
-model: haiku
+model: sonnet
 version: "1.0.0"
 scope: skill
 inputs:

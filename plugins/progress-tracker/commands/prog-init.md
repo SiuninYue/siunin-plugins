@@ -1,6 +1,18 @@
 ---
 name: prog-init
 description: Initialize project progress tracking with feature breakdown
+version: "1.0.0"
+scope: command
+inputs:
+  - Project goal or description
+  - Optional force flag to re-initialize
+outputs:
+  - Feature breakdown with test steps
+  - Initialized progress tracking files
+  - Next action recommendation
+evidence: optional
+references: []
+model: sonnet
 ---
 
-Please use the **feature-breakdown** skill from the progress-tracker plugin to analyze the user's goal, break it down into specific features with test steps, and initialize progress tracking.
+请调用 skills/feature-breakdown/SKILL.md 来分析目标，将其分解为具体功能并包含测试步骤，然后初始化进度跟踪。

@@ -1,0 +1,46 @@
+{
+  "project_name": "Sample Project",
+  "created_at": "2024-01-15T10:00:00Z",
+  "features": [
+    {
+      "id": 1,
+      "name": "User Authentication",
+      "test_steps": [
+        "Create user with valid credentials",
+        "Login with correct credentials returns token",
+        "Login with invalid credentials returns 401"
+      ],
+      "completed": true,
+      "completed_at": "2024-01-16T15:30:00Z",
+      "commit_hash": "a1b2c3d4"
+    },
+    {
+      "id": 2,
+      "name": "User Profile",
+      "test_steps": [
+        "GET /api/profile returns user data",
+        "PATCH /api/profile updates user fields"
+      ],
+      "completed": false
+    },
+    {
+      "id": 3,
+      "name": "Password Reset",
+      "test_steps": [
+        "Request password reset with email",
+        "Reset with valid token",
+        "Reset with expired token fails"
+      ],
+      "completed": false
+    }
+  ],
+  "current_feature_id": 2,
+  "workflow_state": {
+    "phase": "execution",
+    "plan_path": ".claude/plan.md",
+    "completed_tasks": [1, 2],
+    "total_tasks": 5,
+    "current_task": 3,
+    "updated_at": "2024-01-17T09:00:00Z"
+  }
+}

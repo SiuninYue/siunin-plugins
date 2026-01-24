@@ -1,7 +1,7 @@
 ---
 name: progress-management
 description: 进度管理技能。用于撤销功能（git revert）和重置进度跟踪。
-model: opus
+model: sonnet
 version: "1.0.0"
 scope: skill
 inputs:

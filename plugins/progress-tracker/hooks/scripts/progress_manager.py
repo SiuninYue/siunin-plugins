@@ -21,6 +21,7 @@ import os
 import sys
 import subprocess
 import shutil
+import logging
 from datetime import datetime
 from pathlib import Path
 
@@ -28,6 +29,107 @@ from pathlib import Path
 DEFAULT_CLAUDE_DIR = ".claude"
 PROGRESS_JSON = "progress.json"
 PROGRESS_MD = "progress.md"
+
+# Configure logging for diagnostics
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s: %(message)s"
+)
+logger = logging.getLogger(__name__)
+
+
+def get_plugin_root():
+    """
+    Get the plugin root directory with multiple fallback mechanisms.
+
+    Priority:
+    1. Environment variable CLAUDE_PLUGIN_ROOT
+    2. Relative to script location (progress_manager.py)
+    3. Common plugin installation paths
+
+    Returns:
+        Path: The plugin root directory
+
+    Raises:
+        RuntimeError: If plugin root cannot be determined
+    """
+    # 1. Try environment variable
+    env_root = os.environ.get("CLAUDE_PLUGIN_ROOT")
+    if env_root:
+        root = Path(env_root)
+        if validate_plugin_root(root):
+            logger.info(f"Using CLAUDE_PLUGIN_ROOT: {root}")
+            return root
+        else:
+            logger.warning(f"CLAUDE_PLUGIN_ROOT is set but invalid: {env_root}")
+
+    # 2. Try relative to script location
+    script_path = Path(__file__).resolve()
+    # Script is at: <plugin_root>/hooks/scripts/progress_manager.py
+    # So plugin root is 3 levels up
+    relative_root = script_path.parent.parent.parent
+    if validate_plugin_root(relative_root):
+        logger.info(f"Using script-relative path: {relative_root}")
+        return relative_root
+
+    # 3. Try common installation paths
+    common_paths = [
+        # User-level plugin installation
+        Path.home() / ".claude" / "plugins" / "progress-tracker",
+        # System-wide plugin installation
+        Path("/usr/local/lib/claude/plugins/progress-tracker"),
+        # Development directory (when working on the plugin itself)
+        Path(__file__).resolve().parent.parent.parent.parent.parent,
+    ]
+
+    for path in common_paths:
+        if validate_plugin_root(path):
+            logger.info(f"Using common path: {path}")
+            return path
+
+    # If all else fails, raise an error with helpful message
+    raise RuntimeError(
+        "Cannot determine plugin root directory. "
+        "Set CLAUDE_PLUGIN_ROOT environment variable or ensure plugin is properly installed. "
+        f"Searched: {env_root if env_root else 'not set'}, {relative_root}, {common_paths}"
+    )
+
+
+def validate_plugin_root(path):
+    """
+    Validate that a path is a valid plugin root directory.
+
+    A valid plugin root should contain:
+    - hooks/hooks.json or hooks/scripts/progress_manager.py
+    - skills/ directory (optional but recommended)
+
+    Args:
+        path: Path to validate
+
+    Returns:
+        bool: True if path appears to be a valid plugin root
+    """
+    path = Path(path)
+
+    # Check if path exists
+    if not path.exists():
+        return False
+
+    # Check for key plugin files
+    has_hooks_json = (path / "hooks" / "hooks.json").exists()
+    has_progress_manager = (path / "hooks" / "scripts" / "progress_manager.py").exists()
+    has_skills = (path / "skills").exists()
+    has_commands = (path / "commands").exists()
+
+    # At minimum, should have the progress_manager script
+    if has_progress_manager:
+        return True
+
+    # Or hooks.json if using direct script loading
+    if has_hooks_json and (has_skills or has_commands):
+        return True
+
+    return False
 
 
 def find_project_root():
