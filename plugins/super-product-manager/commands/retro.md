@@ -1,4 +1,15 @@
 ---
+version: "1.0.0"
+scope: command
+inputs:
+  - 项目/时间段描述
+  - 目标与实际结果
+outputs:
+  - 复盘分析
+  - 改进行动项
+evidence: optional
+references:
+  - ../skills/retro/SKILL.md
 description: 进行项目/迭代复盘
 argument-hint: 描述要复盘的项目或时间段
 ---

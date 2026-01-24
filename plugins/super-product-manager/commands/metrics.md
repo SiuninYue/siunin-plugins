@@ -1,4 +1,15 @@
 ---
+version: "1.0.0"
+scope: command
+inputs:
+  - 产品类型
+  - 业务目标
+outputs:
+  - 指标体系设计
+  - 埋点方案
+evidence: optional
+references:
+  - ../skills/data-driven/SKILL.md
 description: 设计产品指标体系
 argument-hint: 描述你的产品或业务目标
 ---

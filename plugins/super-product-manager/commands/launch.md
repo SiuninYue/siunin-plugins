@@ -1,4 +1,14 @@
 ---
+version: "1.0.0"
+scope: command
+inputs:
+  - 上线产品/功能描述
+outputs:
+  - 上线检查清单
+  - 风险控制方案
+evidence: optional
+references:
+  - ../skills/launch/SKILL.md
 description: 生成产品上线检查清单
 argument-hint: 描述要上线的产品或功能
 ---

@@ -1,4 +1,15 @@
 ---
+version: "1.0.0"
+scope: command
+inputs:
+  - 产品想法描述
+outputs:
+  - 想法验证结论
+  - 改进建议
+evidence: optional
+references:
+  - ../skills/idea-concretization/SKILL.md
+  - ../skills/market-validation/SKILL.md
 description: 验证产品想法是否值得做
 argument-hint: 描述你的产品想法
 ---

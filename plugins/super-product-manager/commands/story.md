@@ -1,4 +1,14 @@
 ---
+version: "1.0.0"
+scope: command
+inputs:
+  - 功能需求描述
+outputs:
+  - 用户故事卡片
+  - 验收标准
+evidence: optional
+references:
+  - ../skills/user-story/SKILL.md
 description: 生成用户故事卡片
 argument-hint: 描述你要做的功能
 ---

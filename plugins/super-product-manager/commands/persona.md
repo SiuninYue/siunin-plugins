@@ -1,4 +1,14 @@
 ---
+version: "1.0.0"
+scope: command
+inputs:
+  - 目标用户群体描述
+outputs:
+  - 用户画像
+  - 证据标注
+evidence: optional
+references:
+  - ../skills/persona/SKILL.md
 description: 生成详细的用户画像
 argument-hint: 描述你的目标用户群体
 ---

@@ -1,4 +1,15 @@
 ---
+version: "1.0.0"
+scope: command
+inputs:
+  - 产品描述
+  - 竞品列表
+outputs:
+  - 竞品分析报告
+  - 差异化建议
+evidence: optional
+references:
+  - ../skills/market-research/SKILL.md
 description: 分析竞品并找到差异化机会
 argument-hint: 描述你的产品或列出竞品名称
 ---

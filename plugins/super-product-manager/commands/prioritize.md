@@ -1,4 +1,14 @@
 ---
+version: "1.0.0"
+scope: command
+inputs:
+  - 功能/任务列表
+outputs:
+  - 优先级排序
+  - 评分理由
+evidence: optional
+references:
+  - ../skills/prioritization/SKILL.md
 description: 对功能/任务进行优先级排序
 argument-hint: 列出需要排序的功能或任务
 ---

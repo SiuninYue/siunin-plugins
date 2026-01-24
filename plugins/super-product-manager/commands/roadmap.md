@@ -1,4 +1,16 @@
 ---
+version: "1.0.0"
+scope: command
+inputs:
+  - 产品愿景
+  - 时间范围
+  - 资源约束
+outputs:
+  - 产品路线图
+  - 里程碑规划
+evidence: optional
+references:
+  - ../skills/roadmap/SKILL.md
 description: 制定产品路线图
 argument-hint: 描述产品目标和时间范围
 ---

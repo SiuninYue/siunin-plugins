@@ -1,4 +1,14 @@
 ---
+version: "1.0.0"
+scope: command
+inputs:
+  - 产品想法描述
+outputs:
+  - MVP 功能范围
+  - 验证标准
+evidence: optional
+references:
+  - ../skills/lean-startup/SKILL.md
 description: 规划最小可行产品
 argument-hint: 描述你的产品想法
 ---

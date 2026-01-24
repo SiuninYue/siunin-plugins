@@ -1,4 +1,14 @@
 ---
+version: "1.0.0"
+scope: command
+inputs:
+  - 功能需求描述
+outputs:
+  - 完整 PRD 文档
+  - 验收标准
+evidence: optional
+references:
+  - ../skills/prd/SKILL.md
 description: 生成完整的产品需求文档
 argument-hint: 描述你要做的功能
 ---

@@ -1,4 +1,15 @@
 ---
+version: "1.0.0"
+scope: command
+inputs:
+  - 访谈目标用户
+  - 想验证的问题
+outputs:
+  - 访谈问题清单
+  - 访谈执行指南
+evidence: optional
+references:
+  - ../skills/user-interview/SKILL.md
 description: 生成用户访谈问题和指南
 argument-hint: 描述你想了解的用户群体或问题
 ---
