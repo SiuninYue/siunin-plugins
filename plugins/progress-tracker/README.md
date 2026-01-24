@@ -508,6 +508,32 @@ The plugin tracks detailed workflow state for accurate recovery:
    - Prevents completion without going through Superpowers workflow
    - Guides recovery if workflow is incomplete
 
+---
+
+## Changelog
+
+### v1.1.0 (2025-01-25)
+
+#### 规范完善
+- ✅ 添加 `STANDARDS.md`：定义共享的 frontmatter schema 约定
+- ✅ 添加 `CHANGELOG.md`：完整的版本历史记录
+- ✅ 修复所有 7 个 commands 的 frontmatter，添加必填字段
+  - 新增字段：`version`, `scope`, `inputs`, `outputs`, `evidence`, `references`
+
+#### 测试覆盖
+- ✅ 新增 `tests/` 目录，包含 pytest 测试套件
+  - `test_progress_manager.py` - 核心功能测试
+  - `test_workflow_state.py` - 工作流状态测试
+  - `test_git_integration.py` - Git 集成测试
+  - `conftest.py` - 测试配置和 fixtures
+
+#### 功能增强
+- 更新 `plugin.json` hooks 配置
+- 增强进度管理器的命令行接口
+
+### v1.0.0
+- 初始版本，包含完整的进度追踪功能
+
 ## License
 
 MIT
