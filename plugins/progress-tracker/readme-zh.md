@@ -370,7 +370,9 @@ plugins/progress-tracker/
 │   ├── prog.md
 │   ├── prog-init.md
 │   ├── prog-next.md
-│   └── prog-done.md
+│   ├── prog-done.md
+│   ├── prog-undo.md
+│   └── prog-reset.md
 ├── skills/
 │   ├── feature-breakdown/
 │   │   └── SKILL.md
@@ -386,7 +388,11 @@ plugins/progress-tracker/
 │   ├── hooks.json
 │   └── scripts/
 │       └── progress_manager.py
-└── README.md
+├── .gitignore
+├── LICENSE
+├── plugin.md
+├── README.md
+└── readme-zh.md
 ```
 
 ## 会话恢复
