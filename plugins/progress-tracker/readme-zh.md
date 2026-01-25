@@ -51,6 +51,24 @@ Progress Tracker 插件解决了 AI 辅助开发中的一个关键问题：**如
 /prog done
 ```
 
+**对于复杂项目**，可以先进行架构规划：
+
+```bash
+# 1. 架构规划（可选）
+/prog plan 构建分布式电商系统
+# → 技术选型：Python + FastAPI + PostgreSQL
+# → 系统架构设计
+# → 生成 .claude/architecture.md
+
+# 2. 基于架构初始化功能
+/prog init 构建分布式电商系统
+# → 自动读取架构决策
+# → 生成 Python 特定的功能列表（SQLAlchemy、Pydantic、Alembic）
+
+# 3. 开始实施
+/prog next
+```
+
 **就是这样！** 插件将：
 - ✅ 将您的目标分解为功能
 - ✅ 引导您完成 TDD 实现
@@ -59,6 +77,52 @@ Progress Tracker 插件解决了 AI 辅助开发中的一个关键问题：**如
 - ✅ 在会话之间记住您的进度
 
 ## 命令
+
+### `/prog plan <项目描述>`
+
+进行技术选型和系统架构设计。
+
+为项目提供技术栈推荐、系统架构设计和架构决策记录（ADR）。
+
+**示例：**
+```bash
+/prog plan 构建分布式电商系统
+```
+
+**行为：**
+- 引导技术栈选择（后端框架、数据库、缓存、消息队列等）
+- 设计系统架构（组件结构、数据流、API 设计）
+- 创建架构决策记录 `.claude/architecture.md`
+- 为后续 `/prog init` 提供技术上下文
+
+**何时使用：**
+- 需要技术选型建议
+- 项目需要前期架构设计
+- 团队需要架构文档
+- 多种技术方案可选时
+
+**输出示例：**
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🏗️  架构规划
+
+问题 1/5：后端框架选择？
+  • Node.js + Express - 快速开发，生态丰富
+  • Python + FastAPI - 高性能，自动文档
+  • Go + Gin - 高并发，编译型
+
+（用户选择后继续...）
+
+✓ 架构规划完成
+
+架构文档保存到：.claude/architecture.md
+
+技术栈：
+  • 后端：Python + FastAPI
+  • 数据库：PostgreSQL
+  • 缓存：Redis
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
 
 ### `/prog init <目标描述>`
 
@@ -163,13 +227,14 @@ Progress Tracker 插件解决了 AI 辅助开发中的一个关键问题：**如
 | **钩子** | 事件 | SessionStart 检测未完成的工作 |
 | **脚本** | 状态 | Python 脚本管理 JSON/MD 文件 |
 
-### 技能（共 5 个）
+### 技能（共 6 个）
 
 1. **feature-breakdown** - 分析目标，创建功能列表
 2. **progress-status** - 显示状态和统计信息
-3. **feature-implement** - 编排 Superpowers 工作流程，进行复杂度评估
-4. **feature-complete** - 验证工作流程，运行测试，提交，更新状态
-5. **progress-recovery** - 自动检测未完成的工作，提供恢复选项
+3. **architectural-planning** - 技术选型、系统架构设计、架构决策记录
+4. **feature-implement** - 编排 Superpowers 工作流程，进行复杂度评估
+5. **feature-complete** - 验证工作流程，运行测试，提交，更新状态
+6. **progress-recovery** - 自动检测未完成的工作，提供恢复选项
 
 ### Progress Manager 命令
 
@@ -222,6 +287,7 @@ python3 progress_manager.py reset [--force]
 ```
 
 **progress.md** - 人类可读日志：
+
 ```markdown
 # 项目进度：用户认证
 
@@ -238,6 +304,110 @@ python3 progress_manager.py reset [--force]
 - [ ] 登录 API
 - [ ] JWT 令牌生成
 ```
+
+**architecture.md** - 架构决策记录（可选）：
+
+```markdown
+# Architecture: 电商系统
+
+**Created**: 2024-01-25T10:00:00Z
+
+## Technology Stack
+
+| Component | Technology | Justification |
+|-----------|-----------|---------------|
+| Backend   | Python + FastAPI | 高性能，自动API文档 |
+| Database  | PostgreSQL | ACID支持，成熟稳定 |
+| Cache     | Redis | 高性能缓存层 |
+
+## Architectural Decisions
+
+### ADR-001: 选择 FastAPI 而非 Express
+
+**Context**: 需要高性能异步后端
+
+**Decision**: FastAPI + Python 3.11
+
+**Consequences**:
+- Positive: 自动OpenAPI文档，类型检查
+- Negative: 异步生态不如Node.js成熟
+
+## System Architecture
+
+[架构图或描述]
+```
+```markdown
+# 项目进度：用户认证
+
+## 已完成
+- [x] 用户数据库模型（提交：abc123）
+
+## 进行中
+- [ ] 注册 API
+  测试步骤：
+  - POST /api/register 使用有效数据
+  - 检查数据库中的新用户
+
+## 待完成
+- [ ] 登录 API
+- [ ] JWT 令牌生成
+```
+
+## 架构规划与功能分解的集成
+
+`/prog plan` 和 `/prog init` 可以独立使用或组合使用，提供灵活的开发工作流。
+
+### 工作流 1：快速启动（仅使用 init）
+
+适合简单项目或快速原型：
+
+```bash
+/prog init 添加评论功能
+# → 直接生成通用功能列表
+# → 不依赖特定技术栈
+
+/prog next  # 开始实施
+```
+
+### 工作流 2：规划优先（plan + init）
+
+适合中大型项目或团队协作：
+
+```bash
+# 步骤 1：先做架构规划
+/prog plan 构建电商系统
+# → 选择技术栈：Python + FastAPI + PostgreSQL
+# → 设计系统架构
+# → 生成 .claude/architecture.md
+
+# 步骤 2：基于架构生成功能
+/prog init 构建电商系统
+# → 自动读取架构决策
+# → 生成 Python 特定功能：
+#   • "Create SQLAlchemy models for Product"
+#   • "Implement POST /api/products with FastAPI"
+#   • "Add Pydantic schemas for validation"
+#   • "Write Alembic migration for products table"
+
+/prog next  # 开始实施
+```
+
+### 智能集成
+
+当 `.claude/architecture.md` 存在时，`/prog init` 会：
+
+1. **读取技术栈**：了解使用的技术（语言、框架、数据库）
+2. **适配功能描述**：生成与该技术匹配的功能名称
+3. **定制测试步骤**：使用该技术的测试命令
+4. **引用架构决策**：在实施时参考设计约束
+
+**示例对比**：
+
+| 架构 | 功能列表示例 |
+|------|-------------|
+| **Node.js + Express** | "Create Sequelize models", "Implement Express router", "Add Joi validation" |
+| **Python + FastAPI** | "Create SQLAlchemy models", "Implement FastAPI endpoint", "Add Pydantic schemas" |
+| **Go + Gin** | "Define Go structs", "Implement Gin handler", "Add validator package" |
 
 ## 工作流程示例
 
@@ -369,6 +539,7 @@ plugins/progress-tracker/
 ├── commands/
 │   ├── prog.md
 │   ├── prog-init.md
+│   ├── prog-plan.md        # 新增：架构规划命令
 │   ├── prog-next.md
 │   ├── prog-done.md
 │   ├── prog-undo.md
@@ -377,6 +548,8 @@ plugins/progress-tracker/
 │   ├── feature-breakdown/
 │   │   └── SKILL.md
 │   ├── progress-status/
+│   │   └── SKILL.md
+│   ├── architectural-planning/  # 新增：架构规划技能
 │   │   └── SKILL.md
 │   ├── feature-implement/
 │   │   └── SKILL.md
@@ -480,6 +653,30 @@ plugins/progress-tracker/
 | **约定优于配置** | 智能默认值，无需配置 |
 
 ## 新增功能 (v2.0)
+
+### v1.2.0 (2025-01-25)
+
+#### 架构规划功能
+- ✅ 新增 `/prog plan` 命令：技术选型和系统架构设计
+- ✅ 新增 `architectural-planning` 技能：
+  - 交互式技术栈选择
+  - 系统架构设计指导
+  - 架构决策记录（ADR）生成
+  - 保存到 `.claude/architecture.md`
+- ✅ 更新 `feature-breakdown` 技能：
+  - 自动读取架构文档
+  - 基于技术选型生成适配的功能列表
+  - 技术特定的测试步骤
+- ✅ 更新 `feature-implement` 技能：
+  - 实施时读取架构上下文
+  - 参考架构决策约束
+
+**设计理念**：职责分离
+- `/prog plan` 回答"如何构建"（技术选型、架构设计）
+- `/prog init` 回答"构建什么"（功能分解）
+- 可独立使用或组合使用
+
+### P0 核心可靠性改进
 
 ### P0 核心可靠性改进
 
