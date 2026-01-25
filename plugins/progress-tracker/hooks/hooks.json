@@ -1,10 +1,16 @@
 {
+  "description": "Progress tracker session recovery hook for detecting incomplete work",
   "hooks": {
     "SessionStart": [
       {
-        "type": "command",
-        "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py check",
-        "timeout": 5
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py check",
+            "timeout": 5
+          }
+        ]
       }
     ]
   }
