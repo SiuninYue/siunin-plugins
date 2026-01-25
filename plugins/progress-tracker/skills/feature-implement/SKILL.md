@@ -37,6 +37,12 @@ Load `.claude/progress.json` to find the next feature:
 next_feature = first(f for f in features if f.completed == false)
 ```
 
+**ALSO**: Check for architecture context at `.claude/architecture.md`:
+
+- If exists, read technology stack and design decisions
+- Use this context when invoking brainstorming or planning
+- Reference architectural constraints in implementation guidance
+
 ### Step 2: Update Current Feature
 
 Mark the feature as in-progress:

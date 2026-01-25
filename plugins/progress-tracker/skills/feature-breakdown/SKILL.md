@@ -122,6 +122,104 @@ When `progress.json` already exists:
    - **Re-plan**: Clear existing features and create new breakdown
    - **Update**: Modify existing feature definitions
 
+## Integration with Architecture Planning
+
+**CRITICAL**: Always check for existing architecture document before generating features.
+
+### Reading Architecture Context
+
+When starting feature breakdown:
+
+1. **First**, attempt to read `.claude/architecture.md`
+2. **If exists**, extract:
+   - Technology stack (backend language, database, cache, etc.)
+   - Architecture patterns (monolith, microservices, event-driven)
+   - Key design decisions (API style, data modeling approach)
+   - Integration points (external services, APIs)
+
+3. **Adapt feature breakdown** to match architectural decisions
+
+### Technology-Specific Feature Generation
+
+Use architecture decisions to generate appropriate features:
+
+**Example: Node.js + Express + PostgreSQL**
+```markdown
+1. "Create Sequelize models for User entity"
+2. "Implement POST /api/users with Express router"
+3. "Add Joi validation for request schemas"
+4. "Write database migration for users table"
+```
+
+**Example: Python + FastAPI + PostgreSQL**
+```markdown
+1. "Create SQLAlchemy models for User entity"
+2. "Implement POST /api/users with FastAPI"
+3. "Add Pydantic schemas for request validation"
+4. "Write Alembic migration for users table"
+```
+
+**Example: Go + Gin + PostgreSQL**
+```markdown
+1. "Define Go structs for User entity"
+2. "Implement POST /api/users with Gin router"
+3. "Add validator package for request validation"
+4. "Write SQL migration for users table"
+```
+
+### Architecture-Driven Test Steps
+
+Generate test steps that match the chosen technologies:
+
+```markdown
+# Node.js example
+Test steps:
+- "Start server: npm run dev"
+- "Test API: curl -X POST http://localhost:3000/api/users -d '{\"email\":\"test@example.com\"}'"
+- "Verify database: psql -c 'SELECT * FROM users;'"
+
+# Python example
+Test steps:
+- "Start server: uvicorn main:app --reload"
+- "Test API: curl -X POST http://localhost:8000/api/users -d '{\"email\":\"test@example.com\"}'"
+- "Verify database: python manage.py db shell; SELECT * FROM users;"
+```
+
+### When No Architecture Exists
+
+If `.claude/architecture.md` doesn't exist:
+
+1. **For simple projects**: Proceed with generic feature breakdown
+2. **For complex projects**: Suggest running `/prog plan` first
+   ```markdown
+   ⚠️  This appears to be a complex project.
+
+   Consider running `/prog plan` first to:
+   - Select appropriate technology stack
+   - Design system architecture
+   - Make key technical decisions
+
+   This will generate more accurate feature breakdowns.
+
+   Continue with generic breakdown? [y/n]
+   ```
+
+### Communicating Architecture Awareness
+
+When using architecture decisions, inform the user:
+
+```markdown
+## Feature Breakdown: <Project Name>
+
+Based on your architecture (Node.js + Express + PostgreSQL):
+✓ Using Sequelize for database models
+✓ Using Express Router for API endpoints
+✓ Using Joi for validation
+
+I've broken this down into N features:
+...
+```
+
 ## Smart Decision Making
 
 ### Simple vs Complex Goals
