@@ -15,4 +15,14 @@ references: []
 model: sonnet
 ---
 
-请调用 skills/feature-breakdown/SKILL.md 来分析目标，将其分解为具体功能并包含测试步骤，然后初始化进度跟踪。
+<CRITICAL>
+DO NOT just describe or mention the skill. You MUST invoke it using the Skill tool.
+
+NOW invoke the skill:
+
+Use the Skill tool with these exact parameters:
+  - skill: "progress-tracker:feature-breakdown"
+  - args: "{user_input}"
+
+WAIT for the skill to complete.
+</CRITICAL>

@@ -16,4 +16,14 @@ references: []
 model: sonnet
 ---
 
-请调用 skills/architectural-planning/SKILL.md 来进行技术选型、系统架构设计和决策记录，创建或更新架构文档。
+<CRITICAL>
+DO NOT just describe or mention the skill. You MUST invoke it using the Skill tool.
+
+NOW invoke the skill:
+
+Use the Skill tool with these exact parameters:
+  - skill: "progress-tracker:architectural-planning"
+  - args: "{user_input}"
+
+WAIT for the skill to complete.
+</CRITICAL>

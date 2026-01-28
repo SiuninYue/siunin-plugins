@@ -14,4 +14,14 @@ references: []
 model: haiku
 ---
 
-请调用 skills/progress-management/SKILL.md 来重置项目进度。除非用户明确请求强制执行，否则在执行重置前**请求确认**。
+<CRITICAL>
+DO NOT just describe or mention the skill. You MUST invoke it using the Skill tool.
+
+NOW invoke the skill:
+
+Use the Skill tool with these exact parameters:
+  - skill: "progress-tracker:progress-management"
+  - args: "reset"
+
+WAIT for the skill to complete.
+</CRITICAL>

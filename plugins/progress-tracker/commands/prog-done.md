@@ -15,4 +15,14 @@ references: []
 model: sonnet
 ---
 
-请调用 skills/feature-complete/SKILL.md 来执行当前功能的测试步骤，验证实现，更新进度跟踪，并将更改提交到 Git。
+<CRITICAL>
+DO NOT just describe or mention the skill. You MUST invoke it using the Skill tool.
+
+NOW invoke the skill:
+
+Use the Skill tool with these exact parameters:
+  - skill: "progress-tracker:feature-complete"
+  - args: ""
+
+WAIT for the skill to complete.
+</CRITICAL>

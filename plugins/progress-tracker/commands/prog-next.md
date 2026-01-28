@@ -14,4 +14,14 @@ references: []
 model: sonnet
 ---
 
-请调用 skills/feature-implement/SKILL.md 来识别下一个待处理功能，更新当前功能状态，并启动 feature-dev 工作流进行实现。
+<CRITICAL>
+DO NOT just describe or mention the skill. You MUST invoke it using the Skill tool.
+
+NOW invoke the skill:
+
+Use the Skill tool with these exact parameters:
+  - skill: "progress-tracker:feature-implement"
+  - args: ""
+
+WAIT for the skill to complete.
+</CRITICAL>

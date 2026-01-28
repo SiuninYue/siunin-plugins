@@ -14,4 +14,14 @@ references: []
 model: sonnet
 ---
 
-请调用 skills/progress-management/SKILL.md 来安全地撤销最近完成的功能。在继续之前，请确保工作目录是干净的。
+<CRITICAL>
+DO NOT just describe or mention the skill. You MUST invoke it using the Skill tool.
+
+NOW invoke the skill:
+
+Use the Skill tool with these exact parameters:
+  - skill: "progress-tracker:progress-management"
+  - args: "undo"
+
+WAIT for the skill to complete.
+</CRITICAL>

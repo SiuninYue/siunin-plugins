@@ -14,4 +14,14 @@ references: []
 model: haiku
 ---
 
-请调用 skills/progress-status/SKILL.md 来显示项目进度状态，包括完成统计、当前功能和下一步建议。
+<CRITICAL>
+DO NOT just describe or mention the skill. You MUST invoke it using the Skill tool.
+
+NOW invoke the skill:
+
+Use the Skill tool with these exact parameters:
+  - skill: "progress-tracker:progress-status"
+  - args: ""
+
+WAIT for the skill to complete.
+</CRITICAL>
