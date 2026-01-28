@@ -162,7 +162,7 @@ python3 progress_manager.py complete <feature_id> --commit <hash>
 
 # Workflow state commands (NEW)
 python3 progress_manager.py set-workflow-state --phase <phase> [--plan-path <path>] [--next-action <action>]
-python3 progress_manager.py update-workflow-task --task-id <id> --status completed
+python3 progress_manager.py update-workflow-task <id> completed
 python3 progress_manager.py clear-workflow-state
 
 # Feature management

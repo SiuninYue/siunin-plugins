@@ -274,9 +274,7 @@ As tasks complete, update workflow_state.completed_tasks:
 
 After each task:
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-workflow-task \
-  --task-id <task_number> \
-  --status completed
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-workflow-task <task_number> completed
 ```
 
 Monitor the skill execution and display progress to user:
@@ -550,9 +548,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-sta
   --next-action "<next_action>"
 
 # Mark individual task as completed
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-workflow-task \
-  --task-id <task_number> \
-  --status completed
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-workflow-task <task_number> completed
 ```
 
 ## When No Features Remain
