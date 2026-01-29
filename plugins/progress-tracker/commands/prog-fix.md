@@ -21,7 +21,7 @@ NOW invoke the skill:
 
 Use the Skill tool with these exact parameters:
   - skill: "progress-tracker:bug-fix"
-  - args: ""
+  - args: "{user_input}"
 
 WAIT for the skill to complete.
 </CRITICAL>

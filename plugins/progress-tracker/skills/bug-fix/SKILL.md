@@ -14,6 +14,7 @@ references:
   - "superpowers:systematic-debugging"
   - "superpowers:test-driven-development"
   - "superpowers:code-reviewer"
+model: sonnet
 ---
 
 # Bug Fix Skill
@@ -227,26 +228,37 @@ Ready for TDD fix.
 Resume fixing?
 
 ### Proceeding with Systematic Debugging...
-```
 
-**CRITICAL**: Invoke skills using Skill tool:
+<CRITICAL>
+DO NOT just describe or mention the skill. You MUST invoke it using the Skill tool.
 
-```python
-# For bugs needing investigation
-Skill("superpowers:systematic-debugging", args="<bug description>")
+For bugs needing investigation:
+Use the Skill tool with these exact parameters:
+  - skill: "superpowers:systematic-debugging"
+  - args: "<bug description>"
 
-# After investigation, update status
-→ python3 progress_manager.py update-bug --status "confirmed"
+WAIT for the skill to complete.
 
-# For confirmed bugs, use TDD
-Skill("superpowers:test-driven-development", args="Fix <bug>: <one-line>")
+After investigation completes, update bug status:
+→ python3 progress_manager.py update-bug --bug-id "BUG-XXX" --status "confirmed"
 
-# After TDD, update status
-→ python3 progress_manager.py update-bug --status "fixed"
+For confirmed bugs requiring TDD fix:
+Use the Skill tool with these exact parameters:
+  - skill: "superpowers:test-driven-development"
+  - args: "Fix <bug>: <one-line description>"
 
-# Finally, code review
-Skill("superpowers:code-reviewer", args="Verify bug fix for: <bug>")
-```
+WAIT for the skill to complete.
+
+After TDD completes, update bug status:
+→ python3 progress_manager.py update-bug --bug-id "BUG-XXX" --status "fixed"
+
+Finally, verify the fix with code review:
+Use the Skill tool with these exact parameters:
+  - skill: "superpowers:code-reviewer"
+  - args: "Verify bug fix for: <bug>"
+
+WAIT for the skill to complete.
+</CRITICAL>
 
 ## Progress Manager Extensions
 
