@@ -1,5 +1,4 @@
 ---
-name: prog-plan
 description: Create architectural plan with technology selection and system design
 version: "1.0.0"
 scope: command

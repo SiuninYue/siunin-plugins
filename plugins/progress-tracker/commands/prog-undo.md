@@ -1,5 +1,4 @@
 ---
-name: prog-undo
 description: Undo the last completed feature and revert its code changes
 version: "1.0.0"
 scope: command

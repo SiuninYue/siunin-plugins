@@ -14,6 +14,9 @@ references:
   - "superpowers:systematic-debugging"
   - "superpowers:test-driven-development"
   - "superpowers:code-reviewer"
+  - "references/workflow.md"
+  - "references/integration.md"
+  - "examples/session.md"
 model: sonnet
 ---
 

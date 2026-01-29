@@ -1,5 +1,4 @@
 ---
-name: prog-next
 description: Start implementing the next pending feature
 version: "1.0.0"
 scope: command

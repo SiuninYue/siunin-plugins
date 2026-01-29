@@ -1,5 +1,4 @@
 ---
-name: prog-init
 description: Initialize project progress tracking with feature breakdown
 version: "1.0.0"
 scope: command

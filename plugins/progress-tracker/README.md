@@ -105,6 +105,21 @@ Runs test steps, updates progress tracking, and creates a Git commit.
 4. Updates `progress.json` (stores commit hash) and `progress.md`
 5. Suggests next action
 
+### `/prog fix`
+
+Report, list, or fix bugs with smart scheduling and systematic debugging.
+
+**Example:**
+```bash
+/prog fix "Users are logged out after refresh"
+```
+
+**Behavior:**
+- Runs quick verification (under 30 seconds)
+- Offers to record the bug or investigate immediately
+- Schedules bugs into the feature timeline by priority
+- Orchestrates Superpowers debugging + TDD fix + code review
+
 ## Maintenance Phase
 
 Once development is underway, you may need to manage the project state.
@@ -140,13 +155,16 @@ The plugin follows a **Commands → Skills** architecture:
 | **Hooks** | Events | SessionStart detects incomplete work |
 | **Scripts** | State | Python script manages JSON/MD files |
 
-### Skills (5 total)
+### Skills (8 total)
 
 1. **feature-breakdown** - Analyzes goals, creates feature lists
 2. **progress-status** - Displays status and statistics
 3. **feature-implement** - Orchestrates Superpowers workflow with complexity assessment
 4. **feature-complete** - Validates workflow, runs tests, commits, updates state
 5. **progress-recovery** - Auto-detects incomplete work, provides recovery options
+6. **architectural-planning** - Coordinates architecture design and stack selection
+7. **bug-fix** - Systematic bug triage, scheduling, and fixing workflow
+8. **progress-management** - Workflow state operations, undo, reset
 
 ### Progress Manager Commands
 
@@ -169,6 +187,12 @@ python3 progress_manager.py clear-workflow-state
 python3 progress_manager.py add-feature <name> <test_steps...>
 python3 progress_manager.py undo
 python3 progress_manager.py reset [--force]
+
+# Bug tracking
+python3 progress_manager.py add-bug --description "<desc>" [--status <status>] [--priority <high|medium|low>]
+python3 progress_manager.py update-bug --bug-id "BUG-XXX" [--status <status>] [--root-cause "<cause>"] [--fix-summary "<summary>"]
+python3 progress_manager.py list-bugs
+python3 progress_manager.py remove-bug "BUG-XXX"
 ```
 
 ### Progress Files
@@ -293,6 +317,21 @@ feat: complete user database model
 Resuming from task 3...
 Progress: [████░░░░] 40% - Task 3/5
 ```
+
+## Bug Tracking Example
+
+```bash
+# Report a bug with quick verification
+/prog fix "Users are logged out after refresh"
+
+# View backlog and pick a bug to fix
+/prog fix
+
+# Resume a specific bug by ID
+/prog fix BUG-001
+```
+
+**Bug lifecycle**: pending_investigation → investigating → confirmed → fixing → fixed (or false_positive)
 
 ## Integration with Superpowers Skills
 

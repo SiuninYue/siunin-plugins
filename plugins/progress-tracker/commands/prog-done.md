@@ -1,5 +1,4 @@
 ---
-name: prog-done
 description: Complete and commit the current feature after testing
 version: "1.0.0"
 scope: command

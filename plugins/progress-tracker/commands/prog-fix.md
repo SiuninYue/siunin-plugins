@@ -1,5 +1,4 @@
 ---
-name: prog-fix
 description: Report, list, or fix bugs with smart scheduling and systematic debugging
 version: "1.0.0"
 scope: command
@@ -9,8 +8,7 @@ outputs:
   - Bug verification and scheduling
   - Or bug fixing workflow
 evidence: optional
-references:
-  - "progress-tracker:bug-fix"
+references: []
 model: sonnet
 ---
 

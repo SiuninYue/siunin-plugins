@@ -1,5 +1,4 @@
 ---
-name: prog
 description: Display project progress status
 version: "1.0.0"
 scope: command

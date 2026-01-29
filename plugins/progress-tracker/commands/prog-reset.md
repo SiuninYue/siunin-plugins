@@ -1,5 +1,4 @@
 ---
-name: prog-reset
 description: Reset progress tracking by deleting all tracking files
 version: "1.0.0"
 scope: command
