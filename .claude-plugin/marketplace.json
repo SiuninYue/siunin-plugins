@@ -24,6 +24,16 @@
         "name": "siunin"
       },
       "category": "productivity"
+    },
+    {
+      "name": "package-manager",
+      "description": "包管理器规则和最佳实践插件。提供 mise、uv、pnpm、bun 等现代包管理器的标准化指导和自动化配置",
+      "version": "0.1.0",
+      "source": "./plugins/package-manager",
+      "author": {
+        "name": "siunin"
+      },
+      "category": "productivity"
     }
   ]
 }
