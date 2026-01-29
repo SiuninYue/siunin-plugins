@@ -1,0 +1,9 @@
+{
+  "name": "package-manager",
+  "version": "0.1.0",
+  "description": "包管理器规则和最佳实践插件。提供 mise、uv、pnpm、bun 等现代包管理器的标准化指导和自动化配置",
+  "author": {
+    "name": "siunin"
+  },
+  "keywords": ["package-manager", "mise", "uv", "pnpm", "bun", "cargo", "dependencies", "version-management"]
+}
