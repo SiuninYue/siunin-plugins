@@ -539,21 +539,26 @@ plugins/progress-tracker/
 ├── commands/
 │   ├── prog.md
 │   ├── prog-init.md
-│   ├── prog-plan.md        # 新增：架构规划命令
+│   ├── prog-plan.md        # 架构规划命令
 │   ├── prog-next.md
+│   ├── prog-fix.md         # Bug 管理命令
 │   ├── prog-done.md
 │   ├── prog-undo.md
 │   └── prog-reset.md
 ├── skills/
+│   ├── architectural-planning/  # 架构规划技能
+│   │   └── SKILL.md
+│   ├── bug-fix/               # Bug 修复技能
+│   │   └── SKILL.md
 │   ├── feature-breakdown/
 │   │   └── SKILL.md
 │   ├── progress-status/
 │   │   └── SKILL.md
-│   ├── architectural-planning/  # 新增：架构规划技能
-│   │   └── SKILL.md
 │   ├── feature-implement/
 │   │   └── SKILL.md
 │   ├── feature-complete/
+│   │   └── SKILL.md
+│   ├── progress-management/
 │   │   └── SKILL.md
 │   └── progress-recovery/
 │       └── SKILL.md

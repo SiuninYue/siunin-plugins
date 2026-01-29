@@ -368,11 +368,17 @@ plugins/progress-tracker/
 ├── commands/
 │   ├── prog.md
 │   ├── prog-init.md
+│   ├── prog-plan.md
 │   ├── prog-next.md
+│   ├── prog-fix.md
 │   ├── prog-done.md
 │   ├── prog-undo.md
 │   └── prog-reset.md
 ├── skills/
+│   ├── architectural-planning/
+│   │   └── SKILL.md
+│   ├── bug-fix/
+│   │   └── SKILL.md
 │   ├── feature-breakdown/
 │   │   └── SKILL.md
 │   ├── progress-status/
@@ -380,6 +386,8 @@ plugins/progress-tracker/
 │   ├── feature-implement/
 │   │   └── SKILL.md
 │   ├── feature-complete/
+│   │   └── SKILL.md
+│   ├── progress-management/
 │   │   └── SKILL.md
 │   └── progress-recovery/
 │       └── SKILL.md
