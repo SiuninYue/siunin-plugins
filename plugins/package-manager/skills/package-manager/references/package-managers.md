@@ -3,7 +3,9 @@
 ## 目录
 
 - [版本策略详解](#版本策略详解)
+  - [迁移未被 mise 管理的语言](#迁移未被-mise-管理的语言)
 - [各语言完整命令参考](#各语言完整命令参考)
+- [环境检测和状态检查](#环境检测和状态检查)
 - [故障排除](#故障排除)
 - [高级配置](#高级配置)
 
@@ -59,6 +61,36 @@ mise x python@3.14 -- python script.py
 mise x node@20 -- node server.js
 ```
 
+### 完整配置示例
+
+在 `.mise.toml` 中配置所有语言使用最新稳定版：
+
+```toml
+[tools]
+node = "lts"
+pnpm = "latest"
+python = "latest"
+ruby = "latest"
+swift = "latest"
+rust = "stable"
+go = "latest"
+java = "latest"
+```
+
+在 `~/.config/mise/config.toml` 中配置全局默认值：
+
+```toml
+[tools]
+node = "lts"
+pnpm = "latest"
+python = "latest"
+ruby = "latest"
+swift = "latest"
+rust = "stable"
+go = "latest"
+java = "latest"
+```
+
 ### 何时使用固定版本？
 
 只在以下情况使用固定版本：
@@ -66,9 +98,133 @@ mise x node@20 -- node server.js
 - 某个工具版本存在破坏性变更
 - CI/CD 环境需要精确版本控制
 
+### 迁移未被 mise 管理的语言
+
+根据用户实际环境分析，常见的语言管理状态如下：
+
+#### ✅ 已由 mise 管理的语言
+1. **Node.js** - 通过 mise 管理，使用 LTS 版本
+2. **pnpm** - 通过 mise 管理，使用最新版本
+3. **Python** - 通过 mise 管理，使用最新版本
+4. **uv** - 通过 mise 管理，使用最新版本
+
+#### 🔄 需要迁移到 mise 管理的语言
+1. **Ruby** - 使用系统版本 (`/usr/bin/ruby`)
+2. **Swift** - 使用系统版本 (`/usr/bin/swift`)
+3. **Rust** - 使用 Homebrew 版本 (`/opt/homebrew/bin/rustc`)
+4. **Go** - 未安装或使用系统版本
+5. **Java** - 使用系统版本 (`/usr/bin/java`)
+
+#### 迁移步骤
+
+1. **检查当前语言版本**：
+```bash
+# 检查 Ruby
+which ruby
+ruby --version
+
+# 检查 Swift
+which swift
+swift --version
+
+# 检查 Rust
+which rustc
+rustc --version
+
+# 检查 Go
+which go
+go version
+
+# 检查 Java
+which java
+java --version
+```
+
+2. **添加到 mise 配置**：
+```bash
+# 添加语言到 mise 管理
+mise use ruby@latest
+mise use swift@latest
+mise use rust@stable
+mise use go@latest
+mise use java@latest
+
+# 或编辑 ~/.config/mise/config.toml
+[tools]
+ruby = "latest"
+swift = "latest"
+rust = "stable"
+go = "latest"
+java = "latest"
+```
+
+3. **验证迁移结果**：
+```bash
+# 检查 mise 管理的版本
+mise exec ruby -- --version
+mise exec swift -- --version
+mise exec rustc -- --version
+mise exec go -- --version
+mise exec java -- --version
+
+# 对比系统版本
+which ruby
+which swift
+which rustc
+which go
+which java
+```
+
+4. **更新 Shell 配置**：
+```bash
+# 重新加载 shell 配置
+source ~/.zshrc  # 或 ~/.bashrc
+```
+
+#### 迁移前后对比
+
+| 语言 | 迁移前 | 迁移后 | 优点 |
+|------|--------|--------|------|
+| Ruby | 系统版本 (`/usr/bin/ruby`) | mise 管理 (`~/.local/share/mise/installs/ruby/latest/bin/ruby`) | 版本隔离，项目独立 |
+| Swift | 系统版本 (`/usr/bin/swift`) | mise 管理 (`~/.local/share/mise/installs/swift/latest/bin/swift`) | 支持多版本，最新特性 |
+| Rust | Homebrew 版本 (`/opt/homebrew/bin/rustc`) | mise 管理 (`~/.local/share/mise/installs/rust/stable/bin/rustc`) | 统一版本管理，与项目绑定 |
+| Go | 系统版本或未安装 | mise 管理 (`~/.local/share/mise/installs/go/latest/bin/go`) | 自动下载，版本控制 |
+| Java | 系统版本 (`/usr/bin/java`) | mise 管理 (`~/.local/share/mise/installs/java/latest/bin/java`) | 多版本共存，项目隔离 |
+
 ---
 
 ## 各语言完整命令参考
+
+### 项目检测和 mise 管理检查
+
+在开始项目开发前，应检查语言是否由 mise 管理：
+
+```bash
+# 检查语言是否由 mise 管理
+mise list | grep -E "ruby|swift|rust|go|java"
+
+# 如果未被管理，建议迁移
+which ruby swift go rustc java
+```
+
+#### 项目检测逻辑流程图
+
+1. **检查项目配置文件**（如 pyproject.toml、package.json 等）
+2. **检查语言是否由 mise 管理**（使用 mise list 和 which 命令）
+3. **如果未被管理**，建议迁移到 mise 管理
+4. **如果已管理**，使用正确的包管理器命令
+
+#### 各语言项目检测规则
+
+| 语言 | 配置文件 | 包管理器 | mise 管理检查 |
+|------|----------|----------|---------------|
+| Python | `pyproject.toml` | `uv` | `mise exec python -- --version` |
+| Node.js | `package.json` | `pnpm`/`bun`/`npm`/`yarn` | `mise exec node -- --version` |
+| Ruby | `Gemfile` | `bundle` | `mise exec ruby -- --version` |
+| Swift | `Package.swift` | `swift package` | `mise exec swift -- --version` |
+| Rust | `Cargo.toml` | `cargo` | `mise exec rustc -- --version` |
+| Go | `go.mod` | `go modules` | `mise exec go -- --version` |
+| Java | `pom.xml`/`build.gradle` | `maven`/`gradle` | `mise exec java -- --version` |
 
 ### Python 项目
 
@@ -320,6 +476,100 @@ go mod graph
 #### 项目检测
 
 存在 `go.mod` → Go 项目 → 使用 `go modules`
+
+---
+
+## 环境检测和状态检查
+
+### 诊断命令
+
+```bash
+# 检查所有语言管理状态
+mise list
+which ruby swift go rustc java
+
+# 检查配置
+cat ~/.config/mise/config.toml 2>/dev/null || echo "无全局配置"
+cat .mise.toml 2>/dev/null || echo "无项目配置"
+
+# 检查包管理器状态
+uv --version 2>/dev/null || echo "uv未安装"
+pnpm --version 2>/dev/null || echo "pnpm未安装"
+bun --version 2>/dev/null || echo "bun未安装"
+```
+
+### 状态检查脚本
+
+创建 `check-env.sh` 脚本：
+
+```bash
+#!/bin/bash
+# 环境检测脚本
+
+echo "=== 环境检测报告 ==="
+echo "生成时间: $(date)"
+echo
+
+echo "1. Mise 管理状态:"
+mise list
+
+echo -e "\n2. 语言版本检查:"
+for lang in ruby swift rustc go java; do
+    which $lang 2>/dev/null && $lang --version 2>/dev/null || echo "$lang: 未安装"
+done
+
+echo -e "\n3. 包管理器检查:"
+for pm in uv pnpm bun; do
+    which $pm 2>/dev/null && $pm --version 2>/dev/null || echo "$pm: 未安装"
+done
+
+echo -e "\n4. 配置检查:"
+[ -f ~/.config/mise/config.toml ] && echo "全局配置: 存在" || echo "全局配置: 不存在"
+[ -f .mise.toml ] && echo "项目配置: 存在" || echo "项目配置: 不存在"
+
+echo -e "\n=== 检测完成 ==="
+```
+
+#### 检测结果解读
+
+| 状态 | 含义 | 建议操作 |
+|------|------|----------|
+| ✅ mise 管理 | 语言由 mise 管理 | 继续使用，版本已隔离 |
+| ⚠️ 系统版本 | 使用系统默认版本 | 建议迁移到 mise 管理 |
+| ❌ 未安装 | 语言未安装 | 使用 `mise use <lang>@latest` 安装 |
+| 🔄 混合状态 | 部分语言由 mise 管理 | 统一迁移到 mise 管理 |
+
+### 自动化检测
+
+在项目根目录添加预检脚本：
+
+```bash
+#!/bin/bash
+# 项目环境预检
+
+# 检测项目类型
+if [ -f "pyproject.toml" ]; then
+    echo "Python 项目检测到"
+    mise exec python -- --version
+elif [ -f "package.json" ]; then
+    echo "Node.js 项目检测到"
+    mise exec node -- --version
+elif [ -f "Gemfile" ]; then
+    echo "Ruby 项目检测到"
+    mise exec ruby -- --version 2>/dev/null || echo "Ruby 未被 mise 管理，建议迁移"
+elif [ -f "Package.swift" ]; then
+    echo "Swift 项目检测到"
+    mise exec swift -- --version 2>/dev/null || echo "Swift 未被 mise 管理，建议迁移"
+elif [ -f "Cargo.toml" ]; then
+    echo "Rust 项目检测到"
+    mise exec rustc -- --version 2>/dev/null || echo "Rust 未被 mise 管理，建议迁移"
+elif [ -f "go.mod" ]; then
+    echo "Go 项目检测到"
+    mise exec go -- --version 2>/dev/null || echo "Go 未被 mise 管理，建议迁移"
+else
+    echo "未检测到标准项目配置文件"
+fi
+```
 
 ---
 
