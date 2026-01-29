@@ -659,7 +659,7 @@ plugins/progress-tracker/
 
 ## 新增功能 (v2.0)
 
-### v1.2.0 (2025-01-25)
+### v1.2.0 (2025-01-29)
 
 #### 架构规划功能
 - ✅ 新增 `/prog plan` 命令：技术选型和系统架构设计
@@ -681,7 +681,42 @@ plugins/progress-tracker/
 - `/prog init` 回答"构建什么"（功能分解）
 - 可独立使用或组合使用
 
-### P0 核心可靠性改进
+#### Bug 管理功能
+- ✅ 新增 `/prog fix` 命令：报告、列出或修复 Bug
+- ✅ 新增 `bug-fix` 技能：
+  - 三阶段工作流：快速验证 (30秒) → 智能调度 → 系统修复
+  - Bug 生命周期追踪 (pending_investigation → investigating → confirmed → fixing → fixed)
+  - 集成 Superpowers: systematic-debugging, test-driven-development, code-reviewer
+  - Bug CRUD 操作 (add-bug, update-bug, list-bugs, remove-bug)
+  - 优先级智能计算 (基于严重性和范围)
+  - 渐进式文档：workflow.md, integration.md, session.md
+
+#### 统计更新
+- 命令总数：6 → 8
+- 技能总数：5 → 8
+- 新增 `progress-management` 技能用于工作流状态操作
+
+### v1.1.0 (2025-01-25)
+
+#### 规范完善
+- ✅ 添加 `STANDARDS.md`：定义共享的 frontmatter schema 约定
+- ✅ 添加 `CHANGELOG.md`：完整的版本历史记录
+- ✅ 修复所有 7 个 commands 的 frontmatter，添加必填字段
+  - 新增字段：`version`, `scope`, `inputs`, `outputs`, `evidence`, `references`
+
+#### 测试覆盖
+- ✅ 新增 `tests/` 目录，包含 pytest 测试套件
+  - `test_progress_manager.py` - 核心功能测试
+  - `test_workflow_state.py` - 工作流状态测试
+  - `test_git_integration.py` - Git 集成测试
+  - `conftest.py` - 测试配置和 fixtures
+
+#### 功能增强
+- 更新 `plugin.json` hooks 配置
+- 增强进度管理器的命令行接口
+
+### v1.0.0
+- 初始版本，包含完整的进度追踪功能
 
 ### P0 核心可靠性改进
 

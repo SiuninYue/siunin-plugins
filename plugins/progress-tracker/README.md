@@ -520,6 +520,35 @@ The plugin tracks detailed workflow state for accurate recovery:
 
 ## Changelog
 
+### v1.2.0 (2025-01-29)
+
+#### 新增命令
+- ✅ `/prog plan` - 架构规划命令
+  - 技术栈推荐
+  - 系统架构设计
+  - 架构决策记录 (`.claude/architecture.md`)
+  - 与 feature breakdown 的集成指导
+- ✅ `/prog fix` - Bug 管理命令
+  - Bug 报告与快速验证 (30秒)
+  - 智能调度到功能时间线
+  - Bug 生命周期追踪 (pending_investigation → investigating → confirmed → fixing → fixed)
+  - 集成 Superpowers: systematic-debugging, test-driven-development, code-reviewer
+
+#### 新增技能
+- ✅ `architectural-planning` - 协调架构设计
+- ✅ `bug-fix` - 系统化 Bug 处理
+  - 三阶段工作流：验证 → 调度 → 修复
+  - Bug CRUD 操作 (add-bug, update-bug, list-bugs, remove-bug)
+  - 优先级计算 (基于严重性和范围)
+- ✅ `progress-management` - 工作流状态操作
+
+#### 功能增强
+- 更新 progress_manager.py 添加 Bug 管理命令
+- 添加 Bug 追踪数据结构到 progress.json
+- 渐进式披露：bug-fix skill 包含 workflow.md, integration.md, session.md 示例
+- 命令总数从 6 增加到 8
+- 技能总数从 5 增加到 8
+
 ### v1.1.0 (2025-01-25)
 
 #### 规范完善

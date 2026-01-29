@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2025-01-29
+
+### Added
+- **`/prog plan` command** for architectural planning
+  - Technology stack recommendations
+  - System architecture design
+  - Architectural decision records (`.claude/architecture.md`)
+  - Integration guidance for feature breakdown
+- **`/prog fix` command** for bug management
+  - Bug reporting with quick verification (30s)
+  - Smart scheduling into feature timeline
+  - Bug lifecycle tracking (pending_investigation → investigating → confirmed → fixing → fixed)
+  - Integration with Superpowers: systematic-debugging, test-driven-development, code-reviewer
+- **`architectural-planning` skill** for coordinated architecture design
+- **`bug-fix` skill** for systematic bug handling
+  - Three-phase workflow: verification → scheduling → fixing
+  - Bug CRUD operations in progress_manager.py (add-bug, update-bug, list-bugs, remove-bug)
+  - Priority calculation (high/medium/low) based on severity and scope
+- **`progress-management` skill** for workflow state operations
+
+### Changed
+- Updated total commands from 6 to 8
+- Updated total skills from 5 to 8
+- Improved command documentation consistency across all files
+
+### Technical Improvements
+- Added bug tracking data structure to progress.json
+- Enhanced progress_manager.py with bug management commands
+- Progressive disclosure: bug-fix skill includes workflow.md, integration.md, and session.md examples
+
 ## [1.1.0] - 2025-01-25
 
 ### Added
