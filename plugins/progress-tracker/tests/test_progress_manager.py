@@ -135,6 +135,26 @@ class TestFeatureManagement:
         data = progress_manager.load_progress_json()
         assert data["features"][0]["id"] == 1
 
+    def test_update_feature_name(self, progress_file):
+        """Should update an existing feature name."""
+        result = progress_manager.update_feature(2, "Updated Feature")
+        assert result is True
+
+        data = progress_manager.load_progress_json()
+        feature = [f for f in data["features"] if f["id"] == 2][0]
+        assert feature["name"] == "Updated Feature"
+        assert feature["test_steps"] == ["Step A", "Step B"]
+
+    def test_update_feature_name_and_steps(self, progress_file):
+        """Should update feature name and test steps together."""
+        result = progress_manager.update_feature(2, "Feature 2 Updated", ["New Step 1"])
+        assert result is True
+
+        data = progress_manager.load_progress_json()
+        feature = [f for f in data["features"] if f["id"] == 2][0]
+        assert feature["name"] == "Feature 2 Updated"
+        assert feature["test_steps"] == ["New Step 1"]
+
     def test_complete_feature_updates_status(self, progress_file):
         """Should mark feature as completed."""
         result = progress_manager.complete_feature(2, commit_hash="test123")
@@ -521,6 +541,12 @@ class TestMainFunction:
         with patch("sys.argv", ["progress_manager.py", "add-feature", "NewFeature", "step1", "step2"]):
             result = progress_manager.main()
             # add_feature() returns True on success
+            assert result is True
+
+    def test_main_update_feature_command(self, progress_file):
+        """Should handle update-feature command."""
+        with patch("sys.argv", ["progress_manager.py", "update-feature", "2", "RenamedFeature", "new-step"]):
+            result = progress_manager.main()
             assert result is True
 
     def test_main_set_current_command(self, progress_file):

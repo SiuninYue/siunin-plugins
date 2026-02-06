@@ -12,6 +12,7 @@ Usage:
     python3 progress_manager.py set-current <feature_id>
     python3 progress_manager.py complete <feature_id>
     python3 progress_manager.py add-feature <name> <test_steps...>
+    python3 progress_manager.py update-feature <feature_id> <name> [test_steps...]
     python3 progress_manager.py reset
 """
 
@@ -756,6 +757,41 @@ def add_feature(name, test_steps):
     return True
 
 
+def update_feature(feature_id, name, test_steps=None):
+    """Update an existing feature's name and optional test steps."""
+    data = load_progress_json()
+    if not data:
+        print("No progress tracking found. Use init first.")
+        return False
+
+    features = data.get("features", [])
+    feature = next((f for f in features if f.get("id") == feature_id), None)
+
+    if not feature:
+        print(f"Feature ID {feature_id} not found")
+        return False
+
+    normalized_name = name.strip()
+    if not normalized_name:
+        print("Feature name cannot be empty")
+        return False
+
+    feature["name"] = normalized_name
+    if test_steps:
+        feature["test_steps"] = test_steps
+
+    save_progress_json(data)
+
+    # Update progress.md
+    md_content = generate_progress_md(data)
+    save_progress_md(md_content)
+
+    print(f"Updated feature {feature_id}: {normalized_name}")
+    if test_steps:
+        print(f"Updated test steps ({len(test_steps)} step(s))")
+    return True
+
+
 def get_next_bug_id():
     """
     Generate the next bug ID with retry logic for concurrency safety.
@@ -1406,6 +1442,14 @@ def main():
     add_parser.add_argument("name", help="Feature name")
     add_parser.add_argument("test_steps", nargs="+", help="Test steps for the feature")
 
+    # Update feature command
+    update_parser = subparsers.add_parser("update-feature", help="Update an existing feature")
+    update_parser.add_argument("feature_id", type=int, help="Feature ID")
+    update_parser.add_argument("name", help="Updated feature name")
+    update_parser.add_argument(
+        "test_steps", nargs="*", help="Updated test steps (optional)"
+    )
+
     # Undo command
     subparsers.add_parser("undo", help="Undo last completed feature")
 
@@ -1479,6 +1523,10 @@ def main():
         )
     elif args.command == "add-feature":
         return add_feature(args.name, args.test_steps)
+    elif args.command == "update-feature":
+        return update_feature(
+            args.feature_id, args.name, args.test_steps if args.test_steps else None
+        )
     elif args.command == "undo":
         return undo_last_feature()
     elif args.command == "reset":
