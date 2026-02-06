@@ -108,3 +108,17 @@ def test_put_file_concurrency_control():
 
     # Mismatched mtime should fail
     assert not validate_put_request("abc123", 123456, "abc123", 999999), "Should reject mismatched mtime"
+
+def test_origin_header_validation_blocks_cross_origin():
+    """Test PUT requests validate Origin header"""
+    sys.path.insert(0, "plugins/progress-tracker/hooks/scripts")
+    from progress_ui_server import is_valid_origin
+
+    # localhost origins should be valid
+    assert is_valid_origin("http://127.0.0.1:3737"), "Should accept localhost"
+    assert is_valid_origin("http://localhost:3737"), "Should accept localhost"
+    assert is_valid_origin(None), "Should accept missing Origin"
+
+    # External origins should be rejected
+    assert not is_valid_origin("http://evil.com"), "Should reject external origin"
+    assert not is_valid_origin("https://malicious.site"), "Should reject https origin"
