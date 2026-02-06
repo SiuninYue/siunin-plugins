@@ -122,3 +122,9 @@ def test_origin_header_validation_blocks_cross_origin():
     # External origins should be rejected
     assert not is_valid_origin("http://evil.com"), "Should reject external origin"
     assert not is_valid_origin("https://malicious.site"), "Should reject https origin"
+
+def test_static_directory_exists():
+    """Test static directory exists for future UI files"""
+    static_dir = Path("plugins/progress-tracker/hooks/scripts/static")
+    assert static_dir.exists(), "Static directory must exist"
+    assert static_dir.is_dir(), "Static must be a directory"
