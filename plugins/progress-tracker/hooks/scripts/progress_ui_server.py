@@ -120,6 +120,36 @@ def validate_put_request(current_rev: str, current_mtime: int, base_rev: str, ba
     return current_rev == base_rev and current_mtime == base_mtime
 
 
+def is_valid_origin(origin: Optional[str]) -> bool:
+    """
+    Validate Origin header for P0 security.
+
+    Only accepts:
+    - None (no Origin header, e.g., curl, same-origin requests)
+    - http://127.0.0.1:* (localhost)
+    - http://localhost:*
+
+    Args:
+        origin: Origin header value or None
+
+    Returns:
+        True if origin is allowed, False otherwise
+    """
+    if origin is None:
+        return True
+
+    origin_lower = origin.lower()
+
+    # Allow localhost variants
+    allowed_prefixes = [
+        "http://127.0.0.1:",
+        "http://localhost:",
+        "http://[::1]:",  # IPv6 localhost
+    ]
+
+    return any(origin_lower.startswith(prefix) for prefix in allowed_prefixes)
+
+
 class ProgressUIHandler(BaseHTTPRequestHandler):
     """HTTP request handler for Progress UI"""
 
@@ -232,6 +262,15 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
 
     def handle_put_file(self, parsed_path):
         """Handle PUT /api/file?path=<file>"""
+        # Validate Origin header for P0 security
+        origin = self.headers.get("Origin")
+        if not is_valid_origin(origin):
+            self.send_response(403)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Invalid Origin"}).encode())
+            return
+
         query = parse_qs(parsed_path.query)
         file_path = query.get("path", [None])[0]
 
