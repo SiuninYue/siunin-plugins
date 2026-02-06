@@ -205,6 +205,53 @@ Test documents should use:
 - **English** for code, technical terms, file paths
 - **Markdown** for formatting
 
+## Document Archiving
+
+When a feature is completed (`/prog done`), related documents are automatically archived.
+
+### Archive Directory Structure
+
+```
+docs/
+├── testing/           # Active feature docs
+├── plans/             # Active feature plans
+└── archive/
+    ├── testing/       # Completed feature docs
+    └── plans/         # Completed feature plans
+```
+
+### What Gets Archived
+
+- `docs/testing/feature-{id}-acceptance-report.md`
+- `docs/testing/feature-{id}-test-guide.md`
+- `docs/plans/feature-{id}-*.md`
+
+### Archive Behavior
+
+- **Automatic**: Happens during `/prog done`
+- **Non-blocking**: Archive failures don't prevent completion
+- **Traceable**: Archive info recorded in `progress.json`
+- **Skippable**: Use `--skip-archive` to bypass
+
+### Archive Records
+
+When documents are archived, the feature's entry in `progress.json` includes an `archive_info` field:
+
+```json
+{
+  "archive_info": {
+    "archived_at": "2026-02-06T10:30:00Z",
+    "files_moved": 2,
+    "files": [
+      {
+        "from": "docs/testing/feature-1-acceptance-report.md",
+        "to": "docs/archive/testing/feature-1-acceptance-report.md"
+      }
+    ]
+  }
+}
+```
+
 ## Additional Resources
 
 ### Reference Files

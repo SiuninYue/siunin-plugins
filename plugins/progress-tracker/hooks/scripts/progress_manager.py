@@ -458,7 +458,145 @@ def get_next_feature():
     return None
 
 
-def complete_feature(feature_id, commit_hash=None):
+def archive_feature_docs(feature_id: int, feature_name: str = None) -> Dict[str, Any]:
+    """
+    Archive testing and plan documents for a completed feature.
+
+    Moves documents from docs/testing/ and docs/plans/ to docs/archive/.
+
+    Args:
+        feature_id: The ID of the completed feature
+        feature_name: Optional feature name for logging
+
+    Returns:
+        Dict with archive results including success status, files moved, and any errors
+    """
+    result = {
+        "success": True,
+        "archived_files": [],
+        "skipped_files": [],
+        "errors": []
+    }
+
+    try:
+        project_root = find_project_root()
+        docs_dir = project_root / "docs"
+
+        # Define source and destination directories
+        testing_src = docs_dir / "testing"
+        plans_src = docs_dir / "plans"
+        testing_archive = docs_dir / "archive" / "testing"
+        plans_archive = docs_dir / "archive" / "plans"
+
+        # Create archive directories if they don't exist
+        testing_archive.mkdir(parents=True, exist_ok=True)
+        plans_archive.mkdir(parents=True, exist_ok=True)
+
+        # Pattern to match feature documents
+        patterns = [
+            (testing_src, testing_archive, f"feature-{feature_id}-*.md"),
+            (plans_src, plans_archive, f"feature-{feature_id}-*.md")
+        ]
+
+        for src_dir, dst_dir, pattern in patterns:
+            if not src_dir.exists():
+                result["skipped_files"].append(f"Source directory not found: {src_dir}")
+                continue
+
+            # Find matching files
+            matching_files = list(src_dir.glob(pattern))
+
+            if not matching_files:
+                result["skipped_files"].append(f"No files found matching {pattern} in {src_dir}")
+                continue
+
+            # Move each matching file
+            for src_file in matching_files:
+                try:
+                    dst_file = dst_dir / src_file.name
+
+                    # Handle filename conflicts by adding timestamp
+                    if dst_file.exists():
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        stem = src_file.stem
+                        suffix = src_file.suffix
+                        new_name = f"{stem}_{timestamp}{suffix}"
+                        dst_file = dst_dir / new_name
+
+                    # Move the file
+                    shutil.move(str(src_file), str(dst_file))
+                    result["archived_files"].append({
+                        "from": str(src_file.relative_to(project_root)),
+                        "to": str(dst_file.relative_to(project_root))
+                    })
+                    logger.info(f"Archived: {src_file.name} -> {dst_file.relative_to(project_root)}")
+
+                except Exception as e:
+                    error_msg = f"Failed to move {src_file.name}: {e}"
+                    result["errors"].append(error_msg)
+                    logger.error(error_msg)
+                    # Don't set success=False for individual file errors - continue with others
+
+        # Log summary
+        if result["archived_files"]:
+            logger.info(f"Archived {len(result['archived_files'])} file(s) for feature {feature_id}")
+            for file_info in result["archived_files"]:
+                print(f"  Archived: {file_info['from']} -> {file_info['to']}")
+
+        if result["skipped_files"]:
+            for skip in result["skipped_files"]:
+                logger.debug(skip)
+
+        if result["errors"]:
+            result["success"] = False
+            for error in result["errors"]:
+                logger.warning(error)
+
+    except Exception as e:
+        result["success"] = False
+        error_msg = f"Archive operation failed: {e}"
+        result["errors"].append(error_msg)
+        logger.error(error_msg)
+
+    return result
+
+
+def save_archive_record(feature_id: int, archive_result: Dict[str, Any]) -> None:
+    """
+    Save archive record to progress.json for traceability.
+
+    Args:
+        feature_id: The ID of the completed feature
+        archive_result: The result dict from archive_feature_docs()
+    """
+    try:
+        data = load_progress_json()
+        if not data:
+            logger.warning("Could not save archive record - no progress data found")
+            return
+
+        features = data.get("features", [])
+        feature = next((f for f in features if f.get("id") == feature_id), None)
+
+        if not feature:
+            logger.warning(f"Could not save archive record - feature {feature_id} not found")
+            return
+
+        # Store archive info
+        feature["archive_info"] = {
+            "archived_at": datetime.now().isoformat() + "Z",
+            "files_moved": len(archive_result.get("archived_files", [])),
+            "files": archive_result.get("archived_files", [])
+        }
+
+        save_progress_json(data)
+        logger.info(f"Archive record saved for feature {feature_id}")
+
+    except Exception as e:
+        logger.error(f"Failed to save archive record: {e}")
+
+
+def complete_feature(feature_id, commit_hash=None, skip_archive=False):
     """Mark a feature as completed."""
     data = load_progress_json()
     if not data:
@@ -488,6 +626,28 @@ def complete_feature(feature_id, commit_hash=None):
     print(f"Completed feature: {feature.get('name', 'Unknown')}")
     if commit_hash:
         print(f"Recorded commit: {commit_hash}")
+
+    # Archive documents (non-blocking)
+    if not skip_archive:
+        try:
+            feature_name = feature.get("name", f"Feature {feature_id}")
+            print(f"\nArchiving documents for {feature_name}...")
+            archive_result = archive_feature_docs(feature_id, feature_name)
+
+            if archive_result["archived_files"]:
+                print(f"Archived {len(archive_result['archived_files'])} file(s)")
+
+            # Save archive record regardless of individual file errors
+            save_archive_record(feature_id, archive_result)
+
+            if archive_result["errors"]:
+                print(f"Warning: Some files could not be archived (feature still marked complete)")
+
+        except Exception as e:
+            # Archive failures should not prevent feature completion
+            logger.error(f"Archive failed but feature completed: {e}")
+            print(f"Warning: Document archiving failed but feature is marked complete")
+
     return True
 
 
@@ -1238,6 +1398,8 @@ def main():
     complete_parser = subparsers.add_parser("complete", help="Mark feature as complete")
     complete_parser.add_argument("feature_id", type=int, help="Feature ID")
     complete_parser.add_argument("--commit", help="Git commit hash")
+    complete_parser.add_argument("--skip-archive", action="store_true",
+                               help="Skip document archiving")
 
     # Add feature command
     add_parser = subparsers.add_parser("add-feature", help="Add a new feature")
@@ -1310,7 +1472,11 @@ def main():
     elif args.command == "set-current":
         return set_current(args.feature_id)
     elif args.command == "complete":
-        return complete_feature(args.feature_id, commit_hash=args.commit)
+        return complete_feature(
+            args.feature_id,
+            commit_hash=args.commit,
+            skip_archive=args.skip_archive
+        )
     elif args.command == "add-feature":
         return add_feature(args.name, args.test_steps)
     elif args.command == "undo":

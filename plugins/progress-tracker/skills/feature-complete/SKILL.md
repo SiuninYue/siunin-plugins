@@ -299,6 +299,7 @@ Feature "<name>" has been successfully implemented and verified.
 - Marking feature as completed
 - Clearing current_feature_id
 - Updating progress.md
+- Archiving related documents to `docs/archive/`
 
 ### Creating Git Commit
 Commit message: "feat: complete <feature name>"
@@ -383,6 +384,18 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py clear-workflow-s
 This updates:
 - `progress.json`: Sets `completed: true`, stores `commit_hash`, clears `current_feature_id`, clears `workflow_state`
 - `progress.md`: Moves feature to completed section
+
+**Automatic Archiving**: When a feature is completed, related documents are automatically moved to `docs/archive/`:
+
+- `docs/testing/feature-{id}-*.md` → `docs/archive/testing/`
+- `docs/plans/feature-{id}-*.md` → `docs/archive/plans/`
+
+Archive failures do not prevent feature completion.
+
+To skip archiving, use `--skip-archive` flag:
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py complete <feature_id> --commit <commit_hash> --skip-archive
+```
 
 ### Step 8: Show Next Steps
 
