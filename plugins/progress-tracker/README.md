@@ -155,7 +155,7 @@ The plugin follows a **Commands → Skills** architecture:
 | **Hooks** | Events | SessionStart detects incomplete work |
 | **Scripts** | State | Python script manages JSON/MD files |
 
-### Skills (8 total)
+### Skills (9 total)
 
 1. **feature-breakdown** - Analyzes goals, creates feature lists
 2. **progress-status** - Displays status and statistics
@@ -164,7 +164,8 @@ The plugin follows a **Commands → Skills** architecture:
 5. **progress-recovery** - Auto-detects incomplete work, provides recovery options
 6. **architectural-planning** - Coordinates architecture design and stack selection
 7. **bug-fix** - Systematic bug triage, scheduling, and fixing workflow
-8. **progress-management** - Workflow state operations, undo, reset
+8. **git-commit** - Creates conventional Git commits with auto-generated messages
+9. **progress-management** - Workflow state operations, undo, reset
 
 ### Progress Manager Commands
 
@@ -426,6 +427,13 @@ plugins/progress-tracker/
 │   │   └── SKILL.md
 │   ├── feature-complete/
 │   │   └── SKILL.md
+│   ├── git-commit/
+│   │   ├── SKILL.md
+│   │   ├── references/
+│   │   │   └── conventional-commits.md
+│   │   └── examples/
+│   │       ├── usage.md
+│   │       └── integration.md
 │   ├── progress-management/
 │   │   └── SKILL.md
 │   └── progress-recovery/

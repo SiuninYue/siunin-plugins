@@ -32,6 +32,17 @@ DEFAULT_CLAUDE_DIR = ".claude"
 PROGRESS_JSON = "progress.json"
 PROGRESS_MD = "progress.md"
 
+# Schema version - increment when breaking changes occur
+CURRENT_SCHEMA_VERSION = "2.0"
+
+# Bug field standards (for consistency)
+BUG_REQUIRED_FIELDS = ["id", "description", "status", "priority", "created_at"]
+BUG_OPTIONAL_FIELDS = [
+    "root_cause", "fix_summary", "fix_commit_hash", "verified_working",
+    "repro_steps", "workaround", "quick_verification", "scheduled_position",
+    "updated_at", "investigation"
+]
+
 # Configure logging for diagnostics
 logging.basicConfig(
     level=logging.INFO,
@@ -192,12 +203,20 @@ def load_progress_json():
 
 
 def save_progress_json(data):
-    """Save data to progress.json file."""
+    """Save data to progress.json file with automatic updated_at and migration."""
     progress_dir = get_progress_dir()
     json_path = progress_dir / PROGRESS_JSON
 
     # Ensure .claude directory exists
     progress_dir.mkdir(parents=True, exist_ok=True)
+
+    # Auto-update updated_at timestamp
+    data["updated_at"] = datetime.now().isoformat() + "Z"
+
+    # Ensure schema_version exists (migrate old files)
+    if "schema_version" not in data:
+        data["schema_version"] = CURRENT_SCHEMA_VERSION
+        logger.info(f"Migrated to schema version {CURRENT_SCHEMA_VERSION}")
 
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
@@ -250,9 +269,12 @@ def init_tracking(project_name, features=None, force=False):
             return False
 
     # Create initial progress structure
+    now = datetime.now().isoformat() + "Z"
     data = {
+        "schema_version": CURRENT_SCHEMA_VERSION,
         "project_name": project_name,
-        "created_at": datetime.now().isoformat() + "Z",
+        "created_at": now,
+        "updated_at": now,
         "features": features or [],
         "current_feature_id": None,
     }

@@ -1,6 +1,6 @@
 ---
 name: feature-complete
-description: 功能完成验证技能。用于验证已完成功能、更新进度状态并提交到 Git。
+description: This skill should be used when the user asks to "/prog done", "complete feature", "mark feature as done", "finish implementation", or runs the prog-done command. Handles feature verification, progress tracking updates, and Git commits.
 model: sonnet
 version: "1.0.0"
 scope: skill
@@ -215,26 +215,24 @@ The feature will remain marked as "in progress" until tests pass.
 
 ### Step 6: Create Git Commit
 
-Execute Git commands only after tests pass:
+Execute Git commands only after tests pass.
 
-```bash
-# Stage changes
-git add .
+Invoke the git-commit skill to create the commit:
 
-# Commit with descriptive message
-git commit -m "feat: complete <feature name>
+<CRITICAL>
+Use the Skill tool with these exact parameters:
+  - skill: "progress-tracker:git-commit"
+  - args: "feat: complete <feature name>"
 
-Co-Authored-By: Claude <noreply@anthropic.com>"
-```
+WAIT for the skill to complete and return the commit hash.
+</CRITICAL>
 
-**Commit message format**:
-- Use conventional commits: `feat:`, `fix:`, `refactor:`, etc.
-- Include feature name for clarity
-- Always include `Co-Authored-By` line
+If the skill returns a commit hash, proceed to Step 7.
+If the skill returns null (no changes or error), inform the user.
 
 ### Step 7: Update Progress Tracking
 
-After successful commit, capture the hash and update progress:
+After successful commit, capture the hash and update progress.
 
 ```bash
 # Get the new commit hash
