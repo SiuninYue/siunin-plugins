@@ -11,7 +11,7 @@ outputs:
   - 方法与模板
   - 注意事项与检查项
 evidence: optional
-references: []
+references: ["testing-standards"]
 ---
 
 # Feature Completion Skill
@@ -132,7 +132,142 @@ Running test steps to verify implementation:
 ---
 ```
 
-### Step 4: Execute Test Steps
+### Step 3.5: Smart Verification (Interactive)
+
+Instead of executing all test steps automatically, engage the user in an interactive verification process:
+
+1. **Analyze the implementation** - Review the code changes and generate a relevant test checklist
+2. **Present the checklist to the user** - Show what should be verified
+3. **Process user responses intelligently** - Handle different response types
+4. **Generate acceptance document** - Create `docs/testing/feature-{id}-acceptance-report.md`
+
+**Load testing-standards skill** to follow the proper document format and naming conventions.
+
+#### Generate Test Checklist
+
+Based on the feature implementation and defined test_steps, create a verification checklist:
+
+```markdown
+## Feature #{id} 验收清单
+
+Based on the implementation, here are the items to verify:
+
+### 1. [Component/Category Name]
+- [ ] [Specific test item 1]
+- [ ] [Specific test item 2]
+- [ ] [Specific test item 3]
+
+### 2. [Another Category]
+- [ ] [Test item]
+- [ ] [Test item]
+
+---
+
+**You can describe your testing results in your own words.**
+```
+
+#### Process User Responses
+
+Handle different response patterns appropriately:
+
+| User Says | AI Action |
+|-----------|-----------|
+| "All passed", "都通过了", "✅ 1,2,3" | Fill in checklist, generate acceptance report |
+| "Already filled in docs/testing/..." | Read existing document, validate format |
+| "1,2 passed but how do I test 3?" | Explain how to test item 3, wait for response |
+| "1,2 passed, forgot to test 3" | Remind about item 3, wait for user to test |
+| "Item 3 has a bug/problem" | Record the issue, ask how to proceed |
+| Unclear or partial information | Ask clarifying questions |
+
+**Key principle**: Be flexible and helpful. Guide the user through testing rather than requiring them to fill out a form.
+
+#### If User Has Existing Document
+
+When user mentions they've already filled in a document:
+
+```markdown
+Reading your existing document: docs/testing/feature-{id}-acceptance-report.md
+
+Validating format:
+- [ ] Frontmatter present
+- [ ] Required fields complete
+- [ ] Test results documented
+
+If format issues found, offer to fix them.
+If complete, proceed to commit.
+```
+
+#### If User Needs Guidance
+
+When user doesn't know how to test something:
+
+```markdown
+To verify [item], here's how:
+
+1. [Step-by-step instructions]
+2. [What to look for]
+3. [Expected result]
+
+Let me know when you've tested it or if you need more help.
+```
+
+#### If Items Are Missing
+
+When user reports they haven't tested everything:
+
+```markdown
+I see these items are still pending:
+- [ ] [Item 3]
+- [ ] [Item 4]
+
+Would you like to:
+1. Test them now and report back
+2. Skip them (will be documented as limitations)
+3. Get guidance on how to test them
+```
+
+#### Handle Issues Discovered
+
+When testing reveals bugs or problems:
+
+```markdown
+## Issue Discovered
+
+**Item**: [Problem description]
+
+**Options**:
+1. Fix now and re-test
+2. Document as known limitation and proceed
+3. Create new bug report for later fix
+
+What would you like to do?
+```
+
+#### Generate Acceptance Document
+
+Once all items are addressed:
+
+1. **Fill in the checklist** based on user's responses
+2. **Add proper frontmatter** (following testing-standards):
+   ```yaml
+   ---
+   type: feature-acceptance
+   id: [feature_id]
+   date: [YYYY-MM-DD]
+   status: [passed/passed-with-notes/failed]
+   ---
+   ```
+3. **Save to** `docs/testing/feature-{id}-acceptance-report.md`
+4. **Confirm** the document was created
+
+**Document naming** (per testing-standards):
+- Use lowercase, hyphens for separation
+- Format: `feature-{id}-acceptance-report.md`
+- Location: `docs/testing/`
+
+If user prefers not to generate a document, ask for confirmation before proceeding without it.
+
+### Step 4: Execute Test Steps (Fallback)
 
 For each test step, determine if it's:
 - **Command-based**: Can be executed with Bash tool

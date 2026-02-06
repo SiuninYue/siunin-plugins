@@ -11,6 +11,7 @@ outputs:
   - Coordinated debugging and fixing workflow
 evidence: optional
 references:
+  - "testing-standards"
   - "superpowers:systematic-debugging"
   - "superpowers:test-driven-development"
   - "superpowers:code-reviewer"
