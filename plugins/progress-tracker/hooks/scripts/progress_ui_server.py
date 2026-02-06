@@ -170,9 +170,40 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
 
     def handle_get_files(self):
         """Handle GET /api/files - list available markdown files"""
-        # TODO: Implement in next task
-        self.send_response(501)
+        claude_dir = self.working_dir / ".claude"
+
+        if not claude_dir.exists():
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps([]).encode())
+            return
+
+        # Find all .md files
+        md_files = sorted(claude_dir.glob("*.md"), key=lambda p: p.name)
+
+        # Ensure progress.md is first if it exists
+        progress_md = claude_dir / "progress.md"
+        if progress_md.exists() and progress_md in md_files:
+            md_files.remove(progress_md)
+            md_files.insert(0, progress_md)
+
+        files_info = []
+        for f in md_files:
+            try:
+                mtime = calculate_mtime(f)
+                files_info.append({
+                    "name": f.stem,
+                    "path": str(f.relative_to(self.working_dir)),
+                    "mtime": mtime
+                })
+            except OSError:
+                continue
+
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
         self.end_headers()
+        self.wfile.write(json.dumps(files_info).encode())
 
     def log_message(self, format, *args):
         """Suppress default logging"""
