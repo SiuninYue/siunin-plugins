@@ -74,9 +74,124 @@ Show the user what they're about to implement:
 Assessing complexity and selecting workflow...
 ```
 
-### Step 4: Complexity Assessment
+### Step 4: Check Superpowers Availability
 
-Before invoking Superpowers skills, assess feature complexity:
+Before invoking Superpowers skills, verify availability and prepare fallback:
+
+```markdown
+Checking Superpowers skills availability...
+```
+
+Check if the following skills are available:
+- `superpowers:brainstorming`
+- `superpowers:writing-plans`
+- `superpowers:subagent-driven-development`
+- `superpowers:test-driven-development`
+
+**If all Superpowers skills are available**: Proceed to Step 5 (Complexity Assessment)
+
+**If Superpowers skills are NOT available**: Use Fallback Workflow below
+
+#### Fallback: Superpowers Unavailable
+
+When Superpowers skills are not installed or unavailable, use this fallback workflow:
+
+```markdown
+⚠️ Superpowers skills not available
+
+Using fallback implementation workflow:
+- Manual task breakdown
+- Direct code implementation
+- Manual testing guidance
+
+**Fallback Workflow for <Complexity Level> Features**
+
+---
+
+## Fallback Implementation Guide
+
+### For Simple Features:
+
+**Estimated time**: 5-10 minutes
+
+**Steps**:
+1. Write test file first (TDD RED phase)
+   - Create test file: `tests/test_<feature>.py`
+   - Write failing test for the feature
+
+2. Implement feature (TDD GREEN phase)
+   - Write minimum code to pass the test
+   - Run tests to verify
+
+3. Refactor (TDD REFACTOR phase)
+   - Clean up code while keeping tests passing
+   - Extract reusable components
+
+4. Manual verification
+   - Run all tests: `pytest`
+   - Manual smoke test of the feature
+
+### For Standard/Complex Features:
+
+**Estimated time**: 15-30 minutes
+
+**Manual Task Breakdown Template**:
+
+```markdown
+## Implementation Tasks for <Feature Name>
+
+### Task 1: <Name> (2-3 min)
+- File: <path_to_file>
+- Description: <what to do>
+- Test approach: <how to verify>
+
+### Task 2: <Name> (2-3 min)
+- File: <path_to_file>
+...
+
+[Continue for all tasks]
+```
+
+**Per-Task Process**:
+1. Create/update test file
+2. Write failing test
+3. Implement feature code
+4. Verify test passes
+5. Run full test suite
+
+**After Implementation**:
+```bash
+# Run all tests
+pytest
+
+# Check code style (if configured)
+black . --check
+flake8 .
+```
+
+---
+
+**Ready to proceed with fallback workflow?**
+
+Select:
+1. Continue with fallback (recommended)
+2. Install Superpowers for enhanced workflow
+```
+
+When user selects option 1 (continue with fallback):
+
+For **Simple Features**:
+- Display the simple 4-step TDD guide
+- Remind to run `/prog done` when complete
+- Skip to Step 6 (Post-Implementation Guidance)
+
+For **Standard/Complex Features**:
+- Create manual task breakdown (3-7 tasks)
+- Display tasks one at a time
+- Track completion with `set-workflow-state`
+- Remind to run `/prog done` when complete
+
+### Step 4.5: Complexity Assessment (for Superpowers Available)
 
 | Complexity | Indicators | Workflow Path |
 |------------|-----------|---------------|
@@ -90,7 +205,10 @@ Before invoking Superpowers skills, assess feature complexity:
 - Presence of design decisions in feature description
 - Whether feature involves new architecture patterns
 
-### Step 5: Invoke Superpowers Workflow
+### Step 5: Invoke Superpowers Workflow (If Available)
+
+> **Note**: This step only executes if Superpowers skills are available.
+> If Superpowers is unavailable, the fallback workflow from Step 4 has already been used.
 
 Based on complexity assessment:
 
@@ -867,3 +985,77 @@ All 5 tasks passed TDD and code review.
 | `superpowers:requesting-code-review` | Manual review needed | Pre-review checklist, spec compliance checks |
 
 All Superpowers skills enforce TDD and maintain high quality standards. They're designed to be invoked by coordinator skills like this one.
+
+## Fallback Matrix
+
+When Superpowers skills are not available, use this fallback mapping:
+
+| Superpowers Skill | Failure Mode | Fallback Action |
+|-------------------|--------------|-----------------|
+| `superpowers:brainstorming` | Not installed | Skip to planning; use manual design questions |
+| `superpowers:writing-plans` | Not installed | Generate simple task list manually (3-7 tasks) |
+| `superpowers:subagent-driven-development` | Not installed | Direct implementation with manual TDD guidance |
+| `superpowers:test-driven-development` | Not installed | Manual RED-GREEN-REFACTOR cycle steps |
+
+**Fallback Detection**:
+- Attempt to invoke skill
+- If invocation fails, display fallback message
+- Provide clear alternative steps
+- Continue with degraded workflow
+
+**Quality Reminders in Fallback Mode**:
+- Always write tests first (TDD)
+- Run full test suite after each task
+- Manual code review before committing
+- Verify acceptance test steps before `/prog done`
+
+## Example Fallback Session
+
+**Detection**:
+```
+Skill invocation failed: superpowers:writing-plans not found
+```
+
+**Response**:
+```markdown
+⚠️ Superpowers Not Available
+
+The Superpowers skills are not installed. Using fallback workflow...
+
+---
+
+## Manual Implementation Plan
+
+Your feature: <Feature Name>
+
+### Manual Task Breakdown:
+
+1. **Create test file** (2 min)
+   - Create: `tests/test_<feature>.py`
+   - Write test for core functionality
+
+2. **Implement core logic** (5 min)
+   - Create: `<main_file>.py`
+   - Write minimum code to pass test
+
+3. **Add error handling** (3 min)
+   - Update: `<main_file>.py`
+   - Add try/except blocks
+
+4. **Integration** (2 min)
+   - Wire into main application
+   - Test end-to-end
+
+5. **Documentation** (2 min)
+   - Update docstrings
+   - Add usage examples
+
+---
+
+**Ready to proceed?**
+I'll guide you through each task with TDD reminders.
+
+Type 'continue' to start Task 1.
+```
+
+This ensures users can make progress even without Superpowers installed.

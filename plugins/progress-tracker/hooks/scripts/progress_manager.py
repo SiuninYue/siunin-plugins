@@ -28,6 +28,23 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
+# Import git_validator for secure Git operations
+try:
+    from git_validator import (
+        safe_git_command,
+        validate_commit_hash,
+        GitCommandError,
+        is_git_repository,
+        get_git_root,
+        is_working_directory_clean,
+        get_current_commit_hash
+    )
+    GIT_VALIDATOR_AVAILABLE = True
+except ImportError:
+    # Fallback if git_validator is not available
+    GIT_VALIDATOR_AVAILABLE = False
+    GitCommandError = subprocess.CalledProcessError
+
 # Default paths
 DEFAULT_CLAUDE_DIR = ".claude"
 PROGRESS_JSON = "progress.json"
@@ -151,24 +168,33 @@ def find_project_root():
     Find the project root directory.
 
     Priority:
-    1. Git root
+    1. Git root (using secure git_validator if available)
     2. Parent directory containing .claude
     3. Current working directory
     """
     cwd = Path.cwd()
 
-    # Check for git root
-    try:
-        git_root = (
-            subprocess.check_output(
-                ["git", "rev-parse", "--show-toplevel"], stderr=subprocess.DEVNULL
+    # Check for git root using secure validator
+    if GIT_VALIDATOR_AVAILABLE:
+        try:
+            git_root = get_git_root(str(cwd))
+            if git_root:
+                return Path(git_root)
+        except Exception:
+            pass
+    else:
+        # Fallback to subprocess if validator not available
+        try:
+            git_root = (
+                subprocess.check_output(
+                    ["git", "rev-parse", "--show-toplevel"], stderr=subprocess.DEVNULL
+                )
+                .decode("utf-8")
+                .strip()
             )
-            .decode("utf-8")
-            .strip()
-        )
-        return Path(git_root)
-    except subprocess.CalledProcessError:
-        pass
+            return Path(git_root)
+        except subprocess.CalledProcessError:
+            pass
 
     # Check for existing .claude directory in parents
     current = cwd
@@ -682,24 +708,57 @@ def undo_last_feature():
     # Attempt git revert if hash exists
     if commit_hash:
         print(f"Attempting to revert commit {commit_hash}...")
-        try:
-            # Check for working directory changes first
-            status = subprocess.check_output(
-                ["git", "status", "--porcelain"], stderr=subprocess.DEVNULL
-            )
-            if status:
-                print(
-                    "Error: Working directory is not clean. Commit or stash changes before undoing."
-                )
+
+        # Validate commit hash format before using it
+        if GIT_VALIDATOR_AVAILABLE:
+            if not validate_commit_hash(commit_hash):
+                print(f"Error: Invalid commit hash format: {commit_hash}")
+                print("Commit hash must be 7-40 hexadecimal characters.")
+                print("To protect your repo, progress undo has been aborted.")
+                return False
+        else:
+            # Basic validation fallback
+            if not re.match(r'^[0-9a-f]{7,40}$', commit_hash):
+                print(f"Error: Invalid commit hash format: {commit_hash}")
                 return False
 
-            subprocess.check_call(
-                ["git", "revert", "--no-edit", commit_hash],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.PIPE,
-            )
+        try:
+            # Check for working directory changes first using secure validator
+            if GIT_VALIDATOR_AVAILABLE:
+                if not is_working_directory_clean(str(find_project_root())):
+                    print(
+                        "Error: Working directory is not clean. Commit or stash changes before undoing."
+                    )
+                    return False
+
+                # Execute git revert with validation
+                exit_code, stdout, stderr = safe_git_command(
+                    ['git', 'revert', '--no-edit', commit_hash],
+                    timeout=30
+                )
+                if exit_code != 0:
+                    print(f"Error reverting commit: {stderr}")
+                    print("To protect your repo, progress undo has been aborted.")
+                    return False
+            else:
+                # Fallback to subprocess if validator not available
+                status = subprocess.check_output(
+                    ["git", "status", "--porcelain"], stderr=subprocess.DEVNULL
+                )
+                if status:
+                    print(
+                        "Error: Working directory is not clean. Commit or stash changes before undoing."
+                    )
+                    return False
+
+                subprocess.check_call(
+                    ["git", "revert", "--no-edit", commit_hash],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE,
+                )
+
             print(f"Successfully reverted commit {commit_hash}")
-        except subprocess.CalledProcessError as e:
+        except (GitCommandError, subprocess.CalledProcessError) as e:
             print(f"Error reverting commit: {e}")
             print("To protect your repo, progress undo has been aborted.")
             return False
@@ -1291,6 +1350,82 @@ def clear_workflow_state():
     return True
 
 
+def health_check():
+    """
+    Perform health check and return JSON metrics.
+
+    This command is used to monitor the health of the progress tracker
+    and provide recommendations for timeout settings.
+
+    Returns:
+        int: 0 if healthy, 1 if degraded
+
+    Output:
+        JSON with status, response_time_ms, and recommended_timeout
+    """
+    import time
+    start = time.time()
+
+    # Load progress to check data integrity
+    try:
+        data = load_progress_json()
+        load_time = time.time() - start
+
+        if data:
+            features = data.get("features", [])
+            bugs = data.get("bugs", [])
+            data_valid = True
+        else:
+            features = []
+            bugs = []
+            data_valid = False  # No tracking file is OK
+    except Exception as e:
+        logger.error(f"Health check failed to load progress: {e}")
+        data_valid = False
+        features = []
+        bugs = []
+        load_time = time.time() - start
+
+    # Check git connectivity
+    git_start = time.time()
+    try:
+        if GIT_VALIDATOR_AVAILABLE:
+            git_healthy = is_git_repository()
+        else:
+            # Basic check
+            exit_code, _, _ = safe_git_command(
+                ['git', 'status', '--porcelain'],
+                timeout=2
+            ) if GIT_VALIDATOR_AVAILABLE else (0, "", "")
+            git_healthy = exit_code in (0, 128)  # 0=success, 128=not in repo
+        git_time = time.time() - git_start
+    except Exception:
+        git_healthy = False
+        git_time = time.time() - git_start
+
+    total = time.time() - start
+
+    # Calculate recommended timeout (3x current response time, minimum 10 seconds)
+    recommended_timeout = max(10, int(total * 3))
+
+    health_data = {
+        "status": "healthy" if (data_valid or not data) and git_healthy else "degraded",
+        "response_time_ms": int(total * 1000),
+        "load_time_ms": int(load_time * 1000),
+        "git_time_ms": int(git_time * 1000),
+        "git_healthy": git_healthy,
+        "data_valid": data_valid or not data,
+        "features_count": len(features),
+        "bugs_count": len(bugs),
+        "recommended_timeout": recommended_timeout
+    }
+
+    print(json.dumps(health_data))
+
+    # Return 0 if healthy, 1 if degraded
+    return 0 if health_data["status"] == "healthy" else 1
+
+
 def generate_progress_md(data):
     """Generate markdown content from progress data."""
     project_name = data.get("project_name", "Unknown Project")
@@ -1477,6 +1612,9 @@ def main():
     # Clear workflow state command
     subparsers.add_parser("clear-workflow-state", help="Clear workflow state")
 
+    # Health check command
+    subparsers.add_parser("health", help="Perform health check and return metrics")
+
     # Add bug command
     bug_parser = subparsers.add_parser("add-bug", help="Add a new bug")
     bug_parser.add_argument("--description", required=True, help="Bug description")
@@ -1539,6 +1677,8 @@ def main():
         return update_workflow_task(args.task_id, args.status)
     elif args.command == "clear-workflow-state":
         return clear_workflow_state()
+    elif args.command == "health":
+        return health_check()
     elif args.command == "add-bug":
         try:
             return add_bug(
