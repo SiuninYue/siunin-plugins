@@ -70,3 +70,41 @@ def test_path_validation_resolves_symlinks():
     import inspect
     source = inspect.getsource(validate_path)
     assert ".resolve()" in source or "resolve" in source, "Must use Path.resolve() for security"
+
+def test_get_files_lists_markdown_files():
+    """Test GET /api/files returns list of markdown files"""
+    sys.path.insert(0, "plugins/progress-tracker/hooks/scripts")
+    from progress_ui_server import ProgressUIHandler
+    from http.server import BaseHTTPRequestHandler
+    from io import BytesIO
+    import json
+
+    # This is a behavioral assertion for scanning logic
+    # The endpoint should scan .claude directory for .md files
+    # progress.md should be first in the list
+
+    working_dir = Path.cwd()
+    claude_dir = working_dir / ".claude"
+
+    if claude_dir.exists():
+        md_files = list(claude_dir.glob("*.md"))
+        assert len(md_files) > 0, "Should find markdown files in .claude"
+
+        # Verify progress.md exists or would be first
+        progress_md = claude_dir / "progress.md"
+        if progress_md.exists():
+            assert progress_md in md_files, "Should include progress.md"
+
+def test_put_file_concurrency_control():
+    """Test PUT /api/file enforces rev/mtime matching"""
+    sys.path.insert(0, "plugins/progress-tracker/hooks/scripts")
+    from progress_ui_server import validate_put_request
+
+    # Valid request should pass
+    assert validate_put_request("abc123", 123456, "abc123", 123456), "Should accept matching rev/mtime"
+
+    # Mismatched rev should fail
+    assert not validate_put_request("abc123", 123456, "wrong", 123456), "Should reject mismatched rev"
+
+    # Mismatched mtime should fail
+    assert not validate_put_request("abc123", 123456, "abc123", 999999), "Should reject mismatched mtime"

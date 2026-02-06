@@ -104,6 +104,22 @@ def calculate_mtime(file_path: Path) -> int:
     return int(file_path.stat().st_mtime)
 
 
+def validate_put_request(current_rev: str, current_mtime: int, base_rev: str, base_mtime: int) -> bool:
+    """
+    Validate PUT request parameters for concurrency control.
+
+    Args:
+        current_rev: Current file revision hash
+        current_mtime: Current file modification time
+        base_rev: Client's base revision (what they started from)
+        base_mtime: Client's base modification time
+
+    Returns:
+        True if request is valid, False if conflict detected
+    """
+    return current_rev == base_rev and current_mtime == base_mtime
+
+
 class ProgressUIHandler(BaseHTTPRequestHandler):
     """HTTP request handler for Progress UI"""
 
@@ -119,6 +135,15 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
             self.handle_get_file(parsed_path)
         elif parsed_path.path == "/api/files":
             self.handle_get_files()
+        else:
+            self.send_error(404, "Not Found")
+
+    def do_PUT(self):
+        """Handle PUT requests"""
+        parsed_path = urlparse(self.path)
+
+        if parsed_path.path == "/api/file":
+            self.handle_put_file(parsed_path)
         else:
             self.send_error(404, "Not Found")
 
@@ -204,6 +229,98 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json")
         self.end_headers()
         self.wfile.write(json.dumps(files_info).encode())
+
+    def handle_put_file(self, parsed_path):
+        """Handle PUT /api/file?path=<file>"""
+        query = parse_qs(parsed_path.query)
+        file_path = query.get("path", [None])[0]
+
+        if not file_path:
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "path parameter required"}).encode())
+            return
+
+        # Validate path security
+        if not validate_path(self.working_dir, file_path):
+            self.send_response(403)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Invalid path"}).encode())
+            return
+
+        full_path = (self.working_dir / file_path).resolve()
+
+        # Read request body
+        content_length = int(self.headers.get("Content-Length", 0))
+        if content_length == 0:
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Request body required"}).encode())
+            return
+
+        body = self.rfile.read(content_length)
+        try:
+            data = json.loads(body.decode())
+        except json.JSONDecodeError:
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Invalid JSON"}).encode())
+            return
+
+        # Extract required fields
+        new_content = data.get("content")
+        base_rev = data.get("base_rev", "")
+        base_mtime = data.get("base_mtime", 0)
+
+        if new_content is None:
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "content field required"}).encode())
+            return
+
+        # Check for concurrent modification
+        current_rev = None
+        current_mtime = 0
+
+        if full_path.exists():
+            current_content = full_path.read_text()
+            current_rev = calculate_rev(current_content)
+            current_mtime = calculate_mtime(full_path)
+
+            if not validate_put_request(current_rev, current_mtime, base_rev, base_mtime):
+                self.send_response(409)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                response = {
+                    "error": "Conflict: File was modified",
+                    "current_rev": current_rev,
+                    "current_mtime": current_mtime
+                }
+                self.wfile.write(json.dumps(response).encode())
+                return
+
+        # Write new content
+        full_path.parent.mkdir(parents=True, exist_ok=True)
+        full_path.write_text(new_content)
+
+        # Return new rev/mtime
+        new_rev = calculate_rev(new_content)
+        new_mtime = calculate_mtime(full_path)
+
+        response = {
+            "rev": new_rev,
+            "mtime": new_mtime
+        }
+
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps(response).encode())
 
     def log_message(self, format, *args):
         """Suppress default logging"""
