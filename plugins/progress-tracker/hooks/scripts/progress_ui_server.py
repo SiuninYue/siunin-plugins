@@ -186,6 +186,13 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
         else:
             self.send_error(404, "Not Found")
 
+    def handle_patch_checkbox(self, parsed_path):
+        """Handle PATCH /api/checkbox - placeholder for implementation"""
+        self.send_response(501)  # Not Implemented
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps({"error": "Not implemented yet"}).encode())
+
     def handle_get_file(self, parsed_path):
         """Handle GET /api/file?path=<file>"""
         query = parse_qs(parsed_path.query)
