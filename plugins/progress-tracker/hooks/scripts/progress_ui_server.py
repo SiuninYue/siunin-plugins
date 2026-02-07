@@ -296,6 +296,61 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"error": "Conflict: File was modified", "current_rev": current_rev, "current_mtime": current_mtime}).encode())
             return
 
+        # Split file into lines
+        lines = current_content.splitlines(keepends=True)
+
+        # Validate line_index is within bounds
+        if line_index >= len(lines):
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": f"line_index {line_index} out of bounds (file has {len(lines)} lines)"}).encode())
+            return
+
+        # Get the target line
+        original_line = lines[line_index]
+
+        # Check if line contains a checkbox pattern
+        import re
+        checkbox_pattern = r'^(\s*-\s*\[)([ /x\-!?])(\])'
+        match = re.match(checkbox_pattern, original_line)
+
+        if not match:
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": f"Line {line_index} does not contain a checkbox"}).encode())
+            return
+
+        # Update the checkbox status
+        prefix = match.group(1)  # "- ["
+        suffix = match.group(3)  # "]"
+        rest_of_line = original_line[match.end():]  # Everything after "]"
+
+        updated_line = f"{prefix}{new_status}{suffix}{rest_of_line}"
+        lines[line_index] = updated_line
+
+        # Join lines back together
+        new_content = "".join(lines)
+
+        # Write to file
+        full_path.write_text(new_content)
+
+        # Calculate new rev/mtime
+        new_rev = calculate_rev(new_content)
+        new_mtime = calculate_mtime(full_path)
+
+        response = {
+            "rev": new_rev,
+            "mtime": new_mtime,
+            "updated_line": updated_line.rstrip("\n\r")
+        }
+
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps(response).encode())
+
     def handle_get_file(self, parsed_path):
         """Handle GET /api/file?path=<file>"""
         query = parse_qs(parsed_path.query)
