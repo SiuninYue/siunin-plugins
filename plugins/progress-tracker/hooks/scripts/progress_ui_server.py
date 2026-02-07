@@ -283,6 +283,19 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"error": "File not found"}).encode())
             return
 
+        # Read current file for concurrency control
+        current_content = full_path.read_text()
+        current_rev = calculate_rev(current_content)
+        current_mtime = calculate_mtime(full_path)
+
+        # Check for concurrent modification
+        if not validate_put_request(current_rev, current_mtime, base_rev, base_mtime):
+            self.send_response(409)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Conflict: File was modified", "current_rev": current_rev, "current_mtime": current_mtime}).encode())
+            return
+
     def handle_get_file(self, parsed_path):
         """Handle GET /api/file?path=<file>"""
         query = parse_qs(parsed_path.query)
