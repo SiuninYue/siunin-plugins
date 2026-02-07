@@ -1,0 +1,160 @@
+{
+  "project_name": "Progress Tracker UI",
+  "created_at": "2026-02-06T21:53:53.117095Z",
+  "features": [
+    {
+      "id": 1,
+      "name": "创建 HTTP 服务器核心框架（含 P0 安全）",
+      "test_steps": [
+        "依赖检查: command -v jq >/dev/null 2>&1 || { echo '需要 jq: brew install jq'; exit 1; } && command -v lsof >/dev/null 2>&1 || { echo '需要 lsof'; exit 1; }",
+        "验证文件存在: ls plugins/progress-tracker/hooks/scripts/progress_ui_server.py",
+        "测试端口启动: python3 -c 'import sys; sys.path.insert(0, \"plugins/progress-tracker/hooks/scripts\"); from progress_ui_server import main; print(\"Server module loads successfully\")'",
+        "检查端口探测逻辑: grep -E '3737|3747' plugins/progress-tracker/hooks/scripts/progress_ui_server.py",
+        "端口动态探测: PORT=$(lsof -nP -iTCP -sTCP:LISTEN | awk '$9 ~ /127\\.0\\.0\\.1:(3737|3738|3739|3740|3741|3742|3743|3744|3745|3746|3747)$/ {split($9,a,\":\"); print a[2]; exit}') && [ -z \"$PORT\" ] && PORT=3737 && BASE=\"http://127.0.0.1:$PORT\" && echo \"Using port: $PORT\"",
+        "行为验证：仅监听 127.0.0.1: lsof -i :$PORT -P -n | grep LISTEN | grep '127.0.0.1'",
+        "验证路径安全校验: grep -E 'Path\\.resolve|relative_to|parts' plugins/progress-tracker/hooks/scripts/progress_ui_server.py"
+      ],
+      "completed": false
+    },
+    {
+      "id": 2,
+      "name": "实现文件扫描与读取 API",
+      "test_steps": [
+        "端口动态探测: PORT=$(lsof -nP -iTCP -sTCP:LISTEN | awk '$9 ~ /127\\.0\\.0\\.1:(3737|3738|3739|3740|3741|3742|3743|3744|3745|3746|3747)$/ {split($9,a,\":\"); print a[2]; exit}') && [ -z \"$PORT\" ] && PORT=3737 && BASE=\"http://127.0.0.1:$PORT\"",
+        "测试 GET /api/files: curl -s $BASE/api/files | head -20",
+        "验证扫描顺序（progress.md 优先）: curl -s $BASE/api/files | jq -r '.[0].name' | grep progress",
+        "验证去重（无重复路径）: curl -s $BASE/api/files | jq -r '.[].path' | sort | uniq -d | wc -l | grep 0",
+        "测试 GET /api/file: curl -s \"$BASE/api/file?path=.claude/progress.md\" | jq '.content,.mtime,.rev'",
+        "测试 Content-Type（正确响应头）: curl -s -D - -o /dev/null \"$BASE/api/file?path=.claude/progress.md\" | grep -i 'content-type:.*application/json'"
+      ],
+      "completed": false
+    },
+    {
+      "id": 3,
+      "name": "实现写入 API 与并发控制",
+      "test_steps": [
+        "端口动态探测: PORT=$(lsof -nP -iTCP -sTCP:LISTEN | awk '$9 ~ /127\\.0\\.0\\.1:(3737|3738|3739|3740|3741|3742|3743|3744|3745|3746|3747)$/ {split($9,a,\":\"); print a[2]; exit}') && [ -z \"$PORT\" ] && PORT=3737 && BASE=\"http://127.0.0.1:$PORT\"",
+        "创建测试文件: TEST_PATH='.claude/progress-ui-test.md' && printf -- '- [ ] test item 1\\n- [ ] test item 2\\n' > \"$TEST_PATH\" && echo 'Test file created'",
+        "正例：GET 获取 rev/mtime: READ=$(curl -s \"$BASE/api/file?path=$TEST_PATH\") && REV=$(echo \"$READ\" | jq -r '.rev') && MTIME=$(echo \"$READ\" | jq -r '.mtime') && echo \"REV=$REV MTIME=$MTIME\"",
+        "正例：用最新 rev/mtime PUT 成功（返回 200）: BODY=$(jq -nc --arg c \"test content updated\" --arg r \"$REV\" --argjson m \"$MTIME\" '{content:$c,base_rev:$r,base_mtime:$m}') && curl -s -o /dev/null -w '%{http_code}' -X PUT \"$BASE/api/file?path=$TEST_PATH\" -H 'Content-Type: application/json' --data \"$BODY\" | grep 200",
+        "非法 Origin 返回 403（文件已存在且 rev/mtime 有效）: curl -s -o /dev/null -w '%{http_code}' -X PUT \"$BASE/api/file?path=$TEST_PATH\" -H 'Content-Type: application/json' -H 'Origin: http://evil.com' --data \"$BODY\" | grep 403",
+        "负例：白名单拒绝（test.md 返回 403）: curl -s -o /dev/null -w '%{http_code}' -X PUT \"$BASE/api/file?path=test.md\" -H 'Content-Type: application/json' -d '{\"content\":\"test\",\"base_rev\":\"\",\"base_mtime\":0}' | grep 403",
+        "冲突例：旧 base_rev 返回 409: curl -s -o /dev/null -w '%{http_code}' -X PUT \"$BASE/api/file?path=$TEST_PATH\" -H 'Content-Type: application/json' -d '{\"content\":\"old\",\"base_rev\":\"wrong_rev\",\"base_mtime\":0}' | grep 409",
+        "测试 PATCH /api/checkbox: curl -s -X PATCH $BASE/api/checkbox -H 'Content-Type: application/json' -d '{\"file_path\":\".claude/progress-ui-test.md\",\"line_index\":0,\"new_status\":\"x\",\"base_rev\":\"\",\"base_mtime\":0}'",
+        "清理测试文件: rm -f .claude/progress-ui-test.md && echo 'Test file cleaned'"
+      ],
+      "completed": false
+    },
+    {
+      "id": 4,
+      "name": "实现前端 UI 单文件框架",
+      "test_steps": [
+        "端口动态探测: PORT=$(lsof -nP -iTCP -sTCP:LISTEN | awk '$9 ~ /127\\.0\\.0\\.1:(3737|3738|3739|3740|3741|3742|3743|3744|3745|3746|3747)$/ {split($9,a,\":\"); print a[2]; exit}') && [ -z \"$PORT\" ] && PORT=3737 && BASE=\"http://127.0.0.1:$PORT\"",
+        "验证文件存在: ls plugins/progress-tracker/hooks/scripts/static/index.html",
+        "测试 / 返回 HTML: curl -s -D - -o /dev/null $BASE/ | grep -i 'content-type:.*text/html'",
+        "测试 /api/* 返回 JSON: curl -s -D - -o /dev/null \"$BASE/api/file?path=.claude/progress.md\" | grep -i 'content-type:.*application/json'",
+        "检查内联样式: grep -c '<style>' plugins/progress-tracker/hooks/scripts/static/index.html",
+        "检查内联脚本: grep -c '<script>' plugins/progress-tracker/hooks/scripts/static/index.html"
+      ],
+      "completed": false
+    },
+    {
+      "id": 5,
+      "name": "实现 6 状态 checkbox 渲染",
+      "test_steps": [
+        "测试 checkbox 渲染: 打开页面检查是否显示 ☐🔄☑➖❌❓ 六种状态",
+        "验证状态切换: 点击 checkbox 应按 ☐->🔄->☑ 主循环切换",
+        "测试右键菜单: 右键点击 checkbox 应显示 6 状态选项",
+        "检查快捷键: 按 1-6 键应切换对应状态"
+      ],
+      "completed": false
+    },
+    {
+      "id": 6,
+      "name": "实现文档切换与保存功能",
+      "test_steps": [
+        "测试文档列表: 左侧应显示可切换的文档列表",
+        "测试文档切换: 点击文档名称应切换右侧内容",
+        "测试保存功能: 修改状态后应显示'保存中...'然后'已保存'",
+        "测试手动刷新: 点击刷新按钮或按 Ctrl+R 应重新加载文档"
+      ],
+      "completed": false
+    },
+    {
+      "id": 7,
+      "name": "实现冲突处理与状态栏",
+      "test_steps": [
+        "测试冲突检测: 模拟并发修改应显示冲突弹窗",
+        "验证冲突弹窗: 应显示当前版本和你的版本的差异",
+        "测试推荐选项: 冲突弹窗应有'逐行保留我的状态变更'选项",
+        "检查状态栏: 顶部应正确显示 未保存/保存中/已保存/冲突 状态"
+      ],
+      "completed": false
+    },
+    {
+      "id": 8,
+      "name": "实现轮询与快捷键功能",
+      "test_steps": [
+        "测试自动轮询: 页面应在 10-30 秒内自动刷新",
+        "测试聚焦刷新: 窗口重新聚焦时应自动刷新",
+        "测试快捷键: Ctrl+S 保存、j/k 导航、Esc 关闭弹窗",
+        "验证帮助浮层: 按 ? 应显示快捷键帮助"
+      ],
+      "completed": false
+    },
+    {
+      "id": 9,
+      "name": "编写核心功能测试",
+      "test_steps": [
+        "验证测试文件: ls plugins/progress-tracker/tests/test_progress_ui.py",
+        "运行路径安全测试: pytest plugins/progress-tracker/tests/test_progress_ui.py -k path -v",
+        "运行冲突检测测试: pytest plugins/progress-tracker/tests/test_progress_ui.py -k conflict -v",
+        "运行 6 状态解析测试: pytest plugins/progress-tracker/tests/test_progress_ui.py -k checkbox -v",
+        "运行 P0 安全测试: pytest plugins/progress-tracker/tests/test_progress_ui.py -k security -v"
+      ],
+      "completed": false
+    },
+    {
+      "id": 10,
+      "name": "创建 /prog-ui 命令",
+      "test_steps": [
+        "验证命令文件存在: ls plugins/progress-tracker/commands/prog-ui.md",
+        "检查命令注册: grep 'prog-ui' plugins/progress-tracker/.claude-plugin/plugin.json",
+        "测试命令启动: 执行 /prog-ui 应启动服务器并打开浏览器",
+        "验证命令文档: 命令应显示使用说明和参数"
+      ],
+      "completed": false
+    },
+    {
+      "id": 11,
+      "name": "更新 README 和文档",
+      "test_steps": [
+        "检查 README 更新: grep -E 'UI|/prog-ui|progress_ui' plugins/progress-tracker/README.md",
+        "验证使用说明: README 应包含启动命令和功能介绍",
+        "检查 CHANGELOG: grep '1.3.0' plugins/progress-tracker/CHANGELOG.md",
+        "确认版本更新: plugin.json 版本应更新为 1.3.0"
+      ],
+      "completed": false
+    },
+    {
+      "id": 12,
+      "name": "跨浏览器兼容性测试",
+      "test_steps": [
+        "测试 Firefox: 在 Firefox 中打开并验证所有功能正常",
+        "测试 Chrome: 在 Chrome 中打开并验证所有功能正常",
+        "测试 Zen: 在 Zen Browser 中打开并验证所有功能正常",
+        "验证 API 契约: 所有浏览器返回格式一致"
+      ],
+      "completed": false
+    }
+  ],
+  "current_feature_id": 1,
+  "updated_at": "2026-02-07T23:56:31.288334Z",
+  "schema_version": "2.0",
+  "workflow_state": {
+    "phase": "execution_complete",
+    "plan_path": "docs/plans/2026-02-07-progress-ui-http-server.md",
+    "next_action": "verify_and_complete",
+    "updated_at": "2026-02-07T23:56:31.283251Z"
+  }
+}
