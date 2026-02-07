@@ -209,7 +209,15 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
             return
 
         # Read request body
-        content_length = int(self.headers.get("Content-Length", 0))
+        try:
+            content_length = int(self.headers.get("Content-Length", 0))
+        except ValueError:
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Invalid Content-Length"}).encode())
+            return
+
         if content_length == 0:
             self.send_response(400)
             self.send_header("Content-Type", "application/json")
@@ -373,7 +381,15 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
         full_path = (self.working_dir / file_path).resolve()
 
         # Read request body
-        content_length = int(self.headers.get("Content-Length", 0))
+        try:
+            content_length = int(self.headers.get("Content-Length", 0))
+        except ValueError:
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Invalid Content-Length"}).encode())
+            return
+
         if content_length == 0:
             self.send_response(400)
             self.send_header("Content-Type", "application/json")
