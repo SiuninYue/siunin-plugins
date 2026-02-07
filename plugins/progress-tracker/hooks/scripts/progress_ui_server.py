@@ -208,6 +208,56 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"error": "Invalid Origin"}).encode())
             return
 
+        # Read request body
+        content_length = int(self.headers.get("Content-Length", 0))
+        if content_length == 0:
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Request body required"}).encode())
+            return
+
+        body = self.rfile.read(content_length)
+        try:
+            data = json.loads(body.decode())
+        except json.JSONDecodeError:
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Invalid JSON"}).encode())
+            return
+
+        # Extract required fields
+        file_path = data.get("file_path")
+        line_index = data.get("line_index")
+        new_status = data.get("new_status")
+        base_rev = data.get("base_rev", "")
+        base_mtime = data.get("base_mtime", 0)
+
+        # Validate required fields
+        if file_path is None or line_index is None or new_status is None:
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "file_path, line_index, and new_status required"}).encode())
+            return
+
+        # Validate line_index is integer
+        if not isinstance(line_index, int) or line_index < 0:
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "line_index must be non-negative integer"}).encode())
+            return
+
+        # Validate new_status
+        if new_status not in CHECKBOX_STATES:
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": f"Invalid new_status. Must be one of: {list(CHECKBOX_STATES.keys())}"}).encode())
+            return
+
     def handle_get_file(self, parsed_path):
         """Handle GET /api/file?path=<file>"""
         query = parse_qs(parsed_path.query)
