@@ -266,6 +266,23 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"error": f"Invalid new_status. Must be one of: {list(CHECKBOX_STATES.keys())}"}).encode())
             return
 
+        # Validate path security
+        if not validate_path(self.working_dir, file_path):
+            self.send_response(403)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Invalid path"}).encode())
+            return
+
+        full_path = (self.working_dir / file_path).resolve()
+
+        if not full_path.exists():
+            self.send_response(404)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "File not found"}).encode())
+            return
+
     def handle_get_file(self, parsed_path):
         """Handle GET /api/file?path=<file>"""
         query = parse_qs(parsed_path.query)
