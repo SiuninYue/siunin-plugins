@@ -104,6 +104,17 @@ def calculate_mtime(file_path: Path) -> int:
     return int(file_path.stat().st_mtime)
 
 
+# Checkbox status mapping: status char -> markdown checkbox representation
+CHECKBOX_STATES = {
+    " ": " ",  # ☐ unchecked
+    "/": "/",  # 🔄 in progress
+    "x": "x",  # ☑ completed
+    "-": "-",  # ➖ not applicable
+    "!": "!",  # ❌ blocked/cancelled
+    "?": "?",  # ❓ uncertain
+}
+
+
 def validate_put_request(current_rev: str, current_mtime: int, base_rev: str, base_mtime: int) -> bool:
     """
     Validate PUT request parameters for concurrency control.
