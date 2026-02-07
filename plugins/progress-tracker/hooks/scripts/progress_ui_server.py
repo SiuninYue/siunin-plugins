@@ -198,11 +198,15 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
             self.send_error(404, "Not Found")
 
     def handle_patch_checkbox(self, parsed_path):
-        """Handle PATCH /api/checkbox - placeholder for implementation"""
-        self.send_response(501)  # Not Implemented
-        self.send_header("Content-Type", "application/json")
-        self.end_headers()
-        self.wfile.write(json.dumps({"error": "Not implemented yet"}).encode())
+        """Handle PATCH /api/checkbox - update single checkbox status"""
+        # Validate Origin header for P0 security
+        origin = self.headers.get("Origin")
+        if not is_valid_origin(origin):
+            self.send_response(403)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Invalid Origin"}).encode())
+            return
 
     def handle_get_file(self, parsed_path):
         """Handle GET /api/file?path=<file>"""
