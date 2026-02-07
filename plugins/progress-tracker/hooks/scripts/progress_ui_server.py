@@ -177,6 +177,15 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
         else:
             self.send_error(404, "Not Found")
 
+    def do_PATCH(self):
+        """Handle PATCH requests"""
+        parsed_path = urlparse(self.path)
+
+        if parsed_path.path == "/api/checkbox":
+            self.handle_patch_checkbox(parsed_path)
+        else:
+            self.send_error(404, "Not Found")
+
     def handle_get_file(self, parsed_path):
         """Handle GET /api/file?path=<file>"""
         query = parse_qs(parsed_path.query)
