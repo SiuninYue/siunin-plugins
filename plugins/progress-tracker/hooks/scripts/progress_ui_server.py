@@ -114,6 +114,44 @@ CHECKBOX_STATES = {
     "?": "?",  # ❓ uncertain
 }
 
+# --- Path Whitelist ---
+# Default writable paths - only project data directory
+DEFAULT_WRITABLE_PATHS = [".claude"]
+
+# Runtime writable list (default + extra)
+WRITABLE_PATHS = list(DEFAULT_WRITABLE_PATHS)
+
+# Optional: Allow extra directories via environment variable
+import os
+_EXTRA_PATHS_RAW = os.environ.get("PROGRESS_UI_WRITABLE_PATHS", "")
+if _EXTRA_PATHS_RAW:
+    for extra in _EXTRA_PATHS_RAW.split(","):
+        extra = extra.strip()
+        if not extra:
+            continue
+        if extra.startswith("/") or extra.startswith("~"):
+            raise ValueError(f"Invalid PROGRESS_UI_WRITABLE_PATHS: absolute path not allowed: {extra}")
+        if ".." in extra or extra == ".":
+            raise ValueError(f"Invalid PROGRESS_UI_WRITABLE_PATHS: dangerous path: {extra}")
+        WRITABLE_PATHS.append(extra)
+
+
+def is_path_writable(rel_path: str) -> bool:
+    """
+    Check if a validated relative path is in the writable whitelist.
+
+    MUST be called AFTER validate_path() has confirmed the path is safe.
+    Only matches files under whitelisted directories, not the directory itself.
+    """
+    rel_path_normalized = rel_path.replace("\\", "/")
+
+    for writable in WRITABLE_PATHS:
+        writable_normalized = writable.replace("\\", "/")
+        if rel_path_normalized.startswith(writable_normalized + "/"):
+            return True
+
+    return False
+
 
 def validate_put_request(current_rev: str, current_mtime: int, base_rev: str, base_mtime: int) -> bool:
     """
@@ -272,6 +310,14 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps({"error": "Invalid path"}).encode())
+            return
+
+        # Whitelist check
+        if not is_path_writable(file_path):
+            self.send_response(403)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Path not in writable whitelist"}).encode())
             return
 
         full_path = (self.working_dir / file_path).resolve()
@@ -461,6 +507,14 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps({"error": "Invalid path"}).encode())
+            return
+
+        # Whitelist check
+        if not is_path_writable(file_path):
+            self.send_response(403)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Path not in writable whitelist"}).encode())
             return
 
         full_path = (self.working_dir / file_path).resolve()
