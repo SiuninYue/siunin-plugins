@@ -21,6 +21,8 @@ from urllib.parse import urlparse, parse_qs
 
 PORT_RANGE = range(3737, 3748)  # 3737-3747 inclusive
 BIND_HOST = "127.0.0.1"  # P0: Localhost only
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+INDEX_FILE = STATIC_DIR / "index.html"
 
 
 def find_available_port(start: Optional[int] = None) -> int:
@@ -210,12 +212,37 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
         """Handle GET requests"""
         parsed_path = urlparse(self.path)
 
-        if parsed_path.path == "/api/file":
+        if parsed_path.path == "/":
+            self.handle_get_index()
+        elif parsed_path.path == "/api/file":
             self.handle_get_file(parsed_path)
         elif parsed_path.path == "/api/files":
             self.handle_get_files()
         else:
             self.send_error(404, "Not Found")
+
+    def handle_get_index(self):
+        """Handle GET / - serve the single-file UI"""
+        if not INDEX_FILE.exists():
+            self.send_response(500)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "UI entry file not found"}).encode())
+            return
+
+        try:
+            content = INDEX_FILE.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            self.send_response(500)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Failed to read UI entry file"}).encode())
+            return
+
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.end_headers()
+        self.wfile.write(content.encode("utf-8"))
 
     def do_PUT(self):
         """Handle PUT requests"""
