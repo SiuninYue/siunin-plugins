@@ -57,7 +57,14 @@
         "测试 PATCH /api/checkbox: curl -s -X PATCH $BASE/api/checkbox -H 'Content-Type: application/json' -d '{\"file_path\":\".claude/progress-ui-test.md\",\"line_index\":0,\"new_status\":\"x\",\"base_rev\":\"\",\"base_mtime\":0}'",
         "清理测试文件: rm -f .claude/progress-ui-test.md && echo 'Test file cleaned'"
       ],
-      "completed": false
+      "completed": true,
+      "completed_at": "2026-02-09T07:06:29.308901Z",
+      "commit_hash": "b3954f782720e3525b389e8741b6a51dcc93108e",
+      "archive_info": {
+        "archived_at": "2026-02-09T07:06:29.330291Z",
+        "files_moved": 0,
+        "files": []
+      }
     },
     {
       "id": 4,
@@ -162,24 +169,12 @@
       "completed": false
     }
   ],
-  "current_feature_id": 3,
-  "updated_at": "2026-02-08T00:57:13.972916Z",
+  "current_feature_id": 4,
+  "updated_at": "2026-02-09T07:15:18.159357Z",
   "schema_version": "2.0",
   "workflow_state": {
     "phase": "execution_complete",
-    "plan_path": "/Users/siunin/Projects/Claude-Plugins/docs/plans/2026-02-08-checkbox-patch-api.md",
     "next_action": "verify_and_complete",
-    "updated_at": "2026-02-08T00:57:13.967789Z",
-    "completed_tasks": [
-      1,
-      2,
-      3,
-      4,
-      5,
-      6,
-      7,
-      8
-    ],
-    "current_task": 9
+    "updated_at": "2026-02-09T07:15:18.153297Z"
   }
 }

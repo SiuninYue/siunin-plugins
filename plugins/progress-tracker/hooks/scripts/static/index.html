@@ -3,10 +3,483 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Progress UI</title>
+    <title>Progress Tracker UI</title>
+    <style>
+        :root {
+            --bg-0: #f4efe6;
+            --bg-1: #fffaf2;
+            --panel: #ffffff;
+            --line: #d9d0c2;
+            --text-strong: #1f2933;
+            --text-soft: #5a6670;
+            --accent: #1f7a8c;
+            --accent-strong: #155664;
+            --warning: #b96f00;
+            --danger: #a42f2f;
+            --ok: #2f7d32;
+            --shadow: 0 8px 24px rgba(31, 41, 51, 0.08);
+            --radius: 14px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "IBM Plex Sans", "Avenir Next", "Segoe UI", sans-serif;
+            color: var(--text-strong);
+            background:
+                radial-gradient(1100px 380px at 50% -240px, #ffffff 0%, var(--bg-0) 70%),
+                linear-gradient(180deg, var(--bg-0) 0%, var(--bg-1) 100%);
+        }
+
+        .app {
+            max-width: 1240px;
+            margin: 0 auto;
+            padding: 18px;
+            display: grid;
+            gap: 14px;
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            padding: 12px 16px;
+            box-shadow: var(--shadow);
+        }
+
+        .title {
+            margin: 0;
+            font-size: 1.15rem;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+        }
+
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border-radius: 999px;
+            border: 1px solid transparent;
+            padding: 6px 10px;
+            font-size: 0.87rem;
+            font-weight: 600;
+            color: var(--text-soft);
+            background: #f7f3ea;
+        }
+
+        .status::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: currentColor;
+            opacity: 0.9;
+        }
+
+        .status.info {
+            color: var(--accent-strong);
+            border-color: rgba(21, 86, 100, 0.28);
+            background: rgba(31, 122, 140, 0.08);
+        }
+
+        .status.success {
+            color: var(--ok);
+            border-color: rgba(47, 125, 50, 0.28);
+            background: rgba(47, 125, 50, 0.09);
+        }
+
+        .status.warn {
+            color: var(--warning);
+            border-color: rgba(185, 111, 0, 0.3);
+            background: rgba(185, 111, 0, 0.1);
+        }
+
+        .status.error {
+            color: var(--danger);
+            border-color: rgba(164, 47, 47, 0.3);
+            background: rgba(164, 47, 47, 0.1);
+        }
+
+        .workspace {
+            min-height: 72vh;
+            display: grid;
+            grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+            gap: 14px;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .panel-head {
+            border-bottom: 1px solid var(--line);
+            padding: 10px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-head h2 {
+            margin: 0;
+            font-size: 0.96rem;
+            letter-spacing: 0.01em;
+        }
+
+        .actions {
+            display: inline-flex;
+            gap: 6px;
+        }
+
+        button {
+            border: 1px solid var(--line);
+            background: #ffffff;
+            color: var(--text-strong);
+            border-radius: 10px;
+            padding: 6px 10px;
+            font-size: 0.84rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+        }
+
+        button:hover {
+            border-color: var(--accent);
+            color: var(--accent-strong);
+            background: rgba(31, 122, 140, 0.08);
+        }
+
+        .doc-list {
+            list-style: none;
+            margin: 0;
+            padding: 10px;
+            display: grid;
+            gap: 6px;
+            max-height: calc(72vh - 58px);
+            overflow: auto;
+        }
+
+        .doc-list li {
+            margin: 0;
+        }
+
+        .doc-item {
+            width: 100%;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 8px;
+            cursor: pointer;
+            display: grid;
+            gap: 4px;
+            text-align: left;
+            transition: border-color 120ms ease, background 120ms ease;
+        }
+
+        .doc-item:hover {
+            border-color: var(--accent);
+            background: rgba(31, 122, 140, 0.07);
+        }
+
+        .doc-item:focus-visible {
+            outline: 2px solid var(--accent-strong);
+            outline-offset: 2px;
+        }
+
+        .doc-item.active {
+            border-color: var(--accent-strong);
+            background: rgba(31, 122, 140, 0.12);
+        }
+
+        .doc-name {
+            margin: 0;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .doc-meta {
+            margin: 0;
+            font-size: 0.77rem;
+            color: var(--text-soft);
+            font-family: "JetBrains Mono", "Menlo", "Consolas", monospace;
+        }
+
+        .editor-head {
+            border-bottom: 1px solid var(--line);
+            padding: 10px 12px;
+            display: grid;
+            gap: 2px;
+        }
+
+        .active-path {
+            margin: 0;
+            font-size: 0.9rem;
+            font-weight: 700;
+            font-family: "JetBrains Mono", "Menlo", "Consolas", monospace;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .active-time {
+            margin: 0;
+            color: var(--text-soft);
+            font-size: 0.79rem;
+        }
+
+        .editor {
+            margin: 0;
+            padding: 14px;
+            overflow: auto;
+            white-space: pre-wrap;
+            line-height: 1.6;
+            font-size: 0.91rem;
+            font-family: "JetBrains Mono", "Menlo", "Consolas", monospace;
+            min-height: calc(72vh - 58px);
+            background-image:
+                linear-gradient(180deg, rgba(31, 122, 140, 0.025) 1px, transparent 1px);
+            background-size: 100% 1.65rem;
+        }
+
+        .empty {
+            margin: 0;
+            color: var(--text-soft);
+            font-style: italic;
+        }
+
+        @media (max-width: 900px) {
+            .workspace {
+                grid-template-columns: 1fr;
+                min-height: auto;
+            }
+
+            .doc-list,
+            .editor {
+                max-height: 42vh;
+                min-height: auto;
+            }
+        }
+    </style>
 </head>
 <body>
-    <h1>Progress UI</h1>
-    <p>UI will be implemented in the next feature.</p>
+    <div class="app">
+        <header class="topbar">
+            <h1 class="title">Progress Tracker UI</h1>
+            <div id="status-pill" class="status info">Initializing</div>
+        </header>
+
+        <section class="workspace">
+            <aside class="panel">
+                <div class="panel-head">
+                    <h2>Documents</h2>
+                    <div class="actions">
+                        <button id="refresh-files-btn" type="button">Refresh</button>
+                    </div>
+                </div>
+                <ul id="doc-list" class="doc-list"></ul>
+            </aside>
+
+            <main class="panel">
+                <div class="editor-head">
+                    <p id="active-path" class="active-path">No document selected</p>
+                    <p id="active-time" class="active-time">Choose a file from the left panel.</p>
+                </div>
+                <div id="editor" class="editor"><p class="empty">Loading document list...</p></div>
+            </main>
+        </section>
+    </div>
+
+    <script>
+        (() => {
+            const state = {
+                files: [],
+                activePath: null,
+                activeRev: "",
+                activeMtime: 0
+            };
+
+            const ui = {
+                statusPill: document.getElementById("status-pill"),
+                docList: document.getElementById("doc-list"),
+                activePath: document.getElementById("active-path"),
+                activeTime: document.getElementById("active-time"),
+                editor: document.getElementById("editor"),
+                refreshFilesBtn: document.getElementById("refresh-files-btn")
+            };
+
+            function setStatus(text, tone = "info") {
+                ui.statusPill.textContent = text;
+                ui.statusPill.className = "status " + tone;
+            }
+
+            function formatTimestamp(unixSeconds) {
+                if (!unixSeconds) {
+                    return "Unknown update time";
+                }
+                const date = new Date(unixSeconds * 1000);
+                return date.toLocaleString();
+            }
+
+            function renderFileList() {
+                ui.docList.replaceChildren();
+
+                if (!state.files.length) {
+                    const emptyItem = document.createElement("li");
+                    emptyItem.className = "empty";
+                    emptyItem.textContent = "No markdown files in .claude.";
+                    ui.docList.appendChild(emptyItem);
+                    return;
+                }
+
+                const fragment = document.createDocumentFragment();
+
+                state.files.forEach((file) => {
+                    const isActive = file.path === state.activePath;
+                    const activeClass = isActive ? "doc-item active" : "doc-item";
+
+                    const listItem = document.createElement("li");
+                    const openButton = document.createElement("button");
+                    openButton.type = "button";
+                    openButton.className = activeClass;
+                    openButton.dataset.path = file.path;
+                    openButton.setAttribute("aria-label", "Open " + file.path);
+
+                    const name = document.createElement("p");
+                    name.className = "doc-name";
+                    name.textContent = file.name + ".md";
+
+                    const meta = document.createElement("p");
+                    meta.className = "doc-meta";
+                    meta.textContent = formatTimestamp(file.mtime);
+
+                    openButton.appendChild(name);
+                    openButton.appendChild(meta);
+                    openButton.addEventListener("click", () => {
+                        void loadFile(file.path);
+                    });
+
+                    listItem.appendChild(openButton);
+                    fragment.appendChild(listItem);
+                });
+
+                ui.docList.appendChild(fragment);
+            }
+
+            function renderFileContent(content) {
+                ui.editor.replaceChildren();
+
+                if (content) {
+                    ui.editor.textContent = content;
+                    return;
+                }
+
+                const emptyText = document.createElement("p");
+                emptyText.className = "empty";
+                emptyText.textContent = "The selected file is empty.";
+                ui.editor.appendChild(emptyText);
+            }
+
+            async function fetchJson(url, options = {}) {
+                const response = await fetch(url, options);
+                let payload = {};
+
+                try {
+                    payload = await response.json();
+                } catch (_error) {
+                    payload = {};
+                }
+
+                if (!response.ok) {
+                    const message = payload.error || ("Request failed with " + response.status);
+                    throw new Error(message);
+                }
+
+                return payload;
+            }
+
+            async function loadFiles(preserveSelection = true) {
+                setStatus("Loading file list...", "info");
+
+                try {
+                    const files = await fetchJson("/api/files");
+                    state.files = Array.isArray(files) ? files : [];
+
+                    if (!state.files.length) {
+                        state.activePath = null;
+                        ui.activePath.textContent = "No document selected";
+                        ui.activeTime.textContent = "No files available in .claude/";
+                        renderFileList();
+                        renderFileContent("");
+                        setStatus("No files found", "warn");
+                        return;
+                    }
+
+                    if (!preserveSelection || !state.activePath) {
+                        state.activePath = state.files[0].path;
+                    } else if (!state.files.some((file) => file.path === state.activePath)) {
+                        state.activePath = state.files[0].path;
+                    }
+
+                    renderFileList();
+                    await loadFile(state.activePath, false);
+                } catch (error) {
+                    setStatus("Failed to load files", "error");
+                    ui.activePath.textContent = "Error";
+                    ui.activeTime.textContent = String(error.message || error);
+                    ui.editor.textContent = "Unable to load file list.";
+                }
+            }
+
+            async function loadFile(path, updateStatus = true) {
+                if (!path) {
+                    return;
+                }
+
+                if (updateStatus) {
+                    setStatus("Loading " + path + "...", "info");
+                }
+
+                try {
+                    const file = await fetchJson("/api/file?path=" + encodeURIComponent(path));
+                    state.activePath = file.path;
+                    state.activeRev = file.rev;
+                    state.activeMtime = file.mtime;
+
+                    ui.activePath.textContent = file.path;
+                    ui.activeTime.textContent = "Last updated: " + formatTimestamp(file.mtime);
+                    renderFileContent(file.content || "");
+                    renderFileList();
+                    setStatus("Ready", "success");
+                } catch (error) {
+                    setStatus("Failed to load file", "error");
+                    ui.activeTime.textContent = String(error.message || error);
+                }
+            }
+
+            ui.refreshFilesBtn.addEventListener("click", () => {
+                void loadFiles(true);
+            });
+
+            window.addEventListener("keydown", (event) => {
+                if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "r") {
+                    event.preventDefault();
+                    void loadFiles(true);
+                }
+            });
+
+            void loadFiles(false);
+        })();
+    </script>
 </body>
 </html>
