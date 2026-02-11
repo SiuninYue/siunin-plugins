@@ -20,6 +20,7 @@ references:
 # Testing Standards Skill
 
 This skill defines the standards for all testing documentation in the project. All test documents must follow consistent naming, frontmatter, and content structure standards.
+Treat this skill as the canonical source for testing document format requirements.
 
 ## Purpose
 

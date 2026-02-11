@@ -1,6 +1,6 @@
 ---
 name: feature-implement
-description: 功能实现技能。集成Superpowers工作流，通过TDD和代码审查确保高质量实施。
+description: This skill should be used when the user runs "/prog next", asks to "implement next feature", "start next feature", "continue implementation", or needs to resume interrupted feature execution. Coordinates deterministic complexity routing across simple (haiku), standard (sonnet), and complex (opus) paths with fallback to the standard path.
 model: sonnet
 version: "3.0.0"
 scope: skill

@@ -188,10 +188,10 @@ When user mentions they've already filled in a document:
 ```markdown
 Reading your existing document: docs/testing/feature-{id}-acceptance-report.md
 
-Validating format:
-- [ ] Frontmatter present
-- [ ] Required fields complete
-- [ ] Test results documented
+Validate the document against `testing-standards`:
+- [ ] Required metadata and structure are valid
+- [ ] Naming and location follow standards
+- [ ] Test evidence and outcomes are documented
 
 If format issues found, offer to fix them.
 If complete, proceed to commit.
@@ -248,22 +248,11 @@ What would you like to do?
 Once all items are addressed:
 
 1. **Fill in the checklist** based on user's responses
-2. **Add proper frontmatter** (following testing-standards):
-   ```yaml
-   ---
-   type: feature-acceptance
-   id: [feature_id]
-   date: [YYYY-MM-DD]
-   status: [passed/passed-with-notes/failed]
-   ---
-   ```
-3. **Save to** `docs/testing/feature-{id}-acceptance-report.md`
+2. **Apply testing-standards template** for content, metadata, and naming
+3. **Save to** the canonical acceptance report path from testing-standards
 4. **Confirm** the document was created
 
-**Document naming** (per testing-standards):
-- Use lowercase, hyphens for separation
-- Format: `feature-{id}-acceptance-report.md`
-- Location: `docs/testing/`
+Avoid duplicating naming and frontmatter rules in this skill. `testing-standards` is the single source of truth.
 
 If user prefers not to generate a document, ask for confirmation before proceeding without it.
 
