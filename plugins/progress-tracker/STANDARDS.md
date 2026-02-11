@@ -24,6 +24,7 @@ All markdown files under `commands/`, `agents/`, and `skills/*/SKILL.md` must in
 | `model` | string | Recommended Claude model (haiku, sonnet, opus) |
 | `name` | string | Command/agent/skill name (optional if derived from filename) |
 | `description` | string | Short description of purpose |
+| `user-invocable` | boolean | Whether a skill is directly invocable by users (optional) |
 
 ## Model Selection Guide
 
@@ -93,6 +94,7 @@ feat(complete): <feature name>
 |------|----------|---------|
 | `progress.json` | `.claude/` | Machine-readable state |
 | `progress.md` | `.claude/` | Human-readable display |
+| `checkpoints.json` | `.claude/` | Lightweight auto-checkpoint snapshots |
 
 ## Command Naming
 
@@ -156,12 +158,25 @@ Test steps:
 | `completed` | boolean | Yes | Feature completion status |
 | `completed_at` | string\|null | No | ISO 8601 timestamp (when completed) |
 | `commit_hash` | string\|null | No | Git commit hash (when completed) |
+| `ai_metrics` | object\|null | No | Lightweight AI routing and duration metadata |
 
 **Future v2.1+ fields (optional):**
 | Field | Type | Description |
 |-------|------|-------------|
 | `status` | string | Enum: `pending` \| `in_progress` \| `blocked` \| `done` |
 | `started_at` | string | ISO 8601 timestamp (when started) |
+
+### AI Metrics Object Schema (features[].ai_metrics)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `complexity_score` | int | Complexity score in range 0-40 |
+| `complexity_bucket` | string | Enum: `simple` \| `standard` \| `complex` |
+| `selected_model` | string | Enum: `haiku` \| `sonnet` \| `opus` |
+| `workflow_path` | string | Enum: `direct_tdd` \| `plan_execute` \| `full_design_plan_execute` |
+| `started_at` | string | ISO 8601 timestamp |
+| `finished_at` | string | ISO 8601 timestamp |
+| `duration_seconds` | int | Elapsed seconds |
 
 ### Bug Object Schema
 
@@ -176,6 +191,7 @@ Test steps:
 **Optional Bug Fields:**
 | Field | Type | Description |
 |-------|------|-------------|
+| `category` | string | Enum: `bug` \| `technical_debt` |
 | `updated_at` | string | ISO 8601 timestamp (last update) |
 | `root_cause` | string | Root cause analysis |
 | `fix_summary` | string | Summary of applied fix |
@@ -198,6 +214,38 @@ Test steps:
 | `total_tasks` | int | Total number of tasks |
 | `next_action` | string | Recommended next action |
 | `updated_at` | string | ISO 8601 timestamp |
+
+### Checkpoints Schema (`.claude/checkpoints.json`)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `last_checkpoint_at` | string\|null | ISO 8601 timestamp of latest checkpoint |
+| `max_entries` | int | Retention limit (default 50) |
+| `entries` | array | Snapshot entries |
+
+Checkpoint entry fields:
+- `timestamp` (ISO-8601)
+- `feature_id`
+- `feature_name`
+- `phase`
+- `plan_path`
+- `current_task`
+- `total_tasks`
+- `reason` (default `auto_interval`)
+
+## AI-First Skill Documentation Pattern
+
+For skills primarily consumed by AI, prefer fixed sections in this order:
+1. `Purpose`
+2. `Inputs`
+3. `Outputs`
+4. `State Read/Write`
+5. `Steps`
+6. `Failure Modes`
+7. `Commands`
+8. `Examples`
+
+Use stable field names and enums (`complexity_bucket`, `workflow_path`, `category`) to reduce ambiguity across models.
 
 ### Migration Notes
 

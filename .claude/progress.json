@@ -77,7 +77,14 @@
         "检查内联样式: grep -c '<style>' plugins/progress-tracker/hooks/scripts/static/index.html",
         "检查内联脚本: grep -c '<script>' plugins/progress-tracker/hooks/scripts/static/index.html"
       ],
-      "completed": false
+      "completed": true,
+      "completed_at": "2026-02-10T07:11:02.669323Z",
+      "commit_hash": "eeed1d8957c7f2bdf9e4464ebc4ee7762947b5fa",
+      "archive_info": {
+        "archived_at": "2026-02-10T07:11:02.691940Z",
+        "files_moved": 0,
+        "files": []
+      }
     },
     {
       "id": 5,
@@ -169,12 +176,7 @@
       "completed": false
     }
   ],
-  "current_feature_id": 4,
-  "updated_at": "2026-02-09T07:15:18.159357Z",
-  "schema_version": "2.0",
-  "workflow_state": {
-    "phase": "execution_complete",
-    "next_action": "verify_and_complete",
-    "updated_at": "2026-02-09T07:15:18.153297Z"
-  }
+  "current_feature_id": null,
+  "updated_at": "2026-02-10T07:11:05.418841Z",
+  "schema_version": "2.0"
 }

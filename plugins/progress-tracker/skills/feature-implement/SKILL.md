@@ -2,7 +2,7 @@
 name: feature-implement
 description: 功能实现技能。集成Superpowers工作流，通过TDD和代码审查确保高质量实施。
 model: sonnet
-version: "2.0.0"
+version: "3.0.0"
 scope: skill
 inputs:
   - 用户问题或场景
@@ -11,7 +11,7 @@ outputs:
   - 方法与模板
   - 注意事项与检查项
 evidence: optional
-references: ["superpowers:brainstorming", "superpowers:writing-plans", "superpowers:subagent-driven-development", "superpowers:test-driven-development"]
+references: ["superpowers:brainstorming", "superpowers:writing-plans", "superpowers:subagent-driven-development", "superpowers:test-driven-development", "./references/complexity-assessment.md"]
 ---
 
 # Feature Implementation Skill (Superpowers Integration)
@@ -42,6 +42,18 @@ next_feature = first(f for f in features if f.completed == false)
 - If exists, read technology stack and design decisions
 - Use this context when invoking brainstorming or planning
 - Reference architectural constraints in implementation guidance
+
+### Pre-Step: Auto Checkpoint
+
+Before starting any implementation workflow, call:
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py auto-checkpoint
+```
+
+This creates a lightweight `.claude/checkpoints.json` snapshot only when:
+- A feature is currently in progress
+- More than 30 minutes passed since the last checkpoint
 
 ### Step 2: Update Current Feature
 
@@ -90,385 +102,91 @@ Before invoking Superpowers skills, assess feature complexity:
 - Presence of design decisions in feature description
 - Whether feature involves new architecture patterns
 
-### Step 5: Invoke Superpowers Workflow
+### Step 5: Route by Complexity (Deterministic Delegation)
 
-Based on complexity assessment:
+Use the fixed score thresholds from `references/complexity-assessment.md`:
+- 0-15: `simple`
+- 16-25: `standard`
+- 26-40: `complex`
 
-#### 5A: Simple Features (Direct TDD)
+Display a concise model-routing summary:
 
-For straightforward implementations:
-
-Display to user:
 ```markdown
-**Complexity Assessment**: Simple
-- Files: <N> (single file change)
-- Test steps: <N>
-- Design decisions: None
+## Complexity & Model Selection
 
-**Selected Workflow**: Direct TDD
-- Skip brainstorming (clear requirements)
-- Skip planning (straightforward implementation)
-- Execute RED-GREEN-REFACTOR cycle directly
-
-Estimated time: 2-5 minutes
-
----
-
-⏳ Using **superpowers:test-driven-development** skill...
+Feature: <feature_name>
+Score: <score>/40
+Bucket: <simple|standard|complex>
+Model: <🟢 haiku|🟡 sonnet|🔴 opus>
+Workflow: <direct_tdd|plan_execute|full_design_plan_execute>
 ```
+
+#### 5A: Simple Path (Delegate to Haiku Skill)
+
+When score <= 15:
 
 <CRITICAL>
-You MUST use the Skill tool to invoke superpowers:test-driven-development:
+Invoke the skill tool:
 
-DO NOT just describe or mention the skill. You MUST invoke it using the Skill tool.
-
-Use the Skill tool with these exact parameters:
-  - skill: "superpowers:test-driven-development"
-  - args: "<feature_name>: <one_line_description>"
-
-Example:
-```
-Skill("superpowers:test-driven-development", args="Fix typo in README: Change 'recieve' to 'receive'")
+```text
+Skill("progress-tracker:feature-implement-simple", args="<feature_name>: <one_line_description>")
 ```
 
-WAIT for the skill to complete.
+Do not execute inline simple flow in this coordinator.
 </CRITICAL>
 
-After TDD completes, display:
-```markdown
-✅ Implementation Complete (Simple Workflow)
+#### 5B: Standard Path (Stay in Coordinator / Sonnet)
 
-**Summary**:
-- RED-GREEN-REFACTOR cycle completed
-- Tests passing
-- Code ready for verification
+When 16 <= score <= 25:
 
-Progress: [██████████] 100%
-
----
-
-**Next Step**: Run `/prog done` to:
-  - Execute acceptance tests
-  - Create feature-level commit
-  - Mark feature as completed
+1. Execute planning:
+```text
+Skill("superpowers:writing-plans", args="<feature_name>: <one_line_description>")
 ```
-
-Update progress.json:
-```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state \
-  --phase "execution_complete" \
-  --next-action "verify_and_complete"
-```
-
-#### 5B: Standard Features (Planning + Subagent Execution)
-
-For typical multi-file features:
-
-Display to user:
-```markdown
-**Complexity Assessment**: Standard
-- Files: <N> (multiple files)
-- Test steps: <N>
-- Design decisions: Minor (standard patterns)
-
-**Selected Workflow**: Planning → Subagent Execution
-- Skip brainstorming (requirements are clear)
-- Create structured implementation plan
-- Execute with fresh subagents per task (TDD + dual review)
-
-Estimated time: 5-15 minutes
-
----
-
-## Phase 1: Planning (Step 1/2)
-
-⏳ Creating implementation plan with **superpowers:writing-plans**...
-
-This will break the feature into bite-sized tasks (2-5min each) with:
-  - Exact file paths to modify
-  - Complete code examples
-  - TDD approach per task
-  - Verification steps
-
-Estimated time: 2-3 minutes
-```
-
-<CRITICAL>
-DO NOT just describe or mention these skills. You MUST invoke them using the Skill tool.
-
-This is NOT optional. This is NOT a suggestion. You MUST execute these tool calls.
-
-NOW invoke the skill:
-
-Use the Skill tool with these exact parameters:
-  - skill: "superpowers:writing-plans"
-  - args: "<feature_name>: <one_line_description>"
-
-Example:
-```
-Skill("superpowers:writing-plans", args="User Registration API: POST endpoint with bcrypt hashing")
-```
-
-WAIT for the skill to complete and return the plan file path.
-</CRITICAL>
-
-After superpowers:writing-plans completes:
-
-1. Extract the plan file path from the skill output
-2. Update progress.json immediately:
-
-   ```bash
-   python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state \
-     --phase "planning_complete" \
-     --plan-path "<returned_plan_path>" \
-     --next-action "execution"
-   ```
-
-3. Display plan summary to user:
-
-   ```markdown
-   ✅ Phase 1 Complete: Plan created
-
-   📄 Plan: <plan_path>
-
-   **Task Breakdown**:
-     1. <task_1_name> (<time>)
-     2. <task_2_name> (<time>)
-     3. <task_3_name> (<time>)
-     ...
-
-   Total estimated time: <sum_of_times>
-
-   Progress: [████░░░░░░] 33% - Phase 1/2 done
-
-   ---
-
-   ## Phase 2: Execution (Step 2/2)
-
-   ⏳ Executing tasks with **superpowers:subagent-driven-development**...
-
-   This will:
-     - Create a fresh subagent for each task
-     - Follow RED-GREEN-REFACTOR TDD cycle
-     - Run dual-review gates (spec + quality)
-     - Auto-commit after each task passes
-
-   You can monitor progress as each task completes.
-   ```
-
-<CRITICAL>
-DO NOT just describe or mention the skill. You MUST invoke it using the Skill tool.
-
-NOW invoke the skill:
-
-Use the Skill tool with these exact parameters:
-  - skill: "superpowers:subagent-driven-development"
-  - args: "plan:<plan_path>"
-
-Example:
-```
-Skill("superpowers:subagent-driven-development", args="plan:docs/plans/2026-01-24-user-registration.md")
-```
-
-As tasks complete, update workflow_state.completed_tasks:
-
-After each task:
-```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-workflow-task <task_number> completed
-```
-
-Monitor the skill execution and display progress to user:
-```markdown
-Progress: Task <N>/<total> - <task_name>
-  ⏳ RED: Writing test...
-  ⏳ GREEN: Implementing...
-  ⏳ REFACTOR: Cleaning up...
-  ✅ Spec review: PASS
-  ✅ Quality review: PASS
-  ✅ Committed: <commit_message>
-```
-</CRITICAL>
-
-After all tasks complete:
-
-1. Update progress.json:
-
-   ```bash
-   python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state \
-     --phase "execution_complete" \
-     --next-action "verify_and_complete"
-   ```
-
-2. Display completion:
-
-   ```markdown
-   ✅ Phase 2 Complete: All tasks implemented
-
-   **Summary**:
-     - Tasks completed: <N>/<N>
-     - Commits created: <N>
-     - All tests: PASSING
-
-   Progress: [██████████] 100% - Implementation done
-
-   ---
-
-   **Next Step**: Run `/prog done` to:
-     - Execute acceptance tests
-     - Create feature-level commit
-     - Mark feature as completed
-     - Move to next feature
-   ```
-
-#### 5C: Complex Features (Full Workflow)
-
-For features needing design exploration:
-
-Display to user:
-```markdown
-**Complexity Assessment**: Complex
-- Files: >5 (significant changes)
-- Test steps: >5 (complex verification)
-- Design decisions: Yes (architecture needs exploration)
-
-**Selected Workflow**: Brainstorming → Planning → Execution
-- Design exploration for architecture decisions
-- Structured task breakdown
-- Subagent-driven TDD execution
-
-Estimated time: 15-30 minutes
-
----
-
-## Phase 1: Design Exploration (Step 1/3)
-
-⏳ Exploring design alternatives with **superpowers:brainstorming**...
-
-This will:
-  - Ask clarifying questions (one at a time)
-  - Explore 2-3 alternative approaches
-  - Validate design against requirements
-  - Document final design decision
-
-Estimated time: 5-10 minutes
-```
-
-<CRITICAL>
-DO NOT just describe or mention this skill. You MUST invoke it using the Skill tool.
-
-NOW invoke the skill:
-
-Use the Skill tool with these exact parameters:
-  - skill: "superpowers:brainstorming"
-  - args: "<feature_description>"
-
-Example:
-```
-Skill("superpowers:brainstorming", args="Refactor authentication system to support OAuth2 and JWT")
-```
-
-WAIT for the skill to complete.
-</CRITICAL>
-
-After superpowers:brainstorming completes:
-
-1. Update progress.json:
-
-   ```bash
-   python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state \
-     --phase "design_complete" \
-     --next-action "planning"
-   ```
-
-2. Display phase completion:
-
-   ```markdown
-   ✅ Phase 1 Complete: Design documented
-
-   **Design Summary**:
-     - <brief_summary_of_design_decision>
-
-   Progress: [██░░░░░░░░] 17% - Phase 1/3 done
-
-   ---
-
-   ## Phase 2: Planning (Step 2/3)
-
-   ⏳ Creating implementation plan with **superpowers:writing-plans**...
-   ```
-
-<CRITICAL>
-DO NOT just describe or mention the skill. You MUST invoke it using the Skill tool.
-
-NOW invoke the skill:
-
-Use the Skill tool with these exact parameters:
-  - skill: "superpowers:writing-plans"
-  - args: "<feature_name>: <one_line_description>"
-</CRITICAL>
-
-After planning completes, update state and display:
-
+2. Update workflow state:
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state \
   --phase "planning_complete" \
-  --plan-path "<plan_path>" \
+  --plan-path "<returned_plan_path>" \
   --next-action "execution"
 ```
-
-```markdown
-✅ Phase 2 Complete: Plan created
-
-📄 Plan: <plan_path>
-
-**Task Breakdown**:
-  1. <task_1> (<time>)
-  2. <task_2> (<time>)
-  ...
-
-Progress: [████░░░░░░] 50% - Phase 2/3 done
-
----
-
-## Phase 3: Execution (Step 3/3)
-
-⏳ Executing tasks with **superpowers:subagent-driven-development**...
+3. Execute implementation:
+```text
+Skill("superpowers:subagent-driven-development", args="plan:<returned_plan_path>")
 ```
-
-<CRITICAL>
-DO NOT just describe or mention the skill. You MUST invoke it using the Skill tool.
-
-NOW invoke the skill:
-
-Use the Skill tool with these exact parameters:
-  - skill: "superpowers:subagent-driven-development"
-  - args: "plan:<plan_path>"
-</CRITICAL>
-
-After execution completes:
-
+4. Mark execution complete and write AI metrics:
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state \
   --phase "execution_complete" \
   --next-action "verify_and_complete"
+
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-feature-ai-metrics <feature_id> \
+  --complexity-score <score> \
+  --selected-model sonnet \
+  --workflow-path plan_execute
 ```
 
-```markdown
-✅ Phase 3 Complete: All tasks implemented
+#### 5C: Complex Path (Delegate to Opus Skill)
 
-**Summary**:
-  - Design: <design_summary>
-  - Plan: <plan_path>
-  - Tasks completed: <N>/<N>
-  - Commits created: <N>
-  - All tests: PASSING
+When score >= 26:
 
-Progress: [██████████] 100% - Implementation done
+<CRITICAL>
+Invoke the skill tool:
 
----
-
-**Next Step**: Run `/prog done` to finalize.
+```text
+Skill("progress-tracker:feature-implement-complex", args="<feature_name>: <one_line_description>")
 ```
+
+Do not execute inline complex flow in this coordinator.
+</CRITICAL>
+
+#### 5D: Delegation Failure Fallback
+
+If simple/complex delegation fails for any reason:
+
+1. Inform user that delegation failed and standard flow is being used.
+2. Continue with Standard Path (`writing-plans` -> `subagent-driven-development`).
+3. Write AI metrics with `selected_model = sonnet` and `workflow_path = plan_execute`.
 
 ### Step 6: Post-Implementation Guidance
 

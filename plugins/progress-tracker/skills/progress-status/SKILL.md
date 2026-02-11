@@ -2,7 +2,7 @@
 name: progress-status
 description: 进度状态显示技能。用于读取进度文件、计算统计信息并生成建议。
 model: haiku
-version: "1.0.0"
+version: "2.0.0"
 scope: skill
 inputs:
   - 用户问题或场景
@@ -43,6 +43,9 @@ Present progress information in this structured format:
 
 ### Recent Activity
 <git log summary>
+
+### Project Statistics
+<model distribution, complexity distribution, avg duration>
 
 ### Recommended Next Steps
 <actionable suggestions>
@@ -93,6 +96,19 @@ percentage = (completed / total) * 100
 ```
 
 Display as integer (e.g., "40%", not "40.5%")
+
+### Lightweight AI Metrics (Optional)
+
+If `features[].ai_metrics` exists, display:
+- Model distribution (`haiku`, `sonnet`, `opus`)
+- Complexity distribution (`simple`, `standard`, `complex`)
+- Average duration from `duration_seconds`
+
+If no `ai_metrics` exist, display:
+```markdown
+### Project Statistics
+No AI metrics yet. Start a feature with `/prog next` to collect runtime data.
+```
 
 ## Feature Status Display
 
@@ -175,6 +191,12 @@ When implementation is complete, use `/prog done` to:
 - Run test steps
 - Mark feature as completed
 - Commit changes to Git
+
+If `workflow_state.phase == "execution_complete"`, prioritize recommendation:
+```markdown
+### Recommended Next Step
+Run `/prog done` to finalize the current feature.
+```
 ```
 
 ### All Features Complete
@@ -191,6 +213,13 @@ Consider:
 - Running full integration tests
 - Updating documentation
 - Deploying to production
+
+If any bugs have `category == "technical_debt"`, also show:
+```markdown
+### Technical Debt Backlog
+You still have <N> technical debt items in bug tracking.
+Use `/prog fix` to review and schedule cleanup.
+```
 ```
 
 ### No Progress Tracking Found

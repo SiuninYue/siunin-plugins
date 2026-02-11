@@ -11,6 +11,9 @@ Usage:
     python3 progress_manager.py check
     python3 progress_manager.py set-current <feature_id>
     python3 progress_manager.py complete <feature_id>
+    python3 progress_manager.py set-feature-ai-metrics <feature_id> --complexity-score <score> --selected-model <model> --workflow-path <path>
+    python3 progress_manager.py complete-feature-ai-metrics <feature_id>
+    python3 progress_manager.py auto-checkpoint
     python3 progress_manager.py add-feature <name> <test_steps...>
     python3 progress_manager.py update-feature <feature_id> <name> [test_steps...]
     python3 progress_manager.py reset
@@ -32,6 +35,9 @@ from typing import Optional, List, Dict, Any
 DEFAULT_CLAUDE_DIR = ".claude"
 PROGRESS_JSON = "progress.json"
 PROGRESS_MD = "progress.md"
+CHECKPOINTS_JSON = "checkpoints.json"
+CHECKPOINT_MAX_ENTRIES = 50
+CHECKPOINT_INTERVAL_SECONDS = 1800
 
 # Schema version - increment when breaking changes occur
 CURRENT_SCHEMA_VERSION = "2.0"
@@ -41,7 +47,7 @@ BUG_REQUIRED_FIELDS = ["id", "description", "status", "priority", "created_at"]
 BUG_OPTIONAL_FIELDS = [
     "root_cause", "fix_summary", "fix_commit_hash", "verified_working",
     "repro_steps", "workaround", "quick_verification", "scheduled_position",
-    "updated_at", "investigation"
+    "updated_at", "investigation", "category"
 ]
 
 # Configure logging for diagnostics
@@ -245,6 +251,131 @@ def save_progress_md(content):
 
     with open(md_path, "w", encoding="utf-8") as f:
         f.write(content)
+
+
+def determine_complexity_bucket(score: int) -> str:
+    """Map a 0-40 complexity score to simple/standard/complex buckets."""
+    if score <= 15:
+        return "simple"
+    if score <= 25:
+        return "standard"
+    return "complex"
+
+
+def _parse_iso_timestamp(value: Optional[str]) -> Optional[datetime]:
+    """Parse ISO-8601 timestamps with optional trailing Z."""
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            return parsed.astimezone()
+        return parsed
+    except (TypeError, ValueError):
+        logger.debug(f"Invalid ISO timestamp: {value}")
+        return None
+
+
+def load_checkpoints(path: Optional[Path] = None) -> Dict[str, Any]:
+    """Load checkpoints from .claude/checkpoints.json."""
+    checkpoints_path = path or (get_progress_dir() / CHECKPOINTS_JSON)
+    if not checkpoints_path.exists():
+        return {
+            "last_checkpoint_at": None,
+            "max_entries": CHECKPOINT_MAX_ENTRIES,
+            "entries": [],
+        }
+
+    try:
+        with open(checkpoints_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        logger.warning(f"Corrupted checkpoints file: {checkpoints_path}. Reinitializing.")
+        return {
+            "last_checkpoint_at": None,
+            "max_entries": CHECKPOINT_MAX_ENTRIES,
+            "entries": [],
+        }
+
+    if not isinstance(data, dict):
+        return {
+            "last_checkpoint_at": None,
+            "max_entries": CHECKPOINT_MAX_ENTRIES,
+            "entries": [],
+        }
+
+    entries = data.get("entries", [])
+    if not isinstance(entries, list):
+        entries = []
+
+    max_entries = data.get("max_entries", CHECKPOINT_MAX_ENTRIES)
+    if not isinstance(max_entries, int) or max_entries <= 0:
+        max_entries = CHECKPOINT_MAX_ENTRIES
+
+    return {
+        "last_checkpoint_at": data.get("last_checkpoint_at"),
+        "max_entries": max_entries,
+        "entries": entries,
+    }
+
+
+def save_checkpoints(data: Dict[str, Any], path: Optional[Path] = None) -> None:
+    """Save checkpoints to .claude/checkpoints.json."""
+    progress_dir = get_progress_dir()
+    progress_dir.mkdir(parents=True, exist_ok=True)
+    checkpoints_path = path or (progress_dir / CHECKPOINTS_JSON)
+    with open(checkpoints_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+
+def auto_checkpoint() -> bool:
+    """Create a lightweight checkpoint snapshot every 30 minutes of active work."""
+    data = load_progress_json()
+    if not data:
+        return True
+
+    current_feature_id = data.get("current_feature_id")
+    if not current_feature_id:
+        return True
+
+    checkpoints = load_checkpoints()
+    now = datetime.now().astimezone()
+    last_checkpoint = _parse_iso_timestamp(checkpoints.get("last_checkpoint_at"))
+
+    if last_checkpoint and (now - last_checkpoint).total_seconds() < CHECKPOINT_INTERVAL_SECONDS:
+        return True
+
+    features = data.get("features", [])
+    feature = next((f for f in features if f.get("id") == current_feature_id), None)
+    workflow_state = data.get("workflow_state", {})
+
+    checkpoint_entry = {
+        "timestamp": now.isoformat().replace("+00:00", "Z"),
+        "feature_id": current_feature_id,
+        "feature_name": feature.get("name", "Unknown") if feature else "Unknown",
+        "phase": workflow_state.get("phase", "unknown"),
+        "plan_path": workflow_state.get("plan_path"),
+        "current_task": workflow_state.get("current_task"),
+        "total_tasks": workflow_state.get("total_tasks"),
+        "reason": "auto_interval",
+    }
+
+    entries = checkpoints.get("entries", [])
+    entries.append(checkpoint_entry)
+    max_entries = checkpoints.get("max_entries", CHECKPOINT_MAX_ENTRIES)
+    if len(entries) > max_entries:
+        entries = entries[-max_entries:]
+
+    save_checkpoints(
+        {
+            "last_checkpoint_at": checkpoint_entry["timestamp"],
+            "max_entries": max_entries,
+            "entries": entries,
+        }
+    )
+
+    print(f"Auto-checkpoint saved for feature {current_feature_id}")
+    return True
 
 
 def init_tracking(project_name, features=None, force=False):
@@ -459,6 +590,90 @@ def get_next_feature():
     return None
 
 
+def set_feature_ai_metrics(feature_id: int, complexity_score: int,
+                           selected_model: str, workflow_path: str) -> bool:
+    """Set lightweight AI metrics for a feature."""
+    data = load_progress_json()
+    if not data:
+        print("No progress tracking found")
+        return False
+
+    features = data.get("features", [])
+    feature = next((f for f in features if f.get("id") == feature_id), None)
+    if not feature:
+        print(f"Feature ID {feature_id} not found")
+        return False
+
+    valid_models = {"haiku", "sonnet", "opus"}
+    if selected_model not in valid_models:
+        print(f"Invalid model '{selected_model}'. Must be one of: {sorted(valid_models)}")
+        return False
+
+    if complexity_score < 0 or complexity_score > 40:
+        print("Invalid complexity score. Must be in range 0-40")
+        return False
+
+    now_iso = datetime.now().isoformat() + "Z"
+    ai_metrics = feature.get("ai_metrics", {})
+    if not isinstance(ai_metrics, dict):
+        ai_metrics = {}
+
+    ai_metrics.update(
+        {
+            "complexity_score": complexity_score,
+            "complexity_bucket": determine_complexity_bucket(complexity_score),
+            "selected_model": selected_model,
+            "workflow_path": workflow_path,
+        }
+    )
+    if not ai_metrics.get("started_at"):
+        ai_metrics["started_at"] = now_iso
+
+    feature["ai_metrics"] = ai_metrics
+    save_progress_json(data)
+    print(
+        f"AI metrics updated for feature {feature_id}: "
+        f"{ai_metrics['complexity_bucket']}, model={selected_model}"
+    )
+    return True
+
+
+def complete_feature_ai_metrics(feature_id: int) -> bool:
+    """Mark AI metrics completion timestamp and duration for a feature."""
+    data = load_progress_json()
+    if not data:
+        print("No progress tracking found")
+        return False
+
+    features = data.get("features", [])
+    feature = next((f for f in features if f.get("id") == feature_id), None)
+    if not feature:
+        print(f"Feature ID {feature_id} not found")
+        return False
+
+    now = datetime.now().astimezone()
+    now_iso = now.isoformat().replace("+00:00", "Z")
+
+    ai_metrics = feature.get("ai_metrics", {})
+    if not isinstance(ai_metrics, dict):
+        ai_metrics = {}
+
+    started_at = _parse_iso_timestamp(ai_metrics.get("started_at"))
+    if not started_at:
+        started_at = now
+        ai_metrics["started_at"] = now_iso
+
+    duration_seconds = int(max(0, (now - started_at).total_seconds()))
+
+    ai_metrics["finished_at"] = now_iso
+    ai_metrics["duration_seconds"] = duration_seconds
+    feature["ai_metrics"] = ai_metrics
+
+    save_progress_json(data)
+    print(f"AI metrics finalized for feature {feature_id}: duration={duration_seconds}s")
+    return True
+
+
 def archive_feature_docs(feature_id: int, feature_name: str = None) -> Dict[str, Any]:
     """
     Archive testing and plan documents for a completed feature.
@@ -607,6 +822,18 @@ def complete_feature(feature_id, commit_hash=None, skip_archive=False):
     features = data.get("features", [])
     feature = next((f for f in features if f.get("id") == feature_id), None)
 
+    if not feature:
+        print(f"Feature ID {feature_id} not found")
+        return False
+
+    # Finalize AI metrics before marking feature complete.
+    complete_feature_ai_metrics(feature_id)
+    data = load_progress_json()
+    if not data:
+        print("No progress tracking found")
+        return False
+    features = data.get("features", [])
+    feature = next((f for f in features if f.get("id") == feature_id), None)
     if not feature:
         print(f"Feature ID {feature_id} not found")
         return False
@@ -844,7 +1071,8 @@ def get_next_bug_id():
 
 
 def add_bug(description: str, status: str = "pending_investigation",
-            priority: str = "medium", scheduled_position: Optional[str] = None,
+            priority: str = "medium", category: str = "bug",
+            scheduled_position: Optional[str] = None,
             verification_results: Optional[str] = None):
     """
     Add a new bug to the tracking with validation.
@@ -859,6 +1087,8 @@ def add_bug(description: str, status: str = "pending_investigation",
             fixing, fixed, false_positive.
         priority: Bug severity level. Defaults to "medium".
             Must be one of: high, medium, low.
+        category: Logical bug category. Defaults to "bug".
+            Must be one of: bug, technical_debt.
         scheduled_position: Optional scheduling directive in format
             "before:N", "after:N", or "last" for smart insertion into feature
             timeline.
@@ -892,6 +1122,10 @@ def add_bug(description: str, status: str = "pending_investigation",
     valid_priorities = ["high", "medium", "low"]
     if priority not in valid_priorities:
         raise ValueError(f"Invalid priority '{priority}'. Must be one of: {valid_priorities}")
+
+    valid_categories = ["bug", "technical_debt"]
+    if category not in valid_categories:
+        raise ValueError(f"Invalid category '{category}'. Must be one of: {valid_categories}")
 
     # Sanitize description (remove control characters except newline/tab)
     description = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', description)
@@ -971,6 +1205,7 @@ def add_bug(description: str, status: str = "pending_investigation",
         "description": description,
         "status": status,
         "priority": priority,
+        "category": category,
         "created_at": datetime.now().isoformat() + "Z",
         "quick_verification": quick_verification,
     }
@@ -992,6 +1227,7 @@ def add_bug(description: str, status: str = "pending_investigation",
     print(f"Description: {description}")
     print(f"Status: {status}")
     print(f"Priority: {priority}")
+    print(f"Category: {category}")
     if scheduled_pos:
         print(f"Scheduled: {scheduled_pos}")
     return True
@@ -1110,6 +1346,7 @@ def list_bugs():
         description = bug.get("description", "No description")
         status = bug.get("status", "unknown")
         priority = bug.get("priority", "medium")
+        category = bug.get("category", "bug")
         created_at = bug.get("created_at", "")
         scheduled = bug.get("scheduled_position", {})
 
@@ -1134,7 +1371,10 @@ def list_bugs():
                 time_ago = "unknown"
 
         print(f"- [{bug_id}] {description}")
-        print(f"  Status: {icon} {status} | Priority: {priority} | Created: {time_ago}")
+        print(
+            f"  Status: {icon} {status} | Priority: {priority} | "
+            f"Category: {category} | Created: {time_ago}"
+        )
 
         if scheduled:
             pos_type = scheduled.get("type", "")
@@ -1371,7 +1611,10 @@ def generate_progress_md(data):
                 md_lines.append("### High Priority (🔴)")
                 for bug in high_pending:
                     icon = status_icons.get(bug.get("status"), "❓")
-                    md_lines.append(f"- [{icon}] [{bug.get('id')}] {bug.get('description', 'No description')}")
+                    category_prefix = "[DEBT] " if bug.get("category") == "technical_debt" else ""
+                    md_lines.append(
+                        f"- [{icon}] [{bug.get('id')}] {category_prefix}{bug.get('description', 'No description')}"
+                    )
                     scheduled = bug.get("scheduled_position", {})
                     if scheduled:
                         reason = scheduled.get("reason", "")
@@ -1382,7 +1625,10 @@ def generate_progress_md(data):
                 md_lines.append("### Medium Priority (🟡)")
                 for bug in medium_pending:
                     icon = status_icons.get(bug.get("status"), "❓")
-                    md_lines.append(f"- [{icon}] [{bug.get('id')}] {bug.get('description', 'No description')}")
+                    category_prefix = "[DEBT] " if bug.get("category") == "technical_debt" else ""
+                    md_lines.append(
+                        f"- [{icon}] [{bug.get('id')}] {category_prefix}{bug.get('description', 'No description')}"
+                    )
                     if bug.get("root_cause"):
                         md_lines.append(f"  Root cause: {bug['root_cause']}")
                     scheduled = bug.get("scheduled_position", {})
@@ -1395,13 +1641,19 @@ def generate_progress_md(data):
                 md_lines.append("### Low Priority (🟢)")
                 for bug in low_pending:
                     icon = status_icons.get(bug.get("status"), "❓")
-                    md_lines.append(f"- [{icon}] [{bug.get('id')}] {bug.get('description', 'No description')}")
+                    category_prefix = "[DEBT] " if bug.get("category") == "technical_debt" else ""
+                    md_lines.append(
+                        f"- [{icon}] [{bug.get('id')}] {category_prefix}{bug.get('description', 'No description')}"
+                    )
                 md_lines.append("")
 
         if fixed_bugs:
             md_lines.append("### Fixed (✅)")
             for bug in fixed_bugs:
-                md_lines.append(f"- [x] [{bug.get('id')}] {bug.get('description', 'No description')}")
+                category_prefix = "[DEBT] " if bug.get("category") == "technical_debt" else ""
+                md_lines.append(
+                    f"- [x] [{bug.get('id')}] {category_prefix}{bug.get('description', 'No description')}"
+                )
                 if bug.get("fix_summary"):
                     md_lines.append(f"  Fix: {bug['fix_summary']}")
             md_lines.append("")
@@ -1477,6 +1729,31 @@ def main():
     # Clear workflow state command
     subparsers.add_parser("clear-workflow-state", help="Clear workflow state")
 
+    # Feature AI metrics commands
+    ai_metrics_parser = subparsers.add_parser(
+        "set-feature-ai-metrics", help="Set AI metrics for a feature"
+    )
+    ai_metrics_parser.add_argument("feature_id", type=int, help="Feature ID")
+    ai_metrics_parser.add_argument(
+        "--complexity-score", type=int, required=True, help="Complexity score (0-40)"
+    )
+    ai_metrics_parser.add_argument(
+        "--selected-model", choices=["haiku", "sonnet", "opus"], required=True, help="Model used"
+    )
+    ai_metrics_parser.add_argument(
+        "--workflow-path", required=True,
+        choices=["direct_tdd", "plan_execute", "full_design_plan_execute"],
+        help="Workflow path used for implementation"
+    )
+
+    complete_ai_metrics_parser = subparsers.add_parser(
+        "complete-feature-ai-metrics", help="Finalize AI metrics duration for feature"
+    )
+    complete_ai_metrics_parser.add_argument("feature_id", type=int, help="Feature ID")
+
+    # Auto-checkpoint command
+    subparsers.add_parser("auto-checkpoint", help="Create checkpoint snapshot if interval elapsed")
+
     # Add bug command
     bug_parser = subparsers.add_parser("add-bug", help="Add a new bug")
     bug_parser.add_argument("--description", required=True, help="Bug description")
@@ -1486,6 +1763,9 @@ def main():
     bug_parser.add_argument("--priority", default="medium",
                            choices=["high", "medium", "low"],
                            help="Bug priority")
+    bug_parser.add_argument("--category", default="bug",
+                           choices=["bug", "technical_debt"],
+                           help="Bug category")
     bug_parser.add_argument("--scheduled-position", help="Scheduling position (e.g., 'before:3', 'after:2', 'last')")
     bug_parser.add_argument("--verification-results", help="JSON string of verification results")
 
@@ -1539,12 +1819,24 @@ def main():
         return update_workflow_task(args.task_id, args.status)
     elif args.command == "clear-workflow-state":
         return clear_workflow_state()
+    elif args.command == "set-feature-ai-metrics":
+        return set_feature_ai_metrics(
+            args.feature_id,
+            args.complexity_score,
+            args.selected_model,
+            args.workflow_path,
+        )
+    elif args.command == "complete-feature-ai-metrics":
+        return complete_feature_ai_metrics(args.feature_id)
+    elif args.command == "auto-checkpoint":
+        return auto_checkpoint()
     elif args.command == "add-bug":
         try:
             return add_bug(
                 description=args.description,
                 status=args.status,
                 priority=args.priority,
+                category=args.category,
                 scheduled_position=args.scheduled_position,
                 verification_results=args.verification_results
             )

@@ -2,7 +2,7 @@
 name: feature-complete
 description: This skill should be used when the user asks to "/prog done", "complete feature", "mark feature as done", "finish implementation", or runs the prog-done command. Handles feature verification, progress tracking updates, and Git commits.
 model: sonnet
-version: "1.0.0"
+version: "2.0.0"
 scope: skill
 inputs:
   - 用户问题或场景
@@ -312,6 +312,42 @@ Then execute:
 2. Update progress tracking via progress_manager.py with commit hash (Step 7 below)
 3. Show next steps
 
+### Step 5.5: Quality Gates (Optional)
+
+If `.claude/progress.json` contains `quality_gates.pre_commit_checks`, run each check before commit:
+
+```bash
+<check_1>
+<check_2>
+...
+```
+
+Rules:
+- All configured checks must pass before proceeding.
+- If any check fails, stop completion and keep feature in-progress.
+- Show clear failure output and suggest `/prog next` to continue implementation fixes.
+
+If no quality gates are configured, continue without blocking.
+
+### Step 5.6: Technical Debt Prompt
+
+After tests pass and before commit, ask:
+
+```markdown
+Did this implementation introduce technical debt? (y/n/describe)
+```
+
+If user confirms debt or provides description, record it via existing bug system:
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-bug \
+  --description "<debt_description>" \
+  --priority medium \
+  --category technical_debt
+```
+
+Then continue completion flow.
+
 #### Test Failure
 
 ```markdown
@@ -376,6 +412,9 @@ git rev-parse HEAD
 
 # Mark feature as completed with the hash
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py complete <feature_id> --commit <commit_hash>
+
+# Finalize AI metrics duration for this feature
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py complete-feature-ai-metrics <feature_id>
 
 # Clear workflow state since feature is complete
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py clear-workflow-state

@@ -580,3 +580,97 @@ class TestMainFunction:
             result = progress_manager.main()
             # reset_tracking() returns True on success
             assert result is True
+
+
+class TestAiMetricsAndCheckpoints:
+    """Test AI metrics persistence and lightweight checkpoint behavior."""
+
+    def test_set_feature_ai_metrics_records_fields(self, progress_file):
+        """Should write complexity/model/workflow metrics to feature."""
+        result = progress_manager.set_feature_ai_metrics(
+            2, 18, "sonnet", "plan_execute"
+        )
+        assert result is True
+
+        data = progress_manager.load_progress_json()
+        feature = next(f for f in data["features"] if f["id"] == 2)
+        metrics = feature["ai_metrics"]
+        assert metrics["complexity_score"] == 18
+        assert metrics["complexity_bucket"] == "standard"
+        assert metrics["selected_model"] == "sonnet"
+        assert metrics["workflow_path"] == "plan_execute"
+        assert "started_at" in metrics
+
+    def test_complete_feature_ai_metrics_sets_duration(self, progress_file):
+        """Should finalize finished_at and duration_seconds."""
+        progress_manager.set_feature_ai_metrics(2, 12, "haiku", "direct_tdd")
+        result = progress_manager.complete_feature_ai_metrics(2)
+        assert result is True
+
+        data = progress_manager.load_progress_json()
+        feature = next(f for f in data["features"] if f["id"] == 2)
+        metrics = feature["ai_metrics"]
+        assert "finished_at" in metrics
+        assert "duration_seconds" in metrics
+        assert metrics["duration_seconds"] >= 0
+
+    def test_auto_checkpoint_creates_snapshot(self, in_progress_file):
+        """Should create checkpoints.json with current workflow snapshot."""
+        result = progress_manager.auto_checkpoint()
+        assert result is True
+
+        checkpoints_path = Path(".claude/checkpoints.json")
+        assert checkpoints_path.exists()
+        payload = json.loads(checkpoints_path.read_text())
+        assert payload["max_entries"] == 50
+        assert len(payload["entries"]) == 1
+        assert payload["entries"][0]["feature_id"] == 2
+        assert payload["entries"][0]["reason"] == "auto_interval"
+
+    def test_auto_checkpoint_respects_interval(self, in_progress_file):
+        """Should avoid duplicate snapshots within the checkpoint interval."""
+        assert progress_manager.auto_checkpoint() is True
+        assert progress_manager.auto_checkpoint() is True
+
+        checkpoints_path = Path(".claude/checkpoints.json")
+        payload = json.loads(checkpoints_path.read_text())
+        assert len(payload["entries"]) == 1
+
+    def test_add_bug_with_technical_debt_category(self, progress_file):
+        """Should support technical_debt category on bug creation."""
+        result = progress_manager.add_bug(
+            description="Hard-coded endpoint",
+            priority="medium",
+            category="technical_debt",
+        )
+        assert result is True
+
+        data = progress_manager.load_progress_json()
+        bugs = data.get("bugs", [])
+        assert len(bugs) == 1
+        assert bugs[0]["category"] == "technical_debt"
+
+    def test_main_set_feature_ai_metrics_command(self, progress_file):
+        """Should handle set-feature-ai-metrics command."""
+        with patch(
+            "sys.argv",
+            [
+                "progress_manager.py",
+                "set-feature-ai-metrics",
+                "2",
+                "--complexity-score",
+                "10",
+                "--selected-model",
+                "haiku",
+                "--workflow-path",
+                "direct_tdd",
+            ],
+        ):
+            result = progress_manager.main()
+            assert result is True
+
+    def test_main_auto_checkpoint_command(self, in_progress_file):
+        """Should handle auto-checkpoint command."""
+        with patch("sys.argv", ["progress_manager.py", "auto-checkpoint"]):
+            result = progress_manager.main()
+            assert result is True
