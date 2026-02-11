@@ -1,8 +1,18 @@
 ---
 name: git-commit
 description: This skill should be used when the user asks to "create a git commit", "commit changes", "make a commit", or needs to create a conventional commit message based on code changes. Follows commit-commands plugin best practices.
+model: sonnet
 version: "1.0.0"
 scope: skill
+inputs:
+  - Git working tree changes
+  - Optional commit intent or scope
+outputs:
+  - Commit execution summary
+  - Commit hash or failure reason
+evidence: optional
+references:
+  - "references/conventional-commits.md"
 ---
 
 # Git Commit

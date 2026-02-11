@@ -1,6 +1,6 @@
 ---
 name: feature-implement-simple
-description: 简单功能实现技能。用于单文件修改、明确需求、低复杂度任务。由主协调技能自动委托。
+description: This skill should be used when feature complexity is simple (score 0-15) and the coordinator delegates low-risk tasks such as single-file changes, clear requirements, and limited test steps. Executes direct TDD with haiku and updates workflow and AI metrics.
 model: haiku
 version: "1.0.0"
 scope: skill

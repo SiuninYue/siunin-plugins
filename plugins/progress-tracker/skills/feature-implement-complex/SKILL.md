@@ -1,6 +1,6 @@
 ---
 name: feature-implement-complex
-description: 复杂功能实现技能。用于多文件改造、架构决策、复杂集成任务。由主协调技能自动委托。
+description: This skill should be used when feature complexity is complex (score 26-40) and the coordinator delegates architecture-heavy or multi-file implementation. Executes brainstorming, planning, and subagent-driven execution with opus and updates workflow and AI metrics.
 model: opus
 version: "1.0.0"
 scope: skill
