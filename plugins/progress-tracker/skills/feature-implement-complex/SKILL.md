@@ -2,7 +2,7 @@
 name: feature-implement-complex
 description: This skill should be used when feature complexity is complex (score 26-40) and the coordinator delegates architecture-heavy or multi-file implementation. Executes brainstorming, planning, and subagent-driven execution with opus and updates workflow and AI metrics.
 model: opus
-version: "1.0.0"
+version: "1.1.0"
 scope: skill
 user-invocable: false
 inputs:
@@ -55,6 +55,8 @@ Write:
 Skill("superpowers:brainstorming", args="<feature_name>: architecture and approach")
 ```
 
+If `.claude/architecture.md` exists, include `Execution Constraints` (`CONSTRAINT-*`) in brainstorming context.
+
 4. Update workflow to design complete:
 
 ```bash
@@ -66,7 +68,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-sta
 5. Run planning phase:
 
 ```text
-Skill("superpowers:writing-plans", args="<feature_name>: create implementation plan")
+Skill("superpowers:writing-plans", args="<feature_name>: create implementation plan\nArchitecture constraints:\n- <CONSTRAINT-...>\nPlan path policy: must output under docs/plans/feature-<id>-<slug>.md")
 ```
 
 6. Update workflow to planning complete with plan path:
@@ -98,6 +100,11 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-feature-ai-m
 ```
 
 9. Ask user to run `/prog done`.
+
+## Plan Path Policy (Required)
+
+`set-workflow-state --plan-path` must only store `docs/plans/*.md`.
+If returned path is invalid or missing, regenerate the plan before execution.
 
 # Failure Modes
 

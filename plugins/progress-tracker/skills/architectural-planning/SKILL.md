@@ -2,7 +2,7 @@
 name: architectural-planning
 description: 架构规划技能。用于技术选型、系统架构设计和决策记录。
 model: opus
-version: "1.0.0"
+version: "1.1.0"
 scope: skill
 inputs:
   - 项目描述或目标
@@ -39,6 +39,39 @@ Invoke this skill when:
 - Multiple technologies could solve the problem
 
 ## Planning Process
+
+## Mandatory Output Contract (Required)
+
+For `/prog plan`, always save architecture to `.claude/architecture.md` and enforce this exact top-level structure:
+
+1. `## Goals`
+2. `## Scope Boundaries`
+3. `## Interface Contracts`
+4. `## State Flow`
+5. `## Failure Handling`
+6. `## Acceptance Criteria`
+7. `## Key Architectural Decisions (ADR)`
+8. `## Execution Constraints`
+
+Do not omit any section. If data is unknown, write explicit assumptions.
+
+### Execution Constraints (Downstream Contract)
+
+`## Execution Constraints` is mandatory and must be machine-consumable by downstream skills.
+
+Use this format:
+
+```markdown
+## Execution Constraints
+
+- [CONSTRAINT-001] <short rule>
+  - Applies to: <module/feature scope>
+  - Must: <deterministic requirement>
+  - Validation: <how to verify>
+- [CONSTRAINT-002] ...
+```
+
+Downstream skills (`feature-breakdown`, `feature-implement`, `feature-implement-complex`) must reference these IDs explicitly.
 
 ### Phase 1: Requirements Analysis
 
@@ -224,6 +257,13 @@ Create `.claude/architecture.md` with:
 2. Run `/prog init` to generate feature breakdown based on these decisions
 3. Begin implementation with `/prog next`
 ```
+
+Before finalizing, validate that the document includes:
+- Interface contracts with input/output types
+- Explicit state transitions and error states
+- Failure handling paths and user-visible behavior
+- Acceptance criteria that can be tested
+- Execution constraints with stable IDs
 
 ## Smart Recommendations
 

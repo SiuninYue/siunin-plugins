@@ -2,7 +2,7 @@
 name: feature-breakdown
 description: 功能分解技能。用于分析用户目标并将其分解为5-10个具体、可测试的功能列表。
 model: opus
-version: "1.0.0"
+version: "1.1.0"
 scope: skill
 inputs:
   - 用户问题或场景
@@ -126,6 +126,17 @@ When `progress.json` already exists:
 
 **CRITICAL**: Always check for existing architecture document before generating features.
 
+### Mandatory Architecture Read
+
+When `.claude/architecture.md` exists, reading it is required (not optional).
+Extract and carry forward:
+- Interface contracts
+- State flow and transitions
+- Failure handling rules
+- `Execution Constraints` IDs (`CONSTRAINT-*`)
+
+Do not generate feature breakdown until this extraction is complete.
+
 ### Reading Architecture Context
 
 When starting feature breakdown:
@@ -220,6 +231,10 @@ I've broken this down into N features:
 ...
 ```
 
+Each feature must include explicit architecture alignment:
+- `Architecture constraints`: list of referenced `CONSTRAINT-*` IDs from `.claude/architecture.md`
+- `Contract touchpoints`: interface/state/failure sections this feature implements
+
 ## Smart Decision Making
 
 ### Simple vs Complex Goals
@@ -266,11 +281,15 @@ Present the breakdown to the user as:
 I've broken this down into N features:
 
 1. **<Feature 1 Name>**
+   - Architecture constraints: <CONSTRAINT-...>
+   - Contract touchpoints: <interface/state/failure>
    - Test steps:
      - <step 1>
      - <step 2>
 
 2. **<Feature 2 Name>**
+   - Architecture constraints: <CONSTRAINT-...>
+   - Contract touchpoints: <interface/state/failure>
    - Test steps:
      - <step 1>
      - <step 2>

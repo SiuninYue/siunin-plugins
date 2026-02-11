@@ -29,9 +29,15 @@ class TestWorkflowStatePhases:
 
     def test_set_workflow_state_with_plan_path(self, in_progress_file):
         """Should set plan path in workflow state."""
-        progress_manager.set_workflow_state(plan_path=".claude/myplan.md")
+        plans_dir = Path("docs/plans")
+        plans_dir.mkdir(parents=True, exist_ok=True)
+        (plans_dir / "myplan.md").write_text(
+            "# Plan\n\n## Tasks\n- Task\n\n## Acceptance Mapping\n- Mapping\n\n## Risks\n- None\n",
+            encoding="utf-8",
+        )
+        progress_manager.set_workflow_state(plan_path="docs/plans/myplan.md")
         data = progress_manager.load_progress_json()
-        assert data["workflow_state"]["plan_path"] == ".claude/myplan.md"
+        assert data["workflow_state"]["plan_path"] == "docs/plans/myplan.md"
 
     def test_set_workflow_state_with_next_action(self, in_progress_file):
         """Should set next action in workflow state."""
@@ -216,12 +222,20 @@ class TestWorkflowStateScenarios:
         # Initialize project
         progress_manager.init_tracking("Workflow Test", force=True)
         progress_manager.add_feature("New Feature", ["Test step"])
+        plans_dir = temp_dir / "docs" / "plans"
+        plans_dir.mkdir(parents=True, exist_ok=True)
+        (plans_dir / "feature-1-plan.md").write_text(
+            "# Plan\n\n## Tasks\n- Task 1\n\n## Acceptance Mapping\n- Step -> Check\n\n## Risks\n- None\n",
+            encoding="utf-8",
+        )
 
         # Set current
         progress_manager.set_current(1)
 
         # Set planning state
-        progress_manager.set_workflow_state(phase="planning", plan_path=".claude/plan.md")
+        progress_manager.set_workflow_state(
+            phase="planning", plan_path="docs/plans/feature-1-plan.md"
+        )
 
         # Transition to execution
         progress_manager.set_workflow_state(phase="execution")
@@ -262,3 +276,19 @@ class TestWorkflowStateValidation:
         """Should fail when no progress tracking exists."""
         result = progress_manager.set_workflow_state(phase="execution")
         assert result is False
+
+    def test_set_workflow_state_rejects_invalid_plan_path(self, in_progress_file):
+        """Should reject plan paths outside docs/plans."""
+        result = progress_manager.set_workflow_state(plan_path=".claude/plan.md")
+        assert result is False
+
+    def test_recovery_recommends_recreate_when_plan_missing(self, in_progress_file):
+        """Should recommend recreating plan when stored plan path is missing."""
+        data = progress_manager.load_progress_json()
+        data["workflow_state"]["plan_path"] = "docs/plans/missing-plan.md"
+        progress_manager.save_progress_json(data)
+
+        recommendation = progress_manager.determine_recovery_action(
+            "execution", None, [1, 2], 5, plan_path="docs/plans/missing-plan.md"
+        )
+        assert recommendation == "recreate_plan"

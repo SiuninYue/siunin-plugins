@@ -14,6 +14,7 @@ Usage:
     python3 progress_manager.py set-feature-ai-metrics <feature_id> --complexity-score <score> --selected-model <model> --workflow-path <path>
     python3 progress_manager.py complete-feature-ai-metrics <feature_id>
     python3 progress_manager.py auto-checkpoint
+    python3 progress_manager.py validate-plan [--plan-path <path>]
     python3 progress_manager.py add-feature <name> <test_steps...>
     python3 progress_manager.py update-feature <feature_id> <name> [test_steps...]
     python3 progress_manager.py reset
@@ -38,6 +39,7 @@ PROGRESS_MD = "progress.md"
 CHECKPOINTS_JSON = "checkpoints.json"
 CHECKPOINT_MAX_ENTRIES = 50
 CHECKPOINT_INTERVAL_SECONDS = 1800
+PLAN_PATH_PREFIX = "docs/plans/"
 
 # Schema version - increment when breaking changes occur
 CURRENT_SCHEMA_VERSION = "2.0"
@@ -191,6 +193,100 @@ def get_progress_dir():
     root = find_project_root()
     claude_dir = root / DEFAULT_CLAUDE_DIR
     return claude_dir
+
+
+def validate_plan_path(
+    plan_path: Optional[str], require_exists: bool = False
+) -> Dict[str, Optional[str]]:
+    """
+    Validate workflow plan path shape and optional existence.
+
+    Expected format: docs/plans/<name>.md
+    """
+    if plan_path is None:
+        return {"valid": True, "normalized_path": None, "error": None}
+
+    normalized = plan_path.strip().replace("\\", "/")
+    if normalized == "":
+        return {"valid": True, "normalized_path": "", "error": None}
+
+    if Path(normalized).is_absolute():
+        return {
+            "valid": False,
+            "normalized_path": None,
+            "error": "plan_path must be relative (absolute paths are not allowed)",
+        }
+
+    if not normalized.startswith(PLAN_PATH_PREFIX):
+        return {
+            "valid": False,
+            "normalized_path": None,
+            "error": f"plan_path must be under '{PLAN_PATH_PREFIX}'",
+        }
+
+    if not normalized.endswith(".md"):
+        return {
+            "valid": False,
+            "normalized_path": None,
+            "error": "plan_path must end with .md",
+        }
+
+    if ".." in Path(normalized).parts:
+        return {
+            "valid": False,
+            "normalized_path": None,
+            "error": "plan_path cannot contain '..' segments",
+        }
+
+    if require_exists:
+        absolute_path = find_project_root() / normalized
+        if not absolute_path.exists():
+            return {
+                "valid": False,
+                "normalized_path": None,
+                "error": f"plan_path does not exist: {normalized}",
+            }
+
+    return {"valid": True, "normalized_path": normalized, "error": None}
+
+
+def validate_plan_document(plan_path: str) -> Dict[str, Any]:
+    """
+    Validate minimum plan structure for feature execution.
+
+    Required sections:
+    - Tasks
+    - Acceptance mapping
+    - Risks
+    """
+    path_validation = validate_plan_path(plan_path, require_exists=True)
+    if not path_validation["valid"]:
+        return {"valid": False, "errors": [path_validation["error"]], "missing_sections": []}
+
+    absolute_path = find_project_root() / path_validation["normalized_path"]
+    try:
+        content = absolute_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        return {"valid": False, "errors": [f"Unable to read plan: {exc}"], "missing_sections": []}
+
+    checks = {
+        "tasks": re.search(r"^##+\s+Tasks\b", content, flags=re.IGNORECASE | re.MULTILINE),
+        "acceptance_mapping": re.search(
+            r"^##+\s+Acceptance(\s+Criteria)?(\s+Mapping)?\b",
+            content,
+            flags=re.IGNORECASE | re.MULTILINE,
+        ),
+        "risks": re.search(r"^##+\s+Risks?\b", content, flags=re.IGNORECASE | re.MULTILINE),
+    }
+    missing_sections = [name for name, found in checks.items() if not found]
+    if missing_sections:
+        return {
+            "valid": False,
+            "errors": [f"Missing required plan sections: {', '.join(missing_sections)}"],
+            "missing_sections": missing_sections,
+        }
+
+    return {"valid": True, "errors": [], "missing_sections": []}
 
 
 def load_progress_json():
@@ -514,7 +610,13 @@ def check():
                 total_tasks = workflow_state.get("total_tasks", 0)
 
                 # Determine recovery recommendation
-                recommendation = determine_recovery_action(phase, feature, completed_tasks, total_tasks)
+                recommendation = determine_recovery_action(
+                    phase, feature, completed_tasks, total_tasks, plan_path=plan_path
+                )
+                plan_validation = validate_plan_path(
+                    plan_path,
+                    require_exists=phase in ["planning_complete", "execution", "execution_complete"],
+                )
 
                 recovery_info = {
                     "status": "incomplete",
@@ -522,6 +624,8 @@ def check():
                     "feature_name": feature.get("name", "Unknown"),
                     "phase": phase,
                     "plan_path": plan_path,
+                    "plan_path_valid": plan_validation["valid"],
+                    "plan_path_error": plan_validation["error"],
                     "completed_tasks": completed_tasks,
                     "total_tasks": total_tasks,
                     "recommendation": recommendation
@@ -539,8 +643,15 @@ def check():
     return 0
 
 
-def determine_recovery_action(phase, feature, completed_tasks, total_tasks):
+def determine_recovery_action(
+    phase, feature, completed_tasks, total_tasks, plan_path: Optional[str] = None
+):
     """Determine the recommended recovery action based on workflow state."""
+    if phase in ["planning_complete", "execution", "execution_complete"]:
+        plan_validation = validate_plan_path(plan_path, require_exists=True)
+        if not plan_validation["valid"]:
+            return "recreate_plan"
+
     if phase == "execution_complete":
         return "run_prog_done"
     elif phase == "execution" and total_tasks > 0:
@@ -1472,10 +1583,26 @@ def set_workflow_state(phase=None, plan_path=None, next_action=None):
 
     workflow_state = data.get("workflow_state", {})
 
+    effective_phase = phase or workflow_state.get("phase")
+    candidate_plan_path = (
+        plan_path if plan_path is not None else workflow_state.get("plan_path")
+    )
+    require_existing_plan = effective_phase in [
+        "planning_complete",
+        "execution",
+        "execution_complete",
+    ]
+    plan_validation = validate_plan_path(
+        candidate_plan_path, require_exists=require_existing_plan
+    )
+    if not plan_validation["valid"]:
+        print(f"Error: Invalid plan_path - {plan_validation['error']}")
+        return False
+
     if phase:
         workflow_state["phase"] = phase
     if plan_path is not None:
-        workflow_state["plan_path"] = plan_path
+        workflow_state["plan_path"] = plan_validation["normalized_path"]
     if next_action:
         workflow_state["next_action"] = next_action
 
@@ -1528,6 +1655,33 @@ def clear_workflow_state():
         return True
 
     print("No workflow state to clear")
+    return True
+
+
+def validate_plan(plan_path: Optional[str] = None):
+    """Validate workflow plan path and minimum plan document structure."""
+    data = load_progress_json()
+    if not data:
+        print("No progress tracking found")
+        return False
+
+    resolved_plan_path = plan_path
+    if not resolved_plan_path:
+        workflow_state = data.get("workflow_state", {})
+        resolved_plan_path = workflow_state.get("plan_path")
+
+    if not resolved_plan_path:
+        print("Error: No plan path provided and no workflow_state.plan_path found")
+        return False
+
+    plan_result = validate_plan_document(resolved_plan_path)
+    if not plan_result["valid"]:
+        print("Plan validation failed:")
+        for err in plan_result["errors"]:
+            print(f"- {err}")
+        return False
+
+    print(f"Plan validation passed: {resolved_plan_path}")
     return True
 
 
@@ -1754,6 +1908,15 @@ def main():
     # Auto-checkpoint command
     subparsers.add_parser("auto-checkpoint", help="Create checkpoint snapshot if interval elapsed")
 
+    # Plan validation command
+    validate_plan_parser = subparsers.add_parser(
+        "validate-plan", help="Validate plan path and required plan sections"
+    )
+    validate_plan_parser.add_argument(
+        "--plan-path",
+        help="Plan path to validate (defaults to workflow_state.plan_path)",
+    )
+
     # Add bug command
     bug_parser = subparsers.add_parser("add-bug", help="Add a new bug")
     bug_parser.add_argument("--description", required=True, help="Bug description")
@@ -1830,6 +1993,8 @@ def main():
         return complete_feature_ai_metrics(args.feature_id)
     elif args.command == "auto-checkpoint":
         return auto_checkpoint()
+    elif args.command == "validate-plan":
+        return validate_plan(plan_path=args.plan_path)
     elif args.command == "add-bug":
         try:
             return add_bug(

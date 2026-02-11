@@ -37,7 +37,7 @@
   "current_feature_id": 2,
   "workflow_state": {
     "phase": "execution",
-    "plan_path": ".claude/plan.md",
+    "plan_path": "docs/plans/feature-2-sample.md",
     "completed_tasks": [1, 2],
     "total_tasks": 5,
     "current_task": 3,
