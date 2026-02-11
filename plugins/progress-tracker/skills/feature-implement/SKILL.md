@@ -2,7 +2,7 @@
 name: feature-implement
 description: This skill should be used when the user runs "/prog next", asks to "implement next feature", "start next feature", "continue implementation", or needs to resume interrupted feature execution. Coordinates deterministic complexity routing across simple (haiku), standard (sonnet), and complex (opus) paths with fallback to the standard path.
 model: sonnet
-version: "3.0.0"
+version: "3.1.0"
 scope: skill
 inputs:
   - 用户问题或场景
@@ -42,6 +42,7 @@ next_feature = first(f for f in features if f.completed == false)
 - If exists, read technology stack and design decisions
 - Use this context when invoking brainstorming or planning
 - Reference architectural constraints in implementation guidance
+- Extract `Execution Constraints` IDs (`CONSTRAINT-*`) and include them in planning input
 
 ### Pre-Step: Auto Checkpoint
 
@@ -256,7 +257,7 @@ When 16 <= score <= 25:
 
 1. Execute planning:
 ```text
-Skill("superpowers:writing-plans", args="<feature_name>: <one_line_description>")
+Skill("superpowers:writing-plans", args="<feature_name>: <one_line_description>\nArchitecture constraints:\n- <CONSTRAINT-...>\nPlan path policy: must output under docs/plans/feature-<id>-<slug>.md")
 ```
 2. Update workflow state:
 ```bash
@@ -302,6 +303,16 @@ If simple/complex delegation fails for any reason:
 1. Inform user that delegation failed and standard flow is being used.
 2. Continue with Standard Path (`writing-plans` -> `subagent-driven-development`).
 3. Write AI metrics with `selected_model = sonnet` and `workflow_path = plan_execute`.
+
+### Plan Path Policy (Required)
+
+Any workflow `plan_path` must satisfy:
+- Relative path
+- Under `docs/plans/`
+- Markdown file (`.md`)
+
+Always rely on `progress_manager.py set-workflow-state --plan-path ...` validation.
+If validation fails, regenerate or relocate plan before continuing.
 
 ### Step 6: Post-Implementation Guidance
 

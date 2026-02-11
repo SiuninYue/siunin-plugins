@@ -138,7 +138,7 @@ def in_progress_data():
         "current_feature_id": 2,
         "workflow_state": {
             "phase": "execution",
-            "plan_path": ".claude/plan.md",
+            "plan_path": "docs/plans/feature-2-in-progress.md",
             "completed_tasks": [1, 2],
             "total_tasks": 5,
             "current_task": 3,
@@ -152,6 +152,12 @@ def in_progress_file(temp_dir, in_progress_data):
     """Create a progress.json file with in-progress feature."""
     claude_dir = temp_dir / ".claude"
     claude_dir.mkdir(parents=True, exist_ok=True)
+    plans_dir = temp_dir / "docs" / "plans"
+    plans_dir.mkdir(parents=True, exist_ok=True)
+    (plans_dir / "feature-2-in-progress.md").write_text(
+        "# Plan\n\n## Tasks\n- Task 1\n\n## Acceptance Mapping\n- Step A -> Verification\n\n## Risks\n- None\n",
+        encoding="utf-8",
+    )
 
     progress_file = claude_dir / "progress.json"
     with open(progress_file, "w", encoding="utf-8") as f:
@@ -177,7 +183,7 @@ def execution_complete_data():
         "current_feature_id": 1,
         "workflow_state": {
             "phase": "execution_complete",
-            "plan_path": ".claude/plan.md",
+            "plan_path": "docs/plans/feature-1-execution-complete.md",
             "completed_tasks": [1, 2, 3, 4, 5],
             "total_tasks": 5,
             "current_task": 6,

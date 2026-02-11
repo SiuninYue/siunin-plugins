@@ -96,6 +96,31 @@ feat(complete): <feature name>
 | `progress.md` | `.claude/` | Human-readable display |
 | `checkpoints.json` | `.claude/` | Lightweight auto-checkpoint snapshots |
 
+### Plan Artifact Boundaries
+
+Use these two artifacts with strict responsibilities:
+
+| Artifact | Location | Responsibility |
+|----------|----------|----------------|
+| Architecture master plan | `.claude/architecture.md` | Goals, boundaries, interface contracts, state flow, failure handling, ADRs, execution constraints |
+| Feature execution plans | `docs/plans/feature-*.md` | Task-level execution plans for individual features |
+
+Do not archive or mutate `.claude/architecture.md` during feature completion.
+
+### Minimum Feature Plan Contract
+
+Every execution plan under `docs/plans/feature-*.md` must include:
+
+1. `Tasks`
+2. `Acceptance Mapping`
+3. `Risks`
+
+Validate this contract before completion:
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-plan
+```
+
 ## Command Naming
 
 All commands use the `prog` prefix:
@@ -208,7 +233,7 @@ Test steps:
 | Field | Type | Description |
 |-------|------|-------------|
 | `phase` | string | Current phase: `design_complete` \| `planning_complete` \| `execution` \| `execution_complete` |
-| `plan_path` | string | Path to execution plan file |
+| `plan_path` | string | Relative path to execution plan file under `docs/plans/*.md` |
 | `completed_tasks` | array | List of completed task IDs |
 | `current_task` | int | Current task ID |
 | `total_tasks` | int | Total number of tasks |

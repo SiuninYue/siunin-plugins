@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-02-11
+
+### Added
+- `progress_manager.py validate-plan` command to validate:
+  - `workflow_state.plan_path` shape (`docs/plans/*.md`)
+  - Minimum plan sections (`Tasks`, `Acceptance Mapping`, `Risks`)
+- Plan path validation helper in `progress_manager.py` with:
+  - Relative-path enforcement
+  - `docs/plans/` prefix enforcement
+  - Optional existence checks
+- Recovery metadata from `check` output:
+  - `plan_path_valid`
+  - `plan_path_error`
+
+### Changed
+- Standardized workflow `plan_path` contract on `docs/plans/*.md` (no migration required).
+- Updated skills to reduce planning ambiguity and align downstream execution:
+  - `architectural-planning`
+  - `feature-breakdown`
+  - `feature-implement`
+  - `feature-implement-complex`
+  - `progress-recovery`
+  - `feature-complete`
+- Updated `STANDARDS.md` with:
+  - Plan artifact boundaries
+  - Minimum feature plan contract
+- Updated docs (`README.md`, `readme-zh.md`) to reflect:
+  - `validate-plan` command
+  - `docs/plans/*.md` path policy
+
 ## [1.3.0] - 2026-02-11
 
 ### Added
@@ -124,5 +154,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - LICENSE (MIT)
 
 [1.3.0]: https://github.com/siunin/Claude-Plugins/releases/tag/v1.3.0
+[1.4.0]: https://github.com/siunin/Claude-Plugins/releases/tag/v1.4.0
 [1.1.0]: https://github.com/siunin/Claude-Plugins/releases/tag/v1.1.0
 [1.0.0]: https://github.com/siunin/Claude-Plugins/releases/tag/v1.0.0

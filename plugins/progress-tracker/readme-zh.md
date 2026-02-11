@@ -270,6 +270,7 @@ python3 progress_manager.py clear-workflow-state
 python3 progress_manager.py set-feature-ai-metrics <feature_id> --complexity-score <score> --selected-model <model> --workflow-path <path>
 python3 progress_manager.py complete-feature-ai-metrics <feature_id>
 python3 progress_manager.py auto-checkpoint
+python3 progress_manager.py validate-plan [--plan-path <path>]
 
 # 功能管理
 python3 progress_manager.py add-feature <name> <test_steps...>
@@ -331,7 +332,7 @@ python3 progress_manager.py remove-bug "BUG-XXX"
       "feature_id": 2,
       "feature_name": "注册 API",
       "phase": "execution",
-      "plan_path": ".claude/plan.md",
+      "plan_path": "docs/plans/feature-2-registration-api.md",
       "current_task": 2,
       "total_tasks": 5,
       "reason": "auto_interval"
@@ -358,6 +359,12 @@ python3 progress_manager.py remove-bug "BUG-XXX"
 - [ ] 登录 API
 - [ ] JWT 令牌生成
 ```
+
+### 计划文档边界
+
+- 架构主文档：`.claude/architecture.md`
+- 功能执行计划：`docs/plans/feature-*.md`
+- `workflow_state.plan_path` 必须始终指向 `docs/plans/*.md`
 
 **architecture.md** - 架构决策记录（可选）：
 

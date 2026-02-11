@@ -2,7 +2,7 @@
 name: feature-complete
 description: This skill should be used when the user asks to "/prog done", "complete feature", "mark feature as done", "finish implementation", or runs the prog-done command. Handles feature verification, progress tracking updates, and Git commits.
 model: sonnet
-version: "2.0.0"
+version: "2.1.0"
 scope: skill
 inputs:
   - 用户问题或场景
@@ -107,6 +107,23 @@ Cannot complete feature until workflow is verified or explicitly overridden.
 ```
 
 **IMPORTANT**: Only proceed to test steps if `phase == "execution_complete"`. Otherwise, guide user to resume the workflow.
+
+### Step 1.6: Validate Plan Structure (Required)
+
+Before running acceptance tests, validate the plan contract:
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-plan
+```
+
+Validation must confirm:
+- Plan path is under `docs/plans/*.md`
+- Plan includes `Tasks`, `Acceptance Mapping`, and `Risks` sections
+
+If validation fails:
+- Stop completion flow
+- Keep feature in progress
+- Ask user to regenerate/fix plan via `/prog next` before retrying `/prog done`
 
 ### Step 2: Get Feature Details
 
@@ -424,6 +441,7 @@ This updates:
 
 - `docs/testing/feature-{id}-*.md` → `docs/archive/testing/`
 - `docs/plans/feature-{id}-*.md` → `docs/archive/plans/`
+- `.claude/architecture.md` is not archived or modified by feature completion.
 
 Archive failures do not prevent feature completion.
 

@@ -516,6 +516,29 @@ class TestWorkflowStateEdgeCases:
         assert data["workflow_state"]["plan_path"] == original_plan
         assert data["workflow_state"]["phase"] == "test_phase"
 
+    def test_validate_plan_path_accepts_docs_plans(self):
+        """Should accept docs/plans markdown paths."""
+        result = progress_manager.validate_plan_path("docs/plans/feature-1-test.md")
+        assert result["valid"] is True
+        assert result["normalized_path"] == "docs/plans/feature-1-test.md"
+
+    def test_validate_plan_path_rejects_non_standard_paths(self):
+        """Should reject plan paths outside docs/plans."""
+        result = progress_manager.validate_plan_path(".claude/plan.md")
+        assert result["valid"] is False
+
+    def test_set_workflow_state_execution_requires_existing_plan(self, in_progress_file):
+        """Should fail if execution phase references a missing plan file."""
+        result = progress_manager.set_workflow_state(
+            phase="execution", plan_path="docs/plans/missing.md"
+        )
+        assert result is False
+
+    def test_validate_plan_uses_workflow_state_plan(self, in_progress_file):
+        """Should validate plan using workflow_state plan_path by default."""
+        result = progress_manager.validate_plan()
+        assert result is True
+
 
 class TestJsonErrorHandling:
     """Test JSON parsing error handling."""
@@ -707,5 +730,11 @@ class TestAiMetricsAndCheckpoints:
     def test_main_auto_checkpoint_command(self, in_progress_file):
         """Should handle auto-checkpoint command."""
         with patch("sys.argv", ["progress_manager.py", "auto-checkpoint"]):
+            result = progress_manager.main()
+            assert result is True
+
+    def test_main_validate_plan_command(self, in_progress_file):
+        """Should handle validate-plan command."""
+        with patch("sys.argv", ["progress_manager.py", "validate-plan"]):
             result = progress_manager.main()
             assert result is True

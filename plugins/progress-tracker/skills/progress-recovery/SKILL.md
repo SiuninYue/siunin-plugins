@@ -2,7 +2,7 @@
 name: progress-recovery
 description: 进度恢复技能。用于分析会话上下文并检测中断的进度跟踪。
 model: sonnet
-version: "1.0.0"
+version: "1.1.0"
 scope: skill
 inputs:
   - 用户问题或场景
@@ -60,6 +60,15 @@ if no incomplete_features:
 - User was actively implementing a feature when session ended
 - The feature-dev workflow may have been interrupted
 - Code may be partially written or in testing phase
+- `workflow_state.plan_path` may be stale, missing, or outside `docs/plans/*`
+
+Before offering resume options, validate plan integrity:
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-plan
+```
+
+If validation fails, prioritize "Re-create Plan" flow.
 
 **Recovery Message**:
 ```markdown
@@ -172,7 +181,7 @@ Re-creating implementation plan...
 <CRITICAL>
 Invoke Skill tool:
   skill: "superpowers:writing-plans"
-  args: "<feature_name>: <description>"
+  args: "<feature_name>: <description>\nUse architecture constraints from .claude/architecture.md when present.\nOutput must be saved under docs/plans/feature-<id>-<slug>.md."
 </CRITICAL>
 
 After completion, proceed to execution.
@@ -466,7 +475,7 @@ If plan file from workflow_state doesn't exist:
 The plan file may have been deleted or moved.
 
 **Options**:
-1. **Re-create plan** (recommended) - Start from planning phase
+1. **Re-create plan** (recommended) - Start from planning phase and save under `docs/plans/*`
 2. **Skip this feature** - Move to next feature
 3. **Clear workflow state** - Remove stale state and continue
 ```

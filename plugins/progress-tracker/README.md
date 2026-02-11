@@ -196,6 +196,7 @@ python3 progress_manager.py clear-workflow-state
 python3 progress_manager.py set-feature-ai-metrics <feature_id> --complexity-score <score> --selected-model <model> --workflow-path <path>
 python3 progress_manager.py complete-feature-ai-metrics <feature_id>
 python3 progress_manager.py auto-checkpoint
+python3 progress_manager.py validate-plan [--plan-path <path>]
 
 # Feature management
 python3 progress_manager.py add-feature <name> <test_steps...>
@@ -256,7 +257,7 @@ Stored in your project's `.claude/` directory:
       "feature_id": 2,
       "feature_name": "Registration API",
       "phase": "execution",
-      "plan_path": ".claude/plan.md",
+      "plan_path": "docs/plans/feature-2-registration-api.md",
       "current_task": 2,
       "total_tasks": 5,
       "reason": "auto_interval"
@@ -282,6 +283,12 @@ Stored in your project's `.claude/` directory:
 - [ ] Login API
 - [ ] JWT token generation
 ```
+
+### Plan Artifacts
+
+- Architecture master plan: `.claude/architecture.md`
+- Feature execution plans: `docs/plans/feature-*.md`
+- `workflow_state.plan_path` must always reference `docs/plans/*.md`
 
 ## Workflow Example
 
