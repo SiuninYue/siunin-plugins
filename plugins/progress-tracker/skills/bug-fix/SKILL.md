@@ -256,14 +256,20 @@ WAIT for the skill to complete.
 After TDD completes, update bug status:
 → python3 progress_manager.py update-bug --bug-id "BUG-XXX" --status "fixed"
 
-Next, create a commit for the bug fix:
+Next, create a commit for the bug fix using git-auto:
 
 <CRITICAL>
 Use the Skill tool with these exact parameters:
-  - skill: "progress-tracker:git-commit"
-  - args: "fix(BUG-XXX): <bug description>"
+  - skill: "progress-tracker:git-auto"
+  - args: "auto"
 
-WAIT for the skill to complete and return the commit hash.
+WAIT for the skill to complete and return the result.
+
+The git-auto skill will:
+- Detect that this is a bug fix
+- Create fix branch if needed
+- Commit with proper message
+- Push and create PR for review
 
 After receiving the commit hash, update the bug:
 → python3 progress_manager.py update-bug --bug-id "BUG-XXX" --commit-hash <commit_hash>

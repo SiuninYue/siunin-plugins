@@ -171,7 +171,7 @@ The plugin follows a **Commands → Skills** architecture:
 5. **progress-recovery** - Auto-detects incomplete work, provides recovery options
 6. **architectural-planning** - Coordinates architecture design and stack selection
 7. **bug-fix** - Systematic bug triage, scheduling, and fixing workflow
-8. **git-commit** - Creates conventional Git commits with auto-generated messages
+8. **git-auto** - Intelligent Git automation: branch, commit, push, PR creation with smart decision making
 9. **progress-management** - Workflow state operations, undo, reset
 10. **feature-implement-simple** - Haiku-mode direct TDD for simple features
 11. **feature-implement-complex** - Opus-mode full design/planning/execution for complex features
@@ -475,13 +475,8 @@ plugins/progress-tracker/
 │   │   └── SKILL.md
 │   ├── feature-complete/
 │   │   └── SKILL.md
-│   ├── git-commit/
-│   │   ├── SKILL.md
-│   │   ├── references/
-│   │   │   └── conventional-commits.md
-│   │   └── examples/
-│   │       ├── usage.md
-│   │       └── integration.md
+│   ├── git-auto/
+│   │   └── SKILL.md
 │   ├── progress-management/
 │   │   └── SKILL.md
 │   └── progress-recovery/

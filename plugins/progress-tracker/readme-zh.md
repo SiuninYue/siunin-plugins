@@ -245,7 +245,7 @@ Progress Tracker 插件解决了 AI 辅助开发中的一个关键问题：**如
 5. **feature-complete** - 验证工作流程，运行测试，提交，更新状态
 6. **progress-recovery** - 自动检测未完成的工作，提供恢复选项
 7. **bug-fix** - 系统化 Bug/技术债管理
-8. **git-commit** - 统一 Git 提交封装
+8. **git-auto** - 智能 Git 自动化：分支、提交、推送、PR 创建（智能决策）
 9. **progress-management** - 工作流状态操作与管理
 10. **feature-implement-simple** - Haiku 简单路径执行
 11. **feature-implement-complex** - Opus 复杂路径执行

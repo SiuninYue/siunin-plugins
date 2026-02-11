@@ -66,6 +66,14 @@
 
 用于审查和验证 Claude Code 规则、提示和指令的质量。
 
+### 3. codex-plugin-sync
+**触发条件**：同步 Codex skill、迁移 Claude plugin 资源、刷新迁移后的 skills/commands/agents、修复 `${CLAUDE_PLUGIN_ROOT}` 兼容性
+
+用于将插件资源同步到 `~/.codex/skills` 并做 Codex 兼容转换：
+- `skills/*/SKILL.md` 仅保留 `name` 和 `description`
+- `commands/*.md` 与 `agents/*.md` 清理 `model`/`madel`
+- `${CLAUDE_PLUGIN_ROOT}` 可改写为 Codex 可执行路径
+
 ## 脚本
 
 ### verify-rules.sh
@@ -82,6 +90,48 @@ bash $CLAUDE_PLUGIN_ROOT/scripts/verify-rules.sh
 - 分析项目类型和配置
 - 提供建议操作
 
+### publish-codex-plugin-sync.sh
+将仓库中的 `codex-plugin-sync` 技能发布到 `~/.codex/skills/codex-plugin-sync`。
+
+```bash
+bash /Users/siunin/Projects/Claude-Plugins/plugins/package-manager/scripts/publish-codex-plugin-sync.sh
+```
+
+## Codex 同步流程（新增）
+
+### 1) 发布技能到 Codex
+
+```bash
+bash /Users/siunin/Projects/Claude-Plugins/plugins/package-manager/scripts/publish-codex-plugin-sync.sh
+```
+
+### 2) 执行干跑（推荐）
+
+```bash
+python3 /Users/siunin/Projects/Claude-Plugins/plugins/package-manager/skills/codex-plugin-sync/scripts/sync_codex_imports.py \
+  --plugins progress-tracker,package-manager,super-product-manager \
+  --source-policy workspace-first \
+  --extra-dirs auto \
+  --placeholder-mode rewrite \
+  --dry-run \
+  --report /tmp/codex-sync-report.json
+```
+
+### 3) 正式同步
+
+```bash
+python3 /Users/siunin/Projects/Claude-Plugins/plugins/package-manager/skills/codex-plugin-sync/scripts/sync_codex_imports.py \
+  --plugins all \
+  --source-policy workspace-first \
+  --extra-dirs auto \
+  --placeholder-mode rewrite
+```
+
+默认行为：
+- `workspace-first`：优先读工作区插件目录，不存在时回退 manifest source
+- `extra-dirs=auto`：检测到 `${CLAUDE_PLUGIN_ROOT}` 时按需补迁 `hooks/`、`scripts/`
+- `placeholder-mode=rewrite`：改写为 `${CODEX_HOME:-$HOME/.codex}/skills/<wrapper_name>`
+
 ## 文件结构
 
 ```
@@ -89,6 +139,14 @@ package-manager/
 ├── .claude-plugin/
 │   └── plugin.json          # 插件配置
 ├── skills/
+│   ├── codex-plugin-sync/
+│   │   ├── SKILL.md         # Codex 迁移/同步技能
+│   │   ├── agents/
+│   │   │   └── openai.yaml
+│   │   ├── references/
+│   │   │   └── migration-rules.md
+│   │   └── scripts/
+│   │       └── sync_codex_imports.py
 │   ├── package-manager/
 │   │   ├── SKILL.md         # 包管理器技能
 │   │   └── references/
@@ -96,7 +154,8 @@ package-manager/
 │   └── rules-reviewer/
 │       └── SKILL.md         # 规则审查技能
 ├── scripts/
-│   └── verify-rules.sh      # 验证脚本
+│   ├── verify-rules.sh      # 验证脚本
+│   └── publish-codex-plugin-sync.sh # 发布 codex-plugin-sync 到 ~/.codex/skills
 ├── README.md                # 本文档
 └── LICENSE                  # MIT 许可证
 ```

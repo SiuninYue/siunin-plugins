@@ -378,15 +378,22 @@ The feature will remain marked as "in progress" until tests pass.
 
 Execute Git commands only after tests pass.
 
-Invoke the git-commit skill to create the commit:
+Invoke the git-auto skill to intelligently handle git operations:
 
 <CRITICAL>
 Use the Skill tool with these exact parameters:
-  - skill: "progress-tracker:git-commit"
-  - args: "feat: complete <feature name>"
+  - skill: "progress-tracker:git-auto"
+  - args: "auto"
 
-WAIT for the skill to complete and return the commit hash.
+WAIT for the skill to complete and return the result.
 </CRITICAL>
+
+The git-auto skill will:
+- Analyze current branch and changes
+- Show execution plan with reasons
+- Wait for your confirmation
+- Execute: branch creation (if needed), commit, push, and PR creation
+- Return commit hash and PR URL (if applicable)
 
 If the skill returns a commit hash, proceed to Step 7.
 If the skill returns null (no changes or error), inform the user.
