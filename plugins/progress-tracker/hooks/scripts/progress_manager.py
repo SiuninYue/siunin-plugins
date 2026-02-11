@@ -9,8 +9,12 @@ Usage:
     python3 progress_manager.py init [--force] <project_name>
     python3 progress_manager.py status
     python3 progress_manager.py check
+    python3 progress_manager.py git-sync-check
     python3 progress_manager.py set-current <feature_id>
     python3 progress_manager.py complete <feature_id>
+    python3 progress_manager.py set-feature-ai-metrics <feature_id> --complexity-score <score> --selected-model <model> --workflow-path <path>
+    python3 progress_manager.py complete-feature-ai-metrics <feature_id>
+    python3 progress_manager.py auto-checkpoint
     python3 progress_manager.py add-feature <name> <test_steps...>
     python3 progress_manager.py update-feature <feature_id> <name> [test_steps...]
     python3 progress_manager.py reset
@@ -26,7 +30,7 @@ import shutil
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 
 # Import git_validator for secure Git operations
 try:
@@ -49,6 +53,9 @@ except ImportError:
 DEFAULT_CLAUDE_DIR = ".claude"
 PROGRESS_JSON = "progress.json"
 PROGRESS_MD = "progress.md"
+CHECKPOINTS_JSON = "checkpoints.json"
+CHECKPOINT_MAX_ENTRIES = 50
+CHECKPOINT_INTERVAL_SECONDS = 1800
 
 # Schema version - increment when breaking changes occur
 CURRENT_SCHEMA_VERSION = "2.0"
@@ -58,7 +65,7 @@ BUG_REQUIRED_FIELDS = ["id", "description", "status", "priority", "created_at"]
 BUG_OPTIONAL_FIELDS = [
     "root_cause", "fix_summary", "fix_commit_hash", "verified_working",
     "repro_steps", "workaround", "quick_verification", "scheduled_position",
-    "updated_at", "investigation"
+    "updated_at", "investigation", "category"
 ]
 
 # Configure logging for diagnostics
@@ -273,6 +280,131 @@ def save_progress_md(content):
         f.write(content)
 
 
+def determine_complexity_bucket(score: int) -> str:
+    """Map a 0-40 complexity score to simple/standard/complex buckets."""
+    if score <= 15:
+        return "simple"
+    if score <= 25:
+        return "standard"
+    return "complex"
+
+
+def _parse_iso_timestamp(value: Optional[str]) -> Optional[datetime]:
+    """Parse ISO-8601 timestamps with optional trailing Z."""
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            return parsed.astimezone()
+        return parsed
+    except (TypeError, ValueError):
+        logger.debug(f"Invalid ISO timestamp: {value}")
+        return None
+
+
+def load_checkpoints(path: Optional[Path] = None) -> Dict[str, Any]:
+    """Load checkpoints from .claude/checkpoints.json."""
+    checkpoints_path = path or (get_progress_dir() / CHECKPOINTS_JSON)
+    if not checkpoints_path.exists():
+        return {
+            "last_checkpoint_at": None,
+            "max_entries": CHECKPOINT_MAX_ENTRIES,
+            "entries": [],
+        }
+
+    try:
+        with open(checkpoints_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        logger.warning(f"Corrupted checkpoints file: {checkpoints_path}. Reinitializing.")
+        return {
+            "last_checkpoint_at": None,
+            "max_entries": CHECKPOINT_MAX_ENTRIES,
+            "entries": [],
+        }
+
+    if not isinstance(data, dict):
+        return {
+            "last_checkpoint_at": None,
+            "max_entries": CHECKPOINT_MAX_ENTRIES,
+            "entries": [],
+        }
+
+    entries = data.get("entries", [])
+    if not isinstance(entries, list):
+        entries = []
+
+    max_entries = data.get("max_entries", CHECKPOINT_MAX_ENTRIES)
+    if not isinstance(max_entries, int) or max_entries <= 0:
+        max_entries = CHECKPOINT_MAX_ENTRIES
+
+    return {
+        "last_checkpoint_at": data.get("last_checkpoint_at"),
+        "max_entries": max_entries,
+        "entries": entries,
+    }
+
+
+def save_checkpoints(data: Dict[str, Any], path: Optional[Path] = None) -> None:
+    """Save checkpoints to .claude/checkpoints.json."""
+    progress_dir = get_progress_dir()
+    progress_dir.mkdir(parents=True, exist_ok=True)
+    checkpoints_path = path or (progress_dir / CHECKPOINTS_JSON)
+    with open(checkpoints_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+
+def auto_checkpoint() -> bool:
+    """Create a lightweight checkpoint snapshot every 30 minutes of active work."""
+    data = load_progress_json()
+    if not data:
+        return True
+
+    current_feature_id = data.get("current_feature_id")
+    if not current_feature_id:
+        return True
+
+    checkpoints = load_checkpoints()
+    now = datetime.now().astimezone()
+    last_checkpoint = _parse_iso_timestamp(checkpoints.get("last_checkpoint_at"))
+
+    if last_checkpoint and (now - last_checkpoint).total_seconds() < CHECKPOINT_INTERVAL_SECONDS:
+        return True
+
+    features = data.get("features", [])
+    feature = next((f for f in features if f.get("id") == current_feature_id), None)
+    workflow_state = data.get("workflow_state", {})
+
+    checkpoint_entry = {
+        "timestamp": now.isoformat().replace("+00:00", "Z"),
+        "feature_id": current_feature_id,
+        "feature_name": feature.get("name", "Unknown") if feature else "Unknown",
+        "phase": workflow_state.get("phase", "unknown"),
+        "plan_path": workflow_state.get("plan_path"),
+        "current_task": workflow_state.get("current_task"),
+        "total_tasks": workflow_state.get("total_tasks"),
+        "reason": "auto_interval",
+    }
+
+    entries = checkpoints.get("entries", [])
+    entries.append(checkpoint_entry)
+    max_entries = checkpoints.get("max_entries", CHECKPOINT_MAX_ENTRIES)
+    if len(entries) > max_entries:
+        entries = entries[-max_entries:]
+
+    save_checkpoints(
+        {
+            "last_checkpoint_at": checkpoint_entry["timestamp"],
+            "max_entries": max_entries,
+            "entries": entries,
+        }
+    )
+
+    print(f"Auto-checkpoint saved for feature {current_feature_id}")
+    return True
+
+
 def init_tracking(project_name, features=None, force=False):
     """
     Initialize progress tracking for a project.
@@ -374,6 +506,305 @@ def status():
         print("\n### Pending:")
         for f in remaining:
             print(f"  [ ] {f.get('name', 'Unknown')}")
+
+    return True
+
+
+def _run_git(args: List[str], cwd: Optional[str] = None, timeout: int = 5) -> Tuple[int, str, str]:
+    """
+    Run git command with secure validation when available.
+
+    Args:
+        args: Git arguments excluding the `git` binary name
+        cwd: Working directory
+        timeout: Timeout in seconds
+
+    Returns:
+        Tuple of (exit_code, stdout, stderr)
+    """
+    if GIT_VALIDATOR_AVAILABLE:
+        return safe_git_command(["git"] + args, cwd=cwd, timeout=timeout)
+
+    try:
+        result = subprocess.run(
+            ["git"] + args,
+            capture_output=True,
+            check=False,
+            cwd=cwd,
+            timeout=timeout,
+            text=True,
+        )
+        return result.returncode, result.stdout, result.stderr
+    except subprocess.TimeoutExpired:
+        return 124, "", f"Timed out after {timeout}s"
+    except Exception as e:
+        return 1, "", str(e)
+
+
+def _parse_worktree_list_output(output: str) -> List[Dict[str, str]]:
+    """
+    Parse `git worktree list --porcelain` output.
+    """
+    entries: List[Dict[str, str]] = []
+    current: Dict[str, str] = {}
+
+    for line in output.splitlines():
+        if not line.strip():
+            if current:
+                entries.append(current)
+                current = {}
+            continue
+
+        if " " not in line:
+            continue
+
+        key, value = line.split(" ", 1)
+        current[key] = value
+
+    if current:
+        entries.append(current)
+
+    return entries
+
+
+def analyze_git_sync_risks() -> Dict[str, Any]:
+    """
+    Analyze repository state for sync/rebase/divergence risks.
+
+    This check is designed for SessionStart hooks and intentionally avoids
+    mutating repository state.
+    """
+    project_root = find_project_root()
+    report: Dict[str, Any] = {
+        "status": "ok",
+        "project_root": str(project_root),
+        "branch": None,
+        "upstream": None,
+        "ahead": 0,
+        "behind": 0,
+        "issues": [],
+    }
+
+    status_rank = {"ok": 0, "warning": 1, "critical": 2}
+
+    def add_issue(
+        issue_id: str, level: str, message: str, recommendation: Optional[str] = None
+    ) -> None:
+        issue = {"id": issue_id, "level": level, "message": message}
+        if recommendation:
+            issue["recommendation"] = recommendation
+        report["issues"].append(issue)
+        if status_rank[level] > status_rank[report["status"]]:
+            report["status"] = level
+
+    # Skip when not in a git repository
+    if GIT_VALIDATOR_AVAILABLE:
+        in_git_repo = is_git_repository(str(project_root))
+    else:
+        exit_code, _, _ = _run_git(
+            ["rev-parse", "--is-inside-work-tree"],
+            cwd=str(project_root),
+            timeout=3,
+        )
+        in_git_repo = exit_code == 0
+
+    if not in_git_repo:
+        report["status"] = "skipped"
+        return report
+
+    # Determine current branch / detached HEAD
+    exit_code, stdout, _ = _run_git(
+        ["symbolic-ref", "--quiet", "--short", "HEAD"],
+        cwd=str(project_root),
+        timeout=5,
+    )
+    branch = stdout.strip() if exit_code == 0 else None
+    report["branch"] = branch
+    if not branch:
+        add_issue(
+            "detached_head",
+            "critical",
+            "Repository is in detached HEAD state.",
+            "Switch back to a branch before continuing: git switch <branch>",
+        )
+
+    # Detect in-progress git operations (merge/rebase/cherry-pick/revert/bisect)
+    git_dir: Optional[Path] = None
+    exit_code, stdout, _ = _run_git(
+        ["rev-parse", "--absolute-git-dir"],
+        cwd=str(project_root),
+        timeout=5,
+    )
+    if exit_code == 0 and stdout.strip():
+        git_dir = Path(stdout.strip())
+
+    if git_dir:
+        operation_markers = [
+            ("rebase-merge", "rebase"),
+            ("rebase-apply", "rebase"),
+            ("MERGE_HEAD", "merge"),
+            ("CHERRY_PICK_HEAD", "cherry-pick"),
+            ("REVERT_HEAD", "revert"),
+            ("BISECT_LOG", "bisect"),
+        ]
+        active_operations = sorted(
+            {name for marker, name in operation_markers if (git_dir / marker).exists()}
+        )
+        if active_operations:
+            ops = ", ".join(active_operations)
+            add_issue(
+                "operation_in_progress",
+                "critical",
+                f"Git operation in progress: {ops}.",
+                "Finish or abort it before new changes (e.g. git rebase --continue/--abort).",
+            )
+
+    # Detect uncommitted changes
+    is_clean = True
+    if GIT_VALIDATOR_AVAILABLE:
+        is_clean = is_working_directory_clean(str(project_root))
+    else:
+        exit_code, stdout, _ = _run_git(
+            ["status", "--porcelain"],
+            cwd=str(project_root),
+            timeout=5,
+        )
+        is_clean = exit_code == 0 and not stdout.strip()
+
+    if not is_clean:
+        add_issue(
+            "dirty_worktree",
+            "warning",
+            "Working tree has uncommitted changes.",
+            "Commit or stash changes before pull/rebase/cherry-pick operations.",
+        )
+
+    # Detect upstream tracking and divergence/ahead/behind
+    upstream_ref: Optional[str] = None
+    if branch:
+        exit_code, stdout, _ = _run_git(
+            ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"],
+            cwd=str(project_root),
+            timeout=5,
+        )
+        if exit_code == 0 and stdout.strip():
+            upstream_ref = stdout.strip()
+            report["upstream"] = upstream_ref
+        else:
+            add_issue(
+                "no_upstream",
+                "warning",
+                f"Branch '{branch}' is not tracking an upstream branch.",
+                f"Set upstream once: git push -u origin {branch}",
+            )
+
+    if upstream_ref:
+        exit_code, stdout, _ = _run_git(
+            ["rev-list", "--left-right", "--count", "@{upstream}...HEAD"],
+            cwd=str(project_root),
+            timeout=5,
+        )
+        if exit_code == 0:
+            parts = stdout.strip().split()
+            if len(parts) == 2 and all(p.isdigit() for p in parts):
+                behind = int(parts[0])
+                ahead = int(parts[1])
+                report["behind"] = behind
+                report["ahead"] = ahead
+
+                if ahead > 0 and behind > 0:
+                    add_issue(
+                        "branch_diverged",
+                        "critical",
+                        f"Branch has diverged from upstream (ahead {ahead}, behind {behind}).",
+                        "Sync before coding: git fetch origin && git rebase @{upstream} (or merge).",
+                    )
+                elif behind > 0:
+                    add_issue(
+                        "branch_behind",
+                        "warning",
+                        f"Branch is behind upstream by {behind} commit(s).",
+                        "Update branch first: git fetch origin && git rebase @{upstream}.",
+                    )
+                elif ahead > 0:
+                    add_issue(
+                        "branch_ahead",
+                        "warning",
+                        f"Branch is ahead of upstream by {ahead} commit(s).",
+                        "Push when ready: git push.",
+                    )
+
+    # Detect same branch checked out in another worktree
+    if branch:
+        exit_code, stdout, _ = _run_git(
+            ["worktree", "list", "--porcelain"],
+            cwd=str(project_root),
+            timeout=5,
+        )
+        if exit_code == 0 and stdout.strip():
+            branch_ref = f"refs/heads/{branch}"
+            current_worktree = str(project_root.resolve())
+            worktrees = _parse_worktree_list_output(stdout)
+            duplicate_paths: List[str] = []
+            for entry in worktrees:
+                worktree_path = entry.get("worktree")
+                if not worktree_path or entry.get("branch") != branch_ref:
+                    continue
+
+                try:
+                    resolved_path = str(Path(worktree_path).resolve())
+                except Exception:
+                    resolved_path = worktree_path
+
+                if resolved_path != current_worktree:
+                    duplicate_paths.append(worktree_path)
+
+            if duplicate_paths:
+                shown = ", ".join(duplicate_paths[:2])
+                if len(duplicate_paths) > 2:
+                    shown = f"{shown}, +{len(duplicate_paths) - 2} more"
+                add_issue(
+                    "branch_checked_out_elsewhere",
+                    "warning",
+                    f"Branch '{branch}' is also checked out in another worktree: {shown}.",
+                    "Avoid editing the same branch in multiple sessions/tools at the same time.",
+                )
+
+    return report
+
+
+def git_sync_check() -> bool:
+    """
+    Print actionable Git sync warnings.
+
+    Returns True in all cases so hooks remain non-blocking.
+    """
+    report = analyze_git_sync_risks()
+    status = report.get("status", "ok")
+
+    if status in ("ok", "skipped"):
+        return True
+
+    label = "CRITICAL" if status == "critical" else "WARNING"
+    print(f"[Progress Tracker][Git {label}] Session preflight detected sync risks")
+    print(f"Repository: {report.get('project_root')}")
+    if report.get("branch"):
+        print(f"Branch: {report.get('branch')}")
+
+    issues = report.get("issues", [])
+    for issue in issues:
+        print(f"- {issue.get('message')}")
+
+    recommendations: List[str] = []
+    for issue in issues:
+        recommendation = issue.get("recommendation")
+        if recommendation and recommendation not in recommendations:
+            recommendations.append(recommendation)
+
+    if recommendations:
+        print("Recommended actions:")
+        for action in recommendations:
+            print(f"  - {action}")
 
     return True
 
@@ -483,6 +914,90 @@ def get_next_feature():
             return feature
 
     return None
+
+
+def set_feature_ai_metrics(feature_id: int, complexity_score: int,
+                           selected_model: str, workflow_path: str) -> bool:
+    """Set lightweight AI metrics for a feature."""
+    data = load_progress_json()
+    if not data:
+        print("No progress tracking found")
+        return False
+
+    features = data.get("features", [])
+    feature = next((f for f in features if f.get("id") == feature_id), None)
+    if not feature:
+        print(f"Feature ID {feature_id} not found")
+        return False
+
+    valid_models = {"haiku", "sonnet", "opus"}
+    if selected_model not in valid_models:
+        print(f"Invalid model '{selected_model}'. Must be one of: {sorted(valid_models)}")
+        return False
+
+    if complexity_score < 0 or complexity_score > 40:
+        print("Invalid complexity score. Must be in range 0-40")
+        return False
+
+    now_iso = datetime.now().isoformat() + "Z"
+    ai_metrics = feature.get("ai_metrics", {})
+    if not isinstance(ai_metrics, dict):
+        ai_metrics = {}
+
+    ai_metrics.update(
+        {
+            "complexity_score": complexity_score,
+            "complexity_bucket": determine_complexity_bucket(complexity_score),
+            "selected_model": selected_model,
+            "workflow_path": workflow_path,
+        }
+    )
+    if not ai_metrics.get("started_at"):
+        ai_metrics["started_at"] = now_iso
+
+    feature["ai_metrics"] = ai_metrics
+    save_progress_json(data)
+    print(
+        f"AI metrics updated for feature {feature_id}: "
+        f"{ai_metrics['complexity_bucket']}, model={selected_model}"
+    )
+    return True
+
+
+def complete_feature_ai_metrics(feature_id: int) -> bool:
+    """Mark AI metrics completion timestamp and duration for a feature."""
+    data = load_progress_json()
+    if not data:
+        print("No progress tracking found")
+        return False
+
+    features = data.get("features", [])
+    feature = next((f for f in features if f.get("id") == feature_id), None)
+    if not feature:
+        print(f"Feature ID {feature_id} not found")
+        return False
+
+    now = datetime.now().astimezone()
+    now_iso = now.isoformat().replace("+00:00", "Z")
+
+    ai_metrics = feature.get("ai_metrics", {})
+    if not isinstance(ai_metrics, dict):
+        ai_metrics = {}
+
+    started_at = _parse_iso_timestamp(ai_metrics.get("started_at"))
+    if not started_at:
+        started_at = now
+        ai_metrics["started_at"] = now_iso
+
+    duration_seconds = int(max(0, (now - started_at).total_seconds()))
+
+    ai_metrics["finished_at"] = now_iso
+    ai_metrics["duration_seconds"] = duration_seconds
+    feature["ai_metrics"] = ai_metrics
+
+    save_progress_json(data)
+    print(f"AI metrics finalized for feature {feature_id}: duration={duration_seconds}s")
+    return True
 
 
 def archive_feature_docs(feature_id: int, feature_name: str = None) -> Dict[str, Any]:
@@ -633,6 +1148,18 @@ def complete_feature(feature_id, commit_hash=None, skip_archive=False):
     features = data.get("features", [])
     feature = next((f for f in features if f.get("id") == feature_id), None)
 
+    if not feature:
+        print(f"Feature ID {feature_id} not found")
+        return False
+
+    # Finalize AI metrics before marking feature complete.
+    complete_feature_ai_metrics(feature_id)
+    data = load_progress_json()
+    if not data:
+        print("No progress tracking found")
+        return False
+    features = data.get("features", [])
+    feature = next((f for f in features if f.get("id") == feature_id), None)
     if not feature:
         print(f"Feature ID {feature_id} not found")
         return False
@@ -903,7 +1430,8 @@ def get_next_bug_id():
 
 
 def add_bug(description: str, status: str = "pending_investigation",
-            priority: str = "medium", scheduled_position: Optional[str] = None,
+            priority: str = "medium", category: str = "bug",
+            scheduled_position: Optional[str] = None,
             verification_results: Optional[str] = None):
     """
     Add a new bug to the tracking with validation.
@@ -918,6 +1446,8 @@ def add_bug(description: str, status: str = "pending_investigation",
             fixing, fixed, false_positive.
         priority: Bug severity level. Defaults to "medium".
             Must be one of: high, medium, low.
+        category: Logical bug category. Defaults to "bug".
+            Must be one of: bug, technical_debt.
         scheduled_position: Optional scheduling directive in format
             "before:N", "after:N", or "last" for smart insertion into feature
             timeline.
@@ -951,6 +1481,10 @@ def add_bug(description: str, status: str = "pending_investigation",
     valid_priorities = ["high", "medium", "low"]
     if priority not in valid_priorities:
         raise ValueError(f"Invalid priority '{priority}'. Must be one of: {valid_priorities}")
+
+    valid_categories = ["bug", "technical_debt"]
+    if category not in valid_categories:
+        raise ValueError(f"Invalid category '{category}'. Must be one of: {valid_categories}")
 
     # Sanitize description (remove control characters except newline/tab)
     description = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', description)
@@ -1030,6 +1564,7 @@ def add_bug(description: str, status: str = "pending_investigation",
         "description": description,
         "status": status,
         "priority": priority,
+        "category": category,
         "created_at": datetime.now().isoformat() + "Z",
         "quick_verification": quick_verification,
     }
@@ -1051,6 +1586,7 @@ def add_bug(description: str, status: str = "pending_investigation",
     print(f"Description: {description}")
     print(f"Status: {status}")
     print(f"Priority: {priority}")
+    print(f"Category: {category}")
     if scheduled_pos:
         print(f"Scheduled: {scheduled_pos}")
     return True
@@ -1169,6 +1705,7 @@ def list_bugs():
         description = bug.get("description", "No description")
         status = bug.get("status", "unknown")
         priority = bug.get("priority", "medium")
+        category = bug.get("category", "bug")
         created_at = bug.get("created_at", "")
         scheduled = bug.get("scheduled_position", {})
 
@@ -1193,7 +1730,10 @@ def list_bugs():
                 time_ago = "unknown"
 
         print(f"- [{bug_id}] {description}")
-        print(f"  Status: {icon} {status} | Priority: {priority} | Created: {time_ago}")
+        print(
+            f"  Status: {icon} {status} | Priority: {priority} | "
+            f"Category: {category} | Created: {time_ago}"
+        )
 
         if scheduled:
             pos_type = scheduled.get("type", "")
@@ -1506,7 +2046,10 @@ def generate_progress_md(data):
                 md_lines.append("### High Priority (🔴)")
                 for bug in high_pending:
                     icon = status_icons.get(bug.get("status"), "❓")
-                    md_lines.append(f"- [{icon}] [{bug.get('id')}] {bug.get('description', 'No description')}")
+                    category_prefix = "[DEBT] " if bug.get("category") == "technical_debt" else ""
+                    md_lines.append(
+                        f"- [{icon}] [{bug.get('id')}] {category_prefix}{bug.get('description', 'No description')}"
+                    )
                     scheduled = bug.get("scheduled_position", {})
                     if scheduled:
                         reason = scheduled.get("reason", "")
@@ -1517,7 +2060,10 @@ def generate_progress_md(data):
                 md_lines.append("### Medium Priority (🟡)")
                 for bug in medium_pending:
                     icon = status_icons.get(bug.get("status"), "❓")
-                    md_lines.append(f"- [{icon}] [{bug.get('id')}] {bug.get('description', 'No description')}")
+                    category_prefix = "[DEBT] " if bug.get("category") == "technical_debt" else ""
+                    md_lines.append(
+                        f"- [{icon}] [{bug.get('id')}] {category_prefix}{bug.get('description', 'No description')}"
+                    )
                     if bug.get("root_cause"):
                         md_lines.append(f"  Root cause: {bug['root_cause']}")
                     scheduled = bug.get("scheduled_position", {})
@@ -1530,13 +2076,19 @@ def generate_progress_md(data):
                 md_lines.append("### Low Priority (🟢)")
                 for bug in low_pending:
                     icon = status_icons.get(bug.get("status"), "❓")
-                    md_lines.append(f"- [{icon}] [{bug.get('id')}] {bug.get('description', 'No description')}")
+                    category_prefix = "[DEBT] " if bug.get("category") == "technical_debt" else ""
+                    md_lines.append(
+                        f"- [{icon}] [{bug.get('id')}] {category_prefix}{bug.get('description', 'No description')}"
+                    )
                 md_lines.append("")
 
         if fixed_bugs:
             md_lines.append("### Fixed (✅)")
             for bug in fixed_bugs:
-                md_lines.append(f"- [x] [{bug.get('id')}] {bug.get('description', 'No description')}")
+                category_prefix = "[DEBT] " if bug.get("category") == "technical_debt" else ""
+                md_lines.append(
+                    f"- [x] [{bug.get('id')}] {category_prefix}{bug.get('description', 'No description')}"
+                )
                 if bug.get("fix_summary"):
                     md_lines.append(f"  Fix: {bug['fix_summary']}")
             md_lines.append("")
@@ -1614,6 +2166,35 @@ def main():
 
     # Health check command
     subparsers.add_parser("health", help="Perform health check and return metrics")
+    subparsers.add_parser(
+        "git-sync-check",
+        help="Run non-blocking Git sync preflight and print risk warnings",
+    )
+
+    # Feature AI metrics commands
+    ai_metrics_parser = subparsers.add_parser(
+        "set-feature-ai-metrics", help="Set AI metrics for a feature"
+    )
+    ai_metrics_parser.add_argument("feature_id", type=int, help="Feature ID")
+    ai_metrics_parser.add_argument(
+        "--complexity-score", type=int, required=True, help="Complexity score (0-40)"
+    )
+    ai_metrics_parser.add_argument(
+        "--selected-model", choices=["haiku", "sonnet", "opus"], required=True, help="Model used"
+    )
+    ai_metrics_parser.add_argument(
+        "--workflow-path", required=True,
+        choices=["direct_tdd", "plan_execute", "full_design_plan_execute"],
+        help="Workflow path used for implementation"
+    )
+
+    complete_ai_metrics_parser = subparsers.add_parser(
+        "complete-feature-ai-metrics", help="Finalize AI metrics duration for feature"
+    )
+    complete_ai_metrics_parser.add_argument("feature_id", type=int, help="Feature ID")
+
+    # Auto-checkpoint command
+    subparsers.add_parser("auto-checkpoint", help="Create checkpoint snapshot if interval elapsed")
 
     # Add bug command
     bug_parser = subparsers.add_parser("add-bug", help="Add a new bug")
@@ -1624,6 +2205,9 @@ def main():
     bug_parser.add_argument("--priority", default="medium",
                            choices=["high", "medium", "low"],
                            help="Bug priority")
+    bug_parser.add_argument("--category", default="bug",
+                           choices=["bug", "technical_debt"],
+                           help="Bug category")
     bug_parser.add_argument("--scheduled-position", help="Scheduling position (e.g., 'before:3', 'after:2', 'last')")
     bug_parser.add_argument("--verification-results", help="JSON string of verification results")
 
@@ -1679,12 +2263,26 @@ def main():
         return clear_workflow_state()
     elif args.command == "health":
         return health_check()
+    elif args.command == "git-sync-check":
+        return git_sync_check()
+    elif args.command == "set-feature-ai-metrics":
+        return set_feature_ai_metrics(
+            args.feature_id,
+            args.complexity_score,
+            args.selected_model,
+            args.workflow_path,
+        )
+    elif args.command == "complete-feature-ai-metrics":
+        return complete_feature_ai_metrics(args.feature_id)
+    elif args.command == "auto-checkpoint":
+        return auto_checkpoint()
     elif args.command == "add-bug":
         try:
             return add_bug(
                 description=args.description,
                 status=args.status,
                 priority=args.priority,
+                category=args.category,
                 scheduled_position=args.scheduled_position,
                 verification_results=args.verification_results
             )

@@ -23,6 +23,10 @@ Progress Tracker 插件解决了 AI 辅助开发中的一个关键问题：**如
 - **Superpowers 集成** - 专业 TDD 工作流程，强制执行质量门控
 - **智能会话恢复** - 自动检测并引导中断工作的恢复
 - **丰富的进度反馈** - 清晰的视觉进度指示器和阶段转换
+- **确定性模型路由** - 按复杂度显式路由到 haiku/sonnet/opus 路径
+- **轻量 AI 统计** - 仅记录复杂度、模型和时长（不做 token/cost 估算）
+- **技术债归一化** - 技术债复用现有 bug 体系（`category=technical_debt`）
+- **轻量检查点** - 自动快照写入 `.claude/checkpoints.json`（不创建 git 提交）
 
 ## 依赖项
 
@@ -170,8 +174,11 @@ Progress Tracker 插件解决了 AI 辅助开发中的一个关键问题：**如
 1. 识别第一个未完成的功能
 2. 评估复杂度（Simple/Standard/Complex）
 3. 显示功能详情和验收测试步骤
-4. 根据复杂度选择工作流程路径
-5. 调用相应的 Superpowers 技能
+4. 根据复杂度选择确定性路径：
+   - `0-15`：委托 `feature-implement-simple`（haiku）
+   - `16-25`：协调器内标准路径（sonnet）
+   - `26-40`：委托 `feature-implement-complex`（opus）
+5. 调用对应技能或标准路径执行
 6. 完成后提示运行 `/prog done`
 
 **复杂度评估：**
@@ -187,10 +194,12 @@ Progress Tracker 插件解决了 AI 辅助开发中的一个关键问题：**如
 
 **行为：**
 1. 执行为该功能定义的所有测试步骤
-2. 如果测试失败 → 报告错误，保持功能进行中状态
-3. 如果测试通过 → 创建 Git 提交，标记为完成
-4. 更新 `progress.json`（存储提交哈希）和 `progress.md`
-5. 建议下一步操作
+2. 运行可选质量门禁（`quality_gates.pre_commit_checks`）
+3. 询问是否记录技术债（记录到 bugs，`category=technical_debt`）
+4. 如果测试/门禁失败 → 报告错误，保持功能进行中状态
+5. 如果测试/门禁通过 → 创建 Git 提交，标记为完成
+6. 收尾写入 AI 指标结束时间与时长
+7. 更新 `progress.json` 和 `progress.md`
 
 ## 维护阶段
 
@@ -227,7 +236,7 @@ Progress Tracker 插件解决了 AI 辅助开发中的一个关键问题：**如
 | **钩子** | 事件 | SessionStart 检测未完成的工作 |
 | **脚本** | 状态 | Python 脚本管理 JSON/MD 文件 |
 
-### 技能（共 6 个）
+### 技能（共 11 个）
 
 1. **feature-breakdown** - 分析目标，创建功能列表
 2. **progress-status** - 显示状态和统计信息
@@ -235,6 +244,11 @@ Progress Tracker 插件解决了 AI 辅助开发中的一个关键问题：**如
 4. **feature-implement** - 编排 Superpowers 工作流程，进行复杂度评估
 5. **feature-complete** - 验证工作流程，运行测试，提交，更新状态
 6. **progress-recovery** - 自动检测未完成的工作，提供恢复选项
+7. **bug-fix** - 系统化 Bug/技术债管理
+8. **git-commit** - 统一 Git 提交封装
+9. **progress-management** - 工作流状态操作与管理
+10. **feature-implement-simple** - Haiku 简单路径执行
+11. **feature-implement-complex** - Opus 复杂路径执行
 
 ### Progress Manager 命令
 
@@ -245,6 +259,7 @@ Progress Tracker 插件解决了 AI 辅助开发中的一个关键问题：**如
 python3 progress_manager.py init <project_name> [--force]
 python3 progress_manager.py status
 python3 progress_manager.py check
+python3 progress_manager.py git-sync-check
 python3 progress_manager.py set-current <feature_id>
 python3 progress_manager.py complete <feature_id> --commit <hash>
 
@@ -252,11 +267,20 @@ python3 progress_manager.py complete <feature_id> --commit <hash>
 python3 progress_manager.py set-workflow-state --phase <phase> [--plan-path <path>] [--next-action <action>]
 python3 progress_manager.py update-workflow-task <id> completed
 python3 progress_manager.py clear-workflow-state
+python3 progress_manager.py set-feature-ai-metrics <feature_id> --complexity-score <score> --selected-model <model> --workflow-path <path>
+python3 progress_manager.py complete-feature-ai-metrics <feature_id>
+python3 progress_manager.py auto-checkpoint
 
 # 功能管理
 python3 progress_manager.py add-feature <name> <test_steps...>
 python3 progress_manager.py undo
 python3 progress_manager.py reset [--force]
+
+# Bug/技术债
+python3 progress_manager.py add-bug --description "<desc>" [--status <status>] [--priority <high|medium|low>] [--category <bug|technical_debt>]
+python3 progress_manager.py update-bug --bug-id "BUG-XXX" [--status <status>] [--root-cause "<cause>"] [--fix-summary "<summary>"]
+python3 progress_manager.py list-bugs
+python3 progress_manager.py remove-bug "BUG-XXX"
 ```
 
 ### 进度文件
@@ -279,10 +303,40 @@ python3 progress_manager.py reset [--force]
       "id": 2,
       "name": "注册 API",
       "test_steps": ["curl 测试端点", "验证数据库"],
-      "completed": false
+      "completed": false,
+      "ai_metrics": {
+        "complexity_score": 18,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-02-11T10:00:00Z",
+        "finished_at": "2026-02-11T10:08:30Z",
+        "duration_seconds": 510
+      }
     }
   ],
   "current_feature_id": 2
+}
+```
+
+**checkpoints.json** - 轻量自动检查点：
+
+```json
+{
+  "last_checkpoint_at": "2026-02-11T10:30:00Z",
+  "max_entries": 50,
+  "entries": [
+    {
+      "timestamp": "2026-02-11T10:30:00Z",
+      "feature_id": 2,
+      "feature_name": "注册 API",
+      "phase": "execution",
+      "plan_path": ".claude/plan.md",
+      "current_task": 2,
+      "total_tasks": 5,
+      "reason": "auto_interval"
+    }
+  ]
 }
 ```
 
@@ -555,6 +609,12 @@ plugins/progress-tracker/
 │   ├── progress-status/
 │   │   └── SKILL.md
 │   ├── feature-implement/
+│   │   ├── SKILL.md
+│   │   └── references/
+│   │       └── complexity-assessment.md
+│   ├── feature-implement-simple/
+│   │   └── SKILL.md
+│   ├── feature-implement-complex/
 │   │   └── SKILL.md
 │   ├── feature-complete/
 │   │   └── SKILL.md
@@ -582,7 +642,12 @@ plugins/progress-tracker/
 2. 是否有未完成的功能？
 3. 是否设置了 `current_feature_id`？
 4. `workflow_state.phase` 是什么？
-5. 是否有未提交的 Git 更改？
+5. 是否存在 Git 同步风险（detached HEAD、rebase 进行中、无 upstream、分支分叉、同分支多 worktree）？
+
+**UserPromptSubmit 钩子**：
+- 每 30 分钟自动创建轻量检查点
+- 快照保存到 `.claude/checkpoints.json`
+- 不执行 git commit
 
 ### 自动恢复场景
 

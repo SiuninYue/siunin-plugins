@@ -23,6 +23,10 @@ The Progress Tracker plugin solves a critical problem in AI-assisted development
 - **Superpowers Integration** - Professional TDD workflow with enforced quality gates
 - **Intelligent Session Recovery** - Auto-detects and guides resumption of interrupted work
 - **Rich Progress Feedback** - Clear visual progress indicators and phase transitions
+- **Deterministic Model Routing** - Explicitly routes simple/standard/complex work to haiku/sonnet/opus paths
+- **Lightweight AI Metrics** - Tracks complexity bucket, selected model, and duration (no token/cost estimation)
+- **Technical Debt Unification** - Records debt items in existing bug system via `category=technical_debt`
+- **Lightweight Checkpoints** - Auto-saves workflow snapshots to `.claude/checkpoints.json` (no git history pollution)
 
 ## Dependencies
 
@@ -83,13 +87,14 @@ Continue with current feature or run `/prog done` to complete.
 
 Start implementing the next pending feature.
 
-Automatically invokes the **feature-dev** plugin for guided implementation.
-
 **Behavior:**
 1. Identifies first uncompleted feature
 2. Sets `current_feature_id`
 3. Displays feature details and test steps
-4. Launches `/feature-dev` workflow
+4. Runs complexity assessment (0-40) and selects route:
+   - `0-15`: delegate to `feature-implement-simple` (haiku)
+   - `16-25`: execute standard path in coordinator (sonnet)
+   - `26-40`: delegate to `feature-implement-complex` (opus)
 5. Prompts to run `/prog done` when complete
 
 ### `/prog done`
@@ -100,10 +105,12 @@ Runs test steps, updates progress tracking, and creates a Git commit.
 
 **Behavior:**
 1. Executes all test steps defined for the feature
-2. If tests fail → Reports error, keeps feature in progress
-3. If tests pass → Creates Git commit, Marks complete
-4. Updates `progress.json` (stores commit hash) and `progress.md`
-5. Suggests next action
+2. Runs optional quality gates from `progress.json.quality_gates.pre_commit_checks`
+3. Prompts for technical debt and records it as bug (`category=technical_debt`) when provided
+4. If tests/checks fail → Reports error, keeps feature in progress
+5. If tests/checks pass → Creates Git commit, marks complete
+6. Finalizes feature AI metrics (`finished_at`, `duration_seconds`)
+7. Updates `progress.json` and `progress.md`
 
 ### `/prog fix`
 
@@ -155,7 +162,7 @@ The plugin follows a **Commands → Skills** architecture:
 | **Hooks** | Events | SessionStart detects incomplete work |
 | **Scripts** | State | Python script manages JSON/MD files |
 
-### Skills (9 total)
+### Skills (11 total)
 
 1. **feature-breakdown** - Analyzes goals, creates feature lists
 2. **progress-status** - Displays status and statistics
@@ -166,6 +173,8 @@ The plugin follows a **Commands → Skills** architecture:
 7. **bug-fix** - Systematic bug triage, scheduling, and fixing workflow
 8. **git-commit** - Creates conventional Git commits with auto-generated messages
 9. **progress-management** - Workflow state operations, undo, reset
+10. **feature-implement-simple** - Haiku-mode direct TDD for simple features
+11. **feature-implement-complex** - Opus-mode full design/planning/execution for complex features
 
 ### Progress Manager Commands
 
@@ -176,6 +185,7 @@ The `progress_manager.py` script provides state management commands:
 python3 progress_manager.py init <project_name> [--force]
 python3 progress_manager.py status
 python3 progress_manager.py check
+python3 progress_manager.py git-sync-check
 python3 progress_manager.py set-current <feature_id>
 python3 progress_manager.py complete <feature_id> --commit <hash>
 
@@ -183,6 +193,9 @@ python3 progress_manager.py complete <feature_id> --commit <hash>
 python3 progress_manager.py set-workflow-state --phase <phase> [--plan-path <path>] [--next-action <action>]
 python3 progress_manager.py update-workflow-task <id> completed
 python3 progress_manager.py clear-workflow-state
+python3 progress_manager.py set-feature-ai-metrics <feature_id> --complexity-score <score> --selected-model <model> --workflow-path <path>
+python3 progress_manager.py complete-feature-ai-metrics <feature_id>
+python3 progress_manager.py auto-checkpoint
 
 # Feature management
 python3 progress_manager.py add-feature <name> <test_steps...>
@@ -190,7 +203,7 @@ python3 progress_manager.py undo
 python3 progress_manager.py reset [--force]
 
 # Bug tracking
-python3 progress_manager.py add-bug --description "<desc>" [--status <status>] [--priority <high|medium|low>]
+python3 progress_manager.py add-bug --description "<desc>" [--status <status>] [--priority <high|medium|low>] [--category <bug|technical_debt>]
 python3 progress_manager.py update-bug --bug-id "BUG-XXX" [--status <status>] [--root-cause "<cause>"] [--fix-summary "<summary>"]
 python3 progress_manager.py list-bugs
 python3 progress_manager.py remove-bug "BUG-XXX"
@@ -216,10 +229,39 @@ Stored in your project's `.claude/` directory:
       "id": 2,
       "name": "Registration API",
       "test_steps": ["curl test endpoint", "Verify database"],
-      "completed": false
+      "completed": false,
+      "ai_metrics": {
+        "complexity_score": 18,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-02-11T10:00:00Z",
+        "finished_at": "2026-02-11T10:08:30Z",
+        "duration_seconds": 510
+      }
     }
   ],
   "current_feature_id": 2
+}
+```
+
+**checkpoints.json** - Lightweight auto-checkpoint snapshots:
+```json
+{
+  "last_checkpoint_at": "2026-02-11T10:30:00Z",
+  "max_entries": 50,
+  "entries": [
+    {
+      "timestamp": "2026-02-11T10:30:00Z",
+      "feature_id": 2,
+      "feature_name": "Registration API",
+      "phase": "execution",
+      "plan_path": ".claude/plan.md",
+      "current_task": 2,
+      "total_tasks": 5,
+      "reason": "auto_interval"
+    }
+  ]
 }
 ```
 
@@ -424,6 +466,12 @@ plugins/progress-tracker/
 │   ├── progress-status/
 │   │   └── SKILL.md
 │   ├── feature-implement/
+│   │   ├── SKILL.md
+│   │   └── references/
+│   │       └── complexity-assessment.md
+│   ├── feature-implement-simple/
+│   │   └── SKILL.md
+│   ├── feature-implement-complex/
 │   │   └── SKILL.md
 │   ├── feature-complete/
 │   │   └── SKILL.md
@@ -458,7 +506,12 @@ The plugin automatically detects incomplete work when you open a new session and
 2. Are there uncompleted features?
 3. Is there a `current_feature_id` set?
 4. What is the `workflow_state.phase`?
-5. Are there uncommitted Git changes?
+5. Are there Git sync risks (detached HEAD, rebase in progress, no upstream, branch divergence, multi-worktree overlap)?
+
+**UserPromptSubmit Hook**:
+- Triggers lightweight `auto-checkpoint` every 30 minutes during active feature work
+- Writes snapshots to `.claude/checkpoints.json`
+- Never creates git commits
 
 ### Auto-Recovery Scenarios
 

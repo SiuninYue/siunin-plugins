@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-02-11
+
+### Added
+- **Deterministic model routing** for `/prog next`
+  - Explicit delegation to `feature-implement-simple` (haiku) and `feature-implement-complex` (opus)
+  - Standard path remains coordinator-driven (sonnet)
+- **Two new implementation skills**
+  - `feature-implement-simple`
+  - `feature-implement-complex`
+- **Complexity reference doc**
+  - `skills/feature-implement/references/complexity-assessment.md`
+- **Lightweight AI metrics** in `features[].ai_metrics`
+  - `complexity_score`, `complexity_bucket`, `selected_model`, `workflow_path`
+  - `started_at`, `finished_at`, `duration_seconds`
+- **Lightweight auto-checkpoints**
+  - `.claude/checkpoints.json`
+  - `progress_manager.py auto-checkpoint`
+  - `UserPromptSubmit` hook integration
+- **Bug category support**
+  - `bugs[].category` with `bug|technical_debt`
+  - `add-bug --category ...`
+
+### Changed
+- Updated `feature-implement` skill to v3.0.0 with explicit delegation and fallback strategy.
+- Updated `feature-complete` skill to include optional quality-gate checks and technical debt recording flow.
+- Updated `progress-status` skill to include lightweight AI metric reporting guidance.
+- Expanded `progress_manager.py` CLI with:
+  - `set-feature-ai-metrics`
+  - `complete-feature-ai-metrics`
+  - `auto-checkpoint`
+- Updated docs (`README.md`, `readme-zh.md`, `STANDARDS.md`) for AI-first schema and workflow behavior.
+
 ## [1.2.0] - 2025-01-29
 
 ### Added
@@ -91,5 +123,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - plugin.md with installation and quick start guide
 - LICENSE (MIT)
 
+[1.3.0]: https://github.com/siunin/Claude-Plugins/releases/tag/v1.3.0
 [1.1.0]: https://github.com/siunin/Claude-Plugins/releases/tag/v1.1.0
 [1.0.0]: https://github.com/siunin/Claude-Plugins/releases/tag/v1.0.0
