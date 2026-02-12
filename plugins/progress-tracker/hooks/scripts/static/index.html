@@ -270,6 +270,347 @@
                 min-height: auto;
             }
         }
+
+        /* ========== Status Bar ========== */
+        .status-bar {
+            display: flex;
+            gap: 8px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            padding: 10px 12px;
+            margin-bottom: 12px;
+            box-shadow: var(--shadow);
+            align-items: center;
+        }
+
+        .status-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 8px 12px;
+            border-radius: 10px;
+            border: 1px solid var(--line);
+            background: #ffffff;
+            text-align: left;
+            flex: 1;
+            min-width: 0;
+            cursor: pointer;
+            transition: all 120ms ease;
+        }
+
+        .status-item:hover {
+            border-color: var(--accent);
+            background: rgba(31, 122, 140, 0.08);
+            transform: translateY(-1px);
+        }
+
+        .status-label {
+            font-size: 0.75rem;
+            color: var(--text-soft);
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+
+        .status-value {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--text-strong);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Status colors */
+        .status-value.ok { color: #10b981; }
+        .status-value.warn { color: #f59e0b; }
+        .status-value.error { color: #ef4444; }
+
+        .status-refresh {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 1px solid var(--line);
+            background: #ffffff;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 120ms ease;
+        }
+
+        .status-refresh:hover {
+            background: var(--accent);
+            color: #ffffff;
+        }
+
+        .status-refresh.spinning {
+            animation: refresh-spin 420ms linear;
+        }
+
+        @keyframes refresh-spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* ========== Drawer ========== */
+        .drawer {
+            position: fixed;
+            top: 0;
+            right: -420px;
+            width: 420px;
+            height: 100vh;
+            background: var(--panel);
+            border-left: 1px solid var(--line);
+            box-shadow: -8px 0 24px rgba(31, 41, 51, 0.12);
+            transition: right 280ms cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .drawer.open {
+            right: 0;
+        }
+
+        .drawer-head {
+            border-bottom: 1px solid var(--line);
+            padding: 14px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #ffffff;
+        }
+
+        .drawer-head h2 {
+            font-size: 1.1rem;
+            margin: 0;
+        }
+
+        .drawer-close {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            border: none;
+            background: transparent;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+        .drawer-close:hover {
+            background: rgba(0, 0, 0, 0.06);
+        }
+
+        .drawer-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .drawer-summary {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-strong);
+            margin: 0 0 16px 0;
+            padding: 10px;
+            background: rgba(31, 122, 140, 0.05);
+            border-left: 3px solid var(--accent);
+            border-radius: 6px;
+        }
+
+        .drawer-section {
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--text-strong);
+            margin: 0 0 8px 0;
+        }
+
+        .section-text {
+            font-size: 0.88rem;
+            line-height: 1.6;
+            color: var(--text-soft);
+            margin: 0;
+        }
+
+        .section-list {
+            margin: 0;
+            padding-left: 20px;
+            list-style: disc;
+        }
+
+        .section-list li {
+            font-size: 0.88rem;
+            line-height: 1.6;
+            color: var(--text-soft);
+            margin-bottom: 6px;
+        }
+
+        .section-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+        }
+
+        .section-table tr {
+            border-bottom: 1px solid var(--line);
+        }
+
+        .section-table td {
+            padding: 8px 4px;
+            vertical-align: top;
+        }
+
+        .table-key {
+            font-weight: 600;
+            color: var(--text-soft);
+            width: 35%;
+        }
+
+        .table-value {
+            color: var(--text-strong);
+        }
+
+        .section-code {
+            background: rgba(31, 41, 51, 0.04);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 0.82rem;
+            font-family: "JetBrains Mono", "Menlo", "Consolas", monospace;
+            overflow-x: auto;
+        }
+
+        .feature-list {
+            display: grid;
+            gap: 8px;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #ffffff;
+            font-size: 0.88rem;
+        }
+
+        .feature-item.completed {
+            background: rgba(16, 185, 129, 0.05);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .feature-id {
+            font-weight: 700;
+            font-family: "JetBrains Mono", "Menlo", "Consolas", monospace;
+            color: var(--accent-strong);
+            min-width: 30px;
+        }
+
+        .feature-name {
+            flex: 1;
+            color: var(--text-strong);
+        }
+
+        .feature-status {
+            font-size: 1.1rem;
+            color: var(--ok);
+        }
+
+        .drawer-sources,
+        .drawer-actions {
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid var(--line);
+        }
+
+        .drawer-sources h4,
+        .drawer-actions h4 {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text-soft);
+            margin: 0 0 10px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .source-btn,
+        .action-btn {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #ffffff;
+            text-align: left;
+            cursor: pointer;
+            transition: all 120ms ease;
+        }
+
+        .source-btn:hover,
+        .action-btn:hover {
+            border-color: var(--accent);
+            background: rgba(31, 122, 140, 0.05);
+        }
+
+        .source-icon,
+        .action-icon {
+            font-size: 1.2rem;
+        }
+
+        .source-label,
+        .action-label {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--text-strong);
+        }
+
+        .source-path {
+            font-size: 0.78rem;
+            font-family: "JetBrains Mono", "Menlo", "Consolas", monospace;
+            color: var(--text-soft);
+            margin-left: auto;
+        }
+
+        .action-cmd {
+            font-size: 0.78rem;
+            font-family: "JetBrains Mono", "Menlo", "Consolas", monospace;
+            color: var(--text-soft);
+            margin-left: auto;
+            background: rgba(31, 41, 51, 0.04);
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        /* Mobile adaptations */
+        @media (max-width: 900px) {
+            .status-bar {
+                flex-wrap: wrap;
+            }
+
+            .status-item {
+                flex: 1 1 calc(50% - 4px);
+                min-width: 140px;
+            }
+
+            .drawer {
+                width: 100%;
+                right: -100%;
+            }
+
+            .drawer.open {
+                right: 0;
+            }
+        }
     </style>
 </head>
 <body>
@@ -278,6 +619,31 @@
             <h1 class="title">Progress Tracker UI</h1>
             <div id="status-pill" class="status info">Initializing</div>
         </header>
+
+        <!-- Status Bar -->
+        <section class="status-bar">
+            <button class="status-item" data-panel="progress" title="点击查看详情">
+                <span class="status-label">总进度</span>
+                <span class="status-value" id="progress-value">-/-</span>
+            </button>
+            <button class="status-item" data-panel="next" title="点击查看详情">
+                <span class="status-label">下一步</span>
+                <span class="status-value" id="next-value">-</span>
+            </button>
+            <button class="status-item" data-panel="plan" title="点击查看详情">
+                <span class="status-label">计划合规</span>
+                <span class="status-value" id="plan-value">-</span>
+            </button>
+            <button class="status-item" data-panel="risk" title="点击查看详情">
+                <span class="status-label">风险阻塞</span>
+                <span class="status-value" id="risk-value">-</span>
+            </button>
+            <button class="status-item" data-panel="snapshot" title="点击查看详情">
+                <span class="status-label">最近快照</span>
+                <span class="status-value" id="snapshot-value">-</span>
+            </button>
+            <button class="status-refresh" id="status-refresh-btn" title="刷新状态">⟳</button>
+        </section>
 
         <section class="workspace">
             <aside class="panel">
@@ -298,6 +664,17 @@
                 <div id="editor" class="editor"><p class="empty">Loading document list...</p></div>
             </main>
         </section>
+
+        <!-- Drawer -->
+        <aside class="drawer" id="status-drawer">
+            <div class="drawer-head">
+                <h2 id="drawer-title">详情</h2>
+                <button class="drawer-close" id="drawer-close-btn">✕</button>
+            </div>
+            <div class="drawer-content" id="drawer-content">
+                <!-- Dynamic content -->
+            </div>
+        </aside>
     </div>
 
     <script>
@@ -479,6 +856,365 @@
             });
 
             void loadFiles(false);
+
+            // ========== Status Bar State Management ==========
+            const statusBarState = {
+                summary: null,
+                activePanel: null,
+                pollingInterval: null
+            };
+
+            // ========== Load Status Summary ==========
+            async function loadStatusSummary() {
+                try {
+                    const summary = await fetchJson("/api/status-summary");
+                    statusBarState.summary = summary;
+                    renderStatusBar(summary);
+                    return true;
+                } catch (error) {
+                    console.error("Failed to load status summary:", error);
+                    renderStatusBarFallback();
+                    setStatus("Failed to load status", "error");
+                    return false;
+                }
+            }
+
+            // ========== Render Status Bar ==========
+            function renderStatusBar(summary) {
+                const progress = summary.progress || { completed: 0, total: 0, percentage: 0 };
+                const nextAction = summary.next_action || { type: "none", feature_id: null, feature_name: "-" };
+                const planHealth = summary.plan_health || { status: "N/A" };
+                const riskBlocker = summary.risk_blocker || { has_risk: false, message: "-" };
+                const recentSnapshot = summary.recent_snapshot || { relative_time: "-" };
+
+                // 1. Progress
+                const progressValue = document.getElementById("progress-value");
+                progressValue.textContent = `${progress.completed}/${progress.total} (${progress.percentage}%)`;
+
+                // 2. Next Action
+                const nextValue = document.getElementById("next-value");
+                if (nextAction.type === "feature" && nextAction.feature_id != null) {
+                    nextValue.textContent = `#${nextAction.feature_id}`;
+                    nextValue.title = nextAction.feature_name || "";
+                } else {
+                    nextValue.textContent = nextAction.feature_name || "-";
+                    nextValue.title = "";
+                }
+
+                // 3. Plan Health
+                const planValue = document.getElementById("plan-value");
+                planValue.textContent = planHealth.status;
+                planValue.className = "status-value";
+                if (planHealth.status === "OK") {
+                    planValue.classList.add("ok");
+                } else if (planHealth.status === "WARN") {
+                    planValue.classList.add("warn");
+                } else if (planHealth.status === "INVALID") {
+                    planValue.classList.add("error");
+                }
+
+                // 4. Risk Blocker
+                const riskValue = document.getElementById("risk-value");
+                riskValue.textContent = riskBlocker.message;
+                riskValue.className = "status-value";
+                if (riskBlocker.has_risk) {
+                    riskValue.classList.add("error");
+                }
+
+                // 5. Recent Snapshot
+                const snapshotValue = document.getElementById("snapshot-value");
+                snapshotValue.textContent = recentSnapshot.relative_time;
+            }
+
+            function renderStatusBarFallback() {
+                const progressValue = document.getElementById("progress-value");
+                const nextValue = document.getElementById("next-value");
+                const planValue = document.getElementById("plan-value");
+                const riskValue = document.getElementById("risk-value");
+                const snapshotValue = document.getElementById("snapshot-value");
+
+                progressValue.textContent = "-/-";
+                nextValue.textContent = "-";
+                nextValue.title = "";
+                planValue.textContent = "-";
+                planValue.className = "status-value";
+                riskValue.textContent = "-";
+                riskValue.className = "status-value";
+                snapshotValue.textContent = "-";
+            }
+
+            // ========== Open Drawer ==========
+            async function openDrawer(panelType) {
+                statusBarState.activePanel = panelType;
+
+                try {
+                    const response = await fetchJson(`/api/status-detail?panel=${panelType}`);
+                    renderDrawerContent(panelType, response);
+
+                    document.getElementById("drawer-title").textContent = getPanelTitle(panelType);
+                    document.getElementById("status-drawer").classList.add("open");
+                } catch (error) {
+                    console.error("Failed to load detail:", error);
+                    setStatus("Failed to load detail", "error");
+                }
+            }
+
+            // ========== Render Drawer Content ==========
+            function renderDrawerContent(panelType, detail) {
+                const content = document.getElementById("drawer-content");
+                const escapeHtml = (value) => String(value ?? "")
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#39;");
+
+                // Render summary
+                let html = `<p class="drawer-summary">${escapeHtml(detail.summary)}</p>`;
+
+                // Render sections
+                detail.sections.forEach(section => {
+                    html += renderSection(section);
+                });
+
+                // Render sources
+                if (detail.sources && detail.sources.length > 0) {
+                    html += '<div class="drawer-sources"><h4>数据来源</h4>';
+                    detail.sources.forEach(source => {
+                        const lineInfo = source.line ? `:${source.line}` : '';
+                        html += `<button class="source-btn" type="button" data-source-path="${escapeHtml(source.path)}">
+                            <span class="source-icon">📄</span>
+                            <span class="source-label">${escapeHtml(source.label)}</span>
+                            <span class="source-path">${escapeHtml(source.path)}${escapeHtml(lineInfo)}</span>
+                        </button>`;
+                    });
+                    html += '</div>';
+                }
+
+                // Render actions
+                if (detail.actions && detail.actions.length > 0) {
+                    html += '<div class="drawer-actions"><h4>建议操作</h4>';
+                    detail.actions.forEach(action => {
+                        if (action.type === 'copy') {
+                            html += `<button class="action-btn" type="button" data-action-type="copy" data-command="${escapeHtml(action.command)}">
+                                <span class="action-icon">📋</span>
+                                <span class="action-label">${escapeHtml(action.label)}</span>
+                                <code class="action-cmd">${escapeHtml(action.command)}</code>
+                            </button>`;
+                        } else if (action.type === 'link') {
+                            html += `<button class="action-btn" type="button" data-action-type="link" data-command="${escapeHtml(action.command)}">
+                                <span class="action-icon">🔗</span>
+                                <span class="action-label">${escapeHtml(action.label)}</span>
+                            </button>`;
+                        }
+                    });
+                    html += '</div>';
+                }
+
+                content.innerHTML = html;
+            }
+
+            // ========== Render Single Section ==========
+            function renderSection(section) {
+                let html = '';
+
+                if (section.title) {
+                    html += `<h4 class="section-title">${section.title}</h4>`;
+                }
+
+                switch (section.type) {
+                    case 'text':
+                        html += `<p class="section-text">${section.content}</p>`;
+                        break;
+
+                    case 'list':
+                        html += '<ul class="section-list">';
+                        section.content.forEach(item => {
+                            html += `<li>${item}</li>`;
+                        });
+                        html += '</ul>';
+                        break;
+
+                    case 'table':
+                        html += '<table class="section-table">';
+                        section.content.forEach(row => {
+                            html += `<tr>
+                                <td class="table-key">${row.key}</td>
+                                <td class="table-value">${row.value}</td>
+                            </tr>`;
+                        });
+                        html += '</table>';
+                        break;
+
+                    case 'feature_list':
+                        html += '<div class="feature-list">';
+                        section.content.forEach(feature => {
+                            const statusClass = feature.completed ? 'completed' : 'pending';
+                            const statusIcon = feature.completed ? '✓' : '○';
+                            html += `<div class="feature-item ${statusClass}">
+                                <span class="feature-id">#${feature.id}</span>
+                                <span class="feature-name">${feature.name}</span>
+                                <span class="feature-status">${statusIcon}</span>
+                            </div>`;
+                        });
+                        html += '</div>';
+                        break;
+
+                    case 'code':
+                        html += `<pre class="section-code"><code>${section.content}</code></pre>`;
+                        break;
+
+                    default:
+                        html += `<p class="section-text">${JSON.stringify(section.content)}</p>`;
+                }
+
+                return `<div class="drawer-section">${html}</div>`;
+            }
+
+            // ========== Copy to Clipboard ==========
+            function copyToClipboard(text) {
+                if (!text) {
+                    setStatus("无可复制内容", "warn");
+                    return;
+                }
+
+                const fallbackCopy = () => {
+                    const textArea = document.createElement("textarea");
+                    textArea.value = text;
+                    textArea.setAttribute("readonly", "");
+                    textArea.style.position = "absolute";
+                    textArea.style.left = "-9999px";
+                    document.body.appendChild(textArea);
+                    textArea.select();
+
+                    try {
+                        const ok = document.execCommand("copy");
+                        document.body.removeChild(textArea);
+                        return ok;
+                    } catch (_error) {
+                        document.body.removeChild(textArea);
+                        return false;
+                    }
+                };
+
+                if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(text).then(() => {
+                        setStatus(`已复制: ${text}`, "success");
+                    }).catch(err => {
+                        console.error("Failed to copy with Clipboard API:", err);
+                        if (fallbackCopy()) {
+                            setStatus(`已复制: ${text}`, "success");
+                        } else {
+                            setStatus("复制失败", "error");
+                        }
+                    });
+                    return;
+                }
+
+                if (fallbackCopy()) {
+                    setStatus(`已复制: ${text}`, "success");
+                } else {
+                    window.prompt("浏览器限制复制，请手动复制以下命令：", text);
+                    setStatus("复制失败", "error");
+                }
+            }
+
+            // ========== Close Drawer ==========
+            function closeDrawer() {
+                document.getElementById("status-drawer").classList.remove("open");
+                statusBarState.activePanel = null;
+            }
+
+            // ========== Start Status Polling ==========
+            function startStatusPolling() {
+                loadStatusSummary(); // Load immediately
+                statusBarState.pollingInterval = setInterval(loadStatusSummary, 30000); // 30 seconds
+            }
+
+            // ========== Get Panel Title ==========
+            function getPanelTitle(panelType) {
+                const titles = {
+                    progress: "总进度详情",
+                    next: "下一步详情",
+                    plan: "计划合规详情",
+                    risk: "风险阻塞详情",
+                    snapshot: "快照历史"
+                };
+                return titles[panelType] || "详情";
+            }
+
+            function parseLoadFileCommand(command) {
+                if (!command) {
+                    return null;
+                }
+
+                const match = /^loadFile\((['"])(.+)\1\)$/.exec(command);
+                return match ? match[2] : null;
+            }
+
+            // ========== Event Bindings ==========
+            // Status bar click events
+            document.querySelectorAll(".status-item").forEach(item => {
+                item.addEventListener("click", function() {
+                    const panel = this.dataset.panel;
+                    openDrawer(panel);
+                });
+            });
+
+            // Refresh button
+            document.getElementById("status-refresh-btn").addEventListener("click", async function() {
+                this.classList.remove("spinning");
+                void this.offsetWidth; // restart animation
+                this.classList.add("spinning");
+
+                const success = await loadStatusSummary();
+                if (success) {
+                    setStatus("Status refreshed", "success");
+                }
+            });
+
+            document.getElementById("status-refresh-btn").addEventListener("animationend", function() {
+                this.classList.remove("spinning");
+            });
+
+            // Drawer close button
+            document.getElementById("drawer-close-btn").addEventListener("click", closeDrawer);
+
+            document.getElementById("drawer-content").addEventListener("click", (event) => {
+                const button = event.target.closest("button");
+                if (!button) {
+                    return;
+                }
+
+                const sourcePath = button.dataset.sourcePath;
+                if (sourcePath) {
+                    void loadFile(sourcePath);
+                    return;
+                }
+
+                const actionType = button.dataset.actionType;
+                if (!actionType) {
+                    return;
+                }
+
+                if (actionType === "copy") {
+                    copyToClipboard(button.dataset.command || "");
+                    return;
+                }
+
+                if (actionType === "link") {
+                    const command = button.dataset.command || "";
+                    const path = parseLoadFileCommand(command);
+                    if (path) {
+                        void loadFile(path);
+                    } else {
+                        setStatus("暂不支持该操作", "warn");
+                    }
+                }
+            });
+
+            // Start polling
+            startStatusPolling();
         })();
     </script>
 </body>

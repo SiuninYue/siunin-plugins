@@ -176,7 +176,34 @@
       "completed": false
     }
   ],
-  "current_feature_id": null,
-  "updated_at": "2026-02-10T07:11:05.418841Z",
-  "schema_version": "2.0"
+  "current_feature_id": 5,
+  "updated_at": "2026-02-12T10:54:59.142738Z",
+  "schema_version": "2.0",
+  "bugs": [
+    {
+      "id": "BUG-001",
+      "description": "Status drawer suggested action click had no feedback and failed to copy command",
+      "status": "fixed",
+      "priority": "medium",
+      "category": "bug",
+      "created_at": "2026-02-12T10:54:52.847542Z",
+      "quick_verification": {
+        "code_exists": true,
+        "related_files": [
+          "plugins/progress-tracker/hooks/scripts/static/index.html"
+        ],
+        "reproducibility": "high",
+        "confidence": "confirmed"
+      },
+      "updated_at": "2026-02-12T10:54:59.136301Z",
+      "root_cause": "Drawer actions relied on inline onclick and browser scope/caching constraints, so handlers were not reliably invoked.",
+      "investigation": {
+        "root_cause": "Drawer actions relied on inline onclick and browser scope/caching constraints, so handlers were not reliably invoked.",
+        "confirmed_at": "2026-02-12T10:54:59.136573Z"
+      },
+      "fix_summary": "Switched to delegated click handling with data-* attributes, hardened copy fallback path, and added no-store headers to avoid stale frontend script cache.",
+      "fixed_at": "2026-02-12T10:54:59.136676Z"
+    }
+  ],
+  "current_bug_id": null
 }
