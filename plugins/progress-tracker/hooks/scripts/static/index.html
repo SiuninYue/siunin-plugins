@@ -238,6 +238,21 @@
             font-size: 0.79rem;
         }
 
+        .active-hint {
+            margin: 0;
+            color: var(--accent-strong);
+            font-size: 0.79rem;
+            font-weight: 600;
+        }
+
+        .refresh-meta {
+            font-family: "JetBrains Mono", "Menlo", "Consolas", monospace;
+            font-size: 0.74rem;
+            color: var(--text-soft);
+            padding: 0 6px;
+            white-space: nowrap;
+        }
+
         .editor {
             margin: 0;
             padding: 14px;
@@ -755,6 +770,7 @@
                     <h2>Documents</h2>
                     <div class="actions">
                         <button id="refresh-files-btn" type="button">Refresh</button>
+                        <span id="refresh-meta" class="refresh-meta">未刷新</span>
                     </div>
                 </div>
                 <ul id="doc-list" class="doc-list"></ul>
@@ -764,6 +780,7 @@
                 <div class="editor-head">
                     <p id="active-path" class="active-path">No document selected</p>
                     <p id="active-time" class="active-time">Choose a file from the left panel.</p>
+                    <p id="editor-hint" class="active-hint">仅 checkbox 行（- [ ]）可点击切换状态。</p>
                 </div>
                 <div id="editor" class="editor"><p class="empty">Loading document list...</p></div>
             </main>
@@ -799,8 +816,10 @@
                 docList: document.getElementById("doc-list"),
                 activePath: document.getElementById("active-path"),
                 activeTime: document.getElementById("active-time"),
+                editorHint: document.getElementById("editor-hint"),
                 editor: document.getElementById("editor"),
                 refreshFilesBtn: document.getElementById("refresh-files-btn"),
+                refreshMeta: document.getElementById("refresh-meta"),
                 checkboxMenu: document.getElementById("checkbox-menu")
             };
 
@@ -839,6 +858,27 @@
                 return date.toLocaleString();
             }
 
+            function setEditorHint(checkboxCount, overrideText = "") {
+                if (overrideText) {
+                    ui.editorHint.textContent = overrideText;
+                    return;
+                }
+
+                if (checkboxCount > 0) {
+                    ui.editorHint.textContent = `当前文档有 ${checkboxCount} 个可切换 checkbox，点击图标即可保存（快捷键 1-6）`;
+                } else {
+                    ui.editorHint.textContent = "当前文档没有可切换 checkbox（支持 - [ ] / * [ ] / + [ ]）";
+                }
+            }
+
+            function setRefreshMetaLabel(label) {
+                ui.refreshMeta.textContent = label;
+            }
+
+            function markFileListRefreshed() {
+                setRefreshMetaLabel("已刷新 " + new Date().toLocaleTimeString());
+            }
+
             function splitContentLines(content) {
                 const normalized = String(content || "").replace(/\r\n/g, "\n");
                 if (!normalized) {
@@ -852,12 +892,12 @@
             }
 
             function parseCheckboxLine(line) {
-                const match = /^(\s*-\s*\[)([ /x\-!?])(\])(.*)$/.exec(line);
+                const match = /^(\s*[-*+]\s*\[)([ /xX\-!?])(\])(.*)$/.exec(line);
                 if (!match) {
                     return null;
                 }
                 return {
-                    status: match[2],
+                    status: match[2].toLowerCase(),
                     suffixText: match[4] || ""
                 };
             }
@@ -972,10 +1012,12 @@
                     emptyText.className = "empty";
                     emptyText.textContent = "The selected file is empty.";
                     ui.editor.appendChild(emptyText);
+                    setEditorHint(0, "当前文档为空，不包含可切换 checkbox");
                     return;
                 }
 
                 const fragment = document.createDocumentFragment();
+                let checkboxCount = 0;
 
                 lines.forEach((line, lineIndex) => {
                     const checkboxData = parseCheckboxLine(line);
@@ -989,6 +1031,7 @@
                         return;
                     }
 
+                    checkboxCount += 1;
                     const statusMeta = normalizeCheckboxState(checkboxData.status);
                     row.classList.add("checkbox-line");
 
@@ -1027,6 +1070,10 @@
                 });
 
                 ui.editor.appendChild(fragment);
+                if (checkboxCount === 0) {
+                    state.selectedCheckboxLine = null;
+                }
+                setEditorHint(checkboxCount);
             }
 
             async function updateCheckboxStatus(lineIndex, nextStatus) {
@@ -1034,7 +1081,7 @@
                     return;
                 }
 
-                setStatus("Saving checkbox...", "info");
+                setStatus("保存中...", "info");
 
                 try {
                     const payload = {
@@ -1056,12 +1103,12 @@
                     state.activeRev = result.rev;
                     state.activeMtime = result.mtime;
                     await loadFile(state.activePath, false);
-                    setStatus("Checkbox saved", "success");
+                    setStatus("已保存", "success");
                 } catch (error) {
                     if (error && error.status === 409) {
-                        setStatus("Conflict detected, please refresh", "warn");
+                        setStatus("检测到冲突，请刷新后重试", "warn");
                     } else {
-                        setStatus("Failed to save checkbox", "error");
+                        setStatus("保存失败，请稍后重试", "error");
                     }
                 }
             }
@@ -1087,12 +1134,17 @@
                 return payload;
             }
 
-            async function loadFiles(preserveSelection = true) {
-                setStatus("Loading file list...", "info");
+            async function loadFiles(preserveSelection = true, trigger = "auto") {
+                if (trigger === "manual") {
+                    setStatus("正在刷新文档列表...", "info");
+                } else {
+                    setStatus("正在加载文档列表...", "info");
+                }
 
                 try {
                     const files = await fetchJson("/api/files");
                     state.files = Array.isArray(files) ? files : [];
+                    markFileListRefreshed();
 
                     if (!state.files.length) {
                         state.activePath = null;
@@ -1100,7 +1152,8 @@
                         ui.activeTime.textContent = "No files available in .claude/";
                         renderFileList();
                         renderFileContent("");
-                        setStatus("No files found", "warn");
+                        setEditorHint(0, "当前没有可编辑文档");
+                        setStatus("未找到可用文档", "warn");
                         return;
                     }
 
@@ -1111,12 +1164,19 @@
                     }
 
                     renderFileList();
-                    await loadFile(state.activePath, true);
+                    await loadFile(state.activePath, false);
+                    if (trigger === "manual") {
+                        setStatus("文档列表已刷新", "success");
+                    } else {
+                        setStatus("已就绪", "success");
+                    }
                 } catch (error) {
-                    setStatus("Failed to load files", "error");
+                    setStatus("加载文档列表失败", "error");
+                    setRefreshMetaLabel("刷新失败");
                     ui.activePath.textContent = "Error";
                     ui.activeTime.textContent = String(error.message || error);
                     ui.editor.textContent = "Unable to load file list.";
+                    setEditorHint(0, "加载失败，请稍后重试");
                 }
             }
 
@@ -1126,7 +1186,7 @@
                 }
 
                 if (updateStatus) {
-                    setStatus("Loading " + path + "...", "info");
+                    setStatus("正在加载 " + path + "...", "info");
                 }
 
                 try {
@@ -1145,22 +1205,23 @@
                     renderFileContent(file.content || "");
                     renderFileList();
                     if (updateStatus) {
-                        setStatus("Ready", "success");
+                        setStatus("已就绪", "success");
                     }
                 } catch (error) {
-                    setStatus("Failed to load file", "error");
+                    setStatus("加载文档失败", "error");
                     ui.activeTime.textContent = String(error.message || error);
+                    setEditorHint(0, "加载失败，无法解析 checkbox");
                 }
             }
 
             ui.refreshFilesBtn.addEventListener("click", () => {
-                void loadFiles(true);
+                void loadFiles(true, "manual");
             });
 
             window.addEventListener("keydown", (event) => {
                 if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "r") {
                     event.preventDefault();
-                    void loadFiles(true);
+                    void loadFiles(true, "manual");
                     return;
                 }
 
@@ -1179,7 +1240,7 @@
                 }
 
                 if (state.selectedCheckboxLine === null) {
-                    setStatus("Select a checkbox first", "warn");
+                    setStatus("请先点击一个 checkbox", "warn");
                     return;
                 }
 
@@ -1188,7 +1249,7 @@
                 void updateCheckboxStatus(state.selectedCheckboxLine, mappedStatus);
             });
 
-            void loadFiles(false);
+            void loadFiles(false, "initial");
 
             // ========== Status Bar State Management ==========
             const statusBarState = {
