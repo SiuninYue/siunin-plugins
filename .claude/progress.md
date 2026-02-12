@@ -29,4 +29,4 @@
 
 ### Fixed (✅)
 - [x] [BUG-001] Status drawer suggested action click had no feedback and failed to copy command
-  Fix: Switched to delegated click handling with data-* attributes, hardened copy fallback path, and added no-store headers to avoid stale frontend script cache.
+  Fix: Switched to delegated click handling with data-* attributes, hardened copy fallback path, and added no-store headers to avoid stale frontend script cache. Commit: c3f3781e525ae49530991c1a7cb9f0b14ec28d35

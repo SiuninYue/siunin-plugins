@@ -177,7 +177,7 @@
     }
   ],
   "current_feature_id": 5,
-  "updated_at": "2026-02-12T10:54:59.142738Z",
+  "updated_at": "2026-02-12T10:55:27.090234Z",
   "schema_version": "2.0",
   "bugs": [
     {
@@ -201,8 +201,8 @@
         "root_cause": "Drawer actions relied on inline onclick and browser scope/caching constraints, so handlers were not reliably invoked.",
         "confirmed_at": "2026-02-12T10:54:59.136573Z"
       },
-      "fix_summary": "Switched to delegated click handling with data-* attributes, hardened copy fallback path, and added no-store headers to avoid stale frontend script cache.",
-      "fixed_at": "2026-02-12T10:54:59.136676Z"
+      "fix_summary": "Switched to delegated click handling with data-* attributes, hardened copy fallback path, and added no-store headers to avoid stale frontend script cache. Commit: c3f3781e525ae49530991c1a7cb9f0b14ec28d35",
+      "fixed_at": "2026-02-12T10:55:27.083057Z"
     }
   ],
   "current_bug_id": null
