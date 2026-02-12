@@ -112,6 +112,7 @@ def test_root_serves_html_with_content_type(live_server):
 
     assert status == 200
     assert "text/html" in headers.get("content-type", "")
+    assert "no-store" in headers.get("cache-control", "")
     assert b"<!DOCTYPE html>" in body
 
 
@@ -210,3 +211,22 @@ def test_static_directory_exists():
     static_dir = Path("plugins/progress-tracker/hooks/scripts/static")
     assert static_dir.exists(), "Static directory must exist"
     assert static_dir.is_dir(), "Static must be a directory"
+
+
+def test_status_drawer_actions_use_event_delegation():
+    """Drawer actions should bind via delegated click handler, not inline onclick."""
+    html_path = Path("plugins/progress-tracker/hooks/scripts/static/index.html")
+    html = html_path.read_text(encoding="utf-8")
+
+    assert 'document.getElementById("drawer-content").addEventListener("click"' in html
+    assert 'data-action-type="copy"' in html
+    assert 'data-source-path="' in html
+
+
+def test_status_bar_has_explicit_fallback_rendering():
+    """Status bar should clear stale values when summary API fails."""
+    html_path = Path("plugins/progress-tracker/hooks/scripts/static/index.html")
+    html = html_path.read_text(encoding="utf-8")
+
+    assert "function renderStatusBarFallback()" in html
+    assert 'progressValue.textContent = "-/-";' in html

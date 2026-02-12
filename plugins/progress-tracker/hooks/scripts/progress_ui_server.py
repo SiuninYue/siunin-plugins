@@ -14,10 +14,20 @@ import hashlib
 import json
 import socket
 import sys
+from datetime import datetime, timezone
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, Any, Tuple
 from urllib.parse import urlparse, parse_qs
+
+# Import validation functions from progress_manager
+sys.path.insert(0, str(Path(__file__).parent))
+try:
+    from progress_manager import validate_plan_path, validate_plan_document
+    PROGRESS_MANAGER_AVAILABLE = True
+except ImportError:
+    PROGRESS_MANAGER_AVAILABLE = False
+    print("Warning: progress_manager module not available, plan validation will be disabled", file=sys.stderr)
 
 PORT_RANGE = range(3737, 3748)  # 3737-3747 inclusive
 BIND_HOST = "127.0.0.1"  # P0: Localhost only
@@ -201,6 +211,37 @@ def is_valid_origin(origin: Optional[str]) -> bool:
     return any(origin_lower.startswith(prefix) for prefix in allowed_prefixes)
 
 
+# ========== File Cache for Status API ==========
+_file_cache = {}
+
+
+def load_json_with_cache(file_path: Path, cache_key: str) -> Optional[Dict[str, Any]]:
+    """
+    Load JSON file with mtime-based caching to avoid frequent file reads.
+
+    Args:
+        file_path: Path to the JSON file
+        cache_key: Cache key for storing the data
+
+    Returns:
+        Parsed JSON data or None if file doesn't exist or is invalid
+    """
+    try:
+        current_mtime = file_path.stat().st_mtime
+        cached = _file_cache.get(cache_key, {"mtime": 0, "data": None})
+
+        if cached["mtime"] == current_mtime and cached["data"] is not None:
+            return cached["data"]
+
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        _file_cache[cache_key] = {"mtime": current_mtime, "data": data}
+        return data
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return None
+
+
 class ProgressUIHandler(BaseHTTPRequestHandler):
     """HTTP request handler for Progress UI"""
 
@@ -218,6 +259,15 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
             self.handle_get_file(parsed_path)
         elif parsed_path.path == "/api/files":
             self.handle_get_files()
+        elif parsed_path.path == "/api/status-summary":
+            summary = self.handle_get_status_summary()
+            self.send_json(summary)
+        elif parsed_path.path == "/api/status-detail":
+            detail, status_code = self.handle_get_status_detail(parsed_path)
+            self.send_json(detail, status_code)
+        elif parsed_path.path == "/api/plan-health":
+            health, status_code = self.handle_get_plan_health(parsed_path)
+            self.send_json(health, status_code)
         else:
             self.send_error(404, "Not Found")
 
@@ -241,6 +291,7 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
 
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Cache-Control", "no-store, max-age=0")
         self.end_headers()
         self.wfile.write(content.encode("utf-8"))
 
@@ -627,6 +678,565 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         """Suppress default logging"""
         pass
+
+    def send_json(self, payload: Dict[str, Any], status_code: int = 200):
+        """Send JSON response with appropriate headers"""
+        self.send_response(status_code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Cache-Control", "no-store, max-age=0")
+        self.end_headers()
+        self.wfile.write(json.dumps(payload).encode())
+
+    def _format_relative_time(self, iso_timestamp: str) -> str:
+        """Format ISO timestamp as relative time (e.g., '2 hours ago')"""
+        try:
+            timestamp = datetime.fromisoformat(iso_timestamp.replace("Z", "+00:00"))
+            now = datetime.now(timezone.utc)
+            delta = now - timestamp
+
+            if delta.days > 0:
+                return f"{delta.days} 天前"
+            elif delta.seconds >= 3600:
+                hours = delta.seconds // 3600
+                return f"{hours} 小时前"
+            elif delta.seconds >= 60:
+                minutes = delta.seconds // 60
+                return f"{minutes} 分钟前"
+            else:
+                return "刚刚"
+        except Exception:
+            return iso_timestamp
+
+    def _determine_next_action(self, features: list, progress_data: Dict) -> Dict[str, Any]:
+        """Determine the next action based on current feature state"""
+        current_id = progress_data.get("current_feature_id")
+
+        # Priority 1: Active feature
+        if current_id is not None:
+            feature = next((f for f in features if f.get("id") == current_id), None)
+            if feature:
+                return {
+                    "type": "feature",
+                    "feature_id": current_id,
+                    "feature_name": feature.get("name", "Unknown")
+                }
+
+        # Priority 2: Smallest ID pending feature
+        pending = [f for f in features if not f.get("completed", False)]
+        if pending:
+            next_feature = min(pending, key=lambda f: f.get("id", float("inf")))
+            return {
+                "type": "feature",
+                "feature_id": next_feature.get("id"),
+                "feature_name": next_feature.get("name", "Unknown")
+            }
+
+        # All completed
+        return {"type": "none", "feature_id": None, "feature_name": "无待办功能"}
+
+    def _check_plan_health(self, progress_data: Dict) -> Dict[str, Any]:
+        """Check plan compliance using progress_manager validation"""
+        workflow_state = progress_data.get("workflow_state")
+
+        if not workflow_state or not workflow_state.get("plan_path"):
+            return {"status": "N/A", "plan_path": None, "message": "无活跃计划"}
+
+        plan_path = workflow_state["plan_path"]
+
+        if not PROGRESS_MANAGER_AVAILABLE:
+            return {
+                "status": "N/A",
+                "plan_path": plan_path,
+                "message": "计划验证模块不可用"
+            }
+
+        try:
+            # Path validation
+            path_result = validate_plan_path(plan_path, require_exists=True)
+            if not path_result["valid"]:
+                return {
+                    "status": "WARN",
+                    "plan_path": plan_path,
+                    "message": path_result["error"]
+                }
+
+            # Document structure validation
+            doc_result = validate_plan_document(plan_path)
+            if not doc_result["valid"]:
+                missing = ", ".join(doc_result["missing_sections"])
+                return {
+                    "status": "INVALID",
+                    "plan_path": plan_path,
+                    "message": f"缺少必需章节: {missing}"
+                }
+
+            return {
+                "status": "OK",
+                "plan_path": plan_path,
+                "message": "计划文件完整且符合规范"
+            }
+        except Exception as e:
+            return {
+                "status": "WARN",
+                "plan_path": plan_path,
+                "message": f"验证失败: {str(e)}"
+            }
+
+    def _check_risk_blocker(self, progress_data: Dict) -> Dict[str, Any]:
+        """Check for high-priority bugs or blockers"""
+        bugs = progress_data.get("bugs", [])
+
+        high_priority = [
+            b for b in bugs
+            if b.get("priority") == "high" and b.get("status") != "fixed"
+        ]
+        blocked = [b for b in bugs if b.get("status") == "blocked"]
+
+        if high_priority or blocked:
+            return {
+                "has_risk": True,
+                "high_priority_bugs": len(high_priority),
+                "blocked_count": len(blocked),
+                "message": f"{len(high_priority)} 个高优先级 bug"
+            }
+
+        return {
+            "has_risk": False,
+            "high_priority_bugs": 0,
+            "blocked_count": 0,
+            "message": "正常"
+        }
+
+    def _load_recent_snapshot(self, checkpoints_data: Optional[Dict]) -> Dict[str, Any]:
+        """Load most recent snapshot information"""
+        if not checkpoints_data:
+            return {"exists": False, "timestamp": None, "relative_time": "暂无快照"}
+
+        last_time = checkpoints_data.get("last_checkpoint_at")
+        if not last_time:
+            return {"exists": False, "timestamp": None, "relative_time": "暂无快照"}
+
+        relative = self._format_relative_time(last_time)
+        return {"exists": True, "timestamp": last_time, "relative_time": relative}
+
+    def handle_get_status_summary(self) -> Dict[str, Any]:
+        """
+        Handle GET /api/status-summary - return 5 status indicators summary.
+
+        Returns:
+            Dictionary with progress, next_action, plan_health, risk_blocker, recent_snapshot
+        """
+        progress_data = load_json_with_cache(
+            self.working_dir / ".claude" / "progress.json", "progress_json"
+        )
+        checkpoints_data = load_json_with_cache(
+            self.working_dir / ".claude" / "checkpoints.json", "checkpoints_json"
+        )
+
+        # Graceful degradation: return empty state if progress_data is missing
+        if progress_data is None:
+            progress_data = {"features": [], "current_feature_id": None, "bugs": []}
+
+        # 1. Calculate overall progress
+        features = progress_data.get("features", [])
+        completed = sum(1 for f in features if f.get("completed", False))
+        total = len(features)
+        percentage = int((completed / total * 100)) if total > 0 else 0
+
+        # 2. Determine next action
+        next_action = self._determine_next_action(features, progress_data)
+
+        # 3. Check plan health
+        plan_health = self._check_plan_health(progress_data)
+
+        # 4. Check risk/blocker
+        risk_blocker = self._check_risk_blocker(progress_data)
+
+        # 5. Load recent snapshot
+        recent_snapshot = self._load_recent_snapshot(checkpoints_data)
+
+        return {
+            "progress": {
+                "completed": completed,
+                "total": total,
+                "percentage": percentage
+            },
+            "next_action": next_action,
+            "plan_health": plan_health,
+            "risk_blocker": risk_blocker,
+            "recent_snapshot": recent_snapshot,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }
+
+    def _build_progress_detail(self, progress_data: Dict) -> Dict[str, Any]:
+        """Build progress panel detail (unified structured format)"""
+        features = progress_data.get("features", [])
+        completed = sum(1 for f in features if f.get("completed", False))
+        total = len(features)
+        pending = total - completed
+
+        # Build feature_list section
+        feature_list_section = {
+            "type": "feature_list",
+            "title": "功能列表",
+            "content": [
+                {
+                    "id": f.get("id"),
+                    "name": f.get("name", "Unknown"),
+                    "completed": f.get("completed", False),
+                    "completed_at": f.get("completed_at")
+                }
+                for f in features
+            ]
+        }
+
+        return {
+            "panel": "progress",
+            "title": "总进度详情",
+            "summary": f"已完成 {completed} 个功能，待办 {pending} 个功能",
+            "sections": [feature_list_section],
+            "sources": [
+                {"path": ".claude/progress.json", "label": "进度数据"}
+            ],
+            "actions": [
+                {"label": "刷新进度", "command": "/prog", "type": "copy"}
+            ]
+        }
+
+    def _build_plan_detail(self, progress_data: Dict) -> Dict[str, Any]:
+        """Build plan compliance panel detail (unified structured format)"""
+        workflow_state = progress_data.get("workflow_state")
+
+        # Case 1: No active plan
+        if not workflow_state or not workflow_state.get("plan_path"):
+            return {
+                "panel": "plan",
+                "title": "计划合规详情",
+                "summary": "当前无活跃计划",
+                "sections": [
+                    {
+                        "type": "text",
+                        "content": "没有进行中的功能，因此无活跃计划。使用 /prog next 开始下一个功能。"
+                    }
+                ],
+                "sources": [],
+                "actions": [
+                    {"label": "开始下一个功能", "command": "/prog next", "type": "copy"}
+                ]
+            }
+
+        # Case 2: Has active plan, perform validation
+        plan_path = workflow_state["plan_path"]
+
+        if not PROGRESS_MANAGER_AVAILABLE:
+            return {
+                "panel": "plan",
+                "title": "计划合规详情",
+                "summary": "验证模块不可用",
+                "sections": [
+                    {
+                        "type": "text",
+                        "content": "无法验证计划文件：progress_manager 模块未加载"
+                    }
+                ],
+                "sources": [],
+                "actions": []
+            }
+
+        try:
+            path_result = validate_plan_path(plan_path, require_exists=True)
+            doc_result = validate_plan_document(plan_path) if path_result["valid"] else None
+        except Exception as e:
+            return {
+                "panel": "plan",
+                "title": "计划合规详情",
+                "summary": f"验证失败: {str(e)}",
+                "sections": [
+                    {
+                        "type": "text",
+                        "content": f"无法验证计划文件: {str(e)}"
+                    }
+                ],
+                "sources": [],
+                "actions": []
+            }
+
+        # Build validation result table
+        validation_rows = [
+            {"key": "计划路径", "value": plan_path}
+        ]
+
+        if path_result["valid"]:
+            validation_rows.append({"key": "路径合规", "value": "✓ 通过"})
+        else:
+            validation_rows.append({"key": "路径合规", "value": f"✗ {path_result['error']}"})
+
+        if doc_result and doc_result["valid"]:
+            validation_rows.append({"key": "结构合规", "value": "✓ 包含 Tasks/Acceptance/Risks"})
+        elif doc_result:
+            missing = ", ".join(doc_result["missing_sections"])
+            validation_rows.append({"key": "结构合规", "value": f"✗ 缺少: {missing}"})
+
+        validation_section = {
+            "type": "table",
+            "title": "验证结果",
+            "content": validation_rows
+        }
+
+        # Determine summary
+        if path_result["valid"] and doc_result and doc_result["valid"]:
+            summary = "计划文件完整且符合规范"
+        else:
+            summary = "计划文件存在问题，请检查"
+
+        return {
+            "panel": "plan",
+            "title": "计划合规详情",
+            "summary": summary,
+            "sections": [validation_section],
+            "sources": [
+                {"path": plan_path, "label": "计划文档"}
+            ],
+            "actions": [
+                {"label": "打开计划文档", "command": f"loadFile('{plan_path}')", "type": "link"}
+            ]
+        }
+
+    def _build_next_detail(self, progress_data: Dict) -> Dict[str, Any]:
+        """Build next action panel detail (unified structured format)"""
+        features = progress_data.get("features", [])
+        current_id = progress_data.get("current_feature_id")
+
+        # Determine next feature
+        next_feature = None
+        if current_id is not None:
+            next_feature = next((f for f in features if f.get("id") == current_id), None)
+
+        if not next_feature:
+            pending = [f for f in features if not f.get("completed", False)]
+            if pending:
+                next_feature = min(pending, key=lambda f: f.get("id", float("inf")))
+
+        # Case 1: No pending features
+        if not next_feature:
+            return {
+                "panel": "next",
+                "title": "下一步详情",
+                "summary": "所有功能已完成！",
+                "sections": [
+                    {
+                        "type": "text",
+                        "content": "恭喜！项目的所有功能已完成。"
+                    }
+                ],
+                "sources": [],
+                "actions": []
+            }
+
+        # Case 2: Has next feature
+        sections = [
+            {
+                "type": "text",
+                "title": "功能描述",
+                "content": next_feature.get("name", "Unknown")
+            }
+        ]
+
+        test_steps = next_feature.get("test_steps", [])
+        if test_steps:
+            sections.append({
+                "type": "list",
+                "title": "测试步骤",
+                "content": test_steps[:5]  # Show only first 5
+            })
+
+        return {
+            "panel": "next",
+            "title": "下一步详情",
+            "summary": f"建议开始 Feature #{next_feature.get('id')}: {next_feature.get('name', 'Unknown')}",
+            "sections": sections,
+            "sources": [
+                {"path": ".claude/progress.json", "label": "进度数据"}
+            ],
+            "actions": [
+                {"label": "开始此功能", "command": "/prog next", "type": "copy"}
+            ]
+        }
+
+    def _build_risk_detail(self, progress_data: Dict) -> Dict[str, Any]:
+        """Build risk/blocker panel detail (unified structured format)"""
+        bugs = progress_data.get("bugs", [])
+        high_priority = [
+            b for b in bugs
+            if b.get("priority") == "high" and b.get("status") != "fixed"
+        ]
+        blocked = [b for b in bugs if b.get("status") == "blocked"]
+
+        if not high_priority and not blocked:
+            return {
+                "panel": "risk",
+                "title": "风险阻塞详情",
+                "summary": "当前无高风险问题",
+                "sections": [
+                    {"type": "text", "content": "项目运行正常，无阻塞性问题。"}
+                ],
+                "sources": [],
+                "actions": []
+            }
+
+        # Build risk list
+        risk_items = []
+        for bug in high_priority:
+            risk_items.append(f"[高优先级] {bug.get('description', 'Unknown bug')}")
+        for bug in blocked:
+            risk_items.append(f"[阻塞] {bug.get('description', 'Unknown bug')}")
+
+        return {
+            "panel": "risk",
+            "title": "风险阻塞详情",
+            "summary": f"发现 {len(high_priority)} 个高优先级问题，{len(blocked)} 个阻塞问题",
+            "sections": [
+                {
+                    "type": "list",
+                    "title": "风险列表",
+                    "content": risk_items
+                }
+            ],
+            "sources": [
+                {"path": ".claude/progress.json", "label": "进度数据"}
+            ],
+            "actions": [
+                {"label": "查看问题", "command": "/prog-fix list", "type": "copy"}
+            ]
+        }
+
+    def _build_snapshot_detail(self, checkpoints_data: Optional[Dict]) -> Dict[str, Any]:
+        """Build snapshot panel detail (unified structured format)"""
+        if not checkpoints_data or not checkpoints_data.get("entries"):
+            return {
+                "panel": "snapshot",
+                "title": "快照历史",
+                "summary": "暂无快照记录",
+                "sections": [
+                    {"type": "text", "content": "尚未创建任何进度快照。"}
+                ],
+                "sources": [],
+                "actions": []
+            }
+
+        entries = checkpoints_data.get("entries", [])
+        last_entry = entries[0] if entries else None
+
+        # Build snapshot list
+        snapshot_items = []
+        for entry in entries[:5]:  # Show only recent 5
+            timestamp = entry.get("timestamp", "")
+            relative = self._format_relative_time(timestamp)
+            feature_id = entry.get("feature_id", "?")
+            feature_name = entry.get("feature_name", "Unknown")
+            snapshot_items.append(f"{relative} - Feature #{feature_id}: {feature_name}")
+
+        return {
+            "panel": "snapshot",
+            "title": "快照历史",
+            "summary": f"最近快照: {self._format_relative_time(last_entry.get('timestamp', ''))}",
+            "sections": [
+                {
+                    "type": "list",
+                    "title": "最近快照",
+                    "content": snapshot_items
+                }
+            ],
+            "sources": [
+                {"path": ".claude/checkpoints.json", "label": "快照数据"}
+            ],
+            "actions": []
+        }
+
+    def handle_get_status_detail(self, parsed_path) -> Tuple[Dict[str, Any], int]:
+        """
+        Handle GET /api/status-detail?panel=<panel_type>
+
+        Returns:
+            Tuple of (response_dict, http_status_code)
+        """
+        query = parse_qs(parsed_path.query)
+        panel = query.get("panel", [None])[0]
+
+        if panel not in ["progress", "next", "plan", "risk", "snapshot"]:
+            return {"error": "Missing or invalid panel parameter"}, 400
+
+        progress_data = load_json_with_cache(
+            self.working_dir / ".claude" / "progress.json", "progress_json"
+        )
+
+        # Graceful degradation
+        if progress_data is None:
+            progress_data = {"features": [], "current_feature_id": None, "bugs": []}
+
+        if panel == "progress":
+            return self._build_progress_detail(progress_data), 200
+        elif panel == "plan":
+            return self._build_plan_detail(progress_data), 200
+        elif panel == "next":
+            return self._build_next_detail(progress_data), 200
+        elif panel == "risk":
+            return self._build_risk_detail(progress_data), 200
+        elif panel == "snapshot":
+            checkpoints_data = load_json_with_cache(
+                self.working_dir / ".claude" / "checkpoints.json", "checkpoints_json"
+            )
+            return self._build_snapshot_detail(checkpoints_data), 200
+
+        return {"error": "Unknown panel type"}, 400
+
+    def handle_get_plan_health(self, parsed_path) -> Tuple[Dict[str, Any], int]:
+        """
+        Handle GET /api/plan-health?path=<plan_path>
+
+        Validates the specified plan file for compliance.
+
+        Returns:
+            Tuple of (response_dict, http_status_code)
+        """
+        query = parse_qs(parsed_path.query)
+        plan_path = query.get("path", [None])[0]
+
+        if not plan_path:
+            return {"error": "path parameter required"}, 400
+
+        if not PROGRESS_MANAGER_AVAILABLE:
+            return {
+                "error": "progress_manager module not available",
+                "plan_path": plan_path,
+                "overall_status": "N/A"
+            }, 200
+
+        try:
+            path_result = validate_plan_path(plan_path, require_exists=False)
+            doc_result = None
+            if path_result["valid"]:
+                doc_result = validate_plan_document(plan_path)
+
+            if not path_result["valid"]:
+                overall_status = "WARN"
+            elif not doc_result or not doc_result["valid"]:
+                overall_status = "INVALID"
+            else:
+                overall_status = "OK"
+
+            return {
+                "plan_path": plan_path,
+                "path_validation": path_result,
+                "document_validation": doc_result,
+                "overall_status": overall_status
+            }, 200
+        except Exception as e:
+            return {
+                "error": f"Validation failed: {str(e)}",
+                "plan_path": plan_path,
+                "overall_status": "WARN"
+            }, 200
 
 
 def create_handler(working_dir: Path):
