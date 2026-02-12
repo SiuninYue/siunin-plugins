@@ -1495,6 +1495,259 @@
                 return meta ? meta.label : statusChar;
             }
 
+            /**
+             * 稳健合并用户的 checkbox 状态变更
+             */
+            async function mergeCheckboxStatus() {
+                const conflict = state.conflictData;
+                if (!conflict) {
+                    setStatus("无冲突数据", "error");
+                    return;
+                }
+
+                state.isResolvingConflict = true;
+                setStatus("正在稳健合并状态变更...", "info");
+
+                // 禁用按钮防止重复点击
+                document.getElementById("conflict-merge-btn").disabled = true;
+                document.getElementById("conflict-discard-btn").disabled = true;
+
+                try {
+                    // 1. 解析服务器内容（复用现有 splitContentLines）
+                    const serverLines = splitContentLines(conflict.serverContent);
+                    const pending = conflict.pendingChange;
+
+                    // 2. 稳健定位目标行
+                    // [修正2] 传入保存的原始前缀以支持稳健匹配
+                    const targetLineIndex = findTargetLineInContent(
+                        serverLines,
+                        pending.lineIndex,
+                        pending.originalMarkdownLine,
+                        pending.originalLinePrefix,  // 新增：原始前缀用于精确匹配
+                        3
+                    );
+
+                    if (targetLineIndex === -1) {
+                        setStatus("目标行已被删除或重写，无法合并", "warn");
+                        await discardAndReload();
+                        return;
+                    }
+
+                    // 3. 检查目标行是否仍为 checkbox
+                    const serverLine = serverLines[targetLineIndex] || "";
+                    const checkboxPattern = /^(\s*[-*+]\s*\[)([ /xX\-!?])(\])(.*)$/;
+                    const match = serverLine.match(checkboxPattern);
+
+                    if (!match) {
+                        setStatus("目标行已被修改为非checkbox，无法合并", "warn");
+                        await discardAndReload();
+                        return;
+                    }
+
+                    // 4. 发送合并请求（使用固化的文件路径）
+                    const payload = {
+                        file_path: conflict.filePath,
+                        line_index: targetLineIndex,
+                        new_status: pending.newStatus,
+                        base_rev: conflict.serverRev,
+                        base_mtime: conflict.serverMtime
+                    };
+
+                    const result = await fetchJson("/api/checkbox", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
+                    });
+
+                    // 5. 成功合并：清理状态
+                    state.activeRev = result.rev;
+                    state.activeMtime = result.mtime;
+
+                    // 6. 重新加载文件（使用固化的路径）
+                    await loadFile(conflict.filePath, false);
+
+                    // [P1 修复] 使用 clearConflictState 统一清理
+                    clearConflictState({ keepDrawer: false });
+                    setStatus("状态变更已稳健合并", "success");
+
+                } catch (error) {
+                    console.error("合并失败:", error);
+
+                    if (error && error.status === 409) {
+                        // 二次冲突
+                        state.conflictRetryCount++;
+
+                        if (state.conflictRetryCount <= 3) {
+                            const delay = Math.pow(2, state.conflictRetryCount) * 1000;
+                            setStatus(`再次检测到冲突，${delay/1000}秒后重试...`, "warn");
+
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                            await handleConflict(error.payload, state.lastRequestId);
+                        } else {
+                            setStatus("多次合并失败，已加载最新版本", "warn");
+                            await discardAndReload();
+                        }
+                    } else {
+                        setStatus(`合并失败: ${error.message || "未知错误"}，请重试或放弃修改`, "error");
+                        // [P1 修复] 保持 Drawer 与冲突上下文，允许用户重试
+                        clearConflictState({ keepDrawer: true, preserveConflictData: true });
+                        // 恢复按钮状态
+                        document.getElementById("conflict-merge-btn").disabled = false;
+                        document.getElementById("conflict-discard-btn").disabled = false;
+                    }
+                }
+            }
+
+            /**
+             * 放弃修改并加载最新版本
+             */
+            async function discardAndReload() {
+                const conflict = state.conflictData;
+                if (!conflict) {
+                    setStatus("无冲突数据", "error");
+                    return;
+                }
+
+                state.isResolvingConflict = true;
+                setStatus("正在加载最新版本...", "info");
+
+                try {
+                    // 使用固化的文件路径
+                    const targetPath = conflict.filePath;
+
+                    // 直接使用已获取的服务器内容渲染
+                    state.activeRev = conflict.serverRev;
+                    state.activeMtime = conflict.serverMtime;
+                    state.activePath = targetPath;  // 关键：恢复 activePath
+
+                    // 渲染服务器内容
+                    renderFileContent(conflict.serverContent || "");
+
+                    // 更新 UI 显示路径
+                    ui.activePath.textContent = targetPath;
+                    ui.activeTime.textContent = formatTimestamp(conflict.serverMtime);
+
+                    // [修正4] 刷新文档列表以保持左侧激活态一致
+                    renderFileList();
+
+                    // [P1 修复] 使用 clearConflictState 统一清理
+                    clearConflictState({ keepDrawer: false });
+                    setStatus("已加载最新版本", "success");
+
+                } catch (error) {
+                    console.error("加载最新版本失败:", error);
+                    setStatus(`加载失败: ${error.message || "未知错误"}，请重试或继续合并`, "error");
+                    // [P1 修复] 保持 Drawer 与冲突上下文，允许用户重试
+                    clearConflictState({ keepDrawer: true, preserveConflictData: true });
+                    // 恢复按钮状态
+                    document.getElementById("conflict-merge-btn").disabled = false;
+                    document.getElementById("conflict-discard-btn").disabled = false;
+                }
+            }
+
+            /**
+             * 稳健行定位算法（五级策略 + P2 升级）
+             * [修正2] 新增 originalLinePrefix 参数，用于精确前缀匹配
+             * [P2 升级] 使用 Jaccard 相似度替代字符集合相似度
+             */
+            function findTargetLineInContent(serverLines, originalIndex, originalText, originalLinePrefix, searchRadius = 3) {
+                // 策略0: 精确前缀+文本匹配（最可靠）
+                if (originalIndex < serverLines.length) {
+                    const line = serverLines[originalIndex];
+                    // 使用保存的原始前缀进行精确匹配
+                    if (line && line.startsWith(originalLinePrefix || "- [")) {
+                        const suffixMatch = line.substring((originalLinePrefix || "- [").length).includes(originalText.substring(0, 50));
+                        if (suffixMatch) {
+                            return originalIndex;
+                        }
+                    }
+                }
+
+                // 策略1: 原始位置直接匹配
+                if (originalIndex < serverLines.length) {
+                    const line = serverLines[originalIndex];
+                    if (line && line.includes(originalText.substring(0, 30))) {
+                        return originalIndex;
+                    }
+                }
+
+                // 策略2: 文本签名匹配
+                const originalFingerprint = createLineFingerprint(originalText);
+                for (let i = 0; i < serverLines.length; i++) {
+                    const lineFingerprint = createLineFingerprint(serverLines[i]);
+                    if (lineFingerprint === originalFingerprint) {
+                        return i;
+                    }
+                }
+
+                // 策略3: 邻域搜索
+                const start = Math.max(0, originalIndex - searchRadius);
+                const end = Math.min(serverLines.length - 1, originalIndex + searchRadius);
+                for (let i = start; i <= end; i++) {
+                    const line = serverLines[i];
+                    const checkboxPattern = /^(\s*[-*+]\s*\[)([ /xX\-!?])(\])(.*)$/;
+                    if (checkboxPattern.test(line) && line.includes(originalText.substring(0, 50))) {
+                        return i;
+                    }
+                }
+
+                // 策略4: 全文档范围搜索相似行
+                const similarityThreshold = 0.8;
+                let bestMatch = -1;
+                let bestScore = 0;
+
+                for (let i = 0; i < serverLines.length; i++) {
+                    const similarity = calculateTextSimilarity(originalText, serverLines[i]);
+                    if (similarity > bestScore && similarity >= similarityThreshold) {
+                        bestScore = similarity;
+                        bestMatch = i;
+                    }
+                }
+
+                return bestMatch;
+            }
+
+            function createLineFingerprint(text) {
+                const normalized = text.trim().replace(/\s+/g, ' ').substring(0, 50);
+                let hash = 0;
+                for (let i = 0; i < normalized.length; i++) {
+                    hash = ((hash << 5) - hash) + normalized.charCodeAt(i);
+                    hash |= 0;
+                }
+                return hash.toString(16);
+            }
+
+            /**
+             * [P2 升级] 文本相似度算法 - token bigram Jaccard
+             * 对顺序敏感，比字符集合相似度更可靠，且兼容中英文混合文本
+             */
+            function calculateTextSimilarity(text1, text2) {
+                if (!text1 || !text2) return 0;
+
+                // 词级 token（英文单词 + 数字 + 单个中文字符）
+                const tokenPattern = /[a-z0-9]+|[\u4e00-\u9fa5]/gi;
+                const tokens1 = (text1.toLowerCase().match(tokenPattern) || []);
+                const tokens2 = (text2.toLowerCase().match(tokenPattern) || []);
+
+                if (tokens1.length === 0 || tokens2.length === 0) return 0;
+
+                // 使用 bigram 让顺序信息进入相似度计算
+                const grams1 = tokens1.length > 1
+                    ? tokens1.slice(0, -1).map((t, i) => `${t} ${tokens1[i + 1]}`)
+                    : tokens1;
+                const grams2 = tokens2.length > 1
+                    ? tokens2.slice(0, -1).map((t, i) => `${t} ${tokens2[i + 1]}`)
+                    : tokens2;
+
+                // Jaccard 相似度 = |A ∩ B| / |A ∪ B|
+                const set1 = new Set(grams1);
+                const set2 = new Set(grams2);
+                const intersection = new Set([...set1].filter(x => set2.has(x)));
+                const union = new Set([...set1, ...set2]);
+
+                return intersection.size / union.size;
+            }
+
             async function fetchJson(url, options = {}) {
                 const response = await fetch(url, options);
                 let payload = {};
