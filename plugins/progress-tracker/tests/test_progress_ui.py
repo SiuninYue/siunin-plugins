@@ -230,3 +230,45 @@ def test_status_bar_has_explicit_fallback_rendering():
 
     assert "function renderStatusBarFallback()" in html
     assert 'progressValue.textContent = "-/-";' in html
+
+
+def test_checkbox_ui_defines_six_status_meta():
+    """Frontend should define six checkbox states with keyboard shortcuts."""
+    html_path = Path("plugins/progress-tracker/hooks/scripts/static/index.html")
+    html = html_path.read_text(encoding="utf-8")
+
+    assert "const checkboxStateMeta = [" in html
+    assert '{ char: " ", icon: "☐"' in html
+    assert '{ char: "/", icon: "🔄"' in html
+    assert '{ char: "x", icon: "☑"' in html
+    assert '{ char: "-", icon: "➖"' in html
+    assert '{ char: "!", icon: "❌"' in html
+    assert '{ char: "?", icon: "❓"' in html
+    assert 'const keyboardStatusMap = {' in html
+    assert '"6": "?"' in html
+
+
+def test_checkbox_ui_uses_patch_endpoint_and_primary_cycle():
+    """Checkbox click should cycle primary states and patch through /api/checkbox."""
+    html_path = Path("plugins/progress-tracker/hooks/scripts/static/index.html")
+    html = html_path.read_text(encoding="utf-8")
+
+    assert "function getNextPrimaryStatus(currentStatus)" in html
+    assert 'if (currentStatus === " ") {' in html
+    assert 'if (currentStatus === "/") {' in html
+    assert 'await fetchJson("/api/checkbox", {' in html
+    assert 'method: "PATCH"' in html
+    assert "line_index: lineIndex" in html
+    assert "new_status: nextStatus" in html
+
+
+def test_checkbox_ui_renders_context_menu_and_shortcuts():
+    """UI should expose context menu actions and key bindings for checkbox states."""
+    html_path = Path("plugins/progress-tracker/hooks/scripts/static/index.html")
+    html = html_path.read_text(encoding="utf-8")
+
+    assert 'id="checkbox-menu"' in html
+    assert "function buildCheckboxMenu()" in html
+    assert 'checkboxButton.addEventListener("contextmenu"' in html
+    assert 'ui.checkboxMenu.addEventListener("click"' in html
+    assert 'const mappedStatus = keyboardStatusMap[event.key];' in html
