@@ -954,7 +954,17 @@
                 activeRev: "",
                 activeMtime: 0,
                 selectedCheckboxLine: null,
-                menuTargetLine: null
+                menuTargetLine: null,
+
+                // 冲突状态扩展（新增）
+                conflictData: null,           // 冲突完整上下文
+                pendingCheckboxUpdate: null,  // 待处理的 checkbox 更新
+                isSaving: false,              // 保存中标志
+                isResolvingConflict: false,   // 冲突处理中标志
+                hasPendingConflict: false,    // [修正1] 有待处理冲突时保持锁定
+                conflictRetryCount: 0,        // 冲突重试计数
+                lastRequestId: 0,             // 请求序列号
+                lastRequestTimestamp: 0       // 上次请求时间戳
             };
 
             const ui = {
@@ -1065,6 +1075,18 @@
                     lines.pop();
                 }
                 return lines;
+            }
+
+            /**
+             * HTML 转义工具函数（独立定义，复用现有模式）
+             */
+            function escapeHtml(value) {
+                return String(value ?? "")
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#39;");
             }
 
             function parseCheckboxLine(line) {
@@ -1257,6 +1279,44 @@
                     return;
                 }
 
+                // 并发控制：冲突处理中或正在保存时阻止操作
+                // [修正1] 添加 hasPendingConflict 检查，防止冲突弹窗打开时继续编辑
+                if (state.isSaving || state.isResolvingConflict || state.hasPendingConflict) {
+                    setStatus("请等待当前操作完成", "warn");
+                    return;
+                }
+
+                // 构建稳健行签名（用于服务器内容匹配）
+                // 关键：使用重建的原始 markdown 行，而非包含 UI 图标的 DOM 文本
+                // [修正2] 保存完整原始行前缀（bullet + indent），不硬编码 "-"
+                const lineElement = document.querySelector(`.editor-line[data-line-index="${lineIndex}"]`);
+                let originalMarkdownLine = "";
+                let originalLinePrefix = "";  // [新增] 保存原始前缀（bullet + indent）
+
+                if (lineElement) {
+                    const checkboxBtn = lineElement.querySelector('.checkbox-btn');
+                    const textSpan = lineElement.querySelector('.checkbox-text');
+
+                    if (checkboxBtn && textSpan) {
+                        // [修正2] 提取并保存完整行前缀（匹配现有 checkbox 行格式）
+                        // 支持: "- [ ]", "* [ ]", "+ [ ]", 以及缩进变体
+                        const lineText = lineElement.textContent || "";
+                        const checkboxMatch = lineText.match(/^(\s*[-*+]\s*\[)([ /xX\-!?])(\])(.*)$/);
+
+                        if (checkboxMatch) {
+                            originalLinePrefix = checkboxMatch[1];  // "- [", "* [", "+ [", 或带缩进
+                            const currentStatus = checkboxBtn.dataset.status || " ";
+                            const suffixText = textSpan.textContent || "";
+                            originalMarkdownLine = `${originalLinePrefix}${currentStatus}]${suffixText}`;
+                        }
+                    }
+                }
+
+                // 构建唯一请求ID
+                const requestId = ++state.lastRequestId;
+                state.lastRequestTimestamp = Date.now();
+                state.isSaving = true;
+
                 setStatus("保存中...", "info");
 
                 try {
@@ -1270,9 +1330,7 @@
 
                     const result = await fetchJson("/api/checkbox", {
                         method: "PATCH",
-                        headers: {
-                            "Content-Type": "application/json"
-                        },
+                        headers: { "Content-Type": "application/json" },
                         body: JSON.stringify(payload)
                     });
 
@@ -1280,11 +1338,93 @@
                     state.activeMtime = result.mtime;
                     await loadFile(state.activePath, false);
                     setStatus("已保存", "success");
+
                 } catch (error) {
                     if (error && error.status === 409) {
-                        setStatus("检测到冲突，请刷新后重试", "warn");
+                        // 保存冲突上下文
+                        state.pendingCheckboxUpdate = {
+                            lineIndex,
+                            newStatus: nextStatus,
+                            originalMarkdownLine,
+                            originalLinePrefix,  // [修正2] 保存原始前缀用于稳健定位
+                            requestId,
+                            targetLine: `checkbox-line-${lineIndex}`
+                        };
+
+                        state.conflictRetryCount = 0;
+
+                        // 进入冲突处理流程
+                        await handleConflict(error.payload, requestId);
                     } else {
                         setStatus("保存失败，请稍后重试", "error");
+                    }
+                } finally {
+                    // [修正1] 使用 hasPendingConflict 判断是否保持锁定
+                    // 仅在无待处理冲突时重置 isSaving
+                    if (!state.hasPendingConflict) {
+                        state.isSaving = false;
+                    }
+                }
+            }
+
+            async function handleConflict(conflictPayload, requestId) {
+                // 请求过期检查
+                if (requestId !== state.lastRequestId) {
+                    setStatus("冲突处理已过期", "warn");
+                    // [P1 修复] 使用 clearConflictState 统一清理
+                    clearConflictState();
+                    return;
+                }
+
+                state.isResolvingConflict = true;
+                state.hasPendingConflict = true;  // [修正1] 保持锁定直到 merge/discard 完成
+                setStatus("检测到冲突，正在获取最新版本...", "warn");
+
+                try {
+                    // 步骤1: 获取服务器最新内容
+                    // 注意：使用 path 查询参数（后端要求）
+                    const serverFile = await fetchJson("/api/file?path=" + encodeURIComponent(state.activePath));
+
+                    // 步骤2: 校验 rev 确保数据一致性
+                    if (serverFile.rev !== conflictPayload.current_rev) {
+                        throw new Error("服务器版本在获取过程中已更新");
+                    }
+
+                    // 步骤3: 保存完整冲突上下文，**固化文件路径**
+                    state.conflictData = {
+                        serverRev: serverFile.rev,
+                        serverMtime: serverFile.mtime,
+                        serverContent: serverFile.content,
+                        localRev: state.activeRev,
+                        localMtime: state.activeMtime,
+                        pendingChange: state.pendingCheckboxUpdate,
+                        conflictDetectedAt: Date.now(),
+                        filePath: state.activePath  // 固化路径，防止文档切换导致错写
+                    };
+
+                    // 步骤4: 显示冲突弹窗（独立 Drawer）
+                    showConflictDrawer();
+                    setStatus("检测到冲突", "conflict");
+
+                    // [P1 修复] 不重置状态，保持锁定直到用户决策
+                    // isResolvingConflict = true; hasPendingConflict = true;
+
+                } catch (fetchError) {
+                    console.error("冲突处理失败:", fetchError);
+
+                    // 重试逻辑（最多3次，指数退避）
+                    if (state.conflictRetryCount < 3) {
+                        state.conflictRetryCount++;
+                        const delay = Math.pow(2, state.conflictRetryCount) * 500;
+
+                        setStatus(`获取失败，${delay/1000}秒后重试...`, "warn");
+                        await new Promise(resolve => setTimeout(resolve, delay));
+
+                        await handleConflict(conflictPayload, requestId);
+                    } else {
+                        setStatus("无法获取最新版本，请手动刷新", "error");
+                        // [P1 修复] 使用 clearConflictState 统一清理
+                        clearConflictState();
                     }
                 }
             }
