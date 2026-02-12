@@ -944,6 +944,18 @@
         </aside>
 
         <div class="checkbox-menu" id="checkbox-menu" role="menu" aria-label="Checkbox status menu"></div>
+
+        <!-- 冲突解决 Drawer（独立于状态栏详情 Drawer） -->
+        <div id="conflict-drawer" class="drawer" aria-hidden="true">
+            <div class="drawer-backdrop" id="conflict-drawer-backdrop"></div>
+            <div class="drawer-panel">
+                <div class="drawer-header">
+                    <h3 id="conflict-drawer-title">冲突解决</h3>
+                    <button type="button" class="drawer-close-btn" id="conflict-drawer-close-btn" aria-label="关闭">✕</button>
+                </div>
+                <div id="conflict-drawer-content" class="drawer-content"></div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -1427,6 +1439,60 @@
                         clearConflictState();
                     }
                 }
+            }
+
+            /**
+             * 显示冲突解决 Drawer（独立系统，不影响现有状态栏详情）
+             */
+            function showConflictDrawer() {
+                const conflict = state.conflictData;
+                if (!conflict) {
+                    setStatus("无冲突数据", "error");
+                    return;
+                }
+
+                const pending = conflict.pendingChange;
+                const currentStatusLabel = getNextStatusLabel(pending.newStatus);
+
+                // 构建冲突详情内容
+                const contentHtml = `
+                    <div class="conflict-drawer">
+                        <table class="conflict-table">
+                            <tr><td class="conflict-label">服务器版本时间</td><td class="conflict-value">${escapeHtml(formatTimestamp(conflict.serverMtime))}</td></tr>
+                            <tr><td class="conflict-label">你的版本时间</td><td class="conflict-value">${escapeHtml(formatTimestamp(conflict.localMtime))}</td></tr>
+                            <tr><td class="conflict-label">你的修改</td><td class="conflict-value">行 ${pending.lineIndex + 1} → ${escapeHtml(currentStatusLabel)}</td></tr>
+                        </table>
+                        <p style="color: #6b7280; font-size: 13px; margin-top: 16px;">选择解决方式：</p>
+                        <div class="conflict-actions">
+                            <button type="button" class="conflict-action-btn primary" id="conflict-merge-btn">
+                                逐行保留我的状态变更
+                            </button>
+                            <button type="button" class="conflict-action-btn secondary" id="conflict-discard-btn">
+                                放弃我的修改，加载最新版本
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                document.getElementById("conflict-drawer-content").innerHTML = contentHtml;
+                document.getElementById("conflict-drawer").classList.add("open");
+                document.getElementById("conflict-drawer").setAttribute("aria-hidden", "false");
+            }
+
+            /**
+             * 关闭冲突 Drawer
+             */
+            function closeConflictDrawer() {
+                document.getElementById("conflict-drawer").classList.remove("open");
+                document.getElementById("conflict-drawer").setAttribute("aria-hidden", "true");
+            }
+
+            /**
+             * 获取状态标签文本
+             */
+            function getNextStatusLabel(statusChar) {
+                const meta = checkboxStateLookup.get(statusChar);
+                return meta ? meta.label : statusChar;
             }
 
             async function fetchJson(url, options = {}) {
@@ -1939,6 +2005,33 @@
                 state.selectedCheckboxLine = targetLine;
                 hideCheckboxMenu();
                 void updateCheckboxStatus(targetLine, newStatus);
+            });
+
+            // [P1 修复] 关闭按钮触发确认：不允许仅关闭 UI
+            document.getElementById("conflict-drawer-close-btn").addEventListener("click", () => {
+                const confirmed = confirm("关闭冲突弹窗将放弃未保存的修改，是否继续？");
+                if (confirmed) {
+                    clearConflictState();
+                }
+            });
+
+            // [P1 修复] 禁用 backdrop 点击关闭，强制用户显式决策
+            // document.getElementById("conflict-drawer-backdrop").addEventListener("click", closeConflictDrawer);
+
+            // 冲突解决按钮
+            document.getElementById("conflict-drawer-content").addEventListener("click", (event) => {
+                const button = event.target.closest("button");
+                if (!button) return;
+
+                if (button.id === "conflict-merge-btn") {
+                    void mergeCheckboxStatus();
+                    return;
+                }
+
+                if (button.id === "conflict-discard-btn") {
+                    void discardAndReload();
+                    return;
+                }
             });
 
             window.addEventListener("click", (event) => {
