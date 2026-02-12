@@ -242,7 +242,7 @@
             margin: 0;
             padding: 14px;
             overflow: auto;
-            white-space: pre-wrap;
+            white-space: normal;
             line-height: 1.6;
             font-size: 0.91rem;
             font-family: "JetBrains Mono", "Menlo", "Consolas", monospace;
@@ -256,6 +256,110 @@
             margin: 0;
             color: var(--text-soft);
             font-style: italic;
+        }
+
+        .editor-line {
+            display: block;
+            min-height: 1.6rem;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .editor-line.checkbox-line {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .checkbox-btn {
+            width: 28px;
+            min-width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            font-size: 1rem;
+            line-height: 1;
+        }
+
+        .checkbox-btn.status-space {
+            color: var(--text-soft);
+        }
+
+        .checkbox-btn.status-slash {
+            color: #0d9488;
+        }
+
+        .checkbox-btn.status-x {
+            color: var(--ok);
+        }
+
+        .checkbox-btn.status-dash {
+            color: #0f766e;
+        }
+
+        .checkbox-btn.status-bang {
+            color: var(--danger);
+        }
+
+        .checkbox-btn.status-question {
+            color: #7c3aed;
+        }
+
+        .checkbox-text {
+            flex: 1;
+            min-width: 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .checkbox-menu {
+            position: fixed;
+            z-index: 200;
+            min-width: 180px;
+            background: #ffffff;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            box-shadow: var(--shadow);
+            padding: 6px;
+            display: none;
+        }
+
+        .checkbox-menu.open {
+            display: block;
+        }
+
+        .checkbox-menu-item {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            padding: 8px 10px;
+            text-align: left;
+            font-size: 0.83rem;
+            color: var(--text-strong);
+        }
+
+        .checkbox-menu-item:hover {
+            background: rgba(31, 122, 140, 0.08);
+            color: var(--accent-strong);
+        }
+
+        .checkbox-menu-icon {
+            width: 1.2rem;
+            text-align: center;
+        }
+
+        .checkbox-menu-key {
+            margin-left: auto;
+            font-family: "JetBrains Mono", "Menlo", "Consolas", monospace;
+            font-size: 0.76rem;
+            color: var(--text-soft);
         }
 
         @media (max-width: 900px) {
@@ -675,6 +779,8 @@
                 <!-- Dynamic content -->
             </div>
         </aside>
+
+        <div class="checkbox-menu" id="checkbox-menu" role="menu" aria-label="Checkbox status menu"></div>
     </div>
 
     <script>
@@ -683,7 +789,9 @@
                 files: [],
                 activePath: null,
                 activeRev: "",
-                activeMtime: 0
+                activeMtime: 0,
+                selectedCheckboxLine: null,
+                menuTargetLine: null
             };
 
             const ui = {
@@ -692,7 +800,30 @@
                 activePath: document.getElementById("active-path"),
                 activeTime: document.getElementById("active-time"),
                 editor: document.getElementById("editor"),
-                refreshFilesBtn: document.getElementById("refresh-files-btn")
+                refreshFilesBtn: document.getElementById("refresh-files-btn"),
+                checkboxMenu: document.getElementById("checkbox-menu")
+            };
+
+            const checkboxStateMeta = [
+                { char: " ", icon: "☐", label: "未开始", key: "1", css: "status-space" },
+                { char: "/", icon: "🔄", label: "进行中", key: "2", css: "status-slash" },
+                { char: "x", icon: "☑", label: "已完成", key: "3", css: "status-x" },
+                { char: "-", icon: "➖", label: "不适用", key: "4", css: "status-dash" },
+                { char: "!", icon: "❌", label: "阻塞", key: "5", css: "status-bang" },
+                { char: "?", icon: "❓", label: "待确认", key: "6", css: "status-question" }
+            ];
+
+            const checkboxStateLookup = new Map(
+                checkboxStateMeta.map((item) => [item.char, item])
+            );
+
+            const keyboardStatusMap = {
+                "1": " ",
+                "2": "/",
+                "3": "x",
+                "4": "-",
+                "5": "!",
+                "6": "?"
             };
 
             function setStatus(text, tone = "info") {
@@ -706,6 +837,85 @@
                 }
                 const date = new Date(unixSeconds * 1000);
                 return date.toLocaleString();
+            }
+
+            function splitContentLines(content) {
+                const normalized = String(content || "").replace(/\r\n/g, "\n");
+                if (!normalized) {
+                    return [];
+                }
+                const lines = normalized.split("\n");
+                if (normalized.endsWith("\n")) {
+                    lines.pop();
+                }
+                return lines;
+            }
+
+            function parseCheckboxLine(line) {
+                const match = /^(\s*-\s*\[)([ /x\-!?])(\])(.*)$/.exec(line);
+                if (!match) {
+                    return null;
+                }
+                return {
+                    status: match[2],
+                    suffixText: match[4] || ""
+                };
+            }
+
+            function getNextPrimaryStatus(currentStatus) {
+                if (currentStatus === " ") {
+                    return "/";
+                }
+                if (currentStatus === "/") {
+                    return "x";
+                }
+                return " ";
+            }
+
+            function normalizeCheckboxState(statusChar) {
+                return checkboxStateLookup.get(statusChar) || checkboxStateLookup.get(" ");
+            }
+
+            function hideCheckboxMenu() {
+                ui.checkboxMenu.classList.remove("open");
+                ui.checkboxMenu.style.left = "-9999px";
+                ui.checkboxMenu.style.top = "-9999px";
+                state.menuTargetLine = null;
+            }
+
+            function positionCheckboxMenu(clientX, clientY) {
+                const menuRect = ui.checkboxMenu.getBoundingClientRect();
+                const viewportPadding = 12;
+                const maxLeft = window.innerWidth - menuRect.width - viewportPadding;
+                const maxTop = window.innerHeight - menuRect.height - viewportPadding;
+                const left = Math.max(viewportPadding, Math.min(clientX, maxLeft));
+                const top = Math.max(viewportPadding, Math.min(clientY, maxTop));
+                ui.checkboxMenu.style.left = `${left}px`;
+                ui.checkboxMenu.style.top = `${top}px`;
+            }
+
+            function showCheckboxMenu(clientX, clientY, lineIndex) {
+                state.menuTargetLine = lineIndex;
+                ui.checkboxMenu.classList.add("open");
+                positionCheckboxMenu(clientX, clientY);
+            }
+
+            function buildCheckboxMenu() {
+                const fragment = document.createDocumentFragment();
+                checkboxStateMeta.forEach((meta) => {
+                    const item = document.createElement("button");
+                    item.type = "button";
+                    item.className = "checkbox-menu-item";
+                    item.dataset.status = meta.char;
+                    item.setAttribute("role", "menuitem");
+                    item.innerHTML = `
+                        <span class="checkbox-menu-icon">${meta.icon}</span>
+                        <span>${meta.label}</span>
+                        <span class="checkbox-menu-key">${meta.key}</span>
+                    `;
+                    fragment.appendChild(item);
+                });
+                ui.checkboxMenu.replaceChildren(fragment);
             }
 
             function renderFileList() {
@@ -756,15 +966,104 @@
             function renderFileContent(content) {
                 ui.editor.replaceChildren();
 
-                if (content) {
-                    ui.editor.textContent = content;
+                const lines = splitContentLines(content);
+                if (!lines.length) {
+                    const emptyText = document.createElement("p");
+                    emptyText.className = "empty";
+                    emptyText.textContent = "The selected file is empty.";
+                    ui.editor.appendChild(emptyText);
                     return;
                 }
 
-                const emptyText = document.createElement("p");
-                emptyText.className = "empty";
-                emptyText.textContent = "The selected file is empty.";
-                ui.editor.appendChild(emptyText);
+                const fragment = document.createDocumentFragment();
+
+                lines.forEach((line, lineIndex) => {
+                    const checkboxData = parseCheckboxLine(line);
+                    const row = document.createElement("div");
+                    row.className = "editor-line";
+                    row.dataset.lineIndex = String(lineIndex);
+
+                    if (!checkboxData) {
+                        row.textContent = line || " ";
+                        fragment.appendChild(row);
+                        return;
+                    }
+
+                    const statusMeta = normalizeCheckboxState(checkboxData.status);
+                    row.classList.add("checkbox-line");
+
+                    const checkboxButton = document.createElement("button");
+                    checkboxButton.type = "button";
+                    checkboxButton.className = `checkbox-btn ${statusMeta.css}`;
+                    checkboxButton.dataset.lineIndex = String(lineIndex);
+                    checkboxButton.dataset.status = checkboxData.status;
+                    checkboxButton.dataset.role = "checkbox-control";
+                    checkboxButton.setAttribute("aria-label", `Checkbox line ${lineIndex + 1}: ${statusMeta.label}`);
+                    checkboxButton.textContent = statusMeta.icon;
+
+                    checkboxButton.addEventListener("focus", () => {
+                        state.selectedCheckboxLine = lineIndex;
+                    });
+
+                    checkboxButton.addEventListener("click", () => {
+                        state.selectedCheckboxLine = lineIndex;
+                        hideCheckboxMenu();
+                        void updateCheckboxStatus(lineIndex, getNextPrimaryStatus(checkboxData.status));
+                    });
+
+                    checkboxButton.addEventListener("contextmenu", (event) => {
+                        event.preventDefault();
+                        state.selectedCheckboxLine = lineIndex;
+                        showCheckboxMenu(event.clientX, event.clientY, lineIndex);
+                    });
+
+                    const text = document.createElement("span");
+                    text.className = "checkbox-text";
+                    text.textContent = checkboxData.suffixText || "";
+
+                    row.appendChild(checkboxButton);
+                    row.appendChild(text);
+                    fragment.appendChild(row);
+                });
+
+                ui.editor.appendChild(fragment);
+            }
+
+            async function updateCheckboxStatus(lineIndex, nextStatus) {
+                if (!state.activePath) {
+                    return;
+                }
+
+                setStatus("Saving checkbox...", "info");
+
+                try {
+                    const payload = {
+                        file_path: state.activePath,
+                        line_index: lineIndex,
+                        new_status: nextStatus,
+                        base_rev: state.activeRev,
+                        base_mtime: state.activeMtime
+                    };
+
+                    const result = await fetchJson("/api/checkbox", {
+                        method: "PATCH",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    state.activeRev = result.rev;
+                    state.activeMtime = result.mtime;
+                    await loadFile(state.activePath, false);
+                    setStatus("Checkbox saved", "success");
+                } catch (error) {
+                    if (error && error.status === 409) {
+                        setStatus("Conflict detected, please refresh", "warn");
+                    } else {
+                        setStatus("Failed to save checkbox", "error");
+                    }
+                }
             }
 
             async function fetchJson(url, options = {}) {
@@ -779,7 +1078,10 @@
 
                 if (!response.ok) {
                     const message = payload.error || ("Request failed with " + response.status);
-                    throw new Error(message);
+                    const error = new Error(message);
+                    error.status = response.status;
+                    error.payload = payload;
+                    throw error;
                 }
 
                 return payload;
@@ -809,7 +1111,7 @@
                     }
 
                     renderFileList();
-                    await loadFile(state.activePath, false);
+                    await loadFile(state.activePath, true);
                 } catch (error) {
                     setStatus("Failed to load files", "error");
                     ui.activePath.textContent = "Error";
@@ -828,16 +1130,23 @@
                 }
 
                 try {
+                    const previousPath = state.activePath;
                     const file = await fetchJson("/api/file?path=" + encodeURIComponent(path));
                     state.activePath = file.path;
                     state.activeRev = file.rev;
                     state.activeMtime = file.mtime;
+                    if (previousPath !== file.path) {
+                        state.selectedCheckboxLine = null;
+                    }
+                    hideCheckboxMenu();
 
                     ui.activePath.textContent = file.path;
                     ui.activeTime.textContent = "Last updated: " + formatTimestamp(file.mtime);
                     renderFileContent(file.content || "");
                     renderFileList();
-                    setStatus("Ready", "success");
+                    if (updateStatus) {
+                        setStatus("Ready", "success");
+                    }
                 } catch (error) {
                     setStatus("Failed to load file", "error");
                     ui.activeTime.textContent = String(error.message || error);
@@ -852,7 +1161,31 @@
                 if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "r") {
                     event.preventDefault();
                     void loadFiles(true);
+                    return;
                 }
+
+                if (event.key === "Escape") {
+                    hideCheckboxMenu();
+                    return;
+                }
+
+                if (event.ctrlKey || event.metaKey || event.altKey) {
+                    return;
+                }
+
+                const mappedStatus = keyboardStatusMap[event.key];
+                if (!mappedStatus) {
+                    return;
+                }
+
+                if (state.selectedCheckboxLine === null) {
+                    setStatus("Select a checkbox first", "warn");
+                    return;
+                }
+
+                event.preventDefault();
+                hideCheckboxMenu();
+                void updateCheckboxStatus(state.selectedCheckboxLine, mappedStatus);
             });
 
             void loadFiles(false);
@@ -1213,7 +1546,38 @@
                 }
             });
 
+            ui.checkboxMenu.addEventListener("click", (event) => {
+                const menuButton = event.target.closest(".checkbox-menu-item");
+                if (!menuButton) {
+                    return;
+                }
+
+                if (state.menuTargetLine === null) {
+                    hideCheckboxMenu();
+                    return;
+                }
+
+                const newStatus = menuButton.dataset.status || " ";
+                const targetLine = state.menuTargetLine;
+                state.selectedCheckboxLine = targetLine;
+                hideCheckboxMenu();
+                void updateCheckboxStatus(targetLine, newStatus);
+            });
+
+            window.addEventListener("click", (event) => {
+                if (!ui.checkboxMenu.classList.contains("open")) {
+                    return;
+                }
+
+                const menuClicked = event.target.closest("#checkbox-menu");
+                const checkboxClicked = event.target.closest('[data-role="checkbox-control"]');
+                if (!menuClicked && !checkboxClicked) {
+                    hideCheckboxMenu();
+                }
+            });
+
             // Start polling
+            buildCheckboxMenu();
             startStatusPolling();
         })();
     </script>
