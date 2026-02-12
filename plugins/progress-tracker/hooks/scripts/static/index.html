@@ -850,6 +850,36 @@
                 ui.statusPill.className = "status " + tone;
             }
 
+            /**
+             * 统一清理冲突状态（P2 修复）
+             * 避免各分支手工 reset 遗漏导致永久锁死
+             * @param options.keepDrawer - 是否保持 Drawer 打开（默认 false）
+             * @param options.preserveConflictData - 保持冲突上下文用于重试（默认 false）
+             */
+            function clearConflictState(options = {}) {
+                const { keepDrawer = false, preserveConflictData = false } = options;
+
+                // 非重试场景：清理冲突数据
+                if (!preserveConflictData) {
+                    state.conflictData = null;
+                    state.pendingCheckboxUpdate = null;
+                    state.conflictRetryCount = 0;
+                }
+
+                // 操作态总是清理
+                state.isResolvingConflict = false;
+                state.isSaving = false;
+
+                // 仅在"保留上下文 + 保持 Drawer 打开"时保持锁
+                // 防止误用 preserveConflictData 导致隐藏锁死
+                state.hasPendingConflict = keepDrawer && preserveConflictData;
+
+                // 关闭 Drawer（除非指定保持）
+                if (!keepDrawer) {
+                    closeConflictDrawer();
+                }
+            }
+
             function formatTimestamp(unixSeconds) {
                 if (!unixSeconds) {
                     return "Unknown update time";
