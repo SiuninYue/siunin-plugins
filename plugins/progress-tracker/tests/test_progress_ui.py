@@ -272,3 +272,39 @@ def test_checkbox_ui_renders_context_menu_and_shortcuts():
     assert 'checkboxButton.addEventListener("contextmenu"' in html
     assert 'ui.checkboxMenu.addEventListener("click"' in html
     assert 'const mappedStatus = keyboardStatusMap[event.key];' in html
+
+
+def test_frontend_has_document_list_refresh_and_switch_hooks():
+    """Document list should support click-to-switch and manual refresh shortcuts."""
+    html_path = Path("plugins/progress-tracker/hooks/scripts/static/index.html")
+    html = html_path.read_text(encoding="utf-8")
+
+    assert 'id="doc-list"' in html
+    assert 'id="refresh-files-btn"' in html
+    assert 'id="refresh-meta"' in html
+    assert 'openButton.addEventListener("click", () => {' in html
+    assert 'void loadFile(file.path);' in html
+    assert 'ui.refreshFilesBtn.addEventListener("click", () => {' in html
+    assert 'void loadFiles(true, "manual");' in html
+    assert '(event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "r"' in html
+    assert 'void loadFiles(true, "manual");' in html
+
+
+def test_frontend_uses_chinese_save_status_messages():
+    """Checkbox save feedback should expose Chinese saving/saved labels."""
+    html_path = Path("plugins/progress-tracker/hooks/scripts/static/index.html")
+    html = html_path.read_text(encoding="utf-8")
+
+    assert 'setStatus("保存中...", "info");' in html
+    assert 'setStatus("已保存", "success");' in html
+
+
+def test_frontend_shows_checkbox_editability_hint_and_supported_patterns():
+    """Editor should explain editable scope and support common checkbox syntaxes."""
+    html_path = Path("plugins/progress-tracker/hooks/scripts/static/index.html")
+    html = html_path.read_text(encoding="utf-8")
+
+    assert 'id="editor-hint"' in html
+    assert "当前文档有 ${checkboxCount} 个可切换 checkbox" in html
+    assert "当前文档没有可切换 checkbox（支持 - [ ] / * [ ] / + [ ]）" in html
+    assert 'const match = /^(\\s*[-*+]\\s*\\[)([ /xX\\-!?])(\\])(.*)$/.exec(line);' in html
