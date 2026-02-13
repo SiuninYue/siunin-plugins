@@ -238,8 +238,8 @@
       "completed": false
     }
   ],
-  "current_feature_id": null,
-  "updated_at": "2026-02-14T06:44:06.462908Z",
+  "current_feature_id": 8,
+  "updated_at": "2026-02-14T06:56:07.751076Z",
   "schema_version": "2.0",
   "bugs": [
     {
@@ -267,5 +267,10 @@
       "fixed_at": "2026-02-12T10:55:27.083057Z"
     }
   ],
-  "current_bug_id": null
+  "current_bug_id": null,
+  "workflow_state": {
+    "phase": "execution_complete",
+    "next_action": "verify_and_complete",
+    "updated_at": "2026-02-14T06:56:07.745332Z"
+  }
 }
