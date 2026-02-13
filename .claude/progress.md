@@ -2,7 +2,7 @@
 
 **Created**: 2026-02-06T21:53:53.117095Z
 
-**Status**: 7/12 completed
+**Status**: 8/12 completed
 
 ## Completed
 - [x] 创建 HTTP 服务器核心框架（含 P0 安全）
@@ -12,9 +12,9 @@
 - [x] 实现 6 状态 checkbox 渲染
 - [x] 实现文档切换与保存功能
 - [x] 实现冲突处理与状态栏
+- [x] 实现轮询与快捷键功能
 
 ## Pending
-- [ ] 实现轮询与快捷键功能
 - [ ] 编写核心功能测试
 - [ ] 创建 /prog-ui 命令
 - [ ] 更新 README 和文档

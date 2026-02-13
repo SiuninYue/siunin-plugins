@@ -190,7 +190,14 @@
         "测试快捷键: Ctrl+S 保存、j/k 导航、Esc 关闭弹窗",
         "验证帮助浮层: 按 ? 应显示快捷键帮助"
       ],
-      "completed": false
+      "completed": true,
+      "completed_at": "2026-02-14T07:08:23.257600Z",
+      "commit_hash": "9e4c6cc",
+      "archive_info": {
+        "archived_at": "2026-02-14T07:08:23.273555Z",
+        "files_moved": 0,
+        "files": []
+      }
     },
     {
       "id": 9,
@@ -198,9 +205,9 @@
       "test_steps": [
         "验证测试文件: ls plugins/progress-tracker/tests/test_progress_ui.py",
         "运行路径安全测试: pytest plugins/progress-tracker/tests/test_progress_ui.py -k path -v",
-        "运行冲突检测测试: pytest plugins/progress-tracker/tests/test_progress_ui.py -k conflict -v",
+        "运行冲突检测测试: pytest plugins/progress-tracker/tests/test_progress_ui.py -k concurrency -v",
         "运行 6 状态解析测试: pytest plugins/progress-tracker/tests/test_progress_ui.py -k checkbox -v",
-        "运行 P0 安全测试: pytest plugins/progress-tracker/tests/test_progress_ui.py -k security -v"
+        "运行 P0 安全测试: pytest plugins/progress-tracker/tests/test_progress_ui.py -k \"origin or validation\" -v"
       ],
       "completed": false
     },
@@ -238,8 +245,8 @@
       "completed": false
     }
   ],
-  "current_feature_id": 8,
-  "updated_at": "2026-02-14T06:56:07.751076Z",
+  "current_feature_id": 9,
+  "updated_at": "2026-02-14T07:44:23.079803Z",
   "schema_version": "2.0",
   "bugs": [
     {
@@ -267,10 +274,5 @@
       "fixed_at": "2026-02-12T10:55:27.083057Z"
     }
   ],
-  "current_bug_id": null,
-  "workflow_state": {
-    "phase": "execution_complete",
-    "next_action": "verify_and_complete",
-    "updated_at": "2026-02-14T06:56:07.745332Z"
-  }
+  "current_bug_id": null
 }

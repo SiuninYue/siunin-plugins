@@ -12,10 +12,10 @@ outputs:
   - 注意事项与检查项
 evidence: optional
 references:
-  - "superpowers:brainstorming"
-  - "superpowers:writing-plans"
-  - "superpowers:subagent-driven-development"
-  - "superpowers:test-driven-development"
+  - "brainstorming"
+  - "writing-plans"
+  - "subagent-driven-development"
+  - "test-driven-development"
   - "./references/complexity-assessment.md"
   - "./references/superpowers-integration.md"
   - "./references/session-playbook.md"
@@ -107,9 +107,9 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-feature-ai-m
 
 - Remain in this coordinator.
 - Default path:
-  1. Optional `superpowers:brainstorming` when requirements are ambiguous.
-  2. `superpowers:writing-plans` to produce executable task plan.
-  3. `superpowers:subagent-driven-development` to execute plan with TDD.
+  1. Optional `brainstorming` when requirements are ambiguous.
+  2. `writing-plans` to produce executable task plan.
+  3. `subagent-driven-development` to execute plan with TDD.
 - Update workflow state transitions:
   - `planning_complete` once plan is accepted
   - `execution` while tasks run

@@ -33,16 +33,16 @@ This document explains how Progress Tracker integrates with Superpowers workflow
 ## Skill Invocation Order
 
 ### For Simple Features
-1. **superpowers:test-driven-development** - Direct RED-GREEN-REFACTOR
+1. **test-driven-development** - Direct RED-GREEN-REFACTOR
 
 ### For Standard Features
-1. **superpowers:writing-plans** - Create task breakdown
-2. **superpowers:subagent-driven-development** - Execute with TDD + review
+1. **writing-plans** - Create task breakdown
+2. **subagent-driven-development** - Execute with TDD + review
 
 ### For Complex Features
-1. **superpowers:brainstorming** - Design exploration
-2. **superpowers:writing-plans** - Detailed planning
-3. **superpowers:subagent-driven-development** - Systematic execution
+1. **brainstorming** - Design exploration
+2. **writing-plans** - Detailed planning
+3. **subagent-driven-development** - Systematic execution
 
 ## Feature Complexity Heuristics
 
@@ -154,7 +154,7 @@ Progress Tracker stores this path in `plan_path` field for:
 - Progress status display
 - Historical reference
 
-**Plan structure** (created by superpowers:writing-plans):
+**Plan structure** (created by writing-plans):
 ```markdown
 # Feature: Create API
 
@@ -272,7 +272,7 @@ Is it a single file change with clear requirements?
 
 **Fix**:
 1. Install Superpowers plugin
-2. Ensure `superpowers:*` skills are discoverable
+2. Ensure required skills are discoverable
 3. Add to CLAUDE.md if using custom skill paths
 
 ### "Plan file creation failed"
@@ -317,5 +317,5 @@ If you previously used feature-dev integration:
 
 - Superpowers repository: https://github.com/obra/superpowers
 - Superpowers skills reference: See individual SKILL.md files in Superpowers repo
-- TDD best practices: `superpowers:test-driven-development` skill
-- Planning guidelines: `superpowers:writing-plans` skill
+- TDD best practices: `test-driven-development` skill
+- Planning guidelines: `writing-plans` skill

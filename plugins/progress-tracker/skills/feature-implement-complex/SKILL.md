@@ -15,7 +15,7 @@ outputs:
   - workflow state update
   - ai_metrics update
 evidence: optional
-references: ["superpowers:brainstorming", "superpowers:writing-plans", "superpowers:subagent-driven-development"]
+references: ["brainstorming", "writing-plans", "subagent-driven-development"]
 ---
 
 # Purpose
@@ -52,7 +52,7 @@ Write:
 3. Run design phase:
 
 ```text
-Skill("superpowers:brainstorming", args="<feature_name>: architecture and approach")
+Skill("brainstorming", args="<feature_name>: architecture and approach")
 ```
 
 If `.claude/architecture.md` exists, include `Execution Constraints` (`CONSTRAINT-*`) in brainstorming context.
@@ -68,7 +68,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-sta
 5. Run planning phase:
 
 ```text
-Skill("superpowers:writing-plans", args="<feature_name>: create implementation plan\nArchitecture constraints:\n- <CONSTRAINT-...>\nPlan path policy: must output under docs/plans/feature-<id>-<slug>.md")
+Skill("writing-plans", args="<feature_name>: create implementation plan\nArchitecture constraints:\n- <CONSTRAINT-...>\nPlan path policy: must output under docs/plans/feature-<id>-<slug>.md")
 ```
 
 6. Update workflow to planning complete with plan path:
@@ -83,7 +83,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-sta
 7. Run execution phase:
 
 ```text
-Skill("superpowers:subagent-driven-development", args="plan:<returned_plan_path>")
+Skill("subagent-driven-development", args="plan:<returned_plan_path>")
 ```
 
 8. Mark workflow as execution complete and save AI metrics:

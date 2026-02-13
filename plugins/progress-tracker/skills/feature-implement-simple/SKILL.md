@@ -15,7 +15,7 @@ outputs:
   - workflow state update
   - ai_metrics update
 evidence: optional
-references: ["superpowers:test-driven-development"]
+references: ["test-driven-development"]
 ---
 
 # Purpose
@@ -47,10 +47,10 @@ Write:
 
 1. Validate feature context exists and complexity bucket is `simple`.
 2. Display execution banner with feature and model selection.
-3. Invoke `superpowers:test-driven-development`:
+3. Invoke `test-driven-development`:
 
 ```text
-Skill("superpowers:test-driven-development", args="<feature_name>: <one_line_description>")
+Skill("test-driven-development", args="<feature_name>: <one_line_description>")
 ```
 
 4. On success, update workflow and metrics:

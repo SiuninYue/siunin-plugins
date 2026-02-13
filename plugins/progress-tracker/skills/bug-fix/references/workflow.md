@@ -163,7 +163,7 @@ This bug hasn't been deeply analyzed yet.
 
 ### Proceeding with Systematic Debugging...
 
-<Invoking superpowers:systematic-debugging skill>
+<Invoking systematic-debugging skill>
 ```
 
 **After systematic debugging completes:**
@@ -194,7 +194,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug \
 
 **Ready for TDD Fix**
 
-<Invoking superpowers:test-driven-development skill>
+<Invoking test-driven-development skill>
 ```
 
 **After TDD completes:**
