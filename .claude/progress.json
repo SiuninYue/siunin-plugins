@@ -95,7 +95,32 @@
         "测试右键菜单: 右键点击 checkbox 应显示 6 状态选项",
         "检查快捷键: 按 1-6 键应切换对应状态"
       ],
-      "completed": false
+      "completed": true,
+      "ai_metrics": {
+        "complexity_score": 18,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-02-12T11:12:41.558464Z",
+        "finished_at": "2026-02-12T14:03:28.152671+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-02-12T14:03:28.173478Z",
+      "commit_hash": "7ce7a7a35255ddec09b87a1065110668c57bbef9",
+      "archive_info": {
+        "archived_at": "2026-02-12T14:03:28.217217Z",
+        "files_moved": 2,
+        "files": [
+          {
+            "from": "docs/testing/feature-5-acceptance-report.md",
+            "to": "docs/archive/testing/feature-5-acceptance-report.md"
+          },
+          {
+            "from": "docs/plans/feature-5-six-status-checkbox-rendering.md",
+            "to": "docs/archive/plans/feature-5-six-status-checkbox-rendering.md"
+          }
+        ]
+      }
     },
     {
       "id": 6,
@@ -106,7 +131,32 @@
         "测试保存功能: 修改状态后应显示'保存中...'然后'已保存'",
         "测试手动刷新: 点击刷新按钮或按 Ctrl+R 应重新加载文档"
       ],
-      "completed": false
+      "completed": true,
+      "ai_metrics": {
+        "complexity_score": 18,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-02-12T14:13:03.170560Z",
+        "finished_at": "2026-02-12T15:25:39.769920+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-02-12T15:25:36.538752Z",
+      "commit_hash": "d5b97d4",
+      "archive_info": {
+        "archived_at": "2026-02-12T15:25:36.583483Z",
+        "files_moved": 2,
+        "files": [
+          {
+            "from": "docs/testing/feature-6-acceptance-report.md",
+            "to": "docs/archive/testing/feature-6-acceptance-report.md"
+          },
+          {
+            "from": "docs/plans/feature-6-document-switch-and-save.md",
+            "to": "docs/archive/plans/feature-6-document-switch-and-save.md"
+          }
+        ]
+      }
     },
     {
       "id": 7,
@@ -176,8 +226,8 @@
       "completed": false
     }
   ],
-  "current_feature_id": 5,
-  "updated_at": "2026-02-12T10:55:27.090234Z",
+  "current_feature_id": 7,
+  "updated_at": "2026-02-12T23:39:43.141656Z",
   "schema_version": "2.0",
   "bugs": [
     {
@@ -205,5 +255,11 @@
       "fixed_at": "2026-02-12T10:55:27.083057Z"
     }
   ],
-  "current_bug_id": null
+  "current_bug_id": null,
+  "workflow_state": {
+    "phase": "execution_complete",
+    "plan_path": "docs/plans/2026-02-12-conflict-handling-status-bar.md",
+    "next_action": "verify_and_complete",
+    "updated_at": "2026-02-12T23:39:43.131420Z"
+  }
 }
