@@ -864,6 +864,130 @@
             border-radius: 4px;
         }
 
+        /* ========== Help Overlay ========== */
+        .help-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(31, 41, 51, 0.75);
+            backdrop-filter: blur(8px);
+            z-index: 300;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .help-overlay.open {
+            display: flex;
+        }
+
+        .help-panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            box-shadow: 0 12px 48px rgba(31, 41, 51, 0.2);
+            max-width: 600px;
+            width: 100%;
+            max-height: 80vh;
+            overflow: auto;
+        }
+
+        .help-header {
+            border-bottom: 1px solid var(--line);
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #ffffff;
+            border-top-left-radius: var(--radius);
+            border-top-right-radius: var(--radius);
+        }
+
+        .help-header h2 {
+            margin: 0;
+            font-size: 1.2rem;
+            color: var(--text-strong);
+        }
+
+        .help-close {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: none;
+            background: transparent;
+            font-size: 1.3rem;
+            cursor: pointer;
+            color: var(--text-soft);
+        }
+
+        .help-close:hover {
+            background: rgba(0, 0, 0, 0.06);
+            color: var(--text-strong);
+        }
+
+        .help-content {
+            padding: 20px;
+        }
+
+        .help-section {
+            margin-bottom: 24px;
+        }
+
+        .help-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .help-section h3 {
+            margin: 0 0 12px 0;
+            font-size: 1rem;
+            color: var(--accent-strong);
+            font-weight: 700;
+        }
+
+        .help-shortcuts {
+            display: grid;
+            gap: 8px;
+        }
+
+        .help-shortcut {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #ffffff;
+        }
+
+        .help-shortcut-desc {
+            font-size: 0.9rem;
+            color: var(--text-strong);
+        }
+
+        .help-shortcut-keys {
+            display: flex;
+            gap: 6px;
+        }
+
+        .help-key {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 28px;
+            height: 28px;
+            padding: 4px 8px;
+            background: rgba(31, 41, 51, 0.06);
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            font-family: "JetBrains Mono", "Menlo", "Consolas", monospace;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text-strong);
+        }
+
         /* Mobile adaptations */
         @media (max-width: 900px) {
             .status-bar {
@@ -882,6 +1006,11 @@
 
             .drawer.open {
                 right: 0;
+            }
+
+            .help-panel {
+                max-width: 100%;
+                max-height: 90vh;
             }
         }
     </style>
@@ -962,6 +1091,127 @@
                     <button type="button" class="drawer-close-btn" id="conflict-drawer-close-btn" aria-label="关闭">✕</button>
                 </div>
                 <div id="conflict-drawer-content" class="drawer-content"></div>
+            </div>
+        </div>
+
+        <!-- 帮助浮层 -->
+        <div class="help-overlay" id="help-overlay" aria-hidden="true">
+            <div class="help-panel">
+                <div class="help-header">
+                    <h2>⌨️ 快捷键帮助</h2>
+                    <button type="button" class="help-close" id="help-close-btn" aria-label="关闭">✕</button>
+                </div>
+                <div class="help-content">
+                    <div class="help-section">
+                        <h3>📂 文档操作</h3>
+                        <div class="help-shortcuts">
+                            <div class="help-shortcut">
+                                <span class="help-shortcut-desc">刷新文档列表</span>
+                                <div class="help-shortcut-keys">
+                                    <span class="help-key">Ctrl</span>
+                                    <span class="help-key">R</span>
+                                </div>
+                            </div>
+                            <div class="help-shortcut">
+                                <span class="help-shortcut-desc">刷新当前文档</span>
+                                <div class="help-shortcut-keys">
+                                    <span class="help-key">Ctrl</span>
+                                    <span class="help-key">S</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>🔄 Checkbox 操作</h3>
+                        <div class="help-shortcuts">
+                            <div class="help-shortcut">
+                                <span class="help-shortcut-desc">下一个 Checkbox</span>
+                                <div class="help-shortcut-keys">
+                                    <span class="help-key">J</span>
+                                </div>
+                            </div>
+                            <div class="help-shortcut">
+                                <span class="help-shortcut-desc">上一个 Checkbox</span>
+                                <div class="help-shortcut-keys">
+                                    <span class="help-key">K</span>
+                                </div>
+                            </div>
+                            <div class="help-shortcut">
+                                <span class="help-shortcut-desc">切换状态（☐→🔄→☑）</span>
+                                <div class="help-shortcut-keys">
+                                    <span class="help-key">点击</span>
+                                </div>
+                            </div>
+                            <div class="help-shortcut">
+                                <span class="help-shortcut-desc">显示状态菜单</span>
+                                <div class="help-shortcut-keys">
+                                    <span class="help-key">右键</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>🎯 状态快捷键</h3>
+                        <div class="help-shortcuts">
+                            <div class="help-shortcut">
+                                <span class="help-shortcut-desc">☐ 未开始</span>
+                                <div class="help-shortcut-keys">
+                                    <span class="help-key">1</span>
+                                </div>
+                            </div>
+                            <div class="help-shortcut">
+                                <span class="help-shortcut-desc">🔄 进行中</span>
+                                <div class="help-shortcut-keys">
+                                    <span class="help-key">2</span>
+                                </div>
+                            </div>
+                            <div class="help-shortcut">
+                                <span class="help-shortcut-desc">☑ 已完成</span>
+                                <div class="help-shortcut-keys">
+                                    <span class="help-key">3</span>
+                                </div>
+                            </div>
+                            <div class="help-shortcut">
+                                <span class="help-shortcut-desc">➖ 不适用</span>
+                                <div class="help-shortcut-keys">
+                                    <span class="help-key">4</span>
+                                </div>
+                            </div>
+                            <div class="help-shortcut">
+                                <span class="help-shortcut-desc">❌ 阻塞</span>
+                                <div class="help-shortcut-keys">
+                                    <span class="help-key">5</span>
+                                </div>
+                            </div>
+                            <div class="help-shortcut">
+                                <span class="help-shortcut-desc">❓ 待确认</span>
+                                <div class="help-shortcut-keys">
+                                    <span class="help-key">6</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>🔧 其他</h3>
+                        <div class="help-shortcuts">
+                            <div class="help-shortcut">
+                                <span class="help-shortcut-desc">显示/隐藏帮助</span>
+                                <div class="help-shortcut-keys">
+                                    <span class="help-key">?</span>
+                                </div>
+                            </div>
+                            <div class="help-shortcut">
+                                <span class="help-shortcut-desc">关闭菜单/弹窗</span>
+                                <div class="help-shortcut-keys">
+                                    <span class="help-key">Esc</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -1861,15 +2111,133 @@
                 void loadFiles(true, "manual");
             });
 
+            // ========== Window Focus Refresh ==========
+            let lastFocusTime = Date.now();
+            const focusRefreshThreshold = 5000; // 5 秒后才触发刷新
+
+            window.addEventListener("focus", async () => {
+                const now = Date.now();
+                if (now - lastFocusTime > focusRefreshThreshold) {
+                    setStatus("窗口聚焦，正在刷新...", "info");
+                    await loadFiles(true, "auto");
+                    setStatus("已刷新", "success");
+                }
+                lastFocusTime = now;
+            });
+
+            window.addEventListener("blur", () => {
+                lastFocusTime = Date.now();
+            });
+
+            // ========== Help Overlay ==========
+            function toggleHelpOverlay() {
+                const overlay = document.getElementById("help-overlay");
+                const isOpen = overlay.classList.contains("open");
+
+                if (isOpen) {
+                    overlay.classList.remove("open");
+                    overlay.setAttribute("aria-hidden", "true");
+                } else {
+                    overlay.classList.add("open");
+                    overlay.setAttribute("aria-hidden", "false");
+                }
+            }
+
+            function closeHelpOverlay() {
+                const overlay = document.getElementById("help-overlay");
+                overlay.classList.remove("open");
+                overlay.setAttribute("aria-hidden", "true");
+            }
+
+            // ========== Checkbox Navigation ==========
+            function navigateToNextCheckbox() {
+                const checkboxButtons = Array.from(document.querySelectorAll('.checkbox-btn'));
+                if (!checkboxButtons.length) {
+                    setStatus("没有可导航的 checkbox", "warn");
+                    return;
+                }
+
+                let nextIndex = 0;
+                if (state.selectedCheckboxLine !== null) {
+                    const currentIndex = checkboxButtons.findIndex(
+                        btn => parseInt(btn.dataset.lineIndex) === state.selectedCheckboxLine
+                    );
+                    nextIndex = (currentIndex + 1) % checkboxButtons.length;
+                }
+
+                const nextButton = checkboxButtons[nextIndex];
+                state.selectedCheckboxLine = parseInt(nextButton.dataset.lineIndex);
+                nextButton.focus();
+                nextButton.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+
+            function navigateToPrevCheckbox() {
+                const checkboxButtons = Array.from(document.querySelectorAll('.checkbox-btn'));
+                if (!checkboxButtons.length) {
+                    setStatus("没有可导航的 checkbox", "warn");
+                    return;
+                }
+
+                let prevIndex = checkboxButtons.length - 1;
+                if (state.selectedCheckboxLine !== null) {
+                    const currentIndex = checkboxButtons.findIndex(
+                        btn => parseInt(btn.dataset.lineIndex) === state.selectedCheckboxLine
+                    );
+                    prevIndex = currentIndex > 0 ? currentIndex - 1 : checkboxButtons.length - 1;
+                }
+
+                const prevButton = checkboxButtons[prevIndex];
+                state.selectedCheckboxLine = parseInt(prevButton.dataset.lineIndex);
+                prevButton.focus();
+                prevButton.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+
             window.addEventListener("keydown", (event) => {
+                // Ctrl+R: 刷新文档列表
                 if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "r") {
                     event.preventDefault();
                     void loadFiles(true, "manual");
                     return;
                 }
 
+                // Ctrl+S: 刷新当前文档
+                if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+                    event.preventDefault();
+                    if (state.activePath) {
+                        void loadFile(state.activePath, true);
+                    }
+                    return;
+                }
+
+                // ?: 切换帮助浮层
+                if (event.key === "?" && !event.ctrlKey && !event.metaKey && !event.altKey) {
+                    event.preventDefault();
+                    toggleHelpOverlay();
+                    return;
+                }
+
+                // Escape: 关闭菜单和浮层
                 if (event.key === "Escape") {
-                    hideCheckboxMenu();
+                    const helpOverlay = document.getElementById("help-overlay");
+                    if (helpOverlay.classList.contains("open")) {
+                        closeHelpOverlay();
+                    } else {
+                        hideCheckboxMenu();
+                    }
+                    return;
+                }
+
+                // j: 下一个 checkbox
+                if (event.key === "j" && !event.ctrlKey && !event.metaKey && !event.altKey) {
+                    event.preventDefault();
+                    navigateToNextCheckbox();
+                    return;
+                }
+
+                // k: 上一个 checkbox
+                if (event.key === "k" && !event.ctrlKey && !event.metaKey && !event.altKey) {
+                    event.preventDefault();
+                    navigateToPrevCheckbox();
                     return;
                 }
 
@@ -1877,6 +2245,7 @@
                     return;
                 }
 
+                // 1-6: 切换 checkbox 状态
                 const mappedStatus = keyboardStatusMap[event.key];
                 if (!mappedStatus) {
                     return;
@@ -1899,6 +2268,16 @@
                 summary: null,
                 activePanel: null,
                 pollingInterval: null
+            };
+
+            // ========== Document Polling State ==========
+            const docPollingState = {
+                interval: null,
+                currentDelay: 10000,        // 初始 10 秒
+                minDelay: 10000,            // 最小 10 秒
+                maxDelay: 30000,            // 最大 30 秒
+                lastFileCount: 0,
+                noChangeCount: 0
             };
 
             // ========== Load Status Summary ==========
@@ -2168,6 +2547,60 @@
                 statusBarState.pollingInterval = setInterval(loadStatusSummary, 30000); // 30 seconds
             }
 
+            // ========== Document Polling ==========
+            async function pollDocuments() {
+                try {
+                    const files = await fetchJson("/api/files");
+                    const currentFileCount = Array.isArray(files) ? files.length : 0;
+
+                    // 检测变化
+                    if (currentFileCount !== docPollingState.lastFileCount) {
+                        // 有变化:刷新列表并重置延迟
+                        docPollingState.lastFileCount = currentFileCount;
+                        docPollingState.noChangeCount = 0;
+                        docPollingState.currentDelay = docPollingState.minDelay;
+
+                        await loadFiles(true, "auto");
+                    } else {
+                        // 无变化:延长延迟
+                        docPollingState.noChangeCount++;
+                        if (docPollingState.noChangeCount >= 2) {
+                            docPollingState.currentDelay = Math.min(
+                                docPollingState.currentDelay + 5000,
+                                docPollingState.maxDelay
+                            );
+                        }
+                    }
+
+                    // 重新调度下一次轮询
+                    scheduleNextPoll();
+                } catch (error) {
+                    console.error("Document polling failed:", error);
+                    scheduleNextPoll();
+                }
+            }
+
+            function scheduleNextPoll() {
+                if (docPollingState.interval) {
+                    clearTimeout(docPollingState.interval);
+                }
+                docPollingState.interval = setTimeout(pollDocuments, docPollingState.currentDelay);
+            }
+
+            function startDocumentPolling() {
+                docPollingState.lastFileCount = state.files.length;
+                docPollingState.noChangeCount = 0;
+                docPollingState.currentDelay = docPollingState.minDelay;
+                scheduleNextPoll();
+            }
+
+            function stopDocumentPolling() {
+                if (docPollingState.interval) {
+                    clearTimeout(docPollingState.interval);
+                    docPollingState.interval = null;
+                }
+            }
+
             // ========== Get Panel Title ==========
             function getPanelTitle(panelType) {
                 const titles = {
@@ -2307,9 +2740,19 @@
                 }
             });
 
+            // Help overlay events
+            document.getElementById("help-close-btn").addEventListener("click", closeHelpOverlay);
+
+            document.getElementById("help-overlay").addEventListener("click", (event) => {
+                if (event.target.id === "help-overlay") {
+                    closeHelpOverlay();
+                }
+            });
+
             // Start polling
             buildCheckboxMenu();
             startStatusPolling();
+            startDocumentPolling();
         })();
     </script>
 </body>
