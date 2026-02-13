@@ -12,9 +12,9 @@ outputs:
 evidence: optional
 references:
   - "testing-standards"
-  - "superpowers:systematic-debugging"
-  - "superpowers:test-driven-development"
-  - "superpowers:requesting-code-review"
+  - "systematic-debugging"
+  - "test-driven-development"
+  - "requesting-code-review"
   - "references/workflow.md"
   - "references/integration.md"
   - "examples/session.md"
@@ -139,7 +139,7 @@ OR
    - Investigate and fix later
 
 [2] **Investigate now** (Systematic debugging)
-   - Use superpowers:systematic-debugging
+   - Use systematic-debugging
    - Confirm if real bug
    - Fix immediately with TDD
 
@@ -151,7 +151,7 @@ Your choice [1/2/3]?
 
 Handle user choice:
 - **[1]**: Proceed to Phase 3 (Smart Scheduling)
-- **[2]**: Invoke `superpowers:systematic-debugging`
+- **[2]**: Invoke `systematic-debugging`
 - **[3]**: Exit
 
 #### Phase 3: Smart Scheduling
@@ -238,7 +238,7 @@ DO NOT just describe or mention the skill. You MUST invoke it using the Skill to
 
 For bugs needing investigation:
 Use the Skill tool with these exact parameters:
-  - skill: "superpowers:systematic-debugging"
+  - skill: "systematic-debugging"
   - args: "<bug description>"
 
 WAIT for the skill to complete.
@@ -248,7 +248,7 @@ After investigation completes, update bug status:
 
 For confirmed bugs requiring TDD fix:
 Use the Skill tool with these exact parameters:
-  - skill: "superpowers:test-driven-development"
+  - skill: "test-driven-development"
   - args: "Fix <bug>: <one-line description>"
 
 WAIT for the skill to complete.
@@ -279,7 +279,7 @@ After receiving the commit hash, update the bug:
 
 Finally, verify the fix with code review:
 Use the Skill tool with these exact parameters:
-  - skill: "superpowers:requesting-code-review"
+  - skill: "requesting-code-review"
   - args: "Verify bug fix for: <bug>"
 
 WAIT for the skill to complete.

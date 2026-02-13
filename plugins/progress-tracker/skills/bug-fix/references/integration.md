@@ -6,7 +6,7 @@ This document details integration with Superpowers plugin skills for bug fixing.
 
 ### When to Invoke
 
-Invoke `superpowers:systematic-debugging` when:
+Invoke `systematic-debugging` when:
 - Bug is in `pending_investigation` status
 - Root cause is unknown
 - User chooses "Investigate now" option
@@ -15,10 +15,10 @@ Invoke `superpowers:systematic-debugging` when:
 
 ```python
 # Correct: Use Skill tool
-Skill("superpowers:systematic-debugging", args="<bug description>")
+Skill("systematic-debugging", args="<bug description>")
 
 # Example
-Skill("superpowers:systematic-debugging", args="登录后5分钟会话自动断开")
+Skill("systematic-debugging", args="登录后5分钟会话自动断开")
 ```
 
 ### What It Does
@@ -62,7 +62,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug \
 
 ### When to Invoke
 
-Invoke `superpowers:test-driven-development` when:
+Invoke `test-driven-development` when:
 - Bug is in `confirmed` status
 - Root cause is known
 - Ready to implement fix
@@ -71,10 +71,10 @@ Invoke `superpowers:test-driven-development` when:
 
 ```python
 # Correct: Use Skill tool with clear description
-Skill("superpowers:test-driven-development", args="Fix <bug>: <one-line description>")
+Skill("test-driven-development", args="Fix <bug>: <one-line description>")
 
 # Example
-Skill("superpowers:test-driven-development", args="Fix session timeout: Update TIMEOUT from 300 to 86400 seconds")
+Skill("test-driven-development", args="Fix session timeout: Update TIMEOUT from 300 to 86400 seconds")
 ```
 
 ### What It Does
@@ -99,7 +99,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug \
 
 ### When to Invoke
 
-Invoke `superpowers:requesting-code-review` when:
+Invoke `requesting-code-review` when:
 - Bug fix is complete
 - TDD cycle finished
 - Need to verify fix quality
@@ -108,10 +108,10 @@ Invoke `superpowers:requesting-code-review` when:
 
 ```python
 # Correct: Use Skill tool
-Skill("superpowers:requesting-code-review", args="Verify bug fix for: <bug description>")
+Skill("requesting-code-review", args="Verify bug fix for: <bug description>")
 
 # Example
-Skill("superpowers:requesting-code-review", args="Verify bug fix for: session timeout updated to 24 hours")
+Skill("requesting-code-review", args="Verify bug fix for: session timeout updated to 24 hours")
 ```
 
 ### What It Does
@@ -157,7 +157,7 @@ graph TD
 
 ### Phase 1: Root Cause Investigation
 
-<Invoke superpowers:systematic-debugging>
+<Invoke systematic-debugging>
 
 **Result**: Root cause identified
 
@@ -165,7 +165,7 @@ graph TD
 
 ### Phase 2: TDD Fix
 
-<Invoke superpowers:test-driven-development>
+<Invoke test-driven-development>
 
 **Result**: Fix implemented, tests passing
 
@@ -173,7 +173,7 @@ graph TD
 
 ### Phase 3: Code Review
 
-<Invoke superpowers:requesting-code-review>
+<Invoke requesting-code-review>
 
 **Result**: Review passed
 
