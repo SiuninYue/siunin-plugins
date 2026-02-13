@@ -36,7 +36,8 @@ python3 /Users/siunin/Projects/Claude-Plugins/plugins/package-manager/skills/cod
   --plugins all \
   --source-policy workspace-first \
   --extra-dirs auto \
-  --placeholder-mode rewrite
+  --placeholder-mode rewrite \
+  --sync-prompts none
 ```
 
 ## Common Operations
@@ -65,6 +66,27 @@ python3 /Users/siunin/Projects/Claude-Plugins/plugins/package-manager/skills/cod
   --placeholder-mode fail
 ```
 
+### 4) Sync progress-tracker commands into Codex project prompts
+
+```bash
+python3 /Users/siunin/Projects/Claude-Plugins/plugins/package-manager/skills/codex-plugin-sync/scripts/sync_codex_imports.py \
+  --plugins progress-tracker \
+  --source-policy workspace-first \
+  --extra-dirs auto \
+  --placeholder-mode rewrite \
+  --sync-prompts project \
+  --project-root /absolute/path/to/project
+```
+
+### 5) Sync commands into both project and global prompts
+
+```bash
+python3 /Users/siunin/Projects/Claude-Plugins/plugins/package-manager/skills/codex-plugin-sync/scripts/sync_codex_imports.py \
+  --plugins progress-tracker \
+  --sync-prompts both \
+  --project-root /absolute/path/to/project
+```
+
 ## Compatibility Rules
 
 Apply the following transforms during sync:
@@ -72,6 +94,7 @@ Apply the following transforms during sync:
 - `skills/*/SKILL.md`: keep only `name` and `description`; fill missing values.
 - `commands/*.md` and `agents/*.md`: remove `model`/`madel`; preserve other keys; fill missing `name`.
 - Rewrite `${CLAUDE_PLUGIN_ROOT}` to `${CODEX_HOME:-$HOME/.codex}/skills/<wrapper_name>` when `--placeholder-mode rewrite`.
+- Optional prompt export: map plugin `commands/*.md` to Codex prompt files in `.codex/prompts` (project) and/or `$CODEX_HOME/prompts` (global) via `--sync-prompts`.
 
 ## Safety
 

@@ -1,6 +1,6 @@
 ---
 name: progress-management
-description: 进度管理技能。用于撤销功能（git revert）和重置进度跟踪。
+description: This skill should be used when the user runs "/prog reset", "/prog undo", asks to "reset progress tracking", "revert last completed feature", or needs safe administrative rollback operations.
 model: sonnet
 version: "1.0.0"
 scope: skill

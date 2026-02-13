@@ -218,7 +218,7 @@ If any bugs have `category == "technical_debt"`, also show:
 ```markdown
 ### Technical Debt Backlog
 You still have <N> technical debt items in bug tracking.
-Use `/prog fix` to review and schedule cleanup.
+Use `/prog-fix` to review and schedule cleanup.
 ```
 ```
 

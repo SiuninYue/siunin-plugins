@@ -47,107 +47,66 @@ claude plugins install feature-dev@claude-plugins-official
 
 ## Commands
 
+Command help in this section is generated from `docs/PROG_COMMANDS.md`.
+
+<!-- BEGIN:GENERATED:PROG_COMMANDS -->
+<!-- GENERATED CONTENT: DO NOT EDIT DIRECTLY -->
+### `/prog plan <project description>`
+
+Create architecture plan and technology decisions before feature implementation.
+
 ### `/prog init <goal description>`
 
-Initialize progress tracking for a new goal.
-
-Analyzes your objective and breaks it down into 5-10 specific features with test steps.
-
-**Example:**
-```bash
-/prog init Build a user authentication system with registration and login
-```
-
-**Behavior:**
-- Checks for existing progress tracking
-- Intelligently decomposes goal into features
-- Defines test steps for each feature
-- Orders features by dependency
-- Creates `.claude/progress.json` and `.claude/progress.md`
+Initialize progress tracking and break goal into testable features.
 
 ### `/prog`
 
-Display current project status.
-
-Shows completion statistics, current feature, and next step recommendations.
-
-**Example Output:**
-```
-## Project Progress: User Authentication
-
-**Status**: 2/5 completed (40%)
-**Current Feature**: Login API (in progress)
-
-### Recommended Next Steps
-
-Continue with current feature or run `/prog done` to complete.
-```
+Show current project status and recommended next action.
 
 ### `/prog next`
 
-Start implementing the next pending feature.
-
-**Behavior:**
-1. Identifies first uncompleted feature
-2. Sets `current_feature_id`
-3. Displays feature details and test steps
-4. Runs complexity assessment (0-40) and selects route:
-   - `0-15`: delegate to `feature-implement-simple` (haiku)
-   - `16-25`: execute standard path in coordinator (sonnet)
-   - `26-40`: delegate to `feature-implement-complex` (opus)
-5. Prompts to run `/prog done` when complete
+Start the next pending feature with deterministic complexity routing.
 
 ### `/prog done`
 
-Complete the current feature after testing.
+Run acceptance verification and complete the current feature.
 
-Runs test steps, updates progress tracking, and creates a Git commit.
+### `/prog-fix`
 
-**Behavior:**
-1. Executes all test steps defined for the feature
-2. Runs optional quality gates from `progress.json.quality_gates.pre_commit_checks`
-3. Prompts for technical debt and records it as bug (`category=technical_debt`) when provided
-4. If tests/checks fail → Reports error, keeps feature in progress
-5. If tests/checks pass → Creates Git commit, marks complete
-6. Finalizes feature AI metrics (`finished_at`, `duration_seconds`)
-7. Updates `progress.json` and `progress.md`
-
-### `/prog fix`
-
-Report, list, or fix bugs with smart scheduling and systematic debugging.
-
-**Example:**
-```bash
-/prog fix "Users are logged out after refresh"
-```
-
-**Behavior:**
-- Runs quick verification (under 30 seconds)
-- Offers to record the bug or investigate immediately
-- Schedules bugs into the feature timeline by priority
-- Orchestrates Superpowers debugging + TDD fix + code review
-
-## Maintenance Phase
-
-Once development is underway, you may need to manage the project state.
+Report, list, investigate, and fix bugs with systematic debugging and TDD.
 
 ### `/prog undo`
 
-Revert the most recently completed feature.
-
-**Behavior:**
-1. **Safety Check**: Ensures git working directory is clean.
-2. **Git Revert**: Creates a *new* commit that inverses the changes of the feature (safe for shared repos).
-3. **Status Rollback**: Marks the feature as "pending" again in the tracker.
+Revert the most recently completed feature safely via `git revert`.
 
 ### `/prog reset`
 
-Completely remove progress tracking from the project.
+Reset progress tracking files after explicit confirmation.
 
-**Behavior:**
-1. Asks for confirmation.
-2. Deletes `.claude/progress.json` and `.claude/progress.md`.
-3. **Does NOT** affect your code or Git history.
+### Progress Manager CLI
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py init <project_name> [--force]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py status
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py check
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-current <feature_id>
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py complete <feature_id> --commit <hash>
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state --phase <phase> [--plan-path <path>] [--next-action <action>]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-workflow-task <id> completed
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py clear-workflow-state
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-feature-ai-metrics <feature_id> --complexity-score <score> --selected-model <model> --workflow-path <path>
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py complete-feature-ai-metrics <feature_id>
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py auto-checkpoint
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-plan [--plan-path <path>]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-feature <name> <test_steps...>
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py undo
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py reset [--force]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-bug --description "<desc>" [--status <status>] [--priority <high|medium|low>] [--category <bug|technical_debt>]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug --bug-id "BUG-XXX" [--status <status>] [--root-cause "<cause>"] [--fix-summary "<summary>"]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-bugs
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py remove-bug "BUG-XXX"
+```
+<!-- END:GENERATED:PROG_COMMANDS -->
 
 ## Architecture
 
@@ -178,36 +137,8 @@ The plugin follows a **Commands → Skills** architecture:
 
 ### Progress Manager Commands
 
-The `progress_manager.py` script provides state management commands:
-
-```bash
-# Core commands
-python3 progress_manager.py init <project_name> [--force]
-python3 progress_manager.py status
-python3 progress_manager.py check
-python3 progress_manager.py set-current <feature_id>
-python3 progress_manager.py complete <feature_id> --commit <hash>
-
-# Workflow state commands (NEW)
-python3 progress_manager.py set-workflow-state --phase <phase> [--plan-path <path>] [--next-action <action>]
-python3 progress_manager.py update-workflow-task <id> completed
-python3 progress_manager.py clear-workflow-state
-python3 progress_manager.py set-feature-ai-metrics <feature_id> --complexity-score <score> --selected-model <model> --workflow-path <path>
-python3 progress_manager.py complete-feature-ai-metrics <feature_id>
-python3 progress_manager.py auto-checkpoint
-python3 progress_manager.py validate-plan [--plan-path <path>]
-
-# Feature management
-python3 progress_manager.py add-feature <name> <test_steps...>
-python3 progress_manager.py undo
-python3 progress_manager.py reset [--force]
-
-# Bug tracking
-python3 progress_manager.py add-bug --description "<desc>" [--status <status>] [--priority <high|medium|low>] [--category <bug|technical_debt>]
-python3 progress_manager.py update-bug --bug-id "BUG-XXX" [--status <status>] [--root-cause "<cause>"] [--fix-summary "<summary>"]
-python3 progress_manager.py list-bugs
-python3 progress_manager.py remove-bug "BUG-XXX"
-```
+Progress Manager command reference is generated from `docs/PROG_COMMANDS.md` into the Commands section above.  
+Run `python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/generate_prog_docs.py --write` after editing the source file.
 
 ### Progress Files
 
@@ -371,13 +302,13 @@ Progress: [████░░░░] 40% - Task 3/5
 
 ```bash
 # Report a bug with quick verification
-/prog fix "Users are logged out after refresh"
+/prog-fix "Users are logged out after refresh"
 
 # View backlog and pick a bug to fix
-/prog fix
+/prog-fix
 
 # Resume a specific bug by ID
-/prog fix BUG-001
+/prog-fix BUG-001
 ```
 
 **Bug lifecycle**: pending_investigation → investigating → confirmed → fixing → fixed (or false_positive)
@@ -629,7 +560,7 @@ The plugin tracks detailed workflow state for accurate recovery:
   - 系统架构设计
   - 架构决策记录 (`.claude/architecture.md`)
   - 与 feature breakdown 的集成指导
-- ✅ `/prog fix` - Bug 管理命令
+- ✅ `/prog-fix` - Bug 管理命令
   - Bug 报告与快速验证 (30秒)
   - 智能调度到功能时间线
   - Bug 生命周期追踪 (pending_investigation → investigating → confirmed → fixing → fixed)

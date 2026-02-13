@@ -124,12 +124,36 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-plan
 ## Command Naming
 
 All commands use the `prog` prefix:
+- `/prog plan` - Architecture planning
 - `/prog` - Display status
 - `/prog init` - Initialize tracking
 - `/prog next` - Start next feature
 - `/prog done` - Complete feature
+- `/prog-fix` - Bug report/list/fix workflow
 - `/prog undo` - Undo last feature
 - `/prog reset` - Remove tracking
+
+`/prog-fix` is the canonical bug command spelling in docs and skill descriptions. Do not use `/prog fix` in new content.
+
+## Command Docs Source Of Truth
+
+`docs/PROG_COMMANDS.md` is the single source of truth for command help content.
+
+- `README.md` command section is generated into `<!-- BEGIN:GENERATED:PROG_COMMANDS --> ... <!-- END:GENERATED:PROG_COMMANDS -->`
+- `readme-zh.md` command section is generated into `<!-- BEGIN:GENERATED:PROG_COMMANDS --> ... <!-- END:GENERATED:PROG_COMMANDS -->`
+- `docs/PROG_HELP.md` is generated from the same source.
+
+After editing `docs/PROG_COMMANDS.md`, run:
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/generate_prog_docs.py --write
+```
+
+To check for drift without writing:
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/generate_prog_docs.py --check
+```
 
 ## Error Handling
 

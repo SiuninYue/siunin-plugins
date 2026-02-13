@@ -228,6 +228,10 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug \
 - Tests: All passing
 - Code review: Pending
 
+**Progress Updated**:
+- Bug marked as fixed in progress.json
+- Bug moved to "Fixed (✅)" section in progress.md
+
 ---
 
 ### Next Steps

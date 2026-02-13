@@ -1,6 +1,6 @@
 ---
 name: architectural-planning
-description: 架构规划技能。用于技术选型、系统架构设计和决策记录。
+description: This skill should be used when the user runs "/prog plan", asks to "create architecture plan", "choose tech stack", "document architecture decisions", or needs system design guidance before implementation.
 model: opus
 version: "1.1.0"
 scope: skill

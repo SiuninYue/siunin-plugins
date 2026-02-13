@@ -41,7 +41,7 @@ The Progress Tracker plugin solves the critical problem of maintaining progress 
 | `/prog plan` | Create architectural plan with technology selection |
 | `/prog` | Display current project status |
 | `/prog next` | Start implementing next pending feature |
-| `/prog fix [bug]` | Report, list, or fix bugs with smart scheduling |
+| `/prog-fix [bug]` | Report, list, or fix bugs with smart scheduling |
 | `/prog done` | Complete current feature after testing |
 | `/prog undo` | Revert most recently completed feature |
 | `/prog reset` | Remove progress tracking from project |

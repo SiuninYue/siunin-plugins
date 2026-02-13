@@ -102,7 +102,7 @@ Before finalizing a test document name, verify:
 ### Use Case 2: Bug Fixed
 
 ```bash
-# User: /prog fix BUG-002 --fixed
+# User: /prog-fix BUG-002 --fixed
 # AI generates: docs/testing/bug-002-fix-report.md
 ```
 
