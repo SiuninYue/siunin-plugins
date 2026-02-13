@@ -167,7 +167,19 @@
         "测试推荐选项: 冲突弹窗应有'逐行保留我的状态变更'选项",
         "检查状态栏: 顶部应正确显示 未保存/保存中/已保存/冲突 状态"
       ],
-      "completed": false
+      "completed": true,
+      "completed_at": "2026-02-14T06:44:02.959854Z",
+      "commit_hash": "70de99cdb0c8b931bc87a46e60dc8fdbc51d0c05",
+      "archive_info": {
+        "archived_at": "2026-02-14T06:44:02.976292Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/testing/feature-7-acceptance-report.md",
+            "to": "docs/archive/testing/feature-7-acceptance-report.md"
+          }
+        ]
+      }
     },
     {
       "id": 8,
@@ -226,8 +238,8 @@
       "completed": false
     }
   ],
-  "current_feature_id": 7,
-  "updated_at": "2026-02-12T23:39:43.141656Z",
+  "current_feature_id": null,
+  "updated_at": "2026-02-14T06:44:06.462908Z",
   "schema_version": "2.0",
   "bugs": [
     {
@@ -255,11 +267,5 @@
       "fixed_at": "2026-02-12T10:55:27.083057Z"
     }
   ],
-  "current_bug_id": null,
-  "workflow_state": {
-    "phase": "execution_complete",
-    "plan_path": "docs/plans/2026-02-12-conflict-handling-status-bar.md",
-    "next_action": "verify_and_complete",
-    "updated_at": "2026-02-12T23:39:43.131420Z"
-  }
+  "current_bug_id": null
 }
