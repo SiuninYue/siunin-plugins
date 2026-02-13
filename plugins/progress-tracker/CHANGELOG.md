@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-02-13
+
+### Added
+- Single command-doc source: `docs/PROG_COMMANDS.md`
+- Generated help artifact: `docs/PROG_HELP.md`
+- Command doc generator: `hooks/scripts/generate_prog_docs.py`
+  - `--write` mode to update generated targets
+  - `--check` mode to detect documentation drift
+- Quick validator: `hooks/scripts/quick_validate.py`
+  - Checks bug-fix contract consistency
+  - Checks key skill description trigger tokens
+  - Checks main-skill word-count threshold
+  - Checks generated doc synchronization
+- New references to support progressive disclosure:
+  - `skills/feature-implement/references/session-playbook.md`
+  - `skills/feature-complete/references/verification-playbook.md`
+  - `skills/feature-complete/references/session-examples.md`
+  - `skills/progress-recovery/references/scenario-playbook.md`
+  - `skills/progress-recovery/references/communication-templates.md`
+- New tests:
+  - `tests/test_generate_prog_docs.py`
+  - `tests/test_quick_validate.py`
+
+### Changed
+- Fixed `bug-fix` documentation contract:
+  - Replaced `superpowers:code-reviewer` with `superpowers:requesting-code-review`
+  - Removed deprecated `--commit-hash` examples, aligned to `--fix-summary`
+  - Standardized bug-fix CLI examples to `${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py`
+- Rewrote and slimmed core skills with references-based progressive disclosure:
+  - `skills/feature-implement/SKILL.md`
+  - `skills/feature-complete/SKILL.md`
+  - `skills/progress-recovery/SKILL.md`
+- Strengthened trigger-focused descriptions:
+  - `skills/feature-breakdown/SKILL.md`
+  - `skills/architectural-planning/SKILL.md`
+  - `skills/progress-management/SKILL.md`
+  - `skills/progress-recovery/SKILL.md`
+- Standardized user-facing bug command spelling to `/prog-fix` in active docs.
+- Updated standards to enforce generated command-doc flow from `docs/PROG_COMMANDS.md`.
+
 ## [1.4.0] - 2026-02-11
 
 ### Added
@@ -155,5 +195,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [1.3.0]: https://github.com/siunin/Claude-Plugins/releases/tag/v1.3.0
 [1.4.0]: https://github.com/siunin/Claude-Plugins/releases/tag/v1.4.0
+[1.5.0]: https://github.com/siunin/Claude-Plugins/releases/tag/v1.5.0
 [1.1.0]: https://github.com/siunin/Claude-Plugins/releases/tag/v1.1.0
 [1.0.0]: https://github.com/siunin/Claude-Plugins/releases/tag/v1.0.0

@@ -255,7 +255,7 @@ This bug hasn't been deeply analyzed yet.
 ### Next Steps
 
 [1] **Test in real environment**: Login and verify session lasts 24h
-[2] **Run code review**: Verify fix quality with code-reviewer
+[2] **Run code review**: Verify fix quality with requesting-code-review
 [3] **Commit the fix**: Create git commit
 
 **Suggested Commit Message**:

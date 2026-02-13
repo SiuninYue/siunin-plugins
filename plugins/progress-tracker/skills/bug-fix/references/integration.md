@@ -52,7 +52,7 @@ The systematic-debugging skill performs:
 Update bug status to `confirmed` with root cause:
 
 ```bash
-python3 progress_manager.py update-bug \
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug \
   --bug-id "BUG-001" \
   --status "confirmed" \
   --root-cause "<identified root cause>"
@@ -89,7 +89,7 @@ The test-driven-development skill performs:
 Update bug status to `fixed`:
 
 ```bash
-python3 progress_manager.py update-bug \
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug \
   --bug-id "BUG-001" \
   --status "fixed" \
   --fix-summary "<what was changed>"
@@ -99,7 +99,7 @@ python3 progress_manager.py update-bug \
 
 ### When to Invoke
 
-Invoke `superpowers:code-reviewer` when:
+Invoke `superpowers:requesting-code-review` when:
 - Bug fix is complete
 - TDD cycle finished
 - Need to verify fix quality
@@ -108,15 +108,15 @@ Invoke `superpowers:code-reviewer` when:
 
 ```python
 # Correct: Use Skill tool
-Skill("superpowers:code-reviewer", args="Verify bug fix for: <bug description>")
+Skill("superpowers:requesting-code-review", args="Verify bug fix for: <bug description>")
 
 # Example
-Skill("superpowers:code-reviewer", args="Verify bug fix for: session timeout updated to 24 hours")
+Skill("superpowers:requesting-code-review", args="Verify bug fix for: session timeout updated to 24 hours")
 ```
 
 ### What It Does
 
-The code-reviewer skill performs:
+The requesting-code-review skill performs:
 1. **Plan alignment**: Verify fix matches intended solution
 2. **Code quality**: Check patterns, conventions, error handling
 3. **Architecture review**: Verify SOLID principles, separation of concerns
@@ -173,7 +173,7 @@ graph TD
 
 ### Phase 3: Code Review
 
-<Invoke superpowers:code-reviewer>
+<Invoke superpowers:requesting-code-review>
 
 **Result**: Review passed
 
@@ -236,15 +236,15 @@ Tests still failing after implementation.
 
 ```bash
 # Update bug status during workflow
-python3 progress_manager.py update-bug \
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug \
   --bug-id "BUG-XXX" \
   --status "<pending_investigation|investigating|confirmed|fixing|fixed|false_positive>" \
   --root-cause "<cause when confirmed>" \
   --fix-summary "<summary when fixed>"
 
 # List all bugs
-python3 progress_manager.py list-bugs
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-bugs
 
 # Remove false positive
-python3 progress_manager.py remove-bug "BUG-XXX"
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py remove-bug "BUG-XXX"
 ```

@@ -36,6 +36,7 @@ class PluginStats:
     fields_added: int = 0
     placeholder_rewrites: int = 0
     placeholder_hits: int = 0
+    prompts_synced: int = 0
 
 
 @dataclass
@@ -116,6 +117,25 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--report",
         help="Optional path to save JSON report.",
+    )
+    parser.add_argument(
+        "--sync-prompts",
+        choices=("none", "project", "global", "both"),
+        default="none",
+        help=(
+            "Sync plugin commands into Codex prompt files. "
+            "project -> <project-root>/.codex/prompts, global -> $CODEX_HOME/prompts."
+        ),
+    )
+    parser.add_argument(
+        "--project-root",
+        default=str(Path.cwd()),
+        help="Project root used by --sync-prompts=project|both.",
+    )
+    parser.add_argument(
+        "--global-prompts-root",
+        default=str(Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))) / "prompts"),
+        help="Global prompts directory used by --sync-prompts=global|both.",
     )
     return parser.parse_args(argv)
 
@@ -450,6 +470,78 @@ def copy_directory(src: Path, dest: Path) -> None:
     shutil.copytree(src, dest, dirs_exist_ok=True)
 
 
+def extract_skill_and_args(command_body: str) -> tuple[str | None, str | None]:
+    skill_match = re.search(
+        r'^\s*-\s*skill:\s*"[^":]+:([^"\n]+)"\s*$',
+        command_body,
+        flags=re.MULTILINE,
+    )
+    args_match = re.search(
+        r'^\s*-\s*args:\s*"([^"]*)"\s*$',
+        command_body,
+        flags=re.MULTILINE,
+    )
+    skill = skill_match.group(1).strip() if skill_match else None
+    args_value = args_match.group(1).strip() if args_match else None
+    return skill, args_value
+
+
+def build_prompt_from_command(command_text: str, command_name: str) -> str:
+    parsed = split_frontmatter(command_text)
+    if parsed is None:
+        description = f"Run {command_name} workflow"
+        body = command_text.strip()
+    else:
+        frontmatter, body = parsed
+        description = extract_scalar_value(frontmatter, "description") or f"Run {command_name} workflow"
+
+    skill_name, args_value = extract_skill_and_args(body)
+    if skill_name:
+        prompt_lines = [f"Use the `${skill_name}` skill now."]
+        if args_value == "{user_input}":
+            prompt_lines.append("If arguments are provided, treat them as extra context: `$ARGUMENTS`.")
+        elif args_value:
+            prompt_lines.append(f"Pass this exact argument: `{args_value}`.")
+        body_text = "\n".join(prompt_lines)
+    else:
+        body_text = body.strip()
+
+    return (
+        "---\n"
+        f"description: {json.dumps(description, ensure_ascii=False)}\n"
+        "---\n\n"
+        f"{body_text}\n"
+    )
+
+
+def sync_prompts_from_commands(
+    source_commands_dir: Path,
+    prompts_root: Path,
+    dry_run: bool,
+    result: PluginResult,
+) -> int:
+    if not source_commands_dir.is_dir():
+        result.warnings.append(f"Missing commands directory for prompt sync: {source_commands_dir}")
+        return 0
+
+    command_files = sorted(source_commands_dir.glob("*.md"))
+    synced = 0
+    if not dry_run:
+        prompts_root.mkdir(parents=True, exist_ok=True)
+
+    for command_file in command_files:
+        prompt_name = command_file.name
+        command_text = command_file.read_text(encoding="utf-8")
+        prompt_text = build_prompt_from_command(command_text, command_file.stem)
+        target_file = prompts_root / prompt_name
+        if not dry_run:
+            target_file.write_text(prompt_text, encoding="utf-8")
+        synced += 1
+
+    result.stats.prompts_synced += synced
+    return synced
+
+
 def generate_wrapper_skill(
     wrapper_name: str,
     plugin_name: str,
@@ -518,6 +610,9 @@ def sync_plugin(
     placeholder_mode: str,
     dry_run: bool,
     backup_root: Path,
+    sync_prompts_mode: str,
+    project_prompts_root: Path,
+    global_prompts_root: Path,
 ) -> PluginResult:
     result = PluginResult(
         wrapper_name=record.wrapper_name,
@@ -618,6 +713,23 @@ def sync_plugin(
         else:
             deploy_wrapper(staged_wrapper, destination_wrapper, backup_root)
             result.status = "ok"
+
+        if sync_prompts_mode != "none":
+            commands_dir = source_root / "commands"
+            if sync_prompts_mode in {"project", "both"}:
+                sync_prompts_from_commands(
+                    source_commands_dir=commands_dir,
+                    prompts_root=project_prompts_root,
+                    dry_run=dry_run,
+                    result=result,
+                )
+            if sync_prompts_mode in {"global", "both"}:
+                sync_prompts_from_commands(
+                    source_commands_dir=commands_dir,
+                    prompts_root=global_prompts_root,
+                    dry_run=dry_run,
+                    result=result,
+                )
     except Exception as error:
         result.status = "error"
         result.error = str(error)
@@ -636,7 +748,8 @@ def print_plugin_summary(result: PluginResult) -> None:
     print(
         f"[{status}] {result.wrapper_name} | source={source} | dirs={dirs} | extras={extras} | "
         f"converted={result.stats.files_converted} | removed={result.stats.fields_removed} | "
-        f"added={result.stats.fields_added} | rewrites={result.stats.placeholder_rewrites}"
+        f"added={result.stats.fields_added} | rewrites={result.stats.placeholder_rewrites} | "
+        f"prompts={result.stats.prompts_synced}"
     )
     for warning in result.warnings:
         print(f"  warning: {warning}")
@@ -659,6 +772,9 @@ def build_report(args: argparse.Namespace, results: list[PluginResult]) -> dict:
             "extra_dirs": args.extra_dirs,
             "placeholder_mode": args.placeholder_mode,
             "dry_run": args.dry_run,
+            "sync_prompts": args.sync_prompts,
+            "project_root": str(Path(args.project_root).expanduser()),
+            "global_prompts_root": str(Path(args.global_prompts_root).expanduser()),
         },
         "summary": {
             "total": len(results),
@@ -684,6 +800,7 @@ def build_report(args: argparse.Namespace, results: list[PluginResult]) -> dict:
                     "fields_added": result.stats.fields_added,
                     "placeholder_hits": result.stats.placeholder_hits,
                     "placeholder_rewrites": result.stats.placeholder_rewrites,
+                    "prompts_synced": result.stats.prompts_synced,
                 },
             }
             for result in results
@@ -697,6 +814,9 @@ def main(argv: list[str]) -> int:
     manifest_path = Path(args.manifest).expanduser()
     workspace_plugins = Path(args.workspace_plugins).expanduser()
     codex_skills_root = Path(args.codex_skills_root).expanduser()
+    project_root = Path(args.project_root).expanduser()
+    project_prompts_root = project_root / ".codex" / "prompts"
+    global_prompts_root = Path(args.global_prompts_root).expanduser()
 
     try:
         records = load_manifest(manifest_path)
@@ -726,6 +846,9 @@ def main(argv: list[str]) -> int:
                 placeholder_mode=args.placeholder_mode,
                 dry_run=args.dry_run,
                 backup_root=backup_root,
+                sync_prompts_mode=args.sync_prompts,
+                project_prompts_root=project_prompts_root,
+                global_prompts_root=global_prompts_root,
             )
             result.source_origin = source_origin
         except Exception as error:

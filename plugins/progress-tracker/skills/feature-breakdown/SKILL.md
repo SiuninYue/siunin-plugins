@@ -1,6 +1,6 @@
 ---
 name: feature-breakdown
-description: 功能分解技能。用于分析用户目标并将其分解为5-10个具体、可测试的功能列表。
+description: This skill should be used when the user runs "/prog init", asks to "initialize progress tracking", "break down a goal into features", "create a feature list with test steps", or needs to start a new tracked project.
 model: opus
 version: "1.1.0"
 scope: skill

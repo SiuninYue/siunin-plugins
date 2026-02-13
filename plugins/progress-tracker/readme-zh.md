@@ -82,146 +82,66 @@ Progress Tracker 插件解决了 AI 辅助开发中的一个关键问题：**如
 
 ## 命令
 
+本节命令说明由 `docs/PROG_COMMANDS.md` 自动生成。
+
+<!-- BEGIN:GENERATED:PROG_COMMANDS -->
+<!-- GENERATED CONTENT: DO NOT EDIT DIRECTLY -->
 ### `/prog plan <项目描述>`
 
-进行技术选型和系统架构设计。
-
-为项目提供技术栈推荐、系统架构设计和架构决策记录（ADR）。
-
-**示例：**
-```bash
-/prog plan 构建分布式电商系统
-```
-
-**行为：**
-- 引导技术栈选择（后端框架、数据库、缓存、消息队列等）
-- 设计系统架构（组件结构、数据流、API 设计）
-- 创建架构决策记录 `.claude/architecture.md`
-- 为后续 `/prog init` 提供技术上下文
-
-**何时使用：**
-- 需要技术选型建议
-- 项目需要前期架构设计
-- 团队需要架构文档
-- 多种技术方案可选时
-
-**输出示例：**
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🏗️  架构规划
-
-问题 1/5：后端框架选择？
-  • Node.js + Express - 快速开发，生态丰富
-  • Python + FastAPI - 高性能，自动文档
-  • Go + Gin - 高并发，编译型
-
-（用户选择后继续...）
-
-✓ 架构规划完成
-
-架构文档保存到：.claude/architecture.md
-
-技术栈：
-  • 后端：Python + FastAPI
-  • 数据库：PostgreSQL
-  • 缓存：Redis
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
+在实施前完成技术选型、系统架构与关键决策记录。
 
 ### `/prog init <目标描述>`
 
-为新目标初始化进度跟踪。
-
-分析您的目标并将其分解为 5-10 个具有测试步骤的具体功能。
-
-**示例：**
-```bash
-/prog init 构建一个包含注册和登录功能的用户认证系统
-```
-
-**行为：**
-- 检查现有的进度跟踪
-- 智能地将目标分解为功能
-- 为每个功能定义测试步骤
-- 按依赖关系排序功能
-- 创建 `.claude/progress.json` 和 `.claude/progress.md`
+初始化进度跟踪，并将目标拆分为可测试功能列表。
 
 ### `/prog`
 
-显示当前项目状态。
-
-显示完成统计、当前功能和推荐的下一步操作。
-
-**示例输出：**
-```
-## 项目进度：用户认证
-
-**状态**：2/5 已完成（40%）
-**当前功能**：登录 API（进行中）
-
-### 推荐的下一步
-
-继续当前功能或运行 `/prog done` 来完成它。
-```
+显示项目当前进度与推荐下一步。
 
 ### `/prog next`
 
-开始实现下一个待完成的功能。
-
-自动调用 **Superpowers** 工作流程进行引导式实现。
-
-**行为：**
-1. 识别第一个未完成的功能
-2. 评估复杂度（Simple/Standard/Complex）
-3. 显示功能详情和验收测试步骤
-4. 根据复杂度选择确定性路径：
-   - `0-15`：委托 `feature-implement-simple`（haiku）
-   - `16-25`：协调器内标准路径（sonnet）
-   - `26-40`：委托 `feature-implement-complex`（opus）
-5. 调用对应技能或标准路径执行
-6. 完成后提示运行 `/prog done`
-
-**复杂度评估：**
-- **Simple**（简单）- 单文件更改，清晰需求 → 直接 TDD
-- **Standard**（标准）- 多文件，3-5 个测试步骤 → 规划 + 执行
-- **Complex**（复杂）- >5 个文件，需要架构决策 → 设计 + 规划 + 执行
+按复杂度路由启动下一个待完成功能。
 
 ### `/prog done`
 
-在测试后完成当前功能。
+执行验收验证并完成当前功能。
 
-运行测试步骤、更新进度跟踪并创建 Git 提交。
+### `/prog-fix`
 
-**行为：**
-1. 执行为该功能定义的所有测试步骤
-2. 运行可选质量门禁（`quality_gates.pre_commit_checks`）
-3. 询问是否记录技术债（记录到 bugs，`category=technical_debt`）
-4. 如果测试/门禁失败 → 报告错误，保持功能进行中状态
-5. 如果测试/门禁通过 → 创建 Git 提交，标记为完成
-6. 收尾写入 AI 指标结束时间与时长
-7. 更新 `progress.json` 和 `progress.md`
-
-## 维护阶段
-
-一旦开发开始，您可能需要管理项目状态。
+报告、查看、调查并修复 Bug（系统化调试 + TDD）。
 
 ### `/prog undo`
 
-恢复最近完成的功能。
-
-**行为：**
-1. **安全检查**：确保 git 工作目录是干净的。
-2. **Git 恢复**：创建一个*新的*提交来反向更改该功能（对共享仓库是安全的）。
-3. **状态回滚**：在跟踪器中将该功能再次标记为"待完成"。
+使用 `git revert` 安全撤销最近完成的功能。
 
 ### `/prog reset`
 
-完全从项目中删除进度跟踪。
+在明确确认后重置进度跟踪文件。
 
-**行为：**
-1. 请求确认。
-2. 删除 `.claude/progress.json` 和 `.claude/progress.md`。
-3. **不会**影响您的代码或 Git 历史。
+### Progress Manager 命令行
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py init <project_name> [--force]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py status
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py check
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-current <feature_id>
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py complete <feature_id> --commit <hash>
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state --phase <phase> [--plan-path <path>] [--next-action <action>]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-workflow-task <id> completed
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py clear-workflow-state
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-feature-ai-metrics <feature_id> --complexity-score <score> --selected-model <model> --workflow-path <path>
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py complete-feature-ai-metrics <feature_id>
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py auto-checkpoint
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-plan [--plan-path <path>]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-feature <name> <test_steps...>
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py undo
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py reset [--force]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-bug --description "<desc>" [--status <status>] [--priority <high|medium|low>] [--category <bug|technical_debt>]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug --bug-id "BUG-XXX" [--status <status>] [--root-cause "<cause>"] [--fix-summary "<summary>"]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-bugs
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py remove-bug "BUG-XXX"
+```
+<!-- END:GENERATED:PROG_COMMANDS -->
 
 ## 架构
 
@@ -252,37 +172,8 @@ Progress Tracker 插件解决了 AI 辅助开发中的一个关键问题：**如
 
 ### Progress Manager 命令
 
-`progress_manager.py` 脚本提供状态管理命令：
-
-```bash
-# 核心命令
-python3 progress_manager.py init <project_name> [--force]
-python3 progress_manager.py status
-python3 progress_manager.py check
-python3 progress_manager.py git-sync-check
-python3 progress_manager.py set-current <feature_id>
-python3 progress_manager.py complete <feature_id> --commit <hash>
-
-# 工作流状态命令（新增）
-python3 progress_manager.py set-workflow-state --phase <phase> [--plan-path <path>] [--next-action <action>]
-python3 progress_manager.py update-workflow-task <id> completed
-python3 progress_manager.py clear-workflow-state
-python3 progress_manager.py set-feature-ai-metrics <feature_id> --complexity-score <score> --selected-model <model> --workflow-path <path>
-python3 progress_manager.py complete-feature-ai-metrics <feature_id>
-python3 progress_manager.py auto-checkpoint
-python3 progress_manager.py validate-plan [--plan-path <path>]
-
-# 功能管理
-python3 progress_manager.py add-feature <name> <test_steps...>
-python3 progress_manager.py undo
-python3 progress_manager.py reset [--force]
-
-# Bug/技术债
-python3 progress_manager.py add-bug --description "<desc>" [--status <status>] [--priority <high|medium|low>] [--category <bug|technical_debt>]
-python3 progress_manager.py update-bug --bug-id "BUG-XXX" [--status <status>] [--root-cause "<cause>"] [--fix-summary "<summary>"]
-python3 progress_manager.py list-bugs
-python3 progress_manager.py remove-bug "BUG-XXX"
-```
+Progress Manager 命令清单已由 `docs/PROG_COMMANDS.md` 生成到上方“命令”章节。  
+修改真源后请运行：`python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/generate_prog_docs.py --write`。
 
 ### 进度文件
 
@@ -649,7 +540,7 @@ plugins/progress-tracker/
 2. 是否有未完成的功能？
 3. 是否设置了 `current_feature_id`？
 4. `workflow_state.phase` 是什么？
-5. 是否存在 Git 同步风险（detached HEAD、rebase 进行中、无 upstream、分支分叉、同分支多 worktree）？
+5. 是否有未提交的 Git 更改？
 
 **UserPromptSubmit 钩子**：
 - 每 30 分钟自动创建轻量检查点
@@ -754,7 +645,7 @@ plugins/progress-tracker/
 - 可独立使用或组合使用
 
 #### Bug 管理功能
-- ✅ 新增 `/prog fix` 命令：报告、列出或修复 Bug
+- ✅ 新增 `/prog-fix` 命令：报告、列出或修复 Bug
 - ✅ 新增 `bug-fix` 技能：
   - 三阶段工作流：快速验证 (30秒) → 智能调度 → 系统修复
   - Bug 生命周期追踪 (pending_investigation → investigating → confirmed → fixing → fixed)

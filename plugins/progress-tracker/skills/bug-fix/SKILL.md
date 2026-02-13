@@ -14,7 +14,7 @@ references:
   - "testing-standards"
   - "superpowers:systematic-debugging"
   - "superpowers:test-driven-development"
-  - "superpowers:code-reviewer"
+  - "superpowers:requesting-code-review"
   - "references/workflow.md"
   - "references/integration.md"
   - "examples/session.md"
@@ -244,7 +244,7 @@ Use the Skill tool with these exact parameters:
 WAIT for the skill to complete.
 
 After investigation completes, update bug status:
-→ python3 progress_manager.py update-bug --bug-id "BUG-XXX" --status "confirmed"
+→ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug --bug-id "BUG-XXX" --status "confirmed"
 
 For confirmed bugs requiring TDD fix:
 Use the Skill tool with these exact parameters:
@@ -254,7 +254,8 @@ Use the Skill tool with these exact parameters:
 WAIT for the skill to complete.
 
 After TDD completes, update bug status:
-→ python3 progress_manager.py update-bug --bug-id "BUG-XXX" --status "fixed"
+→ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug --bug-id "BUG-XXX" --status "fixed"
+  (This automatically updates both progress.json and progress.md)
 
 Next, create a commit for the bug fix using git-auto:
 
@@ -272,12 +273,13 @@ The git-auto skill will:
 - Push and create PR for review
 
 After receiving the commit hash, update the bug:
-→ python3 progress_manager.py update-bug --bug-id "BUG-XXX" --commit-hash <commit_hash>
+→ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug --bug-id "BUG-XXX" --fix-summary "Fix applied (commit: <commit_hash>)"
+  (This automatically updates both progress.json and progress.md)
 </CRITICAL>
 
 Finally, verify the fix with code review:
 Use the Skill tool with these exact parameters:
-  - skill: "superpowers:code-reviewer"
+  - skill: "superpowers:requesting-code-review"
   - args: "Verify bug fix for: <bug>"
 
 WAIT for the skill to complete.
@@ -289,23 +291,23 @@ WAIT for the skill to complete.
 
 ```bash
 # Add bug
-python3 progress_manager.py add-bug \
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-bug \
   --description "<desc>" \
   --status "<status>" \
   --priority "<high|medium|low>" \
   --scheduled-position "<before|after>:<feature_id>"
 
 # Update bug status
-python3 progress_manager.py update-bug \
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug \
   --bug-id "BUG-XXX" \
   --status "<new_status>" \
   --root-cause "<cause>"
 
 # List bugs
-python3 progress_manager.py list-bugs
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-bugs
 
 # Remove bug (false positive)
-python3 progress_manager.py remove-bug "BUG-XXX"
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py remove-bug "BUG-XXX"
 ```
 
 ### Data Structure

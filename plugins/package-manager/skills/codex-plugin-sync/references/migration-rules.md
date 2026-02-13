@@ -56,6 +56,26 @@ Rules:
 - Keep all other top-level keys and body unchanged.
 - Add missing `name` from file stem.
 
+## Command-to-Prompt Export (Codex)
+
+Optional export controlled by `--sync-prompts`:
+
+- `none`: do not export prompts.
+- `project`: write to `<project-root>/.codex/prompts` (set with `--project-root`).
+- `global`: write to `$CODEX_HOME/prompts` (override with `--global-prompts-root`).
+- `both`: write to both locations.
+
+Source and conversion rules:
+
+- Source: plugin `commands/*.md`.
+- Target filename: same as command filename (for example `prog-next.md`).
+- Prompt frontmatter: keep only `description`.
+- Prompt body:
+  - If command contains `skill: "plugin:<skill-name>"`, convert body to `Use the \`$<skill-name>\` skill now.`
+  - If command args are `"{user_input}"`, append `If arguments are provided, treat them as extra context: \`$ARGUMENTS\`.`
+  - If command args are a fixed string, append `Pass this exact argument: \`<value>\`.`
+  - Otherwise, fallback to original command body.
+
 ## Placeholder Handling
 
 Placeholder candidates:
