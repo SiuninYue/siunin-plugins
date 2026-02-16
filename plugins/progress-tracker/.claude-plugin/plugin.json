@@ -1,7 +1,7 @@
 {
   "name": "progress-tracker",
   "version": "1.2.0",
-  "description": "Track long-running AI agent tasks with feature-based progress tracking, test-driven status updates, and Git integration",
+  "description": "Track long-running AI agent tasks with feature-based progress tracking, test-driven status updates, Git integration, and prog-ui web dashboard",
   "author": {
     "name": "siunin"
   },
@@ -14,6 +14,7 @@
     "session-recovery",
     "task-management",
     "ai-agent",
-    "workflow"
+    "workflow",
+    "web-ui"
   ]
 }
