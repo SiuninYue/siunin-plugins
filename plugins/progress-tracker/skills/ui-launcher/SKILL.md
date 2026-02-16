@@ -30,10 +30,12 @@ Check if a `progress_ui_server.py` process is already serving the current workin
 # Find progress_ui_server processes and check their working-dir argument
 for PID in $(pgrep -f progress_ui_server.py 2>/dev/null); do
   CMDLINE=$(ps -p "$PID" -o args= 2>/dev/null)
-  if echo "$CMDLINE" | grep -q -- "--working-dir.*$(pwd)"; then
+  if echo "$CMDLINE" | grep -F -q -- "--working-dir $(pwd)"; then
     PORT=$(lsof -nP -p "$PID" -iTCP -sTCP:LISTEN 2>/dev/null | awk '{split($9,a,":"); print a[2]}' | head -1)
-    echo "FOUND:$PORT"
-    break
+    if [ -n "$PORT" ]; then
+      echo "FOUND:$PORT"
+      break
+    fi
   fi
 done
 ```
