@@ -45,6 +45,10 @@ Revert the most recently completed feature safely via `git revert`.
 
 Reset progress tracking files after explicit confirmation.
 
+### `/prog-ui`
+
+Launch the Progress UI web server and open in browser. Auto-detects available port (3737-3747). Detects if a server for the current project is already running.
+
 ### Progress Manager CLI
 
 ```bash
@@ -105,6 +109,10 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py remove-bug "BUG-
 
 在明确确认后重置进度跟踪文件。
 
+### `/prog-ui`
+
+启动 Progress UI 网页服务器并在浏览器中打开。自动探测可用端口（3737-3747），检测当前项目是否已有运行中的服务器。
+
 ### Progress Manager 命令行
 
 ```bash
@@ -145,6 +153,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py remove-bug "BUG-
 - `/prog-fix [description|BUG-ID]`: report/list/fix bugs.
 - `/prog undo`: revert most recently completed feature.
 - `/prog reset`: reset tracking files with confirmation.
+- `/prog-ui`: launch web UI server and open browser.
 
 ## Operational Notes
 
