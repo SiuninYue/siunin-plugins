@@ -31,7 +31,7 @@ Check if a `progress_ui_server.py` process is already serving the current workin
 for PID in $(pgrep -f progress_ui_server.py 2>/dev/null); do
   CMDLINE=$(ps -p "$PID" -o args= 2>/dev/null)
   if echo "$CMDLINE" | grep -F -q -- "--working-dir $(pwd)"; then
-    PORT=$(lsof -nP -p "$PID" -iTCP -sTCP:LISTEN 2>/dev/null | awk '{split($9,a,":"); print a[2]}' | head -1)
+    PORT=$(lsof -nP -p "$PID" -iTCP -sTCP:LISTEN 2>/dev/null | awk '/LISTEN/{split($9,a,":"); print a[2]}' | head -1)
     if [ -n "$PORT" ]; then
       echo "FOUND:$PORT"
       break
@@ -83,7 +83,7 @@ if ! kill -0 $SERVER_PID 2>/dev/null; then
 fi
 
 # Detect assigned port from the process
-PORT=$(lsof -nP -p $SERVER_PID -iTCP -sTCP:LISTEN 2>/dev/null | awk '{split($9,a,":"); print a[2]}' | head -1)
+PORT=$(lsof -nP -p $SERVER_PID -iTCP -sTCP:LISTEN 2>/dev/null | awk '/LISTEN/{split($9,a,":"); print a[2]}' | head -1)
 
 if [ -z "$PORT" ]; then
   echo "ERROR: Server started but no listening port detected"
