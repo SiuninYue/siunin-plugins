@@ -83,6 +83,10 @@ Revert the most recently completed feature safely via `git revert`.
 
 Reset progress tracking files after explicit confirmation.
 
+### `/progress-tracker:help`
+
+Show plugin command help (namespaced entry for conflict-free discovery).
+
 ### `/prog-ui`
 
 Launch the Progress UI web server and open in browser. Auto-detects available port (3737-3747). Detects if a server for the current project is already running.

@@ -12,6 +12,7 @@
 - `/prog-fix [description|BUG-ID]`: report/list/fix bugs.
 - `/prog undo`: revert most recently completed feature.
 - `/prog reset`: reset tracking files with confirmation.
+- `/progress-tracker:help`: show plugin command help (namespaced).
 - `/prog-ui`: launch web UI server and open browser.
 
 ## Operational Notes
