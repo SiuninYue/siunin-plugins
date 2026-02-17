@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-02-18
+
+### Added
+- **Progress UI Web Dashboard** (`/prog-ui` command)
+  - Single-file HTML interface with inline CSS and JavaScript
+  - Real-time progress tracking with checkbox status management
+  - Six-state checkbox support: ☐ (pending), 🔄 (in progress), ☑ (done), ➖ (skipped), ❌ (blocked), ❓ (unclear)
+  - Multi-document navigation and switching
+  - Auto-save with conflict detection and resolution
+  - HTTP server with localhost-only binding (ports 3737-3747)
+  - Path traversal protection and CORS security
+  - Auto-refresh on window focus and periodic polling (10-30s)
+  - Keyboard shortcuts: Ctrl+S (save), j/k (navigate), 1-6 (status), ? (help)
+  - Context menu for quick status changes
+- **Progress UI Backend** (`progress_ui_server.py`)
+  - RESTful API endpoints: `/api/files`, `/api/file`, `/api/checkbox`
+  - Revision-based concurrency control (base_rev + base_mtime)
+  - Write whitelist for `.claude/*.md` files only
+  - Dynamic port detection with automatic fallback
+  - JSON response format with proper Content-Type headers
+- **Testing Infrastructure** for Progress UI
+  - Comprehensive pytest suite in `tests/test_progress_ui.py`
+  - Path security validation tests
+  - Concurrency control tests
+  - Six-state checkbox parsing tests
+  - Origin validation and CORS tests
+
+### Changed
+- Enhanced file scanning with priority ordering (progress.md first)
+- Improved conflict resolution UI with "keep my changes" option
+- Status bar indicators for save states (unsaved/saving/saved/conflict)
+
 ## [1.5.0] - 2026-02-13
 
 ### Added
@@ -193,8 +225,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - plugin.md with installation and quick start guide
 - LICENSE (MIT)
 
-[1.3.0]: https://github.com/siunin/Claude-Plugins/releases/tag/v1.3.0
-[1.4.0]: https://github.com/siunin/Claude-Plugins/releases/tag/v1.4.0
+[1.6.0]: https://github.com/siunin/Claude-Plugins/releases/tag/v1.6.0
 [1.5.0]: https://github.com/siunin/Claude-Plugins/releases/tag/v1.5.0
+[1.4.0]: https://github.com/siunin/Claude-Plugins/releases/tag/v1.4.0
+[1.3.0]: https://github.com/siunin/Claude-Plugins/releases/tag/v1.3.0
+[1.2.0]: https://github.com/siunin/Claude-Plugins/releases/tag/v1.2.0
 [1.1.0]: https://github.com/siunin/Claude-Plugins/releases/tag/v1.1.0
 [1.0.0]: https://github.com/siunin/Claude-Plugins/releases/tag/v1.0.0

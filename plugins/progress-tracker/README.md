@@ -364,6 +364,111 @@ The legacy integration with feature-dev is still supported:
 
 To use feature-dev instead, modify `skills/feature-implement/SKILL.md` to invoke `/feature-dev` as before.
 
+## Progress UI Web Dashboard
+
+The Progress Tracker includes a built-in web interface for visual progress tracking and interactive task management.
+
+### Launching Progress UI
+
+```bash
+/prog-ui
+```
+
+This command will:
+1. Start a local HTTP server (auto-detects ports 3737-3747)
+2. Open your default browser to the dashboard
+3. Display all progress tracking documents
+
+**Security**: The server only binds to `127.0.0.1` (localhost) and is not accessible from the network.
+
+### Features
+
+**📊 Visual Progress Tracking**
+- Real-time display of all progress documents (`.claude/*.md`)
+- Six-state checkbox system with intuitive icons:
+  - ☐ Pending (todo)
+  - 🔄 In Progress (doing)
+  - ☑ Done (completed)
+  - ➖ Skipped (not needed)
+  - ❌ Blocked (waiting)
+  - ❓ Unclear (needs clarification)
+
+**✏️ Interactive Editing**
+- Click checkboxes to cycle through states
+- Right-click for quick status menu
+- Keyboard shortcuts for power users:
+  - `1-6`: Set specific status
+  - `j/k`: Navigate between items
+  - `Ctrl+S`: Manual save
+  - `?`: Show help
+
+**🔄 Auto-Sync & Conflict Resolution**
+- Auto-save after checkbox changes
+- Background polling (10-30 seconds)
+- Refresh on window focus
+- Smart conflict detection with merge UI
+
+**📁 Multi-Document Support**
+- Switch between progress files
+- Prioritized file listing (progress.md first)
+- No duplicate paths
+
+**🔒 Safety & Reliability**
+- Write whitelist (only `.claude/*.md` files)
+- Path traversal protection
+- Revision-based concurrency control
+- Origin validation (CORS protection)
+
+### Use Cases
+
+**During Development**
+```bash
+# Start your feature work
+/prog next
+
+# Open Progress UI in another window
+/prog-ui
+
+# Track your progress visually while implementing
+# Mark tasks as you complete them
+```
+
+**Project Review**
+```bash
+# See overall project status at a glance
+/prog-ui
+
+# Review what's done, what's blocked, what's pending
+# Update statuses interactively
+```
+
+**Team Collaboration**
+```bash
+# Share your screen with Progress UI open
+# Walk through progress with stakeholders
+# Update statuses during standup meetings
+```
+
+### Technical Details
+
+**Server**:
+- Python HTTP server with RESTful API
+- Endpoints: `/api/files`, `/api/file`, `/api/checkbox`
+- JSON responses with proper content types
+- Automatic port detection and fallback
+
+**Frontend**:
+- Single-file HTML with inline CSS/JS
+- No external dependencies
+- Works in all modern browsers
+- Responsive design
+
+**Testing**:
+- Comprehensive pytest suite
+- Path security tests
+- Concurrency control tests
+- Six-state checkbox parsing tests
+
 ## Quick Start
 
 Get started with Progress Tracker in 3 steps:
