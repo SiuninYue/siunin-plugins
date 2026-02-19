@@ -1009,6 +1009,10 @@ def set_current(feature_id):
     data["current_feature_id"] = feature_id
     save_progress_json(data)
 
+    # Update progress.md
+    md_content = generate_progress_md(data)
+    save_progress_md(md_content)
+
     print(f"Set current feature: {feature.get('name', 'Unknown')}")
     return True
 
@@ -1068,6 +1072,11 @@ def set_feature_ai_metrics(feature_id: int, complexity_score: int,
 
     feature["ai_metrics"] = ai_metrics
     save_progress_json(data)
+
+    # Update progress.md
+    md_content = generate_progress_md(data)
+    save_progress_md(md_content)
+
     print(
         f"AI metrics updated for feature {feature_id}: "
         f"{ai_metrics['complexity_bucket']}, model={selected_model}"
@@ -1107,6 +1116,11 @@ def complete_feature_ai_metrics(feature_id: int) -> bool:
     feature["ai_metrics"] = ai_metrics
 
     save_progress_json(data)
+
+    # Update progress.md
+    md_content = generate_progress_md(data)
+    save_progress_md(md_content)
+
     print(f"AI metrics finalized for feature {feature_id}: duration={duration_seconds}s")
     return True
 
@@ -1970,6 +1984,10 @@ def set_workflow_state(phase=None, plan_path=None, next_action=None):
     data["workflow_state"] = workflow_state
     save_progress_json(data)
 
+    # Update progress.md
+    md_content = generate_progress_md(data)
+    save_progress_md(md_content)
+
     print(f"Workflow state updated: phase={phase or workflow_state.get('phase')}")
     return True
 
@@ -1995,6 +2013,10 @@ def update_workflow_task(task_id, status):
     data["workflow_state"] = workflow_state
     save_progress_json(data)
 
+    # Update progress.md
+    md_content = generate_progress_md(data)
+    save_progress_md(md_content)
+
     total = workflow_state.get("total_tasks", 0)
     print(f"Task {task_id}/{total} marked as {status}")
     return True
@@ -2010,6 +2032,11 @@ def clear_workflow_state():
     if "workflow_state" in data:
         del data["workflow_state"]
         save_progress_json(data)
+
+        # Update progress.md
+        md_content = generate_progress_md(data)
+        save_progress_md(md_content)
+
         print("Workflow state cleared")
         return True
 
