@@ -154,6 +154,20 @@ Progress Tracker stores this path in `plan_path` field for:
 - Progress status display
 - Historical reference
 
+### NOTE Annotation Semantics
+
+Plan annotations may include NOTE comments in this format:
+
+```markdown
+<!-- NOTE: ... -->
+```
+
+Progress Tracker uses the single-note binding model:
+- A content line can bind at most one NOTE, using the first immediately following NOTE line.
+- Additional consecutive NOTE lines are preserved in markdown, but are not bound as extra notes for the same content line.
+
+This keeps parsing deterministic and aligns with `STANDARDS.md` (`Plan Annotation Conventions`) while preserving source content for human and AI readers.
+
 **Plan structure** (created by writing-plans):
 ```markdown
 # Feature: Create API

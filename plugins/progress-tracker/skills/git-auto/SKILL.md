@@ -1,30 +1,39 @@
 ---
 name: git-auto
-description: Use when user asks to "create a git commit", "commit changes", "commit and push", "make a commit", "handle git", "git auto", or needs git operations automated. Intelligently analyzes state and decides when to create branches, commit, push, create PR, or merge. Shows plan with reasons before executing.
+description: This skill should be used when the user asks to "create a git commit", "commit changes", "commit and push", "make a commit", "handle git", "git auto", "git auto start", "git auto done", or "git auto fix", or needs git operations automated with branch/PR/merge decisions.
 model: sonnet
-version: "1.0.0"
+version: "1.1.0"
 scope: skill
 inputs:
   - Current git repository state
   - Optional user intent (feature/bug/refactor)
+  - Optional repository protection rules and CI/review signals
 outputs:
-  - Execution plan with reasons
+  - Execution plan with reasons, enforcement mode, and escalation reason
   - Execution results after confirmation
 evidence: optional
+references: []
 ---
 
 # Git Auto
 
-Intelligent Git automation that analyzes the current state and automatically decides what Git operations are needed.
+Intelligent Git automation that analyzes repository state and decides branch, commit, push, PR, and merge actions with explicit governance rules.
 
 ## Purpose
 
-Eliminate Git decision fatigue by letting AI analyze the context and automatically determine:
-- Whether to create a new branch
-- Whether to commit changes
-- Whether to push
-- Whether to create/update a PR
-- Whether to merge to main
+Eliminate Git decision fatigue while enforcing stable collaboration defaults:
+- Determine whether to create or reuse a short-lived branch.
+- Determine whether to commit and push now or delay for sync recovery.
+- Determine whether to create a Draft PR or update an existing PR.
+- Determine whether merge can be recommended under current enforcement mode.
+
+## Stable Command Interface
+
+Keep command names unchanged:
+- `git auto`
+- `git auto start <feature-name>`
+- `git auto done`
+- `git auto fix <bug-description>`
 
 ## When to Use
 
@@ -34,132 +43,260 @@ Invoke this skill when:
 - User has changes and wants AI to handle the full workflow
 - User wants to automate repetitive Git operations
 
-## Analysis Process
+## Normative Keywords
 
-### 1. Gather Context
+The terms `MUST`, `MUST NOT`, `SHOULD`, and `MAY` are normative.
 
-First, analyze the current state:
+## Default Collaboration Policy
+
+Apply these defaults unless user gives explicit override:
+
+1. Use trunk-based collaboration with short-lived branches.
+2. Treat default branch (`main`/`master`) as protected for day-to-day work.
+3. Route all default-branch changes through short-lived branch + Draft PR, including docs/CI by default.
+4. Create Draft PR on first push of a new short-lived branch.
+5. Recommend squash merge as the default merge strategy.
+
+Mandatory rules:
+- `MUST` create or switch to a short-lived branch before committing if current branch is default branch.
+- `MUST` create a Draft PR on first push when no PR exists for the branch.
+- `MUST NOT` recommend merge when branch is behind or diverged from upstream.
+- `SHOULD` rebase on upstream before push/merge recommendation.
+
+## Enforcement Modes
+
+Compute one active mode: `soft`, `hybrid`, or `hard`.
+
+### soft
+
+- Branching: `MUST` use short-lived branch on default branch.
+- PR: `MUST` create Draft PR on first push.
+- Pull/Rebase: `SHOULD` run `fetch + rebase` at session start and pre-merge.
+- Merge recommendation: allow only when no critical sync risk is present.
+
+### hybrid
+
+- Includes all `soft` rules.
+- Pull/Rebase: `MUST` run sync checks at session start and pre-merge.
+- Merge recommendation: `MUST` require clean sync state + passing CI + review-ready signal.
+
+### hard
+
+- Includes all `hybrid` rules.
+- Branching: `MUST NOT` allow direct default-branch commit path in plans.
+- Merge recommendation: `MUST` require clean sync state + passing CI + required review approvals + no unresolved blocking discussion.
+- Any missing required signal blocks merge recommendation.
+
+## Escalation Threshold Standard (14-day rolling)
+
+Evaluate a 14-day rolling window on every planning run.
+
+### Metrics
+
+1. `sync_risk_events`
+   - Count each occurrence of:
+     - detached HEAD state
+     - diverged branch (ahead > 0 and behind > 0)
+     - non-fast-forward push rejection
+     - in-progress rebase/merge/cherry-pick/revert conflict state
+2. `integration_regressions`
+   - Count each revert or hotfix occurring within 24 hours after merge to default branch.
+3. `parallel_pressure`
+   - `true` when either condition is met:
+     - 3+ active contributors in current window
+     - high PR concurrency on default branch (multiple concurrent active PRs that materially overlap)
+
+### Transition Rules
+
+Apply transitions exactly:
+
+1. `soft -> hybrid` when:
+   - `sync_risk_events >= 2`, or
+   - `integration_regressions >= 1`, or
+   - `parallel_pressure == true`
+2. `hybrid -> hard` when:
+   - `sync_risk_events >= 4`, or
+   - `integration_regressions >= 2`
+3. `hard -> hybrid` when:
+   - 14 consecutive clean days with `sync_risk_events = 0` and `integration_regressions = 0`
+4. `hybrid -> soft` when:
+   - another 14 consecutive clean days with no regression
+
+### Escalation Output Contract
+
+Every generated execution plan `MUST` print:
+
+- `Enforcement Mode: <soft|hybrid|hard>`
+- `Escalation Reason: <explicit metric-driven reason>`
+
+## Analysis Process (Revised)
+
+### 1. Preflight Sync Check (Session-Start Node)
+
+Run sync preflight before commit planning:
 
 ```bash
-# Current state
+git fetch origin --prune
 CURRENT_BRANCH=$(git branch --show-current)
 DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@')
+UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name @{upstream} 2>/dev/null || true)
+BEHIND_AHEAD=$(git rev-list --left-right --count @{upstream}...HEAD 2>/dev/null || echo "0 0")
 
-# Check for changes
-HAS_CHANGES=$(git status --porcelain | wc -l)
-CHANGES_TYPE=$(git diff --name-only | head -5)
-
-# Check for unpushed commits
-UNPUSHED=$(git log @{u}.. 2>/dev/null | wc -l)
-
-# Check for existing PR
-if [[ "$CURRENT_BRANCH" != "$DEFAULT_BRANCH" ]]; then
-    EXISTING_PR=$(gh pr list --head $CURRENT_BRANCH --json url,number,title --jq '.[0]' 2>/dev/null)
-fi
-
-# Recent commits (for context)
-RECENT_COMMITS=$(git log --oneline -5)
+# Detect operation-in-progress markers
+GIT_DIR=$(git rev-parse --absolute-git-dir)
+test -e "$GIT_DIR/rebase-merge" -o -e "$GIT_DIR/rebase-apply" -o -e "$GIT_DIR/MERGE_HEAD" \
+  -o -e "$GIT_DIR/CHERRY_PICK_HEAD" -o -e "$GIT_DIR/REVERT_HEAD" && echo "operation_in_progress"
 ```
 
-### 2. Analyze Changes
+Block plan execution when critical sync risks exist (detached HEAD, divergence, or operation in progress).
 
-Categorize the changes to determine strategy:
+### 2. Gather Context
+
+Collect current run context:
 
 ```bash
-# What files changed?
+HAS_CHANGES=$(git status --porcelain | wc -l)
+STAGED=$(git diff --cached --name-only)
+UNSTAGED=$(git diff --name-only)
+UNPUSHED=$(git log @{u}.. 2>/dev/null | wc -l)
+RECENT_COMMITS=$(git log --oneline -10)
+```
+
+Collect PR context when not on default branch:
+
+```bash
+EXISTING_PR=$(gh pr list --head "$CURRENT_BRANCH" --json number,url,title,isDraft,reviewDecision,statusCheckRollup --jq '.[0]' 2>/dev/null)
+```
+
+### 3. Compute Enforcement Mode (Pre-Plan Node)
+
+Compute metrics for last 14 days and derive active mode using transition rules.
+
+Minimum required artifacts for planning output:
+- mode (`soft|hybrid|hard`)
+- reason string with metric values and triggered threshold
+
+### 4. Analyze Change Intent
+
+```bash
 git diff --cached --name-only
 git diff --name-only
 
-# Categorize:
-# - New feature implementation → new feature branch
-# - Bug fix → can be quick-fix branch or feature branch
-# - Documentation/refactor → depends on scope
-# - Configuration/CI → usually main branch is fine
+# Categorize for commit message and branch naming:
+# - Feature -> feat/<name>
+# - Bug fix -> fix/<name>
+# - Refactor/chore/docs/ci -> chore/<name> or docs/<name>
 ```
 
-### 3. Generate Plan
+Default-branch policy:
+- If `CURRENT_BRANCH == DEFAULT_BRANCH` and `HAS_CHANGES > 0`, branch creation is mandatory before commit.
 
-Based on the analysis, generate a plan with reasons:
+### 5. Generate Plan
+
+Always include enforcement metadata:
 
 ```
 ## Plan
 
-1. [Create branch feature-xxx]
-   *Reason: You're on main with functional changes*
+Enforcement Mode: hybrid
+Escalation Reason: sync_risk_events=2 in last 14 days (threshold: soft -> hybrid)
+
+1. [Create or switch to short-lived branch]
+   *Reason: Default branch changes must flow through PR*
 
 2. [Commit changes]
-   *Reason: 3 files modified, ready to save*
+   *Reason: Save atomic, testable unit*
 
 3. [Push to remote]
-   *Reason: Need to share changes for review*
+   *Reason: Share state and enable PR automation*
 
-4. [Create PR]
-   *Reason: Feature branch, no existing PR*
+4. [Create Draft PR on first push, or update existing PR]
+   *Reason: Early CI and review feedback*
 
 Confirm? (y/n)
 ```
 
-## Decision Tree
+## Decision Tree (Replaced)
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    ANALYZE CURRENT STATE                    │
-└────────────────────────┬────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                    RUN SYNC PREFLIGHT                        │
+└────────────────────────┬─────────────────────────────────────┘
                          │
                          ▼
-            ┌────────────────────────────┐
-            │   Any changes to commit?   │
-            └────────────┬───────────────┘
-                         │
-            ┌────────────┴────────────┐
-            │                         │
-           NO                       YES
-            │                         │
-            ▼                         ▼
-      "Nothing to do"      ┌────────────────────┐
-                          │  On main/master?   │
-                          └─────────┬──────────┘
-                                    │
-                       ┌────────────┴────────────┐
-                       │                         │
-                      YES                       NO
-                       │                         │
-                       ▼                         ▼
-         ┌─────────────────────┐       ┌──────────────────┐
-         │  Change type?       │       │  Commit & Push   │
-         └──────────┬──────────┘       └─────────┬────────┘
-                    │                            │
-       ┌────────────┼────────────┐              │
-       │            │            │              │
-   Feature      Bug fix      Docs/CI           │
-       │            │            │              │
-       ▼            ▼            ▼              ▼
-  New branch   New branch   Commit     Check existing PR
-       │            │       (on main)          │
-       └────────────┼─────────────────────────┘
-                    │
-                    ▼
-         ┌─────────────────────┐
-         │  After commit/push   │
-         └──────────┬───────────┘
-                    │
-                    ▼
-         ┌─────────────────────┐
-         │  Has existing PR?   │
-         └──────────┬──────────┘
-                    │
-          ┌─────────┴─────────┐
-         YES                  NO
-          │                   │
-          ▼                   ▼
-    "PR exists"          Create PR
+              ┌──────────────────────────────┐
+              │ Critical sync risk present?  │
+              └──────────────┬───────────────┘
+                             │
+                 ┌───────────┴───────────┐
+                 │                       │
+                YES                     NO
+                 │                       │
+                 ▼                       ▼
+      "Stop and resolve sync"   Compute enforcement mode
+                                         │
+                                         ▼
+                           ┌────────────────────────┐
+                           │ Any changes to commit? │
+                           └───────────┬────────────┘
+                                       │
+                           ┌───────────┴───────────┐
+                           │                       │
+                          NO                      YES
+                           │                       │
+                           ▼                       ▼
+                    "Nothing to do"      On default branch?
+                                                  │
+                                      ┌───────────┴───────────┐
+                                      │                       │
+                                     YES                      NO
+                                      │                       │
+                                      ▼                       ▼
+                           Create short-lived branch      Commit
+                                      │                       │
+                                      └───────────┬───────────┘
+                                                  │
+                                                  ▼
+                                               Push
+                                                  │
+                                                  ▼
+                                     Existing PR for branch?
+                                                  │
+                                      ┌───────────┴───────────┐
+                                      │                       │
+                                     YES                      NO
+                                      │                       │
+                                      ▼                       ▼
+                                 Update PR            Create Draft PR
+                                      │                       │
+                                      └───────────┬───────────┘
+                                                  │
+                                                  ▼
+                                         Merge requested?
+                                                  │
+                                      ┌───────────┴───────────┐
+                                      │                       │
+                                     NO                      YES
+                                      │                       │
+                                      ▼                       ▼
+                                   Finish        Run pre-merge sync check
+                                                           │
+                                                           ▼
+                                         Behind/diverged or gate fail?
+                                                           │
+                                            ┌──────────────┴──────────────┐
+                                            │                             │
+                                           YES                           NO
+                                            │                             │
+                                            ▼                             ▼
+                                  Block merge recommendation     Recommend squash merge
 ```
 
 ## Execution Flow
 
 ### Step 1: Present Plan
 
-Show the user what will happen and why:
+Show actions and governance state:
 
 ```
 Found 3 modified files:
@@ -169,17 +306,20 @@ Found 3 modified files:
 
 ## Execution Plan
 
+Enforcement Mode: soft
+Escalation Reason: no threshold trigger in last 14 days
+
 1. Create branch feat/login-system
-   *Reason: Functional changes on main branch*
+   *Reason: Default branch changes must flow through PR*
 
 2. Stage and commit changes
-   *Reason: 3 files ready, implementing login feature*
+   *Reason: 3 files ready, atomic change unit*
 
 3. Push to remote
-   *Reason: Enable PR creation and review*
+   *Reason: Enable Draft PR and CI*
 
-4. Create PR
-   *Reason: No existing PR for this branch*
+4. Create Draft PR
+   *Reason: First push should open Draft PR for early feedback*
 
 Execute this plan? [y/n]
 ```
@@ -194,7 +334,7 @@ Execute in order, reporting each step:
 
 ```bash
 # Step 1: Create branch
-git checkout -b feat/login-system
+git switch -c feat/login-system
 
 # Step 2: Commit
 git add src/auth/ tests/auth.test.ts
@@ -209,8 +349,8 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
 # Step 3: Push
 git push -u origin feat/login-system
 
-# Step 4: Create PR
-gh pr create --title "feat: implement login system" --body "..." --base main
+# Step 4: Create Draft PR on first push
+gh pr create --draft --title "feat: implement login system" --body "..." --base main
 ```
 
 ### Step 4: Report Results
@@ -219,7 +359,7 @@ gh pr create --title "feat: implement login system" --body "..." --base main
 ✓ Created branch: feat/login-system
 ✓ Committed: abc123def (feat: implement login system)
 ✓ Pushed to origin/feat/login-system
-✓ Created PR: https://github.com/user/repo/pull/42
+✓ Created Draft PR: https://github.com/user/repo/pull/42
 
 Next: Use '/review' to get AI code review
 ```
@@ -231,11 +371,17 @@ Next: Use '/review' to get AI code review
 ```
 ## Execution Plan
 
-1. Commit changes
-   *Reason: Minor doc update on main is fine*
+Enforcement Mode: soft
+Escalation Reason: no threshold trigger in last 14 days
 
-2. Push to remote
-   *Reason: Backup and share changes*
+1. Create branch docs/update-readme
+   *Reason: Default-branch docs changes also use branch + PR by default*
+
+2. Commit and push
+   *Reason: Save and share update*
+
+3. Create Draft PR
+   *Reason: First push on new branch*
 
 Execute? [y/n]
 ```
@@ -244,6 +390,9 @@ Execute? [y/n]
 
 ```
 ## Execution Plan
+
+Enforcement Mode: soft
+Escalation Reason: no threshold trigger in last 14 days
 
 1. Create branch feat/feature-name
    *Reason: Feature work should use branches*
@@ -254,8 +403,8 @@ Execute? [y/n]
 3. Push to remote
    *Reason: Enable review*
 
-4. Create PR
-   *Reason: New feature needs review*
+4. Create Draft PR
+   *Reason: New branch first push should create Draft PR*
 
 Execute? [y/n]
 ```
@@ -265,13 +414,19 @@ Execute? [y/n]
 ```
 ## Execution Plan
 
+Enforcement Mode: hybrid
+Escalation Reason: sync_risk_events=2 in last 14 days
+
 1. Commit changes
    *Reason: Continuing work on feature-xyz*
 
 2. Push to remote
    *Reason: Update existing PR #42*
 
-No new PR needed (existing PR will auto-update)
+3. Re-evaluate enforcement mode after push
+   *Reason: Thresholds may have changed during active work*
+
+No new PR created (existing PR auto-updates)
 
 Execute? [y/n]
 ```
@@ -280,6 +435,9 @@ Execute? [y/n]
 
 ```
 ## Execution Plan
+
+Enforcement Mode: soft
+Escalation Reason: no threshold trigger in last 14 days
 
 1. Create branch fix/bug-description
    *Reason: Bug fix should use branch for tracking*
@@ -290,13 +448,29 @@ Execute? [y/n]
 3. Push to remote
    *Reason: Enable review*
 
-4. Create PR
-   *Reason: Bug fix needs verification*
+4. Create Draft PR
+   *Reason: Bug fix needs verification and CI feedback*
 
 Execute? [y/n]
 ```
 
-### Scenario E: No changes
+### Scenario E: Escalation from soft to hybrid
+
+```
+Observed metrics in last 14 days:
+- sync_risk_events=2
+- integration_regressions=0
+- parallel_pressure=false
+
+Transition:
+soft -> hybrid
+
+Action:
+- Keep branch + Draft PR workflow
+- Enforce CI + review-ready gate before merge recommendation
+```
+
+### Scenario F: No changes
 
 ```
 No changes detected. Working directory is clean.
@@ -320,21 +494,21 @@ User can specify intent to skip some analysis:
 
 ```
 "git auto start feature-name"
-→ Creates branch immediately, ready for work
+→ Creates branch, evaluates mode, and prepares Draft-PR path
 ```
 
 ### Finishing Feature
 
 ```
 "git auto done"
-→ Commits, pushes, creates PR if needed
+→ Commits, pushes, creates Draft PR if needed, and applies merge gates by mode
 ```
 
 ### Quick Fix
 
 ```
 "git auto fix bug-description"
-→ Creates fix branch, commits, pushes, creates PR
+→ Creates fix branch, commits, pushes, creates Draft PR
 ```
 
 ## Error Handling
@@ -353,7 +527,13 @@ Options:
 
 ```
 Push rejected (remote has changes).
-Plan: Pull rebase first, then push.
+Plan:
+1. git fetch origin
+2. git rebase @{upstream}
+3. Re-evaluate enforcement mode
+4. Retry push
+
+Reason: non-fast-forward rejection counts as sync_risk_event.
 Execute? [y/n]
 ```
 
@@ -364,3 +544,35 @@ PR creation failed: A draft PR already exists.
 Plan: Update draft PR instead.
 Execute? [y/n]
 ```
+
+### Mode escalation during current run
+
+```
+Enforcement mode changed during execution: soft -> hybrid
+Trigger: sync_risk_events reached threshold in rolling 14-day window
+
+Plan adjustment:
+1. Continue commit/push
+2. Keep PR in Draft or review-ready state
+3. Block merge recommendation until hybrid gates are satisfied
+
+Execute adjusted plan? [y/n]
+```
+
+## Merge Gate Summary
+
+Before any merge recommendation, run pre-merge sync check and mode gate:
+
+1. Sync gate (all modes): no detached HEAD, no operation in progress, not behind, not diverged.
+2. soft mode: sync gate required.
+3. hybrid mode: sync gate + passing CI + review-ready signal required.
+4. hard mode: sync gate + passing CI + required approvals + no blocking discussion required.
+
+Default merge recommendation:
+- `SHOULD` recommend squash merge when all mode gates pass.
+
+## Assumptions and Defaults
+
+1. Rolling window is fixed at 14 days.
+2. Escalation is progressive (`soft -> hybrid -> hard`) and de-escalates with clean windows.
+3. This is policy-first guidance and does not require immediate hook-level hard blocking.
