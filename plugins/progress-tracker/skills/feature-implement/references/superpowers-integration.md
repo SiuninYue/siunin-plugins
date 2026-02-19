@@ -154,6 +154,21 @@ Progress Tracker stores this path in `plan_path` field for:
 - Progress status display
 - Historical reference
 
+### Plan Validation Profiles
+
+Progress Tracker accepts two plan profiles:
+
+1. **Strict profile**
+   - `## Tasks`
+   - `## Acceptance Mapping` (or equivalent acceptance heading)
+   - `## Risks`
+2. **Superpowers profile**
+   - `**Goal:**`
+   - `**Architecture:**`
+   - `## Tasks`
+
+When Superpowers profile is used, missing strict sections are warnings, not blockers.
+
 ### NOTE Annotation Semantics
 
 Plan annotations may include NOTE comments in this format:
@@ -189,6 +204,13 @@ router.post('/api/todos', todoController.create);
 ### Task 2: ...
 [Similar format]
 ```
+
+## Ownership Boundary
+
+- `progress-tracker` owns workflow state and feature completion (`/prog done`).
+- `superpowers` owns implementation discipline (TDD, planning, review).
+- During `/prog next`, stop at "implementation + evidence ready".
+- Defer branch-finalization decisions to explicit completion flow, not mid-feature routing.
 
 ## Error Handling Patterns
 

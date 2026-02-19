@@ -13,9 +13,12 @@ outputs:
 evidence: optional
 references:
   - "brainstorming"
+  - "using-git-worktrees"
   - "writing-plans"
   - "subagent-driven-development"
   - "test-driven-development"
+  - "requesting-code-review"
+  - "verification-before-completion"
   - "./references/complexity-assessment.md"
   - "./references/superpowers-integration.md"
   - "./references/session-playbook.md"
@@ -32,6 +35,8 @@ Coordinate `/prog next` execution by selecting the next feature, routing to the 
 3. Route work by deterministic complexity rules.
 4. Ensure all commands use `${CLAUDE_PLUGIN_ROOT}` absolute plugin path style.
 5. Hand off cleanly to `/prog done` after implementation.
+6. Run Git/worktree preflight before delegation.
+7. Apply review + verification gates before claiming implementation complete.
 
 ## Use This Skill For
 
@@ -50,6 +55,11 @@ Coordinate `/prog next` execution by selecting the next feature, routing to the 
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py auto-checkpoint
+```
+4. Run Git sync preflight:
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py git-sync-check
 ```
 
 ## Main Flow
@@ -76,6 +86,13 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-current <fea
   - feature ID and name
   - acceptance test steps
   - architecture constraints (if any)
+
+### Step 2.5: Workspace Safety Gate
+
+- Before coding, verify branch/worktree safety:
+  - If currently on `main`/`master`, strongly prefer `using-git-worktrees`.
+  - If user explicitly declines, continue only after warning about isolation risk.
+- Keep this gate lightweight for resumed sessions that are already isolated.
 
 ### Step 3: Score Complexity
 
@@ -107,13 +124,20 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-feature-ai-m
 
 - Remain in this coordinator.
 - Default path:
-  1. Optional `brainstorming` when requirements are ambiguous.
+  1. Run `brainstorming` when behavior/design decisions are still open.
   2. `writing-plans` to produce executable task plan.
   3. `subagent-driven-development` to execute plan with TDD.
+  4. `requesting-code-review` for final diff validation.
+  5. `verification-before-completion` before phase transition to `execution_complete`.
 - Update workflow state transitions:
   - `planning_complete` once plan is accepted
   - `execution` while tasks run
   - `execution_complete` when implementation is finished
+
+Important compatibility rule:
+- In `/prog next` flow, treat implementation as finished at "code + verification ready".
+- Do not run branch-finalization actions from this skill path.
+- Feature completion is handled by `/prog done`.
 
 #### 4C) Complex (`26-40`)
 
@@ -147,6 +171,7 @@ When implementation is done:
 
 - summarize what was implemented
 - confirm expected acceptance steps
+- confirm review + verification gates were executed
 - instruct user to run `/prog done` for verification + completion
 
 Do not mark the feature complete in this skill.

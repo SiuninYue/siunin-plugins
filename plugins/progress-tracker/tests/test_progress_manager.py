@@ -539,6 +539,47 @@ class TestWorkflowStateEdgeCases:
         result = progress_manager.validate_plan()
         assert result is True
 
+    def test_validate_plan_document_accepts_superpowers_template(self, temp_dir):
+        """Should accept superpowers writing-plans format with advisory warnings."""
+        plans_dir = Path("docs/plans")
+        plans_dir.mkdir(parents=True, exist_ok=True)
+        (plans_dir / "sp-plan.md").write_text(
+            "# Feature Implementation Plan\n\n"
+            "> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.\n\n"
+            "**Goal:** Build the registration endpoint\n\n"
+            "**Architecture:** Keep service and route layers separated\n\n"
+            "**Tech Stack:** Python + pytest\n\n"
+            "---\n\n"
+            "## Tasks\n"
+            "- Task 1\n",
+            encoding="utf-8",
+        )
+
+        result = progress_manager.validate_plan_document("docs/plans/sp-plan.md")
+
+        assert result["valid"] is True
+        assert result["profile"] == "superpowers"
+        assert "acceptance_mapping" in result["missing_sections"]
+        assert "risks" in result["missing_sections"]
+        assert result["warnings"]
+
+    def test_validate_plan_document_requires_tasks_even_for_superpowers_template(self, temp_dir):
+        """Should reject plans missing tasks regardless of template style."""
+        plans_dir = Path("docs/plans")
+        plans_dir.mkdir(parents=True, exist_ok=True)
+        (plans_dir / "invalid-plan.md").write_text(
+            "# Feature Implementation Plan\n\n"
+            "**Goal:** Build the registration endpoint\n\n"
+            "**Architecture:** Keep service and route layers separated\n",
+            encoding="utf-8",
+        )
+
+        result = progress_manager.validate_plan_document("docs/plans/invalid-plan.md")
+
+        assert result["valid"] is False
+        assert result["profile"] == "invalid"
+        assert "tasks" in result["missing_sections"]
+
 
 class TestJsonErrorHandling:
     """Test JSON parsing error handling."""

@@ -31,7 +31,8 @@ Recreate plan when any is true:
 
 - `validate-plan` returns non-zero
 - `workflow_state.plan_path` missing
-- required sections (`Tasks`, `Acceptance Mapping`, `Risks`) missing
+- required `Tasks` section missing
+- strict sections (`Acceptance Mapping`, `Risks`) missing **and** plan does not match Superpowers header (`**Goal:**` + `**Architecture:**`)
 
 ## Safe Fallback
 

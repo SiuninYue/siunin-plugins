@@ -281,20 +281,41 @@ def validate_plan_document(plan_path: str) -> Dict[str, Any]:
     """
     Validate minimum plan structure for feature execution.
 
-    Required sections:
-    - Tasks
-    - Acceptance mapping
-    - Risks
+    Supports two compatible formats:
+
+    1) Progress-tracker strict template:
+       - Tasks
+       - Acceptance mapping
+       - Risks
+
+    2) Superpowers writing-plans template:
+       - Goal (header field)
+       - Architecture (header field)
+       - Tasks
+
+    In format (2), missing strict sections are treated as warnings.
     """
     path_validation = validate_plan_path(plan_path, require_exists=True)
     if not path_validation["valid"]:
-        return {"valid": False, "errors": [path_validation["error"]], "missing_sections": []}
+        return {
+            "valid": False,
+            "errors": [path_validation["error"]],
+            "missing_sections": [],
+            "warnings": [],
+            "profile": "invalid",
+        }
 
     absolute_path = find_project_root() / path_validation["normalized_path"]
     try:
         content = absolute_path.read_text(encoding="utf-8")
     except OSError as exc:
-        return {"valid": False, "errors": [f"Unable to read plan: {exc}"], "missing_sections": []}
+        return {
+            "valid": False,
+            "errors": [f"Unable to read plan: {exc}"],
+            "missing_sections": [],
+            "warnings": [],
+            "profile": "invalid",
+        }
 
     checks = {
         "tasks": re.search(r"^##+\s+Tasks\b", content, flags=re.IGNORECASE | re.MULTILINE),
@@ -305,15 +326,57 @@ def validate_plan_document(plan_path: str) -> Dict[str, Any]:
         ),
         "risks": re.search(r"^##+\s+Risks?\b", content, flags=re.IGNORECASE | re.MULTILINE),
     }
+    superpowers_checks = {
+        "goal": re.search(r"^\*\*Goal:\*\*\s+.+", content, flags=re.MULTILINE),
+        "architecture": re.search(r"^\*\*Architecture:\*\*\s+.+", content, flags=re.MULTILINE),
+    }
+
     missing_sections = [name for name, found in checks.items() if not found]
-    if missing_sections:
+
+    # Tasks are mandatory for all plan formats.
+    if "tasks" in missing_sections:
         return {
             "valid": False,
-            "errors": [f"Missing required plan sections: {', '.join(missing_sections)}"],
+            "errors": ["Missing required plan sections: tasks"],
             "missing_sections": missing_sections,
+            "warnings": [],
+            "profile": "invalid",
         }
 
-    return {"valid": True, "errors": [], "missing_sections": []}
+    # Strict format fully satisfied.
+    if not missing_sections:
+        return {
+            "valid": True,
+            "errors": [],
+            "missing_sections": [],
+            "warnings": [],
+            "profile": "strict",
+        }
+
+    # Superpowers-compatible format.
+    if superpowers_checks["goal"] and superpowers_checks["architecture"]:
+        advisory_missing = [s for s in missing_sections if s in ("acceptance_mapping", "risks")]
+        warnings = []
+        if advisory_missing:
+            warnings.append(
+                "Superpowers plan accepted; recommended sections missing: "
+                f"{', '.join(advisory_missing)}"
+            )
+        return {
+            "valid": True,
+            "errors": [],
+            "missing_sections": advisory_missing,
+            "warnings": warnings,
+            "profile": "superpowers",
+        }
+
+    return {
+        "valid": False,
+        "errors": [f"Missing required plan sections: {', '.join(missing_sections)}"],
+        "missing_sections": missing_sections,
+        "warnings": [],
+        "profile": "invalid",
+    }
 
 
 def load_progress_json():
@@ -2144,6 +2207,8 @@ def validate_plan(plan_path: Optional[str] = None):
         return False
 
     print(f"Plan validation passed: {resolved_plan_path}")
+    for warning in plan_result.get("warnings", []):
+        print(f"Plan validation warning: {warning}")
     return True
 
 
