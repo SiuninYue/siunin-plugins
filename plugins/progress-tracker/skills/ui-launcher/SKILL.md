@@ -60,16 +60,23 @@ open "http://127.0.0.1:<PORT>/" 2>/dev/null || xdg-open "http://127.0.0.1:<PORT>
 **If nothing was found** — start a new server:
 
 ```bash
-SERVER_SCRIPT="plugins/progress-tracker/hooks/scripts/progress_ui_server.py"
+# Find server script in plugin cache (works from any project directory)
+SERVER_SCRIPT=$(find ~/.claude/plugins/cache -name "progress_ui_server.py" -path "*/progress-tracker/*" 2>/dev/null | sort -V | tail -1)
+
+# Fall back to relative path (for development use within Claude-Plugins repo)
+if [ -z "$SERVER_SCRIPT" ]; then
+  SERVER_SCRIPT="plugins/progress-tracker/hooks/scripts/progress_ui_server.py"
+fi
 
 # Verify script exists
 if [ ! -f "$SERVER_SCRIPT" ]; then
-  echo "ERROR: Server script not found at $SERVER_SCRIPT"
+  echo "ERROR: Server script not found. Reinstall the progress-tracker plugin."
   exit 1
 fi
 
-# Start server in background
-nohup python3 "$SERVER_SCRIPT" --working-dir "$(pwd)" > /tmp/progress-ui-server-$$.log 2>&1 &
+# Start server in background, capture log path
+LOG_FILE="/tmp/progress-ui-server-$$.log"
+nohup python3 "$SERVER_SCRIPT" --working-dir "$(pwd)" > "$LOG_FILE" 2>&1 &
 SERVER_PID=$!
 
 # Wait for server to bind
@@ -78,7 +85,7 @@ sleep 1
 # Verify process is still alive
 if ! kill -0 $SERVER_PID 2>/dev/null; then
   echo "ERROR: Server failed to start. Check log:"
-  cat /tmp/progress-ui-server-$$.log
+  cat "$LOG_FILE"
   exit 1
 fi
 
@@ -87,11 +94,11 @@ PORT=$(lsof -nP -p $SERVER_PID -iTCP -sTCP:LISTEN 2>/dev/null | awk '/LISTEN/{sp
 
 if [ -z "$PORT" ]; then
   echo "ERROR: Server started but no listening port detected"
-  cat /tmp/progress-ui-server-$$.log
+  cat "$LOG_FILE"
   exit 1
 fi
 
-echo "STARTED:$PORT:$SERVER_PID"
+echo "STARTED:$PORT:$SERVER_PID:$LOG_FILE"
 ```
 
 ### Step 3: Open browser
@@ -110,7 +117,7 @@ open "http://127.0.0.1:$PORT/" 2>/dev/null || xdg-open "http://127.0.0.1:$PORT/"
 URL:    http://127.0.0.1:<PORT>/
 项目:   <pwd>
 PID:    <SERVER_PID>
-日志:   /tmp/progress-ui-server-<PID>.log
+日志:   <LOG_FILE>
 
 停止服务器:
   kill <SERVER_PID>
@@ -118,6 +125,6 @@ PID:    <SERVER_PID>
 
 ## Error Handling
 
-- **Script not found**: 提示用户检查插件安装路径
+- **Script not found**: 提示用户重新安装 progress-tracker 插件（`~/.claude/plugins/cache` 中未找到脚本）
 - **Port range exhausted**: 提示关闭占用 3737-3747 的其他进程
 - **Server crash on start**: 显示日志内容帮助排查

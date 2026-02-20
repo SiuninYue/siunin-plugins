@@ -15,7 +15,10 @@ outputs:
   - workflow state update
   - ai_metrics update
 evidence: optional
-references: ["test-driven-development"]
+references:
+  - "test-driven-development"
+  - "requesting-code-review"
+  - "verification-before-completion"
 ---
 
 # Purpose
@@ -53,7 +56,19 @@ Write:
 Skill("test-driven-development", args="<feature_name>: <one_line_description>")
 ```
 
-4. On success, update workflow and metrics:
+4. Run focused code review on the feature diff:
+
+```text
+Skill("requesting-code-review", args="Review simple feature implementation: <feature_name>")
+```
+
+5. Run completion verification gate:
+
+```text
+Skill("verification-before-completion", args="Verify tests and acceptance evidence for <feature_name>")
+```
+
+6. On success, update workflow and metrics:
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state \
@@ -66,7 +81,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-feature-ai-m
   --workflow-path direct_tdd
 ```
 
-5. Ask user to run `/prog done`.
+7. Ask user to run `/prog done`.
 
 # Failure Modes
 

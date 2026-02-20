@@ -181,6 +181,19 @@ Test steps:
 - Verify: Response contains user ID and timestamp
 ```
 
+## Plan Annotation Conventions
+
+These conventions apply to plan files in `docs/plans/` and equivalent plan artifacts used by Progress Tracker workflows.
+
+- **NOTE format**: `<!-- NOTE: ... -->`
+- **Authoring intent**: NOTE is primarily human-authored context, and must remain AI-readable for later runs.
+- **Binding rule (single-note model)**: A content line binds only the first immediately following NOTE line.
+- **Consecutive NOTE handling**: Additional NOTE lines are preserved in source, but are not treated as extra bound notes for the same content line.
+- **Round-trip requirements**:
+  - Never inject UI-only markers into file content
+  - Preserve original line-ending style (LF/CRLF)
+  - Preserve final newline state
+
 ## Progress JSON Schema (v2.0)
 
 ### Top-Level Fields

@@ -199,6 +199,8 @@ Use markdown checkboxes:
 - Empty: `- [ ]`
 - Checked: `- [x]`
 
+If testing documents include NOTE annotations (for example, `<!-- NOTE: ... -->`), follow the semantics in `STANDARDS.md` under `Plan Annotation Conventions`.
+
 ## Language
 
 Test documents should use:

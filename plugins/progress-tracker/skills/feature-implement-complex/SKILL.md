@@ -15,7 +15,13 @@ outputs:
   - workflow state update
   - ai_metrics update
 evidence: optional
-references: ["brainstorming", "writing-plans", "subagent-driven-development"]
+references:
+  - "brainstorming"
+  - "using-git-worktrees"
+  - "writing-plans"
+  - "subagent-driven-development"
+  - "requesting-code-review"
+  - "verification-before-completion"
 ---
 
 # Purpose
@@ -49,7 +55,13 @@ Write:
 
 1. Validate complexity bucket is `complex`.
 2. Display complex-mode banner and rationale.
-3. Run design phase:
+3. Ensure workspace isolation for large refactors:
+
+```text
+Skill("using-git-worktrees", args="Set up isolated workspace for feature-<id>")
+```
+
+4. Run design phase:
 
 ```text
 Skill("brainstorming", args="<feature_name>: architecture and approach")
@@ -57,7 +69,7 @@ Skill("brainstorming", args="<feature_name>: architecture and approach")
 
 If `.claude/architecture.md` exists, include `Execution Constraints` (`CONSTRAINT-*`) in brainstorming context.
 
-4. Update workflow to design complete:
+5. Update workflow to design complete:
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state \
@@ -65,13 +77,13 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-sta
   --next-action "planning"
 ```
 
-5. Run planning phase:
+6. Run planning phase:
 
 ```text
 Skill("writing-plans", args="<feature_name>: create implementation plan\nArchitecture constraints:\n- <CONSTRAINT-...>\nPlan path policy: must output under docs/plans/feature-<id>-<slug>.md")
 ```
 
-6. Update workflow to planning complete with plan path:
+7. Update workflow to planning complete with plan path:
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state \
@@ -80,13 +92,20 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-sta
   --next-action "execution"
 ```
 
-7. Run execution phase:
+8. Run execution phase:
 
 ```text
 Skill("subagent-driven-development", args="plan:<returned_plan_path>")
 ```
 
-8. Mark workflow as execution complete and save AI metrics:
+9. Run final review + verification gates:
+
+```text
+Skill("requesting-code-review", args="Review complex feature implementation: <feature_name>")
+Skill("verification-before-completion", args="Verify complex feature evidence for <feature_name>")
+```
+
+10. Mark workflow as execution complete and save AI metrics:
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state \
@@ -99,7 +118,11 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-feature-ai-m
   --workflow-path full_design_plan_execute
 ```
 
-9. Ask user to run `/prog done`.
+11. Ask user to run `/prog done`.
+
+Compatibility rule:
+- Do not perform branch finalization here.
+- This skill prepares implementation for `/prog done`, which owns feature completion.
 
 ## Plan Path Policy (Required)
 

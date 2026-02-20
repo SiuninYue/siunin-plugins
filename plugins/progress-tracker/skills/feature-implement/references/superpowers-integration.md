@@ -154,6 +154,35 @@ Progress Tracker stores this path in `plan_path` field for:
 - Progress status display
 - Historical reference
 
+### Plan Validation Profiles
+
+Progress Tracker accepts two plan profiles:
+
+1. **Strict profile**
+   - `## Tasks`
+   - `## Acceptance Mapping` (or equivalent acceptance heading)
+   - `## Risks`
+2. **Superpowers profile**
+   - `**Goal:**`
+   - `**Architecture:**`
+   - `## Tasks`
+
+When Superpowers profile is used, missing strict sections are warnings, not blockers.
+
+### NOTE Annotation Semantics
+
+Plan annotations may include NOTE comments in this format:
+
+```markdown
+<!-- NOTE: ... -->
+```
+
+Progress Tracker uses the single-note binding model:
+- A content line can bind at most one NOTE, using the first immediately following NOTE line.
+- Additional consecutive NOTE lines are preserved in markdown, but are not bound as extra notes for the same content line.
+
+This keeps parsing deterministic and aligns with `STANDARDS.md` (`Plan Annotation Conventions`) while preserving source content for human and AI readers.
+
 **Plan structure** (created by writing-plans):
 ```markdown
 # Feature: Create API
@@ -175,6 +204,13 @@ router.post('/api/todos', todoController.create);
 ### Task 2: ...
 [Similar format]
 ```
+
+## Ownership Boundary
+
+- `progress-tracker` owns workflow state and feature completion (`/prog done`).
+- `superpowers` owns implementation discipline (TDD, planning, review).
+- During `/prog next`, stop at "implementation + evidence ready".
+- Defer branch-finalization decisions to explicit completion flow, not mid-feature routing.
 
 ## Error Handling Patterns
 
