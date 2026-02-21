@@ -93,6 +93,25 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-development-
   - acceptance test steps
   - architecture constraints (if any)
 
+### Step 2.4: Project Memory Overlap Warning (Read-Only)
+
+After selecting the feature and before implementation:
+
+1. Read project memory:
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py read
+```
+
+2. Compare selected feature (`name`, `test_steps`, constraints) against memory capabilities using Claude reasoning.
+3. Return JSON object shape:
+   - `has_overlap` (boolean)
+   - `warnings` (array of `{cap_id, level, reason}`)
+   - `advice` (string)
+4. If overlap exists, show a warning block with capability references.
+5. Never block `/prog next`; warning is advisory only.
+6. If JSON parsing fails, silently degrade to "no overlap warning" and continue.
+
 ### Step 2.5: Workspace Safety Gate
 
 - Before coding, verify branch/worktree safety:

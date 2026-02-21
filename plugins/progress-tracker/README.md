@@ -63,6 +63,10 @@ Initialize progress tracking and break goal into testable features.
 
 Show current project status and recommended next action.
 
+### `/prog sync`
+
+Sync project capability memory from incremental Git history with batch confirmation.
+
 ### `/prog next`
 
 Start the next pending feature with deterministic complexity routing.
@@ -113,6 +117,15 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-bug --descri
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug --bug-id "BUG-XXX" [--status <status>] [--root-cause "<cause>"] [--fix-summary "<summary>"]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-bugs
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py remove-bug "BUG-XXX"
+```
+
+### Project Memory CLI
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py read
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py append --payload-json '<object>'
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py batch-upsert --payload-json '<array>' --sync-meta-json '<object>'
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py register-rejections --payload-json '<array>' --sync-id '<sync_id>'
 ```
 <!-- END:GENERATED:PROG_COMMANDS -->
 

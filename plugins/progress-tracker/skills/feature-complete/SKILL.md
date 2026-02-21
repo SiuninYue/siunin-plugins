@@ -107,30 +107,51 @@ Skill("requesting-code-review", args="Final review before marking feature <featu
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py complete <feature_id> --commit <commit_hash>
 ```
 
-6. Finalize AI metrics:
+6. Append capability memory (non-blocking):
+
+- Build one capability payload from the completed feature:
+  - `title`: feature name
+  - `summary`: concise completion summary
+  - `tags`: optional feature tags
+  - `confidence`: `1.0`
+  - `source.origin`: `prog_done`
+  - `source.feature_id`: current feature ID
+  - `source.commit_hash`: completion commit hash
+- Persist via:
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py append --payload-json '<capability_json>'
+```
+
+- If this command fails:
+  - print a warning
+  - do not roll back feature completion
+  - continue remaining completion steps
+
+7. Finalize AI metrics:
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py complete-feature-ai-metrics <feature_id>
 ```
 
-7. Clear workflow state:
+8. Clear workflow state:
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py clear-workflow-state
 ```
 
-8. Show next step:
+9. Show next step:
 - `/prog next` when pending features remain
 - project complete summary when all features are done
 
-9. If all features are complete, first detect whether current branch already has a PR:
+10. If all features are complete, first detect whether current branch already has a PR:
 
 ```bash
 CURRENT_BRANCH=$(git branch --show-current)
 EXISTING_PR_URL=$(gh pr list --head "$CURRENT_BRANCH" --json url --jq '.[0].url' 2>/dev/null || true)
 ```
 
-10. Apply duplicate-finish guard:
+11. Apply duplicate-finish guard:
 
 - If `EXISTING_PR_URL` is non-empty and not `null`:
   - report existing PR URL

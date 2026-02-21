@@ -98,6 +98,10 @@ Progress Tracker 插件解决了 AI 辅助开发中的一个关键问题：**如
 
 显示项目当前进度与推荐下一步。
 
+### `/prog sync`
+
+从增量 Git 历史同步项目能力记忆，并进行批量确认写入。
+
 ### `/prog next`
 
 按复杂度路由启动下一个待完成功能。
@@ -148,6 +152,15 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-bug --descri
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug --bug-id "BUG-XXX" [--status <status>] [--root-cause "<cause>"] [--fix-summary "<summary>"]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-bugs
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py remove-bug "BUG-XXX"
+```
+
+### Project Memory 命令行
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py read
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py append --payload-json '<object>'
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py batch-upsert --payload-json '<array>' --sync-meta-json '<object>'
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py register-rejections --payload-json '<array>' --sync-id '<sync_id>'
 ```
 <!-- END:GENERATED:PROG_COMMANDS -->
 

@@ -25,6 +25,10 @@ Initialize progress tracking and break goal into testable features.
 
 Show current project status and recommended next action.
 
+### `/prog sync`
+
+Sync project capability memory from incremental Git history with batch confirmation.
+
 ### `/prog next`
 
 Start the next pending feature with deterministic complexity routing.
@@ -76,6 +80,15 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug --bug
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-bugs
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py remove-bug "BUG-XXX"
 ```
+
+### Project Memory CLI
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py read
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py append --payload-json '<object>'
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py batch-upsert --payload-json '<array>' --sync-meta-json '<object>'
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py register-rejections --payload-json '<array>' --sync-id '<sync_id>'
+```
 <!-- SOURCE:README_EN:END -->
 
 ### README_ZH
@@ -92,6 +105,10 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py remove-bug "BUG-
 ### `/prog`
 
 显示项目当前进度与推荐下一步。
+
+### `/prog sync`
+
+从增量 Git 历史同步项目能力记忆，并进行批量确认写入。
 
 ### `/prog next`
 
@@ -144,6 +161,15 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug --bug
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-bugs
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py remove-bug "BUG-XXX"
 ```
+
+### Project Memory 命令行
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py read
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py append --payload-json '<object>'
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py batch-upsert --payload-json '<array>' --sync-meta-json '<object>'
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py register-rejections --payload-json '<array>' --sync-id '<sync_id>'
+```
 <!-- SOURCE:README_ZH:END -->
 
 ### PROG_HELP
@@ -156,6 +182,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py remove-bug "BUG-
 - `/prog plan <project description>`: architecture planning and stack decisions.
 - `/prog init <goal description>`: initialize tracking and feature decomposition.
 - `/prog`: show progress status and recommendations.
+- `/prog sync`: sync capability memory from incremental Git history.
 - `/prog next`: begin next feature using deterministic routing.
 - `/prog done`: run acceptance checks and complete current feature.
 - `/prog-fix [description|BUG-ID]`: report/list/fix bugs.
