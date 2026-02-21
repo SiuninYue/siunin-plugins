@@ -11,6 +11,7 @@ Usage:
     python3 progress_manager.py check
     python3 progress_manager.py git-sync-check
     python3 progress_manager.py set-current <feature_id>
+    python3 progress_manager.py set-development-stage <planning|developing|completed> [--feature-id <id>]
     python3 progress_manager.py complete <feature_id>
     python3 progress_manager.py set-feature-ai-metrics <feature_id> --complexity-score <score> --selected-model <model> --workflow-path <path>
     python3 progress_manager.py complete-feature-ai-metrics <feature_id>
@@ -61,6 +62,7 @@ PLAN_PATH_PREFIX = "docs/plans/"
 
 # Schema version - increment when breaking changes occur
 CURRENT_SCHEMA_VERSION = "2.0"
+DEVELOPMENT_STAGES = ("planning", "developing", "completed")
 
 # Bug field standards (for consistency)
 BUG_REQUIRED_FIELDS = ["id", "description", "status", "priority", "created_at"]
@@ -1070,6 +1072,11 @@ def set_current(feature_id):
         return False
 
     data["current_feature_id"] = feature_id
+
+    # Selecting a feature for work always starts in planning stage.
+    # /prog start will explicitly transition planning -> developing.
+    if not feature.get("completed", False):
+        feature["development_stage"] = "planning"
     save_progress_json(data)
 
     # Update progress.md
@@ -1077,6 +1084,45 @@ def set_current(feature_id):
     save_progress_md(md_content)
 
     print(f"Set current feature: {feature.get('name', 'Unknown')}")
+    return True
+
+
+def set_development_stage(stage: str, feature_id: Optional[int] = None) -> bool:
+    """Set development_stage for the target feature (defaults to current feature)."""
+    if stage not in DEVELOPMENT_STAGES:
+        print(f"Invalid development_stage '{stage}'. Must be one of: {DEVELOPMENT_STAGES}")
+        return False
+
+    data = load_progress_json()
+    if not data:
+        print("No progress tracking found")
+        return False
+
+    target_feature_id = feature_id if feature_id is not None else data.get("current_feature_id")
+    if target_feature_id is None:
+        print("Error: No active feature. Run '/prog next' first or pass --feature-id.")
+        return False
+
+    features = data.get("features", [])
+    feature = next((f for f in features if f.get("id") == target_feature_id), None)
+    if not feature:
+        print(f"Feature ID {target_feature_id} not found")
+        return False
+
+    feature["development_stage"] = stage
+    if stage == "developing" and not feature.get("started_at"):
+        feature["started_at"] = datetime.now().isoformat() + "Z"
+
+    save_progress_json(data)
+
+    # Update progress.md
+    md_content = generate_progress_md(data)
+    save_progress_md(md_content)
+
+    print(
+        f"Feature #{target_feature_id} stage set to '{stage}': "
+        f"{feature.get('name', 'Unknown')}"
+    )
     return True
 
 
@@ -1353,6 +1399,7 @@ def complete_feature(feature_id, commit_hash=None, skip_archive=False):
         return False
 
     feature["completed"] = True
+    feature["development_stage"] = "completed"
     feature["completed_at"] = datetime.now().isoformat() + "Z"
     if commit_hash:
         feature["commit_hash"] = commit_hash
@@ -2363,6 +2410,14 @@ def main():
     current_parser = subparsers.add_parser("set-current", help="Set current feature")
     current_parser.add_argument("feature_id", type=int, help="Feature ID")
 
+    # Set development stage command
+    stage_parser = subparsers.add_parser(
+        "set-development-stage",
+        help="Set development stage for current feature (or a specific feature)",
+    )
+    stage_parser.add_argument("stage", choices=DEVELOPMENT_STAGES, help="Target stage")
+    stage_parser.add_argument("--feature-id", type=int, help="Feature ID (defaults to current)")
+
     # Complete command
     complete_parser = subparsers.add_parser("complete", help="Mark feature as complete")
     complete_parser.add_argument("feature_id", type=int, help="Feature ID")
@@ -2492,6 +2547,8 @@ def main():
         return check()
     elif args.command == "set-current":
         return set_current(args.feature_id)
+    elif args.command == "set-development-stage":
+        return set_development_stage(args.stage, feature_id=args.feature_id)
     elif args.command == "complete":
         return complete_feature(
             args.feature_id,

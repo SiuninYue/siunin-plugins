@@ -16,5 +16,17 @@
     "ai-agent",
     "workflow",
     "web-ui"
+  ],
+  "commands": [
+    {
+      "name": "prog-ui",
+      "description": "Launch progress tracker web UI",
+      "file": "commands/prog-ui.md"
+    },
+    {
+      "name": "prog-start",
+      "description": "Start current feature development",
+      "file": "commands/prog-start.md"
+    }
   ]
 }

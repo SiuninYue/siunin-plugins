@@ -2310,7 +2310,8 @@
                 // 2. Next Action
                 const nextValue = document.getElementById("next-value");
                 if (nextAction.type === "feature" && nextAction.feature_id != null) {
-                    nextValue.textContent = `#${nextAction.feature_id}`;
+                    const stageLabel = nextAction.stage_label ? ` ${nextAction.stage_label}` : "";
+                    nextValue.textContent = `#${nextAction.feature_id}${stageLabel}`;
                     nextValue.title = nextAction.feature_name || "";
                 } else {
                     nextValue.textContent = nextAction.feature_name || "-";
@@ -2466,11 +2467,13 @@
                         html += '<div class="feature-list">';
                         section.content.forEach(feature => {
                             const statusClass = feature.completed ? 'completed' : 'pending';
-                            const statusIcon = feature.completed ? '✓' : '○';
+                            const statusLabel = feature.completed
+                                ? '已完成'
+                                : (feature.stage_label || '待办');
                             html += `<div class="feature-item ${statusClass}">
                                 <span class="feature-id">#${feature.id}</span>
                                 <span class="feature-name">${feature.name}</span>
-                                <span class="feature-status">${statusIcon}</span>
+                                <span class="feature-status">${statusLabel}</span>
                             </div>`;
                         });
                         html += '</div>';

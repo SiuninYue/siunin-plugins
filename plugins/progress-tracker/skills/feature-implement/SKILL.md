@@ -82,6 +82,12 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py git-sync-check
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-current <feature_id>
 ```
 
+- Ensure initial stage is explicitly `planning`:
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-development-stage planning --feature-id <feature_id>
+```
+
 - Display:
   - feature ID and name
   - acceptance test steps

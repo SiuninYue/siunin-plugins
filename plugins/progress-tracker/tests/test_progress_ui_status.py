@@ -342,6 +342,24 @@ def test_status_summary_with_current_feature(test_client, working_dir):
     assert data["next_action"]["type"] == "feature"
     assert data["next_action"]["feature_id"] == 3
     assert data["next_action"]["feature_name"] == "Feature 3"
+    assert data["next_action"]["development_stage"] == "developing"
+    assert data["next_action"]["stage_label"] == "开发中"
+
+
+def test_status_summary_active_feature_planning_stage(test_client, working_dir):
+    """Active planning feature should expose planning stage label."""
+    progress_file = working_dir / ".claude" / "progress.json"
+    progress_data = json.loads(progress_file.read_text())
+    progress_data["current_feature_id"] = 2
+    progress_data["features"][1]["development_stage"] = "planning"
+    progress_file.write_text(json.dumps(progress_data, indent=2))
+
+    response = test_client.get("/api/status-summary")
+    data = response.json()
+
+    assert data["next_action"]["feature_id"] == 2
+    assert data["next_action"]["development_stage"] == "planning"
+    assert data["next_action"]["stage_label"] == "规划中"
 
 
 def test_status_detail_next_panel_all_completed(test_client, working_dir):
@@ -361,6 +379,38 @@ def test_status_detail_next_panel_all_completed(test_client, working_dir):
 
     assert data["panel"] == "next"
     assert "已完成" in data["summary"]
+
+
+def test_status_detail_next_panel_active_planning_action(test_client, working_dir):
+    """Planning-stage active feature should suggest /prog start."""
+    progress_file = working_dir / ".claude" / "progress.json"
+    progress_data = json.loads(progress_file.read_text())
+    progress_data["current_feature_id"] = 2
+    progress_data["features"][1]["development_stage"] = "planning"
+    progress_file.write_text(json.dumps(progress_data, indent=2))
+
+    response = test_client.get("/api/status-detail?panel=next")
+    data = response.json()
+
+    assert "规划中" in data["summary"]
+    assert data["actions"][0]["label"] == "开始开发"
+    assert data["actions"][0]["command"] == "/prog start"
+
+
+def test_status_detail_next_panel_active_developing_action(test_client, working_dir):
+    """Legacy active feature without stage should default to developing."""
+    progress_file = working_dir / ".claude" / "progress.json"
+    progress_data = json.loads(progress_file.read_text())
+    progress_data["current_feature_id"] = 2
+    progress_data["features"][1].pop("development_stage", None)
+    progress_file.write_text(json.dumps(progress_data, indent=2))
+
+    response = test_client.get("/api/status-detail?panel=next")
+    data = response.json()
+
+    assert "开发中" in data["summary"]
+    assert data["actions"][0]["label"] == "完成此功能"
+    assert data["actions"][0]["command"] == "/prog done"
 
 
 # ========== Performance Tests ==========
