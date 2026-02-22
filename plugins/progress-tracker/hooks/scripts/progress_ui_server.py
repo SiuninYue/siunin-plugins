@@ -1364,15 +1364,15 @@ def main() -> int:
     handler = create_handler(working_dir)
     server = HTTPServer((BIND_HOST, port), handler)
 
-    print(f"Progress UI Server starting on {BIND_HOST}:{port}")
-    print(f"Working directory: {working_dir}")
-    print(f"Open http://{BIND_HOST}:{port}/ in your browser")
-    print(f"Press Ctrl+C to stop")
+    print(f"Progress UI Server starting on {BIND_HOST}:{port}", flush=True)
+    print(f"Working directory: {working_dir}", flush=True)
+    print(f"Open http://{BIND_HOST}:{port}/ in your browser", flush=True)
+    print(f"Press Ctrl+C to stop", flush=True)
 
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print("\nServer stopped")
+        print("\nServer stopped", flush=True)
         server.shutdown()
         return 0
 

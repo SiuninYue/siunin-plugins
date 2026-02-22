@@ -2368,7 +2368,7 @@
                     const response = await fetchJson(`/api/status-detail?panel=${panelType}`);
                     renderDrawerContent(panelType, response);
 
-                    document.getElementById("drawer-title").textContent = getPanelTitle(panelType);
+                    document.getElementById("drawer-title").textContent = response.title || getPanelTitle(panelType);
                     document.getElementById("status-drawer").classList.add("open");
                 } catch (error) {
                     console.error("Failed to load detail:", error);
