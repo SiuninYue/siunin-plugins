@@ -1,6 +1,6 @@
 {
   "name": "progress-tracker",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "Track long-running AI agent tasks with feature-based progress tracking, test-driven status updates, Git integration, and prog-ui web dashboard",
   "author": {
     "name": "siunin"
@@ -27,6 +27,11 @@
       "name": "prog-start",
       "description": "Start current feature development",
       "file": "commands/prog-start.md"
+    },
+    {
+      "name": "prog-sync",
+      "description": "Sync project capability memory from git history",
+      "file": "commands/prog-sync.md"
     }
   ]
 }
