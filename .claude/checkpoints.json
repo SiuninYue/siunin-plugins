@@ -1,5 +1,5 @@
 {
-  "last_checkpoint_at": "2026-02-22T00:13:44.426832+08:00",
+  "last_checkpoint_at": "2026-02-23T06:50:22.600585+08:00",
   "max_entries": 50,
   "entries": [
     {
@@ -56,6 +56,66 @@
       "timestamp": "2026-02-22T00:13:44.426832+08:00",
       "feature_id": 14,
       "feature_name": "更新 git-auto skill 设置初始阶段",
+      "phase": "execution_complete",
+      "plan_path": null,
+      "current_task": null,
+      "total_tasks": null,
+      "reason": "auto_interval"
+    },
+    {
+      "timestamp": "2026-02-22T00:52:56.218237+08:00",
+      "feature_id": 13,
+      "feature_name": "创建 /prog start skill 命令",
+      "phase": "execution_complete",
+      "plan_path": null,
+      "current_task": null,
+      "total_tasks": null,
+      "reason": "auto_interval"
+    },
+    {
+      "timestamp": "2026-02-22T01:32:01.524553+08:00",
+      "feature_id": 15,
+      "feature_name": "更新 feature-complete skill 设置完成阶段",
+      "phase": "unknown",
+      "plan_path": null,
+      "current_task": null,
+      "total_tasks": null,
+      "reason": "auto_interval"
+    },
+    {
+      "timestamp": "2026-02-22T07:57:21.440869+08:00",
+      "feature_id": 15,
+      "feature_name": "更新 feature-complete skill 设置完成阶段",
+      "phase": "unknown",
+      "plan_path": null,
+      "current_task": null,
+      "total_tasks": null,
+      "reason": "auto_interval"
+    },
+    {
+      "timestamp": "2026-02-22T08:35:54.583260+08:00",
+      "feature_id": 16,
+      "feature_name": "更新 progress_manager.py 支持新字段",
+      "phase": "unknown",
+      "plan_path": null,
+      "current_task": null,
+      "total_tasks": null,
+      "reason": "auto_interval"
+    },
+    {
+      "timestamp": "2026-02-23T06:06:58.477046+08:00",
+      "feature_id": 16,
+      "feature_name": "更新 progress_manager.py 支持新字段",
+      "phase": "execution_complete",
+      "plan_path": null,
+      "current_task": null,
+      "total_tasks": null,
+      "reason": "auto_interval"
+    },
+    {
+      "timestamp": "2026-02-23T06:50:22.600585+08:00",
+      "feature_id": 17,
+      "feature_name": "完善 UI 显示逻辑",
       "phase": "execution_complete",
       "plan_path": null,
       "current_task": null,

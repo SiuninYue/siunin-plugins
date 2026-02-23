@@ -21,7 +21,8 @@
         "archived_at": "2026-02-08T00:21:25.699127Z",
         "files_moved": 0,
         "files": []
-      }
+      },
+      "development_stage": "planning"
     },
     {
       "id": 2,
@@ -296,13 +297,22 @@
         "测试有活跃功能时设置 development_stage = 'developing'",
         "验证 started_at 时间戳记录"
       ],
-      "completed": false,
+      "completed": true,
       "ai_metrics": {
         "complexity_score": 15,
         "complexity_bucket": "simple",
         "selected_model": "haiku",
         "workflow_path": "direct_tdd",
-        "started_at": "2026-02-21T07:10:45.199883Z"
+        "started_at": "2026-02-21T07:10:45.199883Z",
+        "finished_at": "2026-02-22T00:59:40.691285+08:00",
+        "duration_seconds": 35335
+      },
+      "completed_at": "2026-02-22T00:59:07.576612Z",
+      "commit_hash": "1374c1a",
+      "archive_info": {
+        "archived_at": "2026-02-22T00:59:07.625458Z",
+        "files_moved": 0,
+        "files": []
       }
     },
     {
@@ -314,9 +324,21 @@
         "测试新功能显示为'规划中'",
         "确认 progress.json 包含 development_stage 字段"
       ],
-      "completed": false,
+      "completed": true,
       "development_stage": "developing",
-      "started_at": "2026-02-21T07:27:55.512175"
+      "started_at": "2026-02-21T07:27:55.512175",
+      "ai_metrics": {
+        "started_at": "2026-02-22T00:17:57.169854+08:00",
+        "finished_at": "2026-02-22T00:18:31.191796+08:00",
+        "duration_seconds": 34
+      },
+      "completed_at": "2026-02-22T00:17:57.208938Z",
+      "commit_hash": "375b2c6",
+      "archive_info": {
+        "archived_at": "2026-02-22T00:17:57.264729Z",
+        "files_moved": 0,
+        "files": []
+      }
     },
     {
       "id": 15,
@@ -327,7 +349,23 @@
         "测试 planning→developing→completed 状态转换",
         "确认 completed_at 时间戳正确记录"
       ],
-      "completed": false
+      "completed": true,
+      "ai_metrics": {
+        "complexity_score": 15,
+        "complexity_bucket": "simple",
+        "selected_model": "haiku",
+        "workflow_path": "direct_tdd",
+        "started_at": "2026-02-22T01:32:08.252986Z",
+        "finished_at": "2026-02-22T08:18:23.623308+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-02-22T08:17:50.587568Z",
+      "commit_hash": "c5d4923",
+      "archive_info": {
+        "archived_at": "2026-02-22T08:17:50.626444Z",
+        "files_moved": 0,
+        "files": []
+      }
     },
     {
       "id": 16,
@@ -338,7 +376,23 @@
         "测试向后兼容: 旧格式默认为 'developing'",
         "测试新格式: 正确解析 planning/developing/completed"
       ],
-      "completed": false
+      "completed": true,
+      "ai_metrics": {
+        "complexity_score": 15,
+        "complexity_bucket": "simple",
+        "selected_model": "haiku",
+        "workflow_path": "direct_tdd",
+        "started_at": "2026-02-22T08:24:50.579475Z",
+        "finished_at": "2026-02-23T06:19:12.266710+08:00",
+        "duration_seconds": 50061
+      },
+      "completed_at": "2026-02-23T06:18:40.496840Z",
+      "commit_hash": "d7ee86a39056ec75f0126f89a79574128114289e",
+      "archive_info": {
+        "archived_at": "2026-02-23T06:18:40.520845Z",
+        "files_moved": 0,
+        "files": []
+      }
     },
     {
       "id": 17,
@@ -350,11 +404,27 @@
         "验证 completed 阶段标记为已完成",
         "测试状态标题: '当前功能详情' vs '下一步详情'"
       ],
-      "completed": false
+      "completed": true,
+      "ai_metrics": {
+        "complexity_score": 15,
+        "complexity_bucket": "simple",
+        "selected_model": "haiku",
+        "workflow_path": "direct_tdd",
+        "started_at": "2026-02-23T06:32:13.497271Z",
+        "finished_at": "2026-02-23T07:22:45.326486+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-02-23T07:22:13.263377Z",
+      "commit_hash": "82f92f4",
+      "archive_info": {
+        "archived_at": "2026-02-23T07:22:13.308370Z",
+        "files_moved": 0,
+        "files": []
+      }
     }
   ],
-  "current_feature_id": 14,
-  "updated_at": "2026-02-21T07:37:51.362100Z",
+  "current_feature_id": null,
+  "updated_at": "2026-02-23T07:23:17.209375Z",
   "schema_version": "2.0",
   "bugs": [
     {
@@ -382,10 +452,5 @@
       "fixed_at": "2026-02-12T10:55:27.083057Z"
     }
   ],
-  "current_bug_id": null,
-  "workflow_state": {
-    "phase": "execution_complete",
-    "next_action": "verify_and_complete",
-    "updated_at": "2026-02-21T07:35:52.657664Z"
-  }
+  "current_bug_id": null
 }
