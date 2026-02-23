@@ -148,3 +148,13 @@ dmypy.json
 # Guardrails generated artifacts
 docs/ops/guardrails-report-*.json
 docs/ops/guardrails-backup-*.json
+
+# Claude project state policy
+# Local runtime snapshots (do not merge to mainline)
+.claude/checkpoints.json
+.claude/settings.local.json
+# Mainline project state (tracked intentionally)
+!.claude/.local.md
+!.claude/progress.json
+!.claude/progress.md
+!.claude/project_memory.json

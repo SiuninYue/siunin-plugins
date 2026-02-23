@@ -1,0 +1,164 @@
+{
+  "schema_version": "1.0",
+  "created_at": "2026-02-21T17:15:50.647128Z",
+  "updated_at": "2026-02-21T23:59:00.563648Z",
+  "next_capability_seq": 7,
+  "last_synced_commit": "f5f1801",
+  "capabilities": [
+    {
+      "cap_id": "CAP-001",
+      "fingerprint": "57d020357c12db91",
+      "title": "Project memory tri-command integration",
+      "summary": "Implemented project_memory data layer and wired /prog sync, /prog done, and /prog next integration paths with tests and docs.",
+      "tags": [
+        "progress-tracker",
+        "memory",
+        "workflow"
+      ],
+      "confidence": 0.98,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 0,
+        "commit_hash": "f5f1801",
+        "commit_range": ""
+      },
+      "created_at": "2026-02-21T17:15:50.647333Z",
+      "updated_at": "2026-02-21T17:15:50.647333Z"
+    },
+    {
+      "cap_id": "CAP-002",
+      "fingerprint": "e384bd85c46e6061",
+      "title": "UI Launcher: Fix SERVER_SCRIPT relative path issue",
+      "summary": "Fixed ui-launcher skill to find progress_ui_server.py in plugin cache (~/.claude/plugins/cache) with fallback to relative path, enabling UI launch from any project directory.",
+      "tags": [
+        "bugfix",
+        "ui-launcher",
+        "progress-tracker"
+      ],
+      "confidence": 0.95,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 0,
+        "commit_hash": "f5f1801",
+        "commit_range": ""
+      },
+      "created_at": "2026-02-21T23:59:00.555040Z",
+      "updated_at": "2026-02-21T23:59:00.555040Z"
+    },
+    {
+      "cap_id": "CAP-003",
+      "fingerprint": "e17e2041a91d191d",
+      "title": "Prog-sync: Project memory sync workflow from git history",
+      "summary": "Implemented project_memory.py data layer (584 lines) and /prog sync command/skill for incremental capability synchronization from git history with batch confirmation.",
+      "tags": [
+        "feature",
+        "project-memory",
+        "sync",
+        "progress-tracker"
+      ],
+      "confidence": 0.98,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 0,
+        "commit_hash": "f5f1801",
+        "commit_range": ""
+      },
+      "created_at": "2026-02-21T23:59:00.555077Z",
+      "updated_at": "2026-02-21T23:59:00.555077Z"
+    },
+    {
+      "cap_id": "CAP-004",
+      "fingerprint": "31594163be5384a0",
+      "title": "Git-auto v1.2.0: Add worktree decision gate",
+      "summary": "Upgraded git-auto skill to v1.2.0 with worktree isolation decision logic, enforcement modes, and escalation reasoning for safer git operations.",
+      "tags": [
+        "enhancement",
+        "git-auto",
+        "worktree",
+        "progress-tracker"
+      ],
+      "confidence": 0.92,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 0,
+        "commit_hash": "f5f1801",
+        "commit_range": ""
+      },
+      "created_at": "2026-02-21T23:59:00.555094Z",
+      "updated_at": "2026-02-21T23:59:00.555094Z"
+    },
+    {
+      "cap_id": "CAP-005",
+      "fingerprint": "dd27448a5f5baf16",
+      "title": "Git-auto: Add executable escalation thresholds + guardrails",
+      "summary": "Added scripts/guardrails/ directory with apply_guardrails.py, protection_payload.json, and required-check.yml.tpl for configurable escalation thresholds.",
+      "tags": [
+        "enhancement",
+        "git-auto",
+        "guardrails",
+        "progress-tracker"
+      ],
+      "confidence": 0.9,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 0,
+        "commit_hash": "f5f1801",
+        "commit_range": ""
+      },
+      "created_at": "2026-02-21T23:59:00.555104Z",
+      "updated_at": "2026-02-21T23:59:00.555104Z"
+    },
+    {
+      "cap_id": "CAP-006",
+      "fingerprint": "161f5de26c38fde1",
+      "title": "Progress workflow alignment with superpowers",
+      "summary": "Aligned progress-tracker skills (feature-complete, feature-implement-*, testing-standards) with superpowers integration gates and workflow patterns.",
+      "tags": [
+        "chore",
+        "alignment",
+        "superpowers",
+        "progress-tracker"
+      ],
+      "confidence": 0.85,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 0,
+        "commit_hash": "f5f1801",
+        "commit_range": ""
+      },
+      "created_at": "2026-02-21T23:59:00.555117Z",
+      "updated_at": "2026-02-21T23:59:00.555117Z"
+    }
+  ],
+  "rejected_fingerprints": [],
+  "sync_history": [
+    {
+      "sync_id": "sync-20260221T171550Z",
+      "timestamp": "2026-02-21T17:15:50.647339Z",
+      "total_candidates": 1,
+      "accepted_count": 1,
+      "inserted_count": 1,
+      "deduped_count": 0,
+      "invalid_count": 0,
+      "rejected_count": 0,
+      "commit_range": "f5f1801",
+      "last_synced_commit": "f5f1801"
+    },
+    {
+      "sync_id": "sync-20260222T-manual",
+      "timestamp": "2026-02-21T23:59:00.555122Z",
+      "total_candidates": 5,
+      "accepted_count": 5,
+      "inserted_count": 5,
+      "deduped_count": 0,
+      "invalid_count": 0,
+      "rejected_count": 0,
+      "commit_range": "f5f1801",
+      "last_synced_commit": "f5f1801"
+    }
+  ],
+  "limits": {
+    "max_sync_history": 50,
+    "max_rejected_fingerprints": 500
+  }
+}
