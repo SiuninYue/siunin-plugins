@@ -13,6 +13,9 @@ outputs:
 evidence: optional
 references:
   - "testing-standards"
+  - "requesting-code-review"
+  - "verification-before-completion"
+  - "finishing-a-development-branch"
   - "./references/verification-playbook.md"
   - "./references/session-examples.md"
 ---
@@ -79,33 +82,85 @@ If user provides acceptance notes or test docs, format/report via `testing-stand
 
 Detailed checklists and output templates are in `references/verification-playbook.md`.
 
+Before claiming pass, invoke:
+
+```text
+Skill("verification-before-completion", args="Verify acceptance evidence for feature <feature_id>")
+```
+
 ### Step 5: Handle Verification Result
 
 #### Pass Path
 
 1. Confirm all required checks passed.
-2. Ensure code is committed (either existing commit hash or create commit).
-3. Mark feature complete:
+2. Run final code review if none was recorded during implementation:
+
+```text
+Skill("requesting-code-review", args="Final review before marking feature <feature_id> complete")
+```
+
+3. Ensure no unresolved Critical/Important review findings remain.
+4. Ensure code is committed (either existing commit hash or create commit).
+5. Mark feature complete:
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py complete <feature_id> --commit <commit_hash>
 ```
 
-4. Finalize AI metrics:
+6. Append capability memory (non-blocking):
+
+- Build one capability payload from the completed feature:
+  - `title`: feature name
+  - `summary`: concise completion summary
+  - `tags`: optional feature tags
+  - `confidence`: `1.0`
+  - `source.origin`: `prog_done`
+  - `source.feature_id`: current feature ID
+  - `source.commit_hash`: completion commit hash
+- Persist via:
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py append --payload-json '<capability_json>'
+```
+
+- If this command fails:
+  - print a warning
+  - do not roll back feature completion
+  - continue remaining completion steps
+
+7. Finalize AI metrics:
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py complete-feature-ai-metrics <feature_id>
 ```
 
-5. Clear workflow state:
+8. Clear workflow state:
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py clear-workflow-state
 ```
 
-6. Show next step:
+9. Show next step:
 - `/prog next` when pending features remain
 - project complete summary when all features are done
+
+10. If all features are complete, first detect whether current branch already has a PR:
+
+```bash
+CURRENT_BRANCH=$(git branch --show-current)
+EXISTING_PR_URL=$(gh pr list --head "$CURRENT_BRANCH" --json url --jq '.[0].url' 2>/dev/null || true)
+```
+
+11. Apply duplicate-finish guard:
+
+- If `EXISTING_PR_URL` is non-empty and not `null`:
+  - report existing PR URL
+  - skip branch finishing flow automatically (avoid duplicate PR/cleanup actions)
+- If no existing PR and user wants immediate integration/cleanup, invoke:
+
+```text
+Skill("finishing-a-development-branch", args="Complete branch integration after progress-tracker project completion")
+```
 
 #### Fail Path
 
@@ -136,13 +191,18 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-bug \
 
 ### Plan Validation Failed
 
-- Message: plan path invalid/missing or required sections missing.
+- Message: plan path invalid/missing, or mandatory plan structure missing (`Tasks`; plus either strict sections or Superpowers header fields).
 - Next action: rebuild plan, then rerun `/prog done`.
 
 ### Git Commit Not Available
 
 - Message: completion requires a commit hash.
 - Next action: commit fix, rerun completion.
+
+### PR Detection Unavailable
+
+- Message: unable to detect PR status (e.g. `gh` unavailable or unauthenticated).
+- Next action: do not auto-run branch finishing; ask user whether to proceed manually.
 
 ## Required Output Shape
 

@@ -7,6 +7,7 @@
 - `/prog plan <project description>`: architecture planning and stack decisions.
 - `/prog init <goal description>`: initialize tracking and feature decomposition.
 - `/prog`: show progress status and recommendations.
+- `/prog sync`: sync capability memory from incremental Git history.
 - `/prog next`: begin next feature using deterministic routing.
 - `/prog done`: run acceptance checks and complete current feature.
 - `/prog-fix [description|BUG-ID]`: report/list/fix bugs.

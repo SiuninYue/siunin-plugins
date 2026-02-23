@@ -1,6 +1,6 @@
 {
   "name": "progress-tracker",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "Track long-running AI agent tasks with feature-based progress tracking, test-driven status updates, Git integration, and prog-ui web dashboard",
   "author": {
     "name": "siunin"
@@ -16,5 +16,67 @@
     "ai-agent",
     "workflow",
     "web-ui"
+  ],
+  "commands": [
+    {
+      "name": "help",
+      "description": "Show progress-tracker command help",
+      "file": "commands/help.md"
+    },
+    {
+      "name": "prog",
+      "description": "Display project progress status",
+      "file": "commands/prog.md"
+    },
+    {
+      "name": "prog-done",
+      "description": "Complete and commit the current feature after testing",
+      "file": "commands/prog-done.md"
+    },
+    {
+      "name": "prog-fix",
+      "description": "Report, list, or fix bugs with smart scheduling and systematic debugging",
+      "file": "commands/prog-fix.md"
+    },
+    {
+      "name": "prog-init",
+      "description": "Initialize project progress tracking with feature breakdown",
+      "file": "commands/prog-init.md"
+    },
+    {
+      "name": "prog-next",
+      "description": "Start implementing the next pending feature",
+      "file": "commands/prog-next.md"
+    },
+    {
+      "name": "prog-plan",
+      "description": "Create architectural plan with technology selection and system design",
+      "file": "commands/prog-plan.md"
+    },
+    {
+      "name": "prog-reset",
+      "description": "Reset progress tracking by deleting all tracking files",
+      "file": "commands/prog-reset.md"
+    },
+    {
+      "name": "prog-ui",
+      "description": "Launch Progress UI web server and open browser",
+      "file": "commands/prog-ui.md"
+    },
+    {
+      "name": "prog-start",
+      "description": "Start active feature development from planning stage",
+      "file": "commands/prog-start.md"
+    },
+    {
+      "name": "prog-sync",
+      "description": "Sync project capability memory from git history with batch confirmation",
+      "file": "commands/prog-sync.md"
+    },
+    {
+      "name": "prog-undo",
+      "description": "Undo the last completed feature and revert its code changes",
+      "file": "commands/prog-undo.md"
+    }
   ]
 }

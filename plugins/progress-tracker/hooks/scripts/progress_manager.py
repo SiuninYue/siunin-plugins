@@ -11,6 +11,7 @@ Usage:
     python3 progress_manager.py check
     python3 progress_manager.py git-sync-check
     python3 progress_manager.py set-current <feature_id>
+    python3 progress_manager.py set-development-stage <planning|developing|completed> [--feature-id <id>]
     python3 progress_manager.py complete <feature_id>
     python3 progress_manager.py set-feature-ai-metrics <feature_id> --complexity-score <score> --selected-model <model> --workflow-path <path>
     python3 progress_manager.py complete-feature-ai-metrics <feature_id>
@@ -61,6 +62,7 @@ PLAN_PATH_PREFIX = "docs/plans/"
 
 # Schema version - increment when breaking changes occur
 CURRENT_SCHEMA_VERSION = "2.0"
+DEVELOPMENT_STAGES = ("planning", "developing", "completed")
 
 # Bug field standards (for consistency)
 BUG_REQUIRED_FIELDS = ["id", "description", "status", "priority", "created_at"]
@@ -281,20 +283,41 @@ def validate_plan_document(plan_path: str) -> Dict[str, Any]:
     """
     Validate minimum plan structure for feature execution.
 
-    Required sections:
-    - Tasks
-    - Acceptance mapping
-    - Risks
+    Supports two compatible formats:
+
+    1) Progress-tracker strict template:
+       - Tasks
+       - Acceptance mapping
+       - Risks
+
+    2) Superpowers writing-plans template:
+       - Goal (header field)
+       - Architecture (header field)
+       - Tasks
+
+    In format (2), missing strict sections are treated as warnings.
     """
     path_validation = validate_plan_path(plan_path, require_exists=True)
     if not path_validation["valid"]:
-        return {"valid": False, "errors": [path_validation["error"]], "missing_sections": []}
+        return {
+            "valid": False,
+            "errors": [path_validation["error"]],
+            "missing_sections": [],
+            "warnings": [],
+            "profile": "invalid",
+        }
 
     absolute_path = find_project_root() / path_validation["normalized_path"]
     try:
         content = absolute_path.read_text(encoding="utf-8")
     except OSError as exc:
-        return {"valid": False, "errors": [f"Unable to read plan: {exc}"], "missing_sections": []}
+        return {
+            "valid": False,
+            "errors": [f"Unable to read plan: {exc}"],
+            "missing_sections": [],
+            "warnings": [],
+            "profile": "invalid",
+        }
 
     checks = {
         "tasks": re.search(r"^##+\s+Tasks\b", content, flags=re.IGNORECASE | re.MULTILINE),
@@ -305,15 +328,57 @@ def validate_plan_document(plan_path: str) -> Dict[str, Any]:
         ),
         "risks": re.search(r"^##+\s+Risks?\b", content, flags=re.IGNORECASE | re.MULTILINE),
     }
+    superpowers_checks = {
+        "goal": re.search(r"^\*\*Goal:\*\*\s+.+", content, flags=re.MULTILINE),
+        "architecture": re.search(r"^\*\*Architecture:\*\*\s+.+", content, flags=re.MULTILINE),
+    }
+
     missing_sections = [name for name, found in checks.items() if not found]
-    if missing_sections:
+
+    # Tasks are mandatory for all plan formats.
+    if "tasks" in missing_sections:
         return {
             "valid": False,
-            "errors": [f"Missing required plan sections: {', '.join(missing_sections)}"],
+            "errors": ["Missing required plan sections: tasks"],
             "missing_sections": missing_sections,
+            "warnings": [],
+            "profile": "invalid",
         }
 
-    return {"valid": True, "errors": [], "missing_sections": []}
+    # Strict format fully satisfied.
+    if not missing_sections:
+        return {
+            "valid": True,
+            "errors": [],
+            "missing_sections": [],
+            "warnings": [],
+            "profile": "strict",
+        }
+
+    # Superpowers-compatible format.
+    if superpowers_checks["goal"] and superpowers_checks["architecture"]:
+        advisory_missing = [s for s in missing_sections if s in ("acceptance_mapping", "risks")]
+        warnings = []
+        if advisory_missing:
+            warnings.append(
+                "Superpowers plan accepted; recommended sections missing: "
+                f"{', '.join(advisory_missing)}"
+            )
+        return {
+            "valid": True,
+            "errors": [],
+            "missing_sections": advisory_missing,
+            "warnings": warnings,
+            "profile": "superpowers",
+        }
+
+    return {
+        "valid": False,
+        "errors": [f"Missing required plan sections: {', '.join(missing_sections)}"],
+        "missing_sections": missing_sections,
+        "warnings": [],
+        "profile": "invalid",
+    }
 
 
 def load_progress_json():
@@ -1007,6 +1072,11 @@ def set_current(feature_id):
         return False
 
     data["current_feature_id"] = feature_id
+
+    # Selecting a feature for work always starts in planning stage.
+    # /prog start will explicitly transition planning -> developing.
+    if not feature.get("completed", False):
+        feature["development_stage"] = "planning"
     save_progress_json(data)
 
     # Update progress.md
@@ -1014,6 +1084,45 @@ def set_current(feature_id):
     save_progress_md(md_content)
 
     print(f"Set current feature: {feature.get('name', 'Unknown')}")
+    return True
+
+
+def set_development_stage(stage: str, feature_id: Optional[int] = None) -> bool:
+    """Set development_stage for the target feature (defaults to current feature)."""
+    if stage not in DEVELOPMENT_STAGES:
+        print(f"Invalid development_stage '{stage}'. Must be one of: {DEVELOPMENT_STAGES}")
+        return False
+
+    data = load_progress_json()
+    if not data:
+        print("No progress tracking found")
+        return False
+
+    target_feature_id = feature_id if feature_id is not None else data.get("current_feature_id")
+    if target_feature_id is None:
+        print("Error: No active feature. Run '/prog next' first or pass --feature-id.")
+        return False
+
+    features = data.get("features", [])
+    feature = next((f for f in features if f.get("id") == target_feature_id), None)
+    if not feature:
+        print(f"Feature ID {target_feature_id} not found")
+        return False
+
+    feature["development_stage"] = stage
+    if stage == "developing" and not feature.get("started_at"):
+        feature["started_at"] = datetime.now().isoformat() + "Z"
+
+    save_progress_json(data)
+
+    # Update progress.md
+    md_content = generate_progress_md(data)
+    save_progress_md(md_content)
+
+    print(
+        f"Feature #{target_feature_id} stage set to '{stage}': "
+        f"{feature.get('name', 'Unknown')}"
+    )
     return True
 
 
@@ -1290,6 +1399,7 @@ def complete_feature(feature_id, commit_hash=None, skip_archive=False):
         return False
 
     feature["completed"] = True
+    feature["development_stage"] = "completed"
     feature["completed_at"] = datetime.now().isoformat() + "Z"
     if commit_hash:
         feature["commit_hash"] = commit_hash
@@ -2144,6 +2254,8 @@ def validate_plan(plan_path: Optional[str] = None):
         return False
 
     print(f"Plan validation passed: {resolved_plan_path}")
+    for warning in plan_result.get("warnings", []):
+        print(f"Plan validation warning: {warning}")
     return True
 
 
@@ -2298,6 +2410,14 @@ def main():
     current_parser = subparsers.add_parser("set-current", help="Set current feature")
     current_parser.add_argument("feature_id", type=int, help="Feature ID")
 
+    # Set development stage command
+    stage_parser = subparsers.add_parser(
+        "set-development-stage",
+        help="Set development stage for current feature (or a specific feature)",
+    )
+    stage_parser.add_argument("stage", choices=DEVELOPMENT_STAGES, help="Target stage")
+    stage_parser.add_argument("--feature-id", type=int, help="Feature ID (defaults to current)")
+
     # Complete command
     complete_parser = subparsers.add_parser("complete", help="Mark feature as complete")
     complete_parser.add_argument("feature_id", type=int, help="Feature ID")
@@ -2427,6 +2547,8 @@ def main():
         return check()
     elif args.command == "set-current":
         return set_current(args.feature_id)
+    elif args.command == "set-development-stage":
+        return set_development_stage(args.stage, feature_id=args.feature_id)
     elif args.command == "complete":
         return complete_feature(
             args.feature_id,

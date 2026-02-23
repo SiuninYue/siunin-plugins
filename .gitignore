@@ -144,3 +144,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Guardrails generated artifacts
+docs/ops/guardrails-report-*.json
+docs/ops/guardrails-backup-*.json

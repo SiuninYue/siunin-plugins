@@ -1,14 +1,13 @@
 ---
-description: Start implementing the next pending feature
+description: Sync project capability memory from git history with batch confirmation
 version: "1.0.0"
 scope: command
 inputs:
-  - User request to start next feature
+  - User request to sync project memory
 outputs:
-  - Selected feature details
-  - Active feature initialized with development_stage=planning
-  - Implementation workflow launched
-  - Test steps for the feature
+  - Candidate capabilities from incremental commits
+  - Batch confirmation result
+  - Updated project memory summary
 evidence: optional
 references: []
 model: sonnet
@@ -20,7 +19,7 @@ DO NOT just describe or mention the skill. You MUST invoke it using the Skill to
 NOW invoke the skill:
 
 Use the Skill tool with these exact parameters:
-  - skill: "progress-tracker:feature-implement"
+  - skill: "progress-tracker:prog-sync"
   - args: ""
 
 WAIT for the skill to complete.

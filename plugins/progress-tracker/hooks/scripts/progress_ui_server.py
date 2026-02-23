@@ -707,6 +707,31 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
         except Exception:
             return iso_timestamp
 
+    def _normalize_development_stage(self, feature: Dict[str, Any]) -> str:
+        """
+        Normalize feature development stage with backward compatibility.
+
+        Legacy progress files may not include development_stage, and those active
+        features should be treated as developing by default.
+        """
+        if feature.get("completed", False):
+            return "completed"
+
+        stage = feature.get("development_stage")
+        if stage in {"planning", "developing", "completed"}:
+            return stage
+
+        return "developing"
+
+    def _development_stage_label(self, stage: str) -> str:
+        """Return localized label for development stage."""
+        return {
+            "planning": "规划中",
+            "developing": "开发中",
+            "completed": "已完成",
+            "pending": "待开始",
+        }.get(stage, "未知")
+
     def _determine_next_action(self, features: list, progress_data: Dict) -> Dict[str, Any]:
         """Determine the next action based on current feature state"""
         current_id = progress_data.get("current_feature_id")
@@ -715,10 +740,13 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
         if current_id is not None:
             feature = next((f for f in features if f.get("id") == current_id), None)
             if feature:
+                stage = self._normalize_development_stage(feature)
                 return {
                     "type": "feature",
                     "feature_id": current_id,
-                    "feature_name": feature.get("name", "Unknown")
+                    "feature_name": feature.get("name", "Unknown"),
+                    "development_stage": stage,
+                    "stage_label": self._development_stage_label(stage),
                 }
 
         # Priority 2: Smallest ID pending feature
@@ -728,11 +756,19 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
             return {
                 "type": "feature",
                 "feature_id": next_feature.get("id"),
-                "feature_name": next_feature.get("name", "Unknown")
+                "feature_name": next_feature.get("name", "Unknown"),
+                "development_stage": "pending",
+                "stage_label": self._development_stage_label("pending"),
             }
 
         # All completed
-        return {"type": "none", "feature_id": None, "feature_name": "无待办功能"}
+        return {
+            "type": "none",
+            "feature_id": None,
+            "feature_name": "无待办功能",
+            "development_stage": None,
+            "stage_label": None,
+        }
 
     def _check_plan_health(self, progress_data: Dict) -> Dict[str, Any]:
         """Check plan compliance using progress_manager validation"""
@@ -884,7 +920,11 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
                     "id": f.get("id"),
                     "name": f.get("name", "Unknown"),
                     "completed": f.get("completed", False),
-                    "completed_at": f.get("completed_at")
+                    "completed_at": f.get("completed_at"),
+                    "development_stage": self._normalize_development_stage(f),
+                    "stage_label": self._development_stage_label(
+                        self._normalize_development_stage(f)
+                    ),
                 }
                 for f in features
             ]
@@ -1007,10 +1047,12 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
         features = progress_data.get("features", [])
         current_id = progress_data.get("current_feature_id")
 
-        # Determine next feature
+        # Determine next feature and whether it's active
         next_feature = None
+        is_active = False
         if current_id is not None:
             next_feature = next((f for f in features if f.get("id") == current_id), None)
+            is_active = next_feature is not None
 
         if not next_feature:
             pending = [f for f in features if not f.get("completed", False)]
@@ -1050,18 +1092,55 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
                 "content": test_steps[:5]  # Show only first 5
             })
 
-        return {
-            "panel": "next",
-            "title": "下一步详情",
-            "summary": f"建议开始 Feature #{next_feature.get('id')}: {next_feature.get('name', 'Unknown')}",
-            "sections": sections,
-            "sources": [
-                {"path": ".claude/progress.json", "label": "进度数据"}
-            ],
-            "actions": [
-                {"label": "开始此功能", "command": "/prog next", "type": "copy"}
-            ]
-        }
+        # Determine action based on whether feature is active
+        if is_active:
+            active_stage = self._normalize_development_stage(next_feature)
+            stage_label = self._development_stage_label(active_stage)
+
+            action_map = {
+                "planning": {
+                    "label": "开始开发",
+                    "command": "/prog start",
+                },
+                "developing": {
+                    "label": "完成此功能",
+                    "command": "/prog done",
+                },
+            }
+            action = action_map.get(active_stage)
+            actions = (
+                [{"label": action["label"], "command": action["command"], "type": "copy"}]
+                if action
+                else []
+            )
+
+            return {
+                "panel": "next",
+                "title": "当前功能详情",
+                "summary": (
+                    f"{stage_label} Feature #{next_feature.get('id')}: "
+                    f"{next_feature.get('name', 'Unknown')}"
+                ),
+                "sections": sections,
+                "sources": [
+                    {"path": ".claude/progress.json", "label": "进度数据"}
+                ],
+                "actions": actions
+            }
+        else:
+            # Pending feature: suggest starting it
+            return {
+                "panel": "next",
+                "title": "下一步详情",
+                "summary": f"建议开始 Feature #{next_feature.get('id')}: {next_feature.get('name', 'Unknown')}",
+                "sections": sections,
+                "sources": [
+                    {"path": ".claude/progress.json", "label": "进度数据"}
+                ],
+                "actions": [
+                    {"label": "开始此功能", "command": "/prog next", "type": "copy"}
+                ]
+            }
 
     def _build_risk_detail(self, progress_data: Dict) -> Dict[str, Any]:
         """Build risk/blocker panel detail (unified structured format)"""
@@ -1285,15 +1364,15 @@ def main() -> int:
     handler = create_handler(working_dir)
     server = HTTPServer((BIND_HOST, port), handler)
 
-    print(f"Progress UI Server starting on {BIND_HOST}:{port}")
-    print(f"Working directory: {working_dir}")
-    print(f"Open http://{BIND_HOST}:{port}/ in your browser")
-    print(f"Press Ctrl+C to stop")
+    print(f"Progress UI Server starting on {BIND_HOST}:{port}", flush=True)
+    print(f"Working directory: {working_dir}", flush=True)
+    print(f"Open http://{BIND_HOST}:{port}/ in your browser", flush=True)
+    print(f"Press Ctrl+C to stop", flush=True)
 
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print("\nServer stopped")
+        print("\nServer stopped", flush=True)
         server.shutdown()
         return 0
 

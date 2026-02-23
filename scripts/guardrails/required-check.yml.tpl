@@ -1,0 +1,26 @@
+name: Required Check
+
+on:
+  pull_request:
+    branches:
+      - {{ default_branch }}
+  workflow_dispatch:
+
+jobs:
+  required-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify no unresolved conflict markers in source files
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git ls-files '*.py' '*.json' '*.yml' '*.yaml' '*.sh' '*.toml' '*.ini' '*.ts' '*.tsx' '*.js' '*.jsx' | \
+            xargs -r rg -n '^(<<<<<<<|=======|>>>>>>>)'; then
+            echo "Found unresolved merge conflict markers in source files."
+            exit 1
+          fi
+
+          echo "Required check passed."

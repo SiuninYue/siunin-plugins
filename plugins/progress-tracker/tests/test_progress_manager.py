@@ -163,6 +163,7 @@ class TestFeatureManagement:
         data = progress_manager.load_progress_json()
         feature = [f for f in data["features"] if f["id"] == 2][0]
         assert feature["completed"] is True
+        assert feature["development_stage"] == "completed"
         assert feature["commit_hash"] == "test123"
         assert "completed_at" in feature
 
@@ -207,6 +208,8 @@ class TestCurrentFeature:
 
         data = progress_manager.load_progress_json()
         assert data["current_feature_id"] == 2
+        feature = [f for f in data["features"] if f["id"] == 2][0]
+        assert feature["development_stage"] == "planning"
 
     def test_set_nonexistent_feature(self, progress_file):
         """Should fail when feature ID doesn't exist."""
@@ -229,6 +232,25 @@ class TestCurrentFeature:
 
         next_feature = progress_manager.get_next_feature()
         assert next_feature is None
+
+
+class TestDevelopmentStage:
+    """Test development_stage read/write helpers."""
+
+    def test_set_development_stage_for_current_feature(self, in_progress_file):
+        """Should set stage for active feature and stamp started_at when developing."""
+        result = progress_manager.set_development_stage("developing")
+        assert result is True
+
+        data = progress_manager.load_progress_json()
+        feature = [f for f in data["features"] if f["id"] == data["current_feature_id"]][0]
+        assert feature["development_stage"] == "developing"
+        assert "started_at" in feature
+
+    def test_set_development_stage_without_active_feature_fails(self, progress_file):
+        """Should fail when no current feature is active."""
+        result = progress_manager.set_development_stage("developing")
+        assert result is False
 
 
 class TestProgressMdGeneration:
@@ -539,6 +561,47 @@ class TestWorkflowStateEdgeCases:
         result = progress_manager.validate_plan()
         assert result is True
 
+    def test_validate_plan_document_accepts_superpowers_template(self, temp_dir):
+        """Should accept superpowers writing-plans format with advisory warnings."""
+        plans_dir = Path("docs/plans")
+        plans_dir.mkdir(parents=True, exist_ok=True)
+        (plans_dir / "sp-plan.md").write_text(
+            "# Feature Implementation Plan\n\n"
+            "> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.\n\n"
+            "**Goal:** Build the registration endpoint\n\n"
+            "**Architecture:** Keep service and route layers separated\n\n"
+            "**Tech Stack:** Python + pytest\n\n"
+            "---\n\n"
+            "## Tasks\n"
+            "- Task 1\n",
+            encoding="utf-8",
+        )
+
+        result = progress_manager.validate_plan_document("docs/plans/sp-plan.md")
+
+        assert result["valid"] is True
+        assert result["profile"] == "superpowers"
+        assert "acceptance_mapping" in result["missing_sections"]
+        assert "risks" in result["missing_sections"]
+        assert result["warnings"]
+
+    def test_validate_plan_document_requires_tasks_even_for_superpowers_template(self, temp_dir):
+        """Should reject plans missing tasks regardless of template style."""
+        plans_dir = Path("docs/plans")
+        plans_dir.mkdir(parents=True, exist_ok=True)
+        (plans_dir / "invalid-plan.md").write_text(
+            "# Feature Implementation Plan\n\n"
+            "**Goal:** Build the registration endpoint\n\n"
+            "**Architecture:** Keep service and route layers separated\n",
+            encoding="utf-8",
+        )
+
+        result = progress_manager.validate_plan_document("docs/plans/invalid-plan.md")
+
+        assert result["valid"] is False
+        assert result["profile"] == "invalid"
+        assert "tasks" in result["missing_sections"]
+
 
 class TestJsonErrorHandling:
     """Test JSON parsing error handling."""
@@ -612,6 +675,12 @@ class TestMainFunction:
         with patch("sys.argv", ["progress_manager.py", "set-current", "1"]):
             result = progress_manager.main()
             # set_current() returns True on success
+            assert result is True
+
+    def test_main_set_development_stage_command(self, in_progress_file):
+        """Should handle set-development-stage command."""
+        with patch("sys.argv", ["progress_manager.py", "set-development-stage", "developing"]):
+            result = progress_manager.main()
             assert result is True
 
     def test_main_complete_command(self, progress_file):
