@@ -2,7 +2,7 @@
 
 **Created**: 2026-02-06T21:53:53.117095Z
 
-**Status**: 17/17 completed
+**Status**: 11/12 completed
 
 ## Completed
 - [x] 创建 HTTP 服务器核心框架（含 P0 安全）
@@ -16,12 +16,9 @@
 - [x] 编写核心功能测试
 - [x] 创建 /prog-ui 命令
 - [x] 更新 README 和文档
-- [x] 跨浏览器兼容性测试
-- [x] 创建 /prog start skill 命令
-- [x] 更新 git-auto skill 设置初始阶段
-- [x] 更新 feature-complete skill 设置完成阶段
-- [x] 更新 progress_manager.py 支持新字段
-- [x] 完善 UI 显示逻辑
+
+## Pending
+- [ ] 跨浏览器兼容性测试
 
 ### Fixed (✅)
 - [x] [BUG-001] Status drawer suggested action click had no feedback and failed to copy command
