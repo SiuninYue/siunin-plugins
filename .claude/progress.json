@@ -263,11 +263,143 @@
         "测试 Zen: 在 Zen Browser 中打开并验证所有功能正常",
         "验证 API 契约: 所有浏览器返回格式一致"
       ],
-      "completed": false
+      "completed": true,
+      "ai_metrics": {
+        "complexity_score": 9,
+        "complexity_bucket": "simple",
+        "selected_model": "haiku",
+        "workflow_path": "direct_tdd",
+        "started_at": "2026-02-20T08:36:38.620520Z",
+        "finished_at": "2026-02-21T07:03:37.796485+08:00",
+        "duration_seconds": 52019
+      },
+      "completed_at": "2026-02-21T07:03:37.809658Z",
+      "commit_hash": "f5f1801",
+      "development_stage": "completed",
+      "archive_info": {
+        "archived_at": "2026-02-21T07:03:37.825393Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/testing/feature-12-acceptance-report.md",
+            "to": "docs/archive/testing/feature-12-acceptance-report_20260221_070337.md"
+          }
+        ]
+      }
+    },
+    {
+      "id": 13,
+      "name": "创建 /prog start skill 命令",
+      "test_steps": [
+        "验证 skill 文件存在: ls plugins/progress-tracker/skills/prog-start/SKILL.md",
+        "检查命令注册: grep 'prog-start' plugins/progress-tracker/.claude-plugin/plugin.json",
+        "测试无活跃功能时错误提示",
+        "测试有活跃功能时设置 development_stage = 'developing'",
+        "验证 started_at 时间戳记录"
+      ],
+      "ai_metrics": {
+        "complexity_score": 15,
+        "complexity_bucket": "simple",
+        "selected_model": "haiku",
+        "workflow_path": "direct_tdd",
+        "started_at": "2026-02-21T07:10:45.199883Z"
+      },
+      "completed": true,
+      "development_stage": "completed",
+      "completed_at": "2026-02-23T23:28:35.623036Z",
+      "archive_info": {
+        "archived_at": null,
+        "files_moved": 0,
+        "files": []
+      },
+      "commit_hash": "f5f1801"
+    },
+    {
+      "id": 14,
+      "name": "更新 git-auto skill 设置初始阶段",
+      "test_steps": [
+        "定位 skill 文件: ls plugins/progress-tracker/skills/git-auto/SKILL.md",
+        "验证 /prog next 设置 development_stage = 'planning'",
+        "测试新功能显示为'规划中'",
+        "确认 progress.json 包含 development_stage 字段"
+      ],
+      "started_at": "2026-02-21T07:27:55.512175",
+      "completed": true,
+      "development_stage": "completed",
+      "completed_at": "2026-02-24T07:07:50.295045Z",
+      "commit_hash": "f5f1801",
+      "archive_info": {
+        "archived_at": "2026-02-24T07:07:50.300000Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/feature-14-initial-stage-planning.md",
+            "to": "docs/archive/plans/feature-14-initial-stage-planning.md"
+          }
+        ]
+      }
+    },
+    {
+      "id": 15,
+      "name": "更新 feature-complete skill 设置完成阶段",
+      "test_steps": [
+        "定位 skill 文件: ls plugins/progress-tracker/skills/feature-complete/SKILL.md",
+        "验证 /prog done 设置 development_stage = 'completed'",
+        "测试 planning→developing→completed 状态转换",
+        "确认 completed_at 时间戳正确记录"
+      ],
+      "completed": true,
+      "development_stage": "completed",
+      "completed_at": "2026-02-23T23:29:35.623036Z",
+      "archive_info": {
+        "archived_at": null,
+        "files_moved": 0,
+        "files": []
+      },
+      "commit_hash": "f5f1801"
+    },
+    {
+      "id": 16,
+      "name": "更新 progress_manager.py 支持新字段",
+      "test_steps": [
+        "验证文件存在: ls plugins/progress-tracker/hooks/scripts/progress_manager.py",
+        "检查 development_stage 字段读写逻辑",
+        "测试向后兼容: 旧格式默认为 'developing'",
+        "测试新格式: 正确解析 planning/developing/completed"
+      ],
+      "completed": true,
+      "development_stage": "completed",
+      "completed_at": "2026-02-23T23:30:35.623036Z",
+      "archive_info": {
+        "archived_at": null,
+        "files_moved": 0,
+        "files": []
+      },
+      "commit_hash": "f5f1801"
+    },
+    {
+      "id": 17,
+      "name": "完善 UI 显示逻辑",
+      "test_steps": [
+        "启动 UI 服务器: 执行 /prog ui",
+        "验证 planning 阶段显示'开始开发'→ /prog start",
+        "验证 developing 阶段显示'完成此功能'→ /prog done",
+        "验证 completed 阶段标记为已完成",
+        "测试状态标题: '当前功能详情' vs '下一步详情'"
+      ],
+      "completed": true,
+      "development_stage": "completed",
+      "completed_at": "2026-02-23T23:31:35.623036Z",
+      "archive_info": {
+        "archived_at": null,
+        "files_moved": 0,
+        "files": []
+      },
+      "commit_hash": "f5f1801"
     }
   ],
-  "current_feature_id": 12,
-  "updated_at": "2026-02-18T07:28:06.404592Z",
+  "current_feature_id": null,
+  "updated_at": "2026-02-23T23:32:35.623036Z",
   "schema_version": "2.0",
   "bugs": [
     {
