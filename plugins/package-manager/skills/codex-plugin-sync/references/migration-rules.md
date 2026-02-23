@@ -3,11 +3,21 @@
 ## Source Resolution
 
 1. Read wrapper records from `claude-migration-manifest.json`.
-2. Determine plugin name from manifest `source` basename.
+2. Determine plugin name from manifest `source` with path-aware inference:
+- Prefer `<...>/plugins/<plugin-name>` when available.
+- For cache paths like `<...>/cache/<publisher>/<plugin>/<version>`, use `<plugin>`.
+- Fallback to source basename when no structured pattern matches.
 3. Resolve source path by policy:
 - `workspace-first`: `workspace/plugins/<plugin-name>` first, fallback to manifest source.
+- If manifest source is a versioned cache path and the pinned version is missing, auto-fallback to latest available sibling version.
 - `manifest-only`: manifest source only.
+- `manifest-only` also supports versioned cache fallback to latest sibling version.
 - `workspace-only`: workspace source only.
+
+Missing source handling is controlled by `--missing-source-policy`:
+
+- `skip` (default): emit warning and continue with remaining plugins.
+- `error`: keep strict behavior and fail the run.
 
 ## Include Directory Mapping
 

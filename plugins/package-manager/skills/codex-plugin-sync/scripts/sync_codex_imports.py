@@ -18,6 +18,11 @@ SUPPORTED_INCLUDE_DIRS = ("skills", "commands", "agents")
 PLACEHOLDER_BRACED = "${CLAUDE_PLUGIN_ROOT}"
 PLACEHOLDER_PLAIN_PATTERN = re.compile(r"(?<![A-Za-z0-9_])\$CLAUDE_PLUGIN_ROOT\b")
 TOP_LEVEL_KEY_PATTERN = re.compile(r"^([A-Za-z0-9_-]+):(.*)$")
+SEMVER_PATTERN = re.compile(
+    r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)"
+    r"(?:-(?P<pre>[0-9A-Za-z.-]+))?"
+    r"(?:\+[0-9A-Za-z.-]+)?$"
+)
 
 
 @dataclass
@@ -98,6 +103,15 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="Source resolution policy for plugin directories.",
     )
     parser.add_argument(
+        "--missing-source-policy",
+        choices=("error", "skip"),
+        default="skip",
+        help=(
+            "Behavior when a plugin source cannot be resolved: "
+            "error -> fail run, skip -> continue with warning."
+        ),
+    )
+    parser.add_argument(
         "--extra-dirs",
         choices=("auto", "always", "never"),
         default="auto",
@@ -154,6 +168,66 @@ def normalize_include_dirs(value: object) -> list[str]:
     return dirs
 
 
+def parse_semver(version: str) -> tuple[int, int, int, int, str] | None:
+    match = SEMVER_PATTERN.fullmatch(version)
+    if not match:
+        return None
+    major = int(match.group("major"))
+    minor = int(match.group("minor"))
+    patch = int(match.group("patch"))
+    pre = match.group("pre") or ""
+    is_stable = 1 if not pre else 0
+    return major, minor, patch, is_stable, pre
+
+
+def infer_plugin_name(source: Path) -> str:
+    parts = source.parts
+
+    for index in range(len(parts) - 1):
+        if parts[index] != "plugins":
+            continue
+        candidate = parts[index + 1]
+        if candidate and candidate not in {"cache", "marketplaces"}:
+            return candidate
+
+    if "cache" in parts:
+        cache_index = parts.index("cache")
+        plugin_index = cache_index + 2
+        if plugin_index < len(parts):
+            candidate = parts[plugin_index]
+            if candidate:
+                return candidate
+
+    return source.name
+
+
+def resolve_latest_version_source(source: Path) -> Path | None:
+    if source.is_dir():
+        return source
+
+    if parse_semver(source.name) is None:
+        return None
+
+    parent = source.parent
+    if not parent.is_dir():
+        return None
+
+    versioned_dirs: list[tuple[tuple[int, int, int, int, str], Path]] = []
+    for child in parent.iterdir():
+        if not child.is_dir():
+            continue
+        parsed = parse_semver(child.name)
+        if parsed is None:
+            continue
+        versioned_dirs.append((parsed, child))
+
+    if not versioned_dirs:
+        return None
+
+    versioned_dirs.sort(key=lambda item: item[0], reverse=True)
+    return versioned_dirs[0][1]
+
+
 def load_manifest(path: Path) -> list[PluginRecord]:
     if not path.is_file():
         raise FileNotFoundError(f"Manifest not found: {path}")
@@ -171,11 +245,12 @@ def load_manifest(path: Path) -> list[PluginRecord]:
         if not isinstance(wrapper_name, str) or not isinstance(source, str):
             continue
         include_dirs = normalize_include_dirs(entry.get("include_dirs"))
-        plugin_name = Path(source).name
+        source_path = Path(source).expanduser()
+        plugin_name = infer_plugin_name(source_path)
         records.append(
             PluginRecord(
                 wrapper_name=wrapper_name,
-                source=Path(source).expanduser(),
+                source=source_path,
                 include_dirs=include_dirs,
                 plugin_name=plugin_name,
             )
@@ -213,18 +288,23 @@ def resolve_source(
 ) -> tuple[Path, str]:
     workspace_candidate = workspace_plugins / record.plugin_name
     manifest_source = record.source
+    latest_manifest_source = resolve_latest_version_source(manifest_source)
 
     if source_policy == "workspace-first":
         if workspace_candidate.is_dir():
             return workspace_candidate, "workspace"
         if manifest_source.is_dir():
             return manifest_source, "manifest"
+        if latest_manifest_source and latest_manifest_source.is_dir():
+            return latest_manifest_source, "manifest-latest-version"
     elif source_policy == "workspace-only":
         if workspace_candidate.is_dir():
             return workspace_candidate, "workspace"
     elif source_policy == "manifest-only":
         if manifest_source.is_dir():
             return manifest_source, "manifest"
+        if latest_manifest_source and latest_manifest_source.is_dir():
+            return latest_manifest_source, "manifest-latest-version"
 
     raise FileNotFoundError(
         f"Cannot resolve source for {record.wrapper_name} using policy {source_policy}"
@@ -759,6 +839,7 @@ def print_plugin_summary(result: PluginResult) -> None:
 
 def build_report(args: argparse.Namespace, results: list[PluginResult]) -> dict:
     ok_count = sum(1 for result in results if result.status in {"ok", "dry-run"})
+    skipped_count = sum(1 for result in results if result.status == "skipped")
     error_count = sum(1 for result in results if result.status == "error")
 
     return {
@@ -769,6 +850,7 @@ def build_report(args: argparse.Namespace, results: list[PluginResult]) -> dict:
             "workspace_plugins": str(Path(args.workspace_plugins).expanduser()),
             "codex_skills_root": str(Path(args.codex_skills_root).expanduser()),
             "source_policy": args.source_policy,
+            "missing_source_policy": args.missing_source_policy,
             "extra_dirs": args.extra_dirs,
             "placeholder_mode": args.placeholder_mode,
             "dry_run": args.dry_run,
@@ -779,6 +861,7 @@ def build_report(args: argparse.Namespace, results: list[PluginResult]) -> dict:
         "summary": {
             "total": len(results),
             "ok": ok_count,
+            "skipped": skipped_count,
             "error": error_count,
         },
         "plugins": [
@@ -851,6 +934,27 @@ def main(argv: list[str]) -> int:
                 global_prompts_root=global_prompts_root,
             )
             result.source_origin = source_origin
+        except FileNotFoundError as error:
+            if args.missing_source_policy == "skip":
+                result = PluginResult(
+                    wrapper_name=record.wrapper_name,
+                    plugin_name=record.plugin_name,
+                    source_selected=str(record.source),
+                    source_origin=None,
+                    include_dirs_requested=list(record.include_dirs),
+                    status="skipped",
+                )
+                result.warnings.append(str(error))
+            else:
+                result = PluginResult(
+                    wrapper_name=record.wrapper_name,
+                    plugin_name=record.plugin_name,
+                    source_selected=str(record.source),
+                    source_origin=None,
+                    include_dirs_requested=list(record.include_dirs),
+                    status="error",
+                    error=str(error),
+                )
         except Exception as error:
             result = PluginResult(
                 wrapper_name=record.wrapper_name,

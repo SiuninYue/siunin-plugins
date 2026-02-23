@@ -22,6 +22,7 @@ Activate this skill when:
 Run with these defaults unless explicitly overridden:
 
 - `--source-policy workspace-first`
+- `--missing-source-policy skip`
 - `--extra-dirs auto`
 - `--placeholder-mode rewrite`
 
@@ -35,6 +36,7 @@ Use the sync script:
 python3 /Users/siunin/Projects/Claude-Plugins/plugins/package-manager/skills/codex-plugin-sync/scripts/sync_codex_imports.py \
   --plugins all \
   --source-policy workspace-first \
+  --missing-source-policy skip \
   --extra-dirs auto \
   --placeholder-mode rewrite \
   --sync-prompts none
@@ -64,6 +66,14 @@ python3 /Users/siunin/Projects/Claude-Plugins/plugins/package-manager/skills/cod
 python3 /Users/siunin/Projects/Claude-Plugins/plugins/package-manager/skills/codex-plugin-sync/scripts/sync_codex_imports.py \
   --plugins super-product-manager \
   --placeholder-mode fail
+```
+
+### 3.1) Strict missing-source validation
+
+```bash
+python3 /Users/siunin/Projects/Claude-Plugins/plugins/package-manager/skills/codex-plugin-sync/scripts/sync_codex_imports.py \
+  --plugins all \
+  --missing-source-policy error
 ```
 
 ### 4) Sync progress-tracker commands into Codex project prompts
