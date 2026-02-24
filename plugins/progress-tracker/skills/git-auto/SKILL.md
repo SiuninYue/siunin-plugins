@@ -2,7 +2,7 @@
 name: git-auto
 description: This skill should be used when the user asks to "create a git commit", "commit changes", "commit and push", "make a commit", "handle git", "git auto", "git auto start", "git auto done", or "git auto fix", or needs git operations automated with branch/PR/merge decisions.
 model: sonnet
-version: "1.2.0"
+version: "1.3.0"
 scope: skill
 inputs:
   - Current git repository state
@@ -26,8 +26,11 @@ Intelligent Git automation that analyzes repository state and decides branch, wo
 Eliminate Git decision fatigue while enforcing stable collaboration defaults:
 - Determine whether to use in-place workspace or worktree isolation.
 - Determine whether to create or reuse a short-lived branch.
+- Detect repository branch-protection policy before choosing direct-main vs PR flow.
+- Route low-risk docs/CI changes through a fast PR lane when default branch is protected.
 - Determine whether to commit and push now or delay for sync recovery.
 - Determine whether to create a Draft PR or update an existing PR.
+- Recover automatically from protected-branch push rejection (`GH006`) by falling back to branch + PR.
 - Determine whether merge can be recommended under current enforcement mode.
 
 ## Stable Command Interface
@@ -55,16 +58,20 @@ The terms `MUST`, `MUST NOT`, `SHOULD`, and `MAY` are normative.
 Apply these defaults unless user gives explicit override:
 
 1. Use trunk-based collaboration with short-lived branches.
-2. Treat default branch (`main`/`master`) as protected for day-to-day work.
-3. Route default-branch changes through short-lived branch + Draft PR, including docs/CI by default.
-4. Create Draft PR on first push of a new short-lived branch.
-5. Recommend squash merge as the default merge strategy.
+2. Treat default branch (`main`/`master`) as policy-controlled; detect actual remote protection before execution.
+3. When default branch is protected, route all changes through PR; use a Fast PR Lane for eligible docs/CI small changes.
+4. When default branch is not protected, direct-main commits are still exception paths, not the default.
+5. Create Draft PR on first push of a new short-lived branch unless user explicitly requests ready-for-review.
+6. Recommend squash merge as the default merge strategy.
 
 Mandatory rules:
-- `MUST` create or switch to a short-lived branch before committing if current branch is default branch.
-- `MUST` create a Draft PR on first push when no PR exists for the branch.
+- `MUST` probe repository policy (protected default branch / PR requirement) before selecting direct-main execution.
+- `MUST` classify the change set before branch-strategy selection.
+- `MUST` create or switch to a short-lived branch before committing on default branch unless a direct-main exception is explicitly allowed.
+- `MUST` create a Draft PR on first push when no PR exists for the branch (unless user explicitly asks for non-draft).
 - `MUST NOT` recommend merge when branch is behind or diverged from upstream.
 - `SHOULD` rebase on upstream before push/merge recommendation.
+- `MUST` implement `GH006` fallback: if a direct-main push is rejected by branch protection, create/switch to a short-lived branch and continue via PR without losing the local commit.
 
 ## Enforcement Modes
 
@@ -72,7 +79,8 @@ Compute one active mode: `soft`, `hybrid`, or `hard`.
 
 ### soft
 
-- Branching: `MUST` use short-lived branch on default branch.
+- Branching: `MUST` use short-lived branch on default branch by default.
+- Direct-main exception: `MAY` allow for eligible `docs+ci_small` changes only when default branch is not protected (or protection state is explicitly known to allow direct push).
 - PR: `MUST` create Draft PR on first push.
 - Pull/Rebase: `SHOULD` run sync checks at session start and pre-merge.
 - Merge recommendation: allow only when no critical sync risk is present.
@@ -80,6 +88,7 @@ Compute one active mode: `soft`, `hybrid`, or `hard`.
 ### hybrid
 
 - Includes all `soft` rules.
+- Direct-main exception: `SHOULD NOT`; allow only with explicit user override and compatible repo policy.
 - Pull/Rebase: `MUST` run sync checks at session start and pre-merge.
 - Merge recommendation: `MUST` require clean sync state + passing CI + review-ready signal.
 
@@ -87,6 +96,7 @@ Compute one active mode: `soft`, `hybrid`, or `hard`.
 
 - Includes all `hybrid` rules.
 - Branching: `MUST NOT` allow direct default-branch commit path in plans.
+- Direct-main exception: `MUST NOT`.
 - Worktree: `MUST` isolate new feature/large refactor starts in worktree.
 - Merge recommendation: `MUST` require clean sync state + passing CI + required review approvals + no unresolved blocking discussion.
 - Any missing required signal blocks merge recommendation.
@@ -132,6 +142,70 @@ Every generated execution plan `MUST` print:
 
 - `Enforcement Mode: <soft|hybrid|hard>`
 - `Escalation Reason: <explicit metric-driven reason>`
+
+## Repository Policy Probe (Required)
+
+Run a remote-policy probe before selecting branch strategy on the default branch.
+
+### Goals
+
+1. Detect whether the default branch is protected.
+2. Detect whether PR-only flow is required.
+3. Detect whether required checks gate merge (and therefore PR path is expected).
+4. Cache evidence from prior push failures (especially `GH006`) when API access is unavailable.
+
+### Preferred Sources (in order)
+
+1. `gh api` branch/ruleset metadata (authoritative when authenticated)
+2. Local project policy configuration (if maintained by plugin/project)
+3. Observed push errors from current session (e.g., `GH006`)
+4. Conservative fallback: treat default branch as protected for planning
+
+### Output Contract
+
+Classify repo policy as one of:
+
+- `protected_pr_required`
+- `protected_unknown_rules`
+- `unprotected`
+- `unknown_conservative`
+
+Every generated plan `MUST` print:
+
+- `Repo Policy: <classification>`
+- `Repo Policy Evidence: <gh-api|push-error-gh006|local-config|conservative-default>`
+
+## Change Classification and Fast PR Lane
+
+Classify the current diff before selecting branch strategy.
+
+### Required outputs
+
+- `Change Class: <docs_only|ci_only|docs_ci_small|mixed|code|unknown>`
+- `Changed Files: <count>`
+- `Change Size: <added+deleted summary>`
+
+### `docs+ci_small` eligibility (default)
+
+`docs+ci_small` is eligible only when **all** conditions are true:
+
+1. Every changed path matches the allowlist:
+   - `docs/**`
+   - `**/*.md`
+   - `.github/workflows/**`
+   - `.github/actions/**`
+2. No path matches the denylist (examples):
+   - application/source code files outside `.github/**`
+   - dependency manifests / lockfiles (`package.json`, `package-lock.json`, `pnpm-lock.yaml`, `pyproject.toml`, `Cargo.toml`, etc.)
+   - binaries or generated artifacts
+3. Total changed files `<= 5`
+4. Total changed lines (`insertions + deletions`) `<= 200`
+
+### Strategy implications
+
+- If `Repo Policy` is `protected_pr_required`: use `Fast PR Lane` for `docs+ci_small` (branch + PR, minimal checks path).
+- If `Repo Policy` is `unprotected` and mode allows: direct-main exception `MAY` be used for `docs+ci_small`.
+- If classification is `mixed` or `code`: use standard branch + PR flow.
 
 ## Worktree Decision Gate
 
@@ -213,136 +287,105 @@ Block plan execution when critical sync risks exist (detached HEAD, divergence, 
 
 Compute 14-day metrics and select mode (`soft|hybrid|hard`) with explicit reason.
 
-### 3. Worktree Decision Gate
+### 3. Probe Repository Policy (Required)
 
-Decide `Workspace Mode` and `Worktree Decision Reason` before any branch/commit step.
+When operating on the default branch (or considering direct-main), probe policy before branch-strategy selection.
 
-### 4. Analyze Change Intent and Branch Strategy
+Preferred command path (when `gh` is available and authenticated):
+
+```bash
+# gh commands require elevated execution in this environment
+gh api repos/<owner>/<repo>/branches/$DEFAULT_BRANCH --jq '.protected'
+```
+
+If API data is unavailable, use conservative fallback (`unknown_conservative`) or evidence from a prior `GH006` rejection in the current session.
+
+### 4. Worktree Decision Gate
+
+Decide `Workspace Mode` and `Worktree Decision Reason` before branch/commit step execution.
+
+### 5. Analyze Change Intent and Classify Risk
 
 ```bash
 git diff --cached --name-only
 git diff --name-only
+git diff --shortstat
 ```
 
-Categorize for commit/branch naming:
-- Feature -> `feat/<name>`
-- Bug fix -> `fix/<name>`
-- Refactor/chore/docs/ci -> `chore/<name>` or `docs/<name>`
+Produce:
+- commit/branch naming category
+- `Change Class`
+- file count and line count
+- `docs+ci_small` eligibility (yes/no + reason)
 
-### 5. Generate Plan
+### 6. Resolve Branch Strategy
 
-Always include all four control fields:
+Select exactly one:
+
+- `standard-pr` (default)
+- `fast-pr` (eligible `docs+ci_small` on protected default branch)
+- `direct-main-exception` (eligible `docs+ci_small`, mode/policy permit)
+
+### 7. Generate Plan
+
+Every plan `MUST` include policy + strategy fields (not just mode/worktree).
 
 ```
 ## Plan
 
-Enforcement Mode: hybrid
-Escalation Reason: sync_risk_events=2 in last 14 days (threshold: soft -> hybrid)
-Workspace Mode: worktree
-Worktree Decision Reason: default branch + unrelated local changes
+Enforcement Mode: soft
+Escalation Reason: no threshold trigger in last 14 days
+Repo Policy: protected_pr_required
+Repo Policy Evidence: gh-api
+Workspace Mode: in-place
+Worktree Decision Reason: no high-risk trigger
+Change Class: docs_ci_small
+Changed Files: 2
+Change Size: 34 insertions, 3 deletions
+Branch Strategy: fast-pr
+Strategy Reason: protected default branch + eligible docs/CI small change
+Fallback on Push Rejection: if GH006, preserve commit and continue via short-lived branch + PR
 
-1. [Worktree setup or reuse]
-   *Reason: triggered worktree gate*
-
-2. [Create or switch to short-lived branch]
-   *Reason: default branch changes must flow through PR*
-
-3. [Commit changes]
-4. [Push to remote]
-5. [Create Draft PR on first push, or update existing PR]
+1. Create or switch to short-lived branch (fast-pr lane)
+2. Stage and commit changes
+3. Push to remote
+4. Create Draft PR (or ready PR if user requested)
 
 Confirm? (y/n)
 ```
 
-## Decision Tree (Worktree-First)
+## Decision Tree (Policy-Aware)
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                    RUN SYNC PREFLIGHT                        │
-└────────────────────────┬─────────────────────────────────────┘
-                         │
-                         ▼
-              ┌──────────────────────────────┐
-              │ Critical sync risk present?  │
-              └──────────────┬───────────────┘
-                             │
-                 ┌───────────┴───────────┐
-                 │                       │
-                YES                     NO
-                 │                       │
-                 ▼                       ▼
-      "Stop and resolve sync"   Compute enforcement mode
-                                         │
-                                         ▼
-                           Run Worktree Decision Gate
-                                         │
-                                         ▼
-                          Workspace Mode: in-place/worktree
-                                         │
-                 ┌───────────────────────┴───────────────────────┐
-                 │                                               │
-             worktree                                        in-place
-                 │                                               │
-                 ▼                                               ▼
-      Call using-git-worktrees                         Continue current workspace
-                 │                                               │
-                 └───────────────────────┬───────────────────────┘
-                                         │
-                                         ▼
-                           ┌────────────────────────┐
-                           │ Any changes to commit? │
-                           └───────────┬────────────┘
-                                       │
-                           ┌───────────┴───────────┐
-                           │                       │
-                          NO                      YES
-                           │                       │
-                           ▼                       ▼
-                    "Nothing to do"      On default branch?
-                                                  │
-                                      ┌───────────┴───────────┐
-                                      │                       │
-                                     YES                      NO
-                                      │                       │
-                                      ▼                       ▼
-                           Create short-lived branch      Commit
-                                      │                       │
-                                      └───────────┬───────────┘
-                                                  │
-                                                  ▼
-                                               Push
-                                                  │
-                                                  ▼
-                                     Existing PR for branch?
-                                                  │
-                                      ┌───────────┴───────────┐
-                                      │                       │
-                                     YES                      NO
-                                      │                       │
-                                      ▼                       ▼
-                                 Update PR            Create Draft PR
-                                      │                       │
-                                      └───────────┬───────────┘
-                                                  │
-                                                  ▼
-                                         Merge requested?
-                                                  │
-                                      ┌───────────┴───────────┐
-                                      │                       │
-                                     NO                      YES
-                                      │                       │
-                                      ▼                       ▼
-                                   Finish        Run pre-merge sync check
-                                                           │
-                                                           ▼
-                                         Behind/diverged or gate fail?
-                                                           │
-                                            ┌──────────────┴──────────────┐
-                                            │                             │
-                                           YES                           NO
-                                            │                             │
-                                            ▼                             ▼
-                                  Block merge recommendation     Recommend squash merge
+SYNC PREFLIGHT -> MODE -> REPO POLICY PROBE -> WORKTREE GATE -> CHANGE CLASSIFIER
+      |
+      v
+Any changes? --no--> Finish ("Nothing to do")
+      |
+     yes
+      |
+On default branch?
+  |               \
+ yes               no
+  |                 \
+  v                  Commit -> Push -> Update/Create PR
+Resolve Branch Strategy
+  |
+  +--> Repo protected OR unknown_conservative?
+  |        |
+  |        +--> docs+ci_small eligible? --> yes: fast-pr
+  |        |                                 no: standard-pr
+  |        |
+  |        +--> (never direct-main on protected policy)
+  |
+  +--> Repo unprotected
+           |
+           +--> docs+ci_small eligible AND mode permits? --> direct-main-exception
+           |                                              (push main)
+           |                                                  |
+           |                                                  +--> GH006? -> fallback to short-lived branch + PR
+           |
+           +--> otherwise -> standard-pr
 ```
 
 ## Execution Flow
@@ -354,14 +397,18 @@ Confirm? (y/n)
 
 Enforcement Mode: soft
 Escalation Reason: no threshold trigger in last 14 days
-Workspace Mode: worktree
-Worktree Decision Reason: default branch + unrelated local changes
+Repo Policy: protected_pr_required
+Repo Policy Evidence: gh-api
+Workspace Mode: in-place
+Worktree Decision Reason: no high-risk trigger
+Change Class: docs_ci_small
+Branch Strategy: fast-pr
+Strategy Reason: docs+CI small change on protected main
 
-1. Set up or reuse worktree
-2. Create branch feat/login-system
-3. Stage and commit changes
-4. Push to remote
-5. Create Draft PR
+1. Create/switch branch docs/update-readme-links
+2. Stage and commit changes
+3. Push to remote
+4. Create Draft PR
 
 Execute this plan? [y/n]
 ```
@@ -372,7 +419,9 @@ Do not execute until user confirms.
 
 ### Step 3: Execute Operations
 
-When `Workspace Mode=worktree`, call `using-git-worktrees` first, then continue commit/push/PR steps in that workspace.
+- When `Workspace Mode=worktree`, call `using-git-worktrees` first.
+- When `Branch Strategy=direct-main-exception`, commit on `main` only after policy/mode eligibility checks pass.
+- If direct-main push fails with `GH006`, preserve the local commit, create/switch to a short-lived branch, and continue via PR.
 
 ## Scenarios
 
@@ -380,56 +429,69 @@ When `Workspace Mode=worktree`, call `using-git-worktrees` first, then continue 
 
 ```
 Enforcement Mode: soft
-Escalation Reason: no threshold trigger in last 14 days
 Workspace Mode: worktree
 Worktree Decision Reason: MUST rule #1 (default branch start + unrelated local changes)
+Branch Strategy: standard-pr
 
-Action: call using-git-worktrees, then create branch and Draft PR.
+Action: call using-git-worktrees, then create branch and PR.
 ```
 
 ### Scenario B: active feature branch + open PR + clean (in-place)
 
 ```
 Enforcement Mode: soft
-Escalation Reason: no threshold trigger in last 14 days
 Workspace Mode: in-place
 Worktree Decision Reason: MAY rule satisfied (existing feature PR iteration)
+Branch Strategy: standard-pr
 
 Action: commit + push, update existing PR.
 ```
 
-### Scenario C: `branch_checked_out_elsewhere` detected
+### Scenario C: protected `main` + eligible docs/CI small change
+
+```
+Repo Policy: protected_pr_required
+Change Class: docs_ci_small
+Branch Strategy: fast-pr
+
+Action: create short-lived docs/ci branch, push, create PR (fast lane).
+```
+
+### Scenario D: unprotected `main` + eligible docs/CI small change in `soft`
+
+```
+Repo Policy: unprotected
+Enforcement Mode: soft
+Change Class: docs_ci_small
+Branch Strategy: direct-main-exception
+
+Action: commit on main, push main directly.
+```
+
+### Scenario E: direct-main attempt rejected with `GH006`
+
+```
+Push rejected: GH006 protected branch update failed
+Action: keep local commit, create short-lived branch from current HEAD, push branch, create PR.
+```
+
+### Scenario F: `branch_checked_out_elsewhere` detected
 
 ```
 Enforcement Mode: hybrid
-Escalation Reason: sync risk elevated
 Workspace Mode: worktree
 Worktree Decision Reason: MUST rule #3 (branch_checked_out_elsewhere)
 
 Action: isolate work in separate worktree to avoid concurrent branch writes.
 ```
 
-### Scenario D: already in worktree (reuse)
+### Scenario G: hard + new feature start
 
 ```
-Workspace Mode: worktree
-Worktree Decision Reason: idempotent reuse; target worktree already active
-
-Action: skip creation, continue in current isolated workspace.
-```
-
-### Scenario E: hybrid + medium/high scope
-
-```
-Workspace Mode: worktree
-Worktree Decision Reason: SHOULD rule #1 (hybrid mode + medium/high scope)
-```
-
-### Scenario F: hard + new feature start
-
-```
+Enforcement Mode: hard
 Workspace Mode: worktree
 Worktree Decision Reason: MUST rule #4 (hard mode + new feature/large refactor)
+Branch Strategy: standard-pr
 ```
 
 ## Return Values
@@ -476,6 +538,18 @@ Plan:
 4. retry push
 ```
 
+### Push rejected (`GH006` protected branch)
+
+```
+Push rejected: GH006 protected branch update failed
+Plan:
+1. Preserve local commit(s) on current HEAD (do not reset)
+2. Create or switch to short-lived branch from current HEAD
+3. Push branch to origin
+4. Create Draft PR (or ready PR if user requested)
+5. Record repo policy evidence = push-error-gh006 for subsequent runs
+```
+
 ### PR creation failed
 
 ```
@@ -506,4 +580,6 @@ Default merge recommendation:
 
 1. Rolling window is fixed at 14 days.
 2. Escalation is progressive (`soft -> hybrid -> hard`) and de-escalates with clean windows.
-3. This is policy-first guidance and does not require immediate hook-level hard blocking.
+3. `Repo Policy` probing may rely on `gh api` (preferred), observed push errors, or conservative fallback when metadata is unavailable.
+4. Fast PR Lane optimizes speed by reducing branch/PR friction, not by bypassing protected-branch governance.
+5. This is policy-first guidance and does not require immediate hook-level hard blocking.

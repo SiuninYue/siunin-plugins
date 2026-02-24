@@ -1,13 +1,19 @@
 name: Required Check
 
 on:
+  # Keep this workflow unfiltered by `paths` so the required status is always reported.
   pull_request:
     branches:
       - main
+  # Support merge queue if enabled later; keeps the required check name valid in queued merges.
+  merge_group:
   workflow_dispatch:
 
 jobs:
   required-check:
+    permissions:
+      contents: read
+    timeout-minutes: 5
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
