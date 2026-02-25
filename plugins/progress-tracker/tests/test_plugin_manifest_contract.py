@@ -11,6 +11,7 @@ from pathlib import Path
 PLUGIN_ROOT = Path(__file__).parent.parent
 COMMANDS_DIR = PLUGIN_ROOT / "commands"
 SKILLS_DIR = PLUGIN_ROOT / "skills"
+LEGACY_SKILLS_DIR = PLUGIN_ROOT / ".claude-plugin" / "skills"
 MANIFEST_PATH = PLUGIN_ROOT / ".claude-plugin" / "plugin.json"
 
 
@@ -40,3 +41,8 @@ def test_skills_are_available_for_auto_discovery():
     """Skills should live in root skills/ for current Claude Code auto-discovery."""
     skill_files = sorted(SKILLS_DIR.glob("*/SKILL.md"))
     assert skill_files, "Expected skills/*/SKILL.md files"
+
+
+def test_legacy_claude_plugin_skills_dir_is_not_used():
+    """Avoid duplicate skill trees; root skills/ is the single source of truth."""
+    assert not LEGACY_SKILLS_DIR.exists(), "Legacy .claude-plugin/skills should be removed"
