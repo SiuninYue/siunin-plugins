@@ -71,6 +71,15 @@ Every generated plan `MUST` print:
 
 - `Execution Intent: <commit_only|commit_and_push|commit_push_pr|commit_push_pr_merge>`
 
+### Intent normalization for PR-only repositories
+
+When repo policy is known to be `protected_pr_required` and the user asks for a lightweight change flow without explicitly saying "commit only", `git-auto` `SHOULD` normalize intent upward to at least `commit_push_pr`.
+
+Examples:
+
+- "顺手提交一下" on eligible docs/CI small changes in a PR-only repo -> normalize to `commit_push_pr`
+- "只提交不要推" -> keep `commit_only` (explicit user override wins)
+
 ## Normative Keywords
 
 The terms `MUST`, `MUST NOT`, `SHOULD`, and `MAY` are normative.
@@ -186,6 +195,17 @@ Run a remote-policy probe before selecting branch strategy on the default branch
 3. Observed push errors from current session (e.g., `GH006`)
 4. Conservative fallback: treat default branch as protected for planning
 
+### Local policy file hints (recommended)
+
+When checking `local-config`, `git-auto` `SHOULD` probe common repository paths before falling back:
+
+- `.github/rules/main.json`
+- `.github/rulesets/main.json`
+- `docs/github-rules/main.json`
+- `docs/rules/main.json`
+
+If a matching file exists and shows `pull_request` and/or `required_status_checks`, `git-auto` `SHOULD` use `Repo Policy Evidence: local-config`.
+
 ### Output Contract
 
 Classify repo policy as one of:
@@ -262,6 +282,16 @@ When autorun is used, plans/results `MUST` print:
 - `Execution Mode: autorun`
 - `Autorun Reason: <why change qualified>`
 - `Autorun Scope: <through push + draft-pr|through push>`
+
+### Lightweight PR presentation (noise control)
+
+For autorun-created lightweight PRs, `git-auto` `SHOULD` apply a compact naming/metadata convention to reduce review noise:
+
+- PR title prefix: `docs:` or `chore:` (based on `Change Class`)
+- Optional lightweight marker in title/body: `fast-pr`
+- If labels are used in the repo, `SHOULD` add `docs`, `chore`, and/or `fast-pr` labels when available
+
+This keeps high PR volume manageable even when branch protection requires PRs for small changes.
 
 ## Accelerated Closeout Path (User-Requested)
 
