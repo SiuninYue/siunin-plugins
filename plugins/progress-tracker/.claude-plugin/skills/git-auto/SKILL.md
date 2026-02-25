@@ -2,7 +2,7 @@
 name: git-auto
 description: This skill should be used when the user asks to "create a git commit", "commit changes", "commit and push", "make a commit", "handle git", "git auto", "git auto start", "git auto done", or "git auto fix", or needs git operations automated with branch/PR/merge decisions.
 model: sonnet
-version: "1.3.0"
+version: "1.3.1"
 scope: skill
 inputs:
   - Current git repository state
@@ -32,6 +32,7 @@ Eliminate Git decision fatigue while enforcing stable collaboration defaults:
 - Determine whether to create a Draft PR or update an existing PR.
 - Recover automatically from protected-branch push rejection (`GH006`) by falling back to branch + PR.
 - Determine whether merge can be recommended under current enforcement mode.
+- Execute an accelerated end-to-end path (commit -> push -> PR -> checks -> merge) when the user explicitly requests a full ship/merge flow and policy gates pass.
 
 ## Stable Command Interface
 
@@ -48,6 +49,27 @@ Invoke this skill when:
 - User wants to commit but isn't sure about branching/worktree strategy
 - User has changes and wants AI to handle the full workflow
 - User wants to automate repetitive Git operations
+- User explicitly asks to push/ship quickly, create a PR, or complete the full push+PR+merge sequence
+
+## Explicit Intent Parsing (Required)
+
+Parse user intent before planning and classify exactly one:
+
+- `commit_only`
+- `commit_and_push`
+- `commit_push_pr`
+- `commit_push_pr_merge`
+
+Intent cues:
+
+- If user explicitly says "push", `MUST NOT` stop at commit-only.
+- If user explicitly says "PR", `MUST` include PR creation/update.
+- If user explicitly says "merge", "合并 main", "走完流程", or "ship it", classify as `commit_push_pr_merge`.
+- If user expresses urgency ("快速修复", "hotfix", "urgent"), `SHOULD` prefer Fast PR Lane / accelerated PR flow when eligible.
+
+Every generated plan `MUST` print:
+
+- `Execution Intent: <commit_only|commit_and_push|commit_push_pr|commit_push_pr_merge>`
 
 ## Normative Keywords
 
@@ -70,8 +92,10 @@ Mandatory rules:
 - `MUST` create or switch to a short-lived branch before committing on default branch unless a direct-main exception is explicitly allowed.
 - `MUST` create a Draft PR on first push when no PR exists for the branch (unless user explicitly asks for non-draft).
 - `MUST NOT` recommend merge when branch is behind or diverged from upstream.
+- `MUST NOT` execute merge unless user intent is `commit_push_pr_merge` (or equivalent explicit merge request).
 - `SHOULD` rebase on upstream before push/merge recommendation.
 - `MUST` implement `GH006` fallback: if a direct-main push is rejected by branch protection, create/switch to a short-lived branch and continue via PR without losing the local commit.
+- `MUST NOT` bypass branch protection, required checks, or required reviews for urgent/fast requests.
 
 ## Enforcement Modes
 
@@ -204,8 +228,28 @@ Classify the current diff before selecting branch strategy.
 ### Strategy implications
 
 - If `Repo Policy` is `protected_pr_required`: use `Fast PR Lane` for `docs+ci_small` (branch + PR, minimal checks path).
+- If `Execution Intent` is `commit_push_pr_merge` and merge gates pass, extend the selected PR path through checks + merge instead of stopping after PR creation.
 - If `Repo Policy` is `unprotected` and mode allows: direct-main exception `MAY` be used for `docs+ci_small`.
 - If classification is `mixed` or `code`: use standard branch + PR flow.
+
+## Accelerated Closeout Path (User-Requested)
+
+When `Execution Intent=commit_push_pr_merge`, `git-auto` `MAY` run a rapid closeout sequence:
+
+1. Commit changes
+2. Push branch
+3. Create or update PR
+4. Check PR status (`gh pr checks`)
+5. Merge PR when merge gates pass
+6. Optionally delete branch and sync local `main`
+
+Guardrails:
+
+- `MUST` require explicit user merge intent before merge execution.
+- `MUST` stop and report blockers when checks/reviews are pending or failing.
+- `SHOULD` create a ready PR (not draft) when user explicitly asks for merge and local policy allows.
+- `MAY` create Draft PR first, then mark ready when required by the flow.
+- `MUST` preserve protected-branch governance; accelerated flow optimizes sequencing only.
 
 ## Worktree Decision Gate
 
@@ -335,6 +379,7 @@ Every plan `MUST` include policy + strategy fields (not just mode/worktree).
 
 Enforcement Mode: soft
 Escalation Reason: no threshold trigger in last 14 days
+Execution Intent: commit_push_pr
 Repo Policy: protected_pr_required
 Repo Policy Evidence: gh-api
 Workspace Mode: in-place
@@ -350,6 +395,7 @@ Fallback on Push Rejection: if GH006, preserve commit and continue via short-liv
 2. Stage and commit changes
 3. Push to remote
 4. Create Draft PR (or ready PR if user requested)
+5. If intent=`commit_push_pr_merge`, run checks and merge when gates pass
 
 Confirm? (y/n)
 ```
@@ -397,6 +443,7 @@ Resolve Branch Strategy
 
 Enforcement Mode: soft
 Escalation Reason: no threshold trigger in last 14 days
+Execution Intent: commit_push_pr
 Repo Policy: protected_pr_required
 Repo Policy Evidence: gh-api
 Workspace Mode: in-place
@@ -409,6 +456,7 @@ Strategy Reason: docs+CI small change on protected main
 2. Stage and commit changes
 3. Push to remote
 4. Create Draft PR
+5. Stop for review/checks unless user explicitly requested merge
 
 Execute this plan? [y/n]
 ```
@@ -422,6 +470,27 @@ Do not execute until user confirms.
 - When `Workspace Mode=worktree`, call `using-git-worktrees` first.
 - When `Branch Strategy=direct-main-exception`, commit on `main` only after policy/mode eligibility checks pass.
 - If direct-main push fails with `GH006`, preserve the local commit, create/switch to a short-lived branch, and continue via PR.
+- When `Execution Intent=commit_push_pr_merge`, continue through PR checks and merge only if merge gates pass; otherwise stop with a blocker summary and PR state.
+
+### Step 4: Accelerated PR Closeout (Optional)
+
+Only for `Execution Intent=commit_push_pr_merge`.
+
+Preferred command sequence (subject to repo policy and approvals):
+
+```bash
+# gh commands require elevated execution in this environment
+gh pr create [--draft|--fill|--title ... --body ...]
+gh pr checks <pr-number>
+gh pr ready <pr-number>          # if draft must be promoted
+gh pr merge <pr-number> --squash --delete-branch
+```
+
+If merge is blocked by required checks/reviews, stop and report:
+
+- PR URL/number
+- blocking checks/reviews
+- retry path (`gh pr checks`, fix, push, re-check, merge)
 
 ## Scenarios
 
@@ -494,6 +563,17 @@ Worktree Decision Reason: MUST rule #4 (hard mode + new feature/large refactor)
 Branch Strategy: standard-pr
 ```
 
+### Scenario H: user says "push this quick fix and merge it"
+
+```
+Execution Intent: commit_push_pr_merge
+Repo Policy: protected_pr_required
+Branch Strategy: fast-pr (if eligible) or standard-pr
+
+Action: commit -> push branch -> create PR -> run checks -> merge when gates pass.
+If blocked, stop with PR link + blocker summary.
+```
+
 ## Return Values
 
 - **Success**: Summary of executed operations with results
@@ -557,6 +637,16 @@ PR creation failed: draft PR already exists.
 Plan: update existing draft PR.
 ```
 
+### PR checks pending/failed (accelerated closeout)
+
+```
+PR checks not green (pending/failed).
+Plan:
+1. Report PR URL and failing/pending checks
+2. Do not merge
+3. Offer retry path (re-check after fixes)
+```
+
 ### Mode escalation during current run
 
 ```
@@ -576,6 +666,9 @@ Before any merge recommendation, run pre-merge sync check and mode gates:
 Default merge recommendation:
 - `SHOULD` recommend squash merge when all gates pass.
 
+When `Execution Intent=commit_push_pr_merge` and all gates pass:
+- `MAY` execute squash merge directly after explicit user confirmation of the generated plan.
+
 ## Assumptions and Defaults
 
 1. Rolling window is fixed at 14 days.
@@ -583,3 +676,4 @@ Default merge recommendation:
 3. `Repo Policy` probing may rely on `gh api` (preferred), observed push errors, or conservative fallback when metadata is unavailable.
 4. Fast PR Lane optimizes speed by reducing branch/PR friction, not by bypassing protected-branch governance.
 5. This is policy-first guidance and does not require immediate hook-level hard blocking.
+6. In this environment, `gh` commands typically require elevated execution (auth/keychain access); PR/check/merge steps should note this in the execution plan.
