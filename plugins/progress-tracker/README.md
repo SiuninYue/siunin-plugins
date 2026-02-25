@@ -51,39 +51,39 @@ Command help in this section is generated from `docs/PROG_COMMANDS.md`.
 
 <!-- BEGIN:GENERATED:PROG_COMMANDS -->
 <!-- GENERATED CONTENT: DO NOT EDIT DIRECTLY -->
-### `/prog plan <project description>`
+### `/progress-tracker:prog-plan <project description>` (alias: `/prog-plan`)
 
 Create architecture plan and technology decisions before feature implementation.
 
-### `/prog init <goal description>`
+### `/progress-tracker:prog-init <goal description>` (alias: `/prog-init`)
 
 Initialize progress tracking and break goal into testable features.
 
-### `/prog`
+### `/progress-tracker:prog` (alias: `/prog`)
 
 Show current project status and recommended next action.
 
-### `/prog sync`
+### `/progress-tracker:prog-sync` (alias: `/prog-sync`)
 
 Sync project capability memory from incremental Git history with batch confirmation.
 
-### `/prog next`
+### `/progress-tracker:prog-next` (alias: `/prog-next`)
 
 Start the next pending feature with deterministic complexity routing.
 
-### `/prog done`
+### `/progress-tracker:prog-done` (alias: `/prog-done`)
 
 Run acceptance verification and complete the current feature.
 
-### `/prog-fix`
+### `/progress-tracker:prog-fix` (alias: `/prog-fix`)
 
 Report, list, investigate, and fix bugs with systematic debugging and TDD.
 
-### `/prog undo`
+### `/progress-tracker:prog-undo` (alias: `/prog-undo`)
 
 Revert the most recently completed feature safely via `git revert`.
 
-### `/prog reset`
+### `/progress-tracker:prog-reset` (alias: `/prog-reset`)
 
 Reset progress tracking files after explicit confirmation.
 
@@ -91,7 +91,7 @@ Reset progress tracking files after explicit confirmation.
 
 Show plugin command help (namespaced entry for conflict-free discovery).
 
-### `/prog-ui`
+### `/progress-tracker:prog-ui` (alias: `/prog-ui`)
 
 Launch the Progress UI web server and open in browser. Auto-detects available port (3737-3747). Detects if a server for the current project is already running.
 

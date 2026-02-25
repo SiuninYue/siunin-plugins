@@ -15,6 +15,23 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 SUPPORTED_INCLUDE_DIRS = ("skills", "commands", "agents")
+INCLUDE_DIR_CANDIDATES: dict[str, tuple[Path, ...]] = {
+    "skills": (
+        Path("skills"),
+        Path(".claude-plugin/skills"),
+        Path(".claude/skills"),
+    ),
+    "commands": (
+        Path("commands"),
+        Path(".claude-plugin/commands"),
+        Path(".claude/commands"),
+    ),
+    "agents": (
+        Path("agents"),
+        Path(".claude-plugin/agents"),
+        Path(".claude/agents"),
+    ),
+}
 PLACEHOLDER_BRACED = "${CLAUDE_PLUGIN_ROOT}"
 PLACEHOLDER_PLAIN_PATTERN = re.compile(r"(?<![A-Za-z0-9_])\$CLAUDE_PLUGIN_ROOT\b")
 TOP_LEVEL_KEY_PATTERN = re.compile(r"^([A-Za-z0-9_-]+):(.*)$")
@@ -166,6 +183,21 @@ def normalize_include_dirs(value: object) -> list[str]:
         if isinstance(item, str) and item in SUPPORTED_INCLUDE_DIRS:
             dirs.append(item)
     return dirs
+
+
+def resolve_include_source_dir(source_root: Path, include_dir: str) -> Path | None:
+    candidates = INCLUDE_DIR_CANDIDATES.get(include_dir, (Path(include_dir),))
+    for relative in candidates:
+        candidate = source_root / relative
+        if candidate.is_dir():
+            return candidate
+    return None
+
+
+def format_missing_include_warning(source_root: Path, include_dir: str) -> str:
+    candidates = INCLUDE_DIR_CANDIDATES.get(include_dir, (Path(include_dir),))
+    rendered = ", ".join(str(source_root / rel) for rel in candidates)
+    return f"Missing source directory for '{include_dir}' (tried: {rendered})"
 
 
 def parse_semver(version: str) -> tuple[int, int, int, int, str] | None:
@@ -717,9 +749,9 @@ def sync_plugin(
             if include_dir not in include_mapping:
                 result.warnings.append(f"Unsupported include dir in manifest: {include_dir}")
                 continue
-            source_dir = source_root / include_dir
-            if not source_dir.is_dir():
-                result.warnings.append(f"Missing source directory: {source_dir}")
+            source_dir = resolve_include_source_dir(source_root, include_dir)
+            if source_dir is None:
+                result.warnings.append(format_missing_include_warning(source_root, include_dir))
                 continue
 
             target_dir = staged_wrapper / include_mapping[include_dir]
@@ -795,7 +827,10 @@ def sync_plugin(
             result.status = "ok"
 
         if sync_prompts_mode != "none":
-            commands_dir = source_root / "commands"
+            commands_dir = resolve_include_source_dir(source_root, "commands")
+            if commands_dir is None:
+                result.warnings.append(format_missing_include_warning(source_root, "commands"))
+                commands_dir = source_root / "commands"
             if sync_prompts_mode in {"project", "both"}:
                 sync_prompts_from_commands(
                     source_commands_dir=commands_dir,

@@ -86,39 +86,39 @@ Progress Tracker 插件解决了 AI 辅助开发中的一个关键问题：**如
 
 <!-- BEGIN:GENERATED:PROG_COMMANDS -->
 <!-- GENERATED CONTENT: DO NOT EDIT DIRECTLY -->
-### `/prog plan <项目描述>`
+### `/progress-tracker:prog-plan <项目描述>` (别名：`/prog-plan`)
 
 在实施前完成技术选型、系统架构与关键决策记录。
 
-### `/prog init <目标描述>`
+### `/progress-tracker:prog-init <目标描述>` (别名：`/prog-init`)
 
 初始化进度跟踪，并将目标拆分为可测试功能列表。
 
-### `/prog`
+### `/progress-tracker:prog` (别名：`/prog`)
 
 显示项目当前进度与推荐下一步。
 
-### `/prog sync`
+### `/progress-tracker:prog-sync` (别名：`/prog-sync`)
 
 从增量 Git 历史同步项目能力记忆，并进行批量确认写入。
 
-### `/prog next`
+### `/progress-tracker:prog-next` (别名：`/prog-next`)
 
 按复杂度路由启动下一个待完成功能。
 
-### `/prog done`
+### `/progress-tracker:prog-done` (别名：`/prog-done`)
 
 执行验收验证并完成当前功能。
 
-### `/prog-fix`
+### `/progress-tracker:prog-fix` (别名：`/prog-fix`)
 
 报告、查看、调查并修复 Bug（系统化调试 + TDD）。
 
-### `/prog undo`
+### `/progress-tracker:prog-undo` (别名：`/prog-undo`)
 
 使用 `git revert` 安全撤销最近完成的功能。
 
-### `/prog reset`
+### `/progress-tracker:prog-reset` (别名：`/prog-reset`)
 
 在明确确认后重置进度跟踪文件。
 
@@ -126,7 +126,7 @@ Progress Tracker 插件解决了 AI 辅助开发中的一个关键问题：**如
 
 显示插件命令帮助（命名空间入口，避免全局命令冲突）。
 
-### `/prog-ui`
+### `/progress-tracker:prog-ui` (别名：`/prog-ui`)
 
 启动 Progress UI 网页服务器并在浏览器中打开。自动探测可用端口（3737-3747），检测当前项目是否已有运行中的服务器。
 
