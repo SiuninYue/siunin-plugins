@@ -20,24 +20,16 @@ def _command_description(command_path: Path) -> str:
     return match.group(1).strip()
 
 
-def test_manifest_commands_match_commands_directory():
-    """Manifest command entries should stay in sync with commands/*.md files."""
+def test_manifest_relies_on_auto_discovery_for_commands():
+    """Manifest should not inline command metadata; Claude Code auto-discovers commands/."""
     manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
-    entries = manifest.get("commands", [])
-
-    manifest_files = {entry["file"] for entry in entries}
-    actual_files = {f"commands/{path.name}" for path in COMMANDS_DIR.glob("*.md")}
-
-    assert manifest_files == actual_files
+    assert "commands" not in manifest
 
 
-def test_manifest_command_entries_match_file_name_and_description():
-    """Each manifest command entry should mirror command filename/frontmatter."""
-    manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+def test_command_frontmatter_matches_file_name_and_description():
+    """Each command file should include required frontmatter description."""
+    command_files = sorted(COMMANDS_DIR.glob("*.md"))
+    assert command_files, "Expected commands/*.md files"
 
-    for entry in manifest.get("commands", []):
-        command_path = PLUGIN_ROOT / entry["file"]
-        assert command_path.exists(), f"Missing command file: {entry['file']}"
-        assert entry["name"] == command_path.stem
-        assert entry["description"] == _command_description(command_path)
-
+    for command_path in command_files:
+        assert _command_description(command_path)

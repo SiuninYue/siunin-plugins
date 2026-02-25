@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.3] - 2026-02-25
+
+### Fixed
+- Claude Code plugin manifest compatibility for command loading:
+  - removed invalid inline `commands` entry list from `.claude-plugin/plugin.json`
+  - switched to standard command auto-discovery (root `commands/` directory)
+- Moved command markdown files from deprecated `/.claude-plugin/commands/` layout to plugin-root `/commands/` layout so Claude Code can discover all commands consistently.
+
+### Changed
+- Updated manifest/command contract tests to validate auto-discovery-based command registration.
+
 ## [1.6.2] - 2026-02-19
 
 ### Changed

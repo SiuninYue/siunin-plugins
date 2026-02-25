@@ -29,14 +29,9 @@ def test_prog_start_command_invokes_prog_start_skill():
     assert 'skill: "progress-tracker:prog-start"' in content
 
 
-def test_plugin_json_registers_prog_start_as_command_file():
-    """plugin manifest should register prog-start via command file, not executable script."""
+def test_plugin_json_relies_on_auto_discovery_for_commands():
+    """plugin manifest should use default command auto-discovery (no inline commands registry)."""
     plugin_json_path = PLUGIN_ROOT / ".claude-plugin" / "plugin.json"
     manifest = json.loads(plugin_json_path.read_text(encoding="utf-8"))
 
-    commands = manifest.get("commands", [])
-    prog_start = next((c for c in commands if c.get("name") == "prog-start"), None)
-
-    assert prog_start is not None
-    assert prog_start.get("file") == "commands/prog-start.md"
-    assert "executable" not in prog_start
+    assert "commands" not in manifest
