@@ -2,7 +2,7 @@
 name: git-auto
 description: This skill should be used when the user asks to "create a git commit", "commit changes", "commit and push", "make a commit", "handle git", "git auto", "git auto start", "git auto done", or "git auto fix", or needs git operations automated with branch/PR/merge decisions.
 model: sonnet
-version: "1.3.1"
+version: "1.3.2"
 scope: skill
 inputs:
   - Current git repository state
@@ -91,6 +91,7 @@ Mandatory rules:
 - `MUST` classify the change set before branch-strategy selection.
 - `MUST` create or switch to a short-lived branch before committing on default branch unless a direct-main exception is explicitly allowed.
 - `MUST` create a Draft PR on first push when no PR exists for the branch (unless user explicitly asks for non-draft).
+- `MUST` autorun eligible lightweight changes through `push + Draft PR` when intent includes push/PR, sync preflight is clean, and no high-risk gate is triggered.
 - `MUST NOT` recommend merge when branch is behind or diverged from upstream.
 - `MUST NOT` execute merge unless user intent is `commit_push_pr_merge` (or equivalent explicit merge request).
 - `SHOULD` rebase on upstream before push/merge recommendation.
@@ -181,7 +182,7 @@ Run a remote-policy probe before selecting branch strategy on the default branch
 ### Preferred Sources (in order)
 
 1. `gh api` branch/ruleset metadata (authoritative when authenticated)
-2. Local project policy configuration (if maintained by plugin/project)
+2. Local project policy configuration (if maintained by plugin/project, including exported GitHub branch ruleset JSON with `pull_request` and `required_status_checks`)
 3. Observed push errors from current session (e.g., `GH006`)
 4. Conservative fallback: treat default branch as protected for planning
 
@@ -231,6 +232,36 @@ Classify the current diff before selecting branch strategy.
 - If `Execution Intent` is `commit_push_pr_merge` and merge gates pass, extend the selected PR path through checks + merge instead of stopping after PR creation.
 - If `Repo Policy` is `unprotected` and mode allows: direct-main exception `MAY` be used for `docs+ci_small`.
 - If classification is `mixed` or `code`: use standard branch + PR flow.
+
+## Lightweight Autorun (Default for Low-Risk Push/PR Intents)
+
+When the user intent includes push or PR (`commit_and_push`, `commit_push_pr`, `commit_push_pr_merge`), `git-auto` `SHOULD` avoid an extra confirmation step for low-risk changes and execute the eligible path automatically.
+
+### Autorun eligibility (all required)
+
+1. `Change Class` is `docs_only`, `ci_only`, or `docs_ci_small`
+2. Sync preflight is clean (no detached HEAD, no in-progress operation, no diverged branch, no blocking behind state)
+3. `Workspace Mode` resolves to `in-place` (no worktree MUST-trigger)
+4. Branch strategy resolves to `fast-pr` or `direct-main-exception` (and the selected strategy is permitted by policy/mode)
+5. User did not explicitly ask for preview/plan-only/manual confirmation
+
+### Autorun behavior
+
+- `fast-pr` on protected/PR-required repos: `MUST` autorun through:
+  1. create/switch short-lived branch
+  2. stage + commit
+  3. push branch
+  4. create Draft PR
+- `direct-main-exception` on unprotected repos: `MAY` autorun through direct push
+- If any autorun precondition fails, fall back to the normal confirmation-based path
+
+### Autorun output contract
+
+When autorun is used, plans/results `MUST` print:
+
+- `Execution Mode: autorun`
+- `Autorun Reason: <why change qualified>`
+- `Autorun Scope: <through push + draft-pr|through push>`
 
 ## Accelerated Closeout Path (User-Requested)
 
@@ -461,9 +492,11 @@ Strategy Reason: docs+CI small change on protected main
 Execute this plan? [y/n]
 ```
 
-### Step 2: Wait for Confirmation
+### Step 2: Confirmation Gate (Autorun Exception)
 
-Do not execute until user confirms.
+- Default: do not execute until user confirms.
+- Autorun exception: if `Lightweight Autorun` eligibility is satisfied and intent includes push/PR, `git-auto` `MUST` proceed automatically through the autorun scope.
+- If the user explicitly asks for a plan/preview/manual confirmation, `MUST` disable autorun for that run.
 
 ### Step 3: Execute Operations
 
@@ -471,6 +504,7 @@ Do not execute until user confirms.
 - When `Branch Strategy=direct-main-exception`, commit on `main` only after policy/mode eligibility checks pass.
 - If direct-main push fails with `GH006`, preserve the local commit, create/switch to a short-lived branch, and continue via PR.
 - When `Execution Intent=commit_push_pr_merge`, continue through PR checks and merge only if merge gates pass; otherwise stop with a blocker summary and PR state.
+- When `Execution Mode=autorun` and `Branch Strategy=fast-pr`, continue automatically through `push + Draft PR` unless a step fails.
 
 ### Step 4: Accelerated PR Closeout (Optional)
 
@@ -524,6 +558,20 @@ Change Class: docs_ci_small
 Branch Strategy: fast-pr
 
 Action: create short-lived docs/ci branch, push, create PR (fast lane).
+```
+
+### Scenario C2: protected `main` + eligible docs/CI small change + push/PR intent (autorun)
+
+```
+Execution Intent: commit_push_pr
+Repo Policy: protected_pr_required
+Repo Policy Evidence: local-config (GitHub ruleset JSON) or gh-api
+Change Class: docs_ci_small
+Branch Strategy: fast-pr
+Execution Mode: autorun
+Autorun Scope: through push + draft-pr
+
+Action: auto-create branch -> commit -> push -> create Draft PR without extra confirmation.
 ```
 
 ### Scenario D: unprotected `main` + eligible docs/CI small change in `soft`
