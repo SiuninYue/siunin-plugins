@@ -47,8 +47,8 @@ def test_multiple_patterns():
     """测试多个 glob 模式"""
     result = scan_files(["tests/test_*.py", "scripts/*.py"])
     assert isinstance(result["files"], list)
-    # 应该匹配两个模式的文件
-    assert len(result["files"]) >= 0
+    # 应该匹配两个模式的文件（至少 2 个：一个测试文件和一个脚本文件）
+    assert len(result["files"]) >= 2
 
 
 def test_no_matches():
@@ -105,3 +105,23 @@ def test_cli_multiple_patterns():
 
     output = json.loads(result.stdout)
     assert "files" in output
+
+
+def test_duplicate_removal():
+    """测试重复文件去重"""
+    # 使用两个会匹配相同文件的模式
+    result = scan_files(["tests/test_*.py", "tests/test_batch*.py"])
+    assert isinstance(result["files"], list)
+
+    # 验证没有重复文件
+    paths = [f["path"] for f in result["files"]]
+    assert len(paths) == len(set(paths)), "Files should not be duplicated"
+
+
+def test_output_sorted():
+    """测试输出按路径排序"""
+    result = scan_files(["tests/*.py"])
+    paths = [f["path"] for f in result["files"]]
+
+    # 验证路径是排序的
+    assert paths == sorted(paths), "Files should be sorted by path"
