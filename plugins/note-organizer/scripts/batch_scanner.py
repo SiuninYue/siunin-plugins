@@ -23,16 +23,20 @@ def scan_files(patterns: List[str]) -> Dict[str, Any]:
         for filepath in matched:
             # 只包含文件，跳过目录
             if os.path.isfile(filepath):
+                try:
+                    size = os.path.getsize(filepath)
+                except (OSError, PermissionError):
+                    # 跳过无法访问的文件
+                    continue
                 files.append({
                     "path": filepath,
-                    "size": os.path.getsize(filepath)
+                    "size": size
                 })
     return {"files": files}
 
 
 def main():
     """CLI 入口：扫描文件并输出 JSON 格式"""
-    # 简单解析：第一个参数是模式，--json 标志可选
     if len(sys.argv) < 2:
         print("Usage: batch_scanner.py <pattern> [<pattern>...]", file=sys.stderr)
         sys.exit(1)
