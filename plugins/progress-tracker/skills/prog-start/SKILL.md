@@ -1,6 +1,6 @@
 ---
 name: prog-start
-description: This skill should be used when the user runs "/progress-tracker:prog-start", "/prog start", asks to "start current feature", "start implementation now", "开始当前功能开发", or requests transitioning an active feature from planning to developing.
+description: This skill should be used when the user runs "/prog-start", asks to "start current feature", "start implementation now", "开始当前功能开发", or requests transitioning an active feature from planning to developing.
 model: haiku
 version: "1.0.0"
 scope: skill
@@ -39,3 +39,4 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-development-
 
 - `/prog next` should place the selected feature in `planning`.
 - `/prog start` is the explicit transition from `planning -> developing`.
+- Runtime session context is persisted automatically by progress-manager commands; recovery and `/prog done` may warn if later sessions run in a different worktree/branch.

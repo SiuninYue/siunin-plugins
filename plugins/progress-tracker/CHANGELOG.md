@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- `prog-start` skill circular reference bug:
+  - removed self-referencing `/progress-tracker:prog-start` from skill description to prevent infinite loop
+  - corrected command format from `/prog start` to `/prog-start`
+
+### Added
+- Worktree-aware progress context tracking in `progress_manager.py`:
+  - `runtime_context` (top-level current session snapshot)
+  - `workflow_state.execution_context` (last workflow-advance branch/worktree snapshot)
+- `sync-runtime-context` CLI command for non-blocking session context persistence.
+- Context alignment hints in `check` JSON output (`context_hint`, `last_checkpoint_hint`).
+- Checkpoint entries now include branch/worktree + workflow progress metadata.
+
+### Changed
+- `save_progress_json` now supports runtime-only writes without touching semantic `updated_at`.
+- `/prog` status and `.claude/progress.md` now surface workflow phase/task progress plus execution/runtime context mismatch warnings.
+- Progress UI `snapshot` panel now shows newest checkpoints first and includes phase/task/branch/worktree context.
+- Progress UI `next` and `plan` panels now show context alignment and workflow progress metadata.
+- SessionStart hook now records runtime context after recovery check (without high-frequency `progress.json` writes).
+
 ## [1.6.3] - 2026-02-25
 
 ### Fixed
