@@ -63,3 +63,45 @@ def test_directories_skipped():
     # 验证只返回文件，不返回目录
     for file_info in result["files"]:
         assert os.path.isfile(file_info["path"])
+
+
+def test_cli_json_output():
+    """测试 CLI JSON 输出"""
+    result = subprocess.run(
+        ["python3", "scripts/batch_scanner.py", "tests/test_*.py"],
+        capture_output=True,
+        text=True,
+        cwd=plugin_root
+    )
+    assert result.returncode == 0
+
+    # 验证输出是有效 JSON
+    output = json.loads(result.stdout)
+    assert "files" in output
+    assert isinstance(output["files"], list)
+
+
+def test_cli_no_args():
+    """测试 CLI 无参数时的错误处理"""
+    result = subprocess.run(
+        ["python3", "scripts/batch_scanner.py"],
+        capture_output=True,
+        text=True,
+        cwd=plugin_root
+    )
+    assert result.returncode != 0
+    assert "Usage:" in result.stderr
+
+
+def test_cli_multiple_patterns():
+    """测试 CLI 多模式输入"""
+    result = subprocess.run(
+        ["python3", "scripts/batch_scanner.py", "tests/test_*.py", "scripts/*.py"],
+        capture_output=True,
+        text=True,
+        cwd=plugin_root
+    )
+    assert result.returncode == 0
+
+    output = json.loads(result.stdout)
+    assert "files" in output
