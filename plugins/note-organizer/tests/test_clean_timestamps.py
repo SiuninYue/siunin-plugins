@@ -100,3 +100,48 @@ def test_cli_stdin_multiple_lines():
     )
     assert result.returncode == 0
     assert result.stdout == "第一行\n第二行\n"
+
+
+def test_cli_file_input(tmp_path):
+    """测试 CLI 文件输入"""
+    # 创建临时测试文件
+    test_file = tmp_path / "test_input.txt"
+    test_file.write_text("[00:01:23] 文件测试内容")
+
+    result = subprocess.run(
+        ["python3", "scripts/clean_timestamps.py", str(test_file)],
+        capture_output=True,
+        text=True,
+        cwd=plugin_root
+    )
+    assert result.returncode == 0
+    assert result.stdout == "文件测试内容"
+
+
+def test_cli_file_not_found():
+    """测试文件不存在的错误处理"""
+    result = subprocess.run(
+        ["python3", "scripts/clean_timestamps.py", "nonexistent.txt"],
+        capture_output=True,
+        text=True,
+        cwd=plugin_root
+    )
+    assert result.returncode != 0
+    assert "No such file" in result.stderr or "cannot open" in result.stderr.lower()
+
+
+def test_cli_multiple_files(tmp_path):
+    """测试 CLI 多文件输入"""
+    file1 = tmp_path / "file1.txt"
+    file2 = tmp_path / "file2.txt"
+    file1.write_text("[00:01] 文件一")
+    file2.write_text("[00:02] 文件二")
+
+    result = subprocess.run(
+        ["python3", "scripts/clean_timestamps.py", str(file1), str(file2)],
+        capture_output=True,
+        text=True,
+        cwd=plugin_root
+    )
+    assert result.returncode == 0
+    assert result.stdout == "文件一文件二"
