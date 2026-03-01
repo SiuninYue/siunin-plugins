@@ -2,7 +2,6 @@
 """时间戳清理模块 - 移除视频转录格式的时间戳"""
 import re
 import fileinput
-import sys
 
 # 正则模式：匹配 [HH:MM:SS] 或 [MM:SS] 格式
 TIMESTAMP_PATTERN = re.compile(r'\[\d{1,2}:\d{2}(?::\d{2})?\]\s*')
