@@ -72,3 +72,31 @@ def test_multiple_timestamps_in_line():
     input_text = "[00:01] 第一段 [00:15] 第二段"
     result = clean_timestamps(input_text)
     assert result == "第一段 第二段"
+
+
+def test_cli_stdin_input():
+    """测试 CLI 标准输入"""
+    input_text = "[00:01:23] 测试内容\n"
+    result = subprocess.run(
+        ["python3", "scripts/clean_timestamps.py"],
+        input=input_text,
+        capture_output=True,
+        text=True,
+        cwd=plugin_root
+    )
+    assert result.returncode == 0
+    assert result.stdout == "测试内容\n"
+
+
+def test_cli_stdin_multiple_lines():
+    """测试 CLI 标准输入多行"""
+    input_text = "[00:01] 第一行\n[00:02] 第二行\n"
+    result = subprocess.run(
+        ["python3", "scripts/clean_timestamps.py"],
+        input=input_text,
+        capture_output=True,
+        text=True,
+        cwd=plugin_root
+    )
+    assert result.returncode == 0
+    assert result.stdout == "第一行\n第二行\n"
