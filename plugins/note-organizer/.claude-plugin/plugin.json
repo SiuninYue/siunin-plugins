@@ -1,0 +1,16 @@
+{
+  "name": "note-organizer",
+  "version": "1.0.0",
+  "description": "智能笔记整理插件 - 将 AI 提取的笔记转换为结构化知识库内容",
+  "author": {
+    "name": "siunin"
+  },
+  "license": "MIT",
+  "keywords": [
+    "note-taking",
+    "notebooklm",
+    "obsidian",
+    "transcript",
+    "video-notes"
+  ]
+}
