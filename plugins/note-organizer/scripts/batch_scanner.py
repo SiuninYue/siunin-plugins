@@ -4,6 +4,7 @@ import glob
 import os
 import json
 import sys
+from pathlib import Path
 from typing import List, Dict, Any
 
 
@@ -20,26 +21,30 @@ def scan_files(patterns: List[str]) -> Dict[str, Any]:
     Note:
         此实现简化了原始设计，未包含 validate_file() 和 batch_scan() 函数。
         专注于核心文件发现功能，符合 Unix 工具哲学。
+
+        路径归一化：使用 resolve() 处理等价路径（如 ./x 和 x）
     """
-    seen = set()  # 去重：记录已处理的文件路径
+    seen = set()  # 去重：记录已处理文件的归一化路径
     files = []
     for pattern in patterns:
         # 使用 recursive=True 支持 ** 递归匹配
         matched = glob.glob(pattern, recursive=True)
         for filepath in matched:
+            # 归一化路径以正确去重
+            normalized = Path(filepath).resolve()
             # 跳过已处理的文件（去重）
-            if filepath in seen:
+            if str(normalized) in seen:
                 continue
             # 只包含文件，跳过目录
-            if os.path.isfile(filepath):
+            if normalized.is_file():
                 try:
-                    size = os.path.getsize(filepath)
+                    size = normalized.stat().st_size
                 except (OSError, PermissionError):
                     # 跳过无法访问的文件
                     continue
-                seen.add(filepath)
+                seen.add(str(normalized))
                 files.append({
-                    "path": filepath,
+                    "path": str(normalized),
                     "size": size
                 })
     # 按路径排序，保证输出稳定

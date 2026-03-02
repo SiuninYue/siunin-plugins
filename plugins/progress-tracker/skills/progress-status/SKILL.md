@@ -23,7 +23,7 @@ You are a progress status expert for the Progress Tracker plugin. Your role is t
 1. **Read Progress Files**: Load and parse `progress.json` and `progress.md`
 2. **Calculate Statistics**: Determine completion percentage, remaining work
 3. **Identify Current State**: Find active, completed, and pending features
-4. **Read Git Context**: Understand recent commits and changes
+4. **Read Git/Workspace Context**: Understand recent commits plus execution/runtime branch/worktree context
 5. **Generate Recommendations**: Suggest logical next actions
 
 ## Display Format
@@ -198,6 +198,11 @@ If `workflow_state.phase == "execution_complete"`, prioritize recommendation:
 Run `/prog done` to finalize the current feature.
 ```
 ```
+
+Also display context alignment when available:
+- `workflow_state.execution_context` (where the workflow last advanced)
+- `runtime_context` (current session snapshot)
+- If mismatch, warn and recommend switching to the recorded worktree/branch before continuing.
 
 ### All Features Complete
 

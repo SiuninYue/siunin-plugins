@@ -11,6 +11,11 @@
           },
           {
             "type": "command",
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py sync-runtime-context --source session_start --quiet",
+            "timeout": 5000
+          },
+          {
+            "type": "command",
             "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py git-sync-check",
             "timeout": 10000
           }

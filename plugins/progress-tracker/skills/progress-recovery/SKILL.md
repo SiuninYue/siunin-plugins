@@ -53,6 +53,8 @@ Read from progress state:
 - `workflow_state.plan_path`
 - `workflow_state.completed_tasks`
 - `workflow_state.total_tasks`
+- `workflow_state.execution_context` (branch/worktree where workflow last advanced)
+- `runtime_context` (current session branch/worktree snapshot, if present)
 
 If there is an active feature, validate plan path:
 
@@ -65,6 +67,9 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-plan
 Use `git status --porcelain` to detect uncommitted changes.
 
 - If dirty tree conflicts with resume path, show safe options before continuing.
+- Compare current session context vs `workflow_state.execution_context`:
+  - If branch/worktree mismatch is reported by `check` (`context_hint.status != match`), show a strong warning.
+  - Prefer switching to the recorded worktree/branch before resuming `/prog next` or `/prog done`.
 
 ## Recovery Decision Rules
 
@@ -94,6 +99,12 @@ Use `git status --porcelain` to detect uncommitted changes.
 - Recommend minimal repair path (rebuild plan or clear invalid workflow metadata).
 - Do not silently mutate state.
 
+### Case F: Workflow Phase Valid but Context Mismatch
+
+- Example: `execution_complete` in progress state, but current session is on a different worktree/branch.
+- Recommended action: switch to recorded execution context first, then continue.
+- This is a strong warning, not an automatic state mutation.
+
 Detailed branching logic is in `references/scenario-playbook.md`.
 
 ## Required Commands
@@ -117,7 +128,8 @@ Recovery responses must include:
 1. Current project and completion percentage
 2. Current feature (if any)
 3. Workflow phase and plan validity
-4. Ranked next actions (1-3 options)
+4. Context alignment summary (execution context vs current session context)
+5. Ranked next actions (1-3 options)
 
 Keep message concise by default; expand only when user asks for details.
 

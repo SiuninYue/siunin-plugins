@@ -257,6 +257,37 @@ def test_status_detail_plan_panel_without_workflow_state(test_client, working_di
     assert "无活跃计划" in data["summary"]
 
 
+def test_status_detail_plan_panel_includes_workflow_progress_rows(test_client, working_dir):
+    """Plan panel should expose workflow phase/task progress metadata."""
+    progress_file = working_dir / ".claude" / "progress.json"
+    progress_data = json.loads(progress_file.read_text())
+    progress_data["current_feature_id"] = 2
+    progress_data["workflow_state"] = {
+        "phase": "execution",
+        "plan_path": "docs/plans/feature-2-plan.md",
+        "current_task": 2,
+        "total_tasks": 5,
+        "next_action": "continue coding",
+    }
+    progress_file.write_text(json.dumps(progress_data, indent=2))
+
+    plans_dir = working_dir / "docs" / "plans"
+    plans_dir.mkdir(parents=True, exist_ok=True)
+    (plans_dir / "feature-2-plan.md").write_text(
+        "# Plan\n\n## Tasks\n- Task\n\n## Acceptance Mapping\n- Map\n\n## Risks\n- None\n",
+        encoding="utf-8",
+    )
+
+    response = test_client.get("/api/status-detail?panel=plan")
+    assert response.status_code == 200
+    data = response.json()
+    table = next(s for s in data["sections"] if s["type"] == "table")
+    rows = {row["key"]: row["value"] for row in table["content"]}
+    assert rows["当前阶段"] == "execution"
+    assert rows["任务进度"] == "2/5"
+    assert rows["下一步动作"] == "continue coding"
+
+
 # ========== Boundary Tests ==========
 
 def test_status_summary_without_progress_json(test_client, working_dir):
@@ -411,6 +442,80 @@ def test_status_detail_next_panel_active_developing_action(test_client, working_
     assert "开发中" in data["summary"]
     assert data["actions"][0]["label"] == "完成此功能"
     assert data["actions"][0]["command"] == "/prog done"
+
+
+def test_status_detail_next_panel_shows_context_alignment(test_client, working_dir):
+    """Active feature next panel should show execution/runtime context alignment table."""
+    progress_file = working_dir / ".claude" / "progress.json"
+    progress_data = json.loads(progress_file.read_text())
+    progress_data["current_feature_id"] = 2
+    progress_data["workflow_state"] = {
+        "phase": "execution",
+        "plan_path": "docs/plans/feature-2-plan.md",
+        "execution_context": {
+            "workspace_mode": "worktree",
+            "worktree_path": "/tmp/wt-a",
+            "branch": "feature/a",
+        },
+    }
+    progress_data["runtime_context"] = {
+        "workspace_mode": "worktree",
+        "worktree_path": "/tmp/wt-b",
+        "branch": "feature/b",
+    }
+    progress_file.write_text(json.dumps(progress_data, indent=2))
+
+    response = test_client.get("/api/status-detail?panel=next")
+    assert response.status_code == 200
+    data = response.json()
+
+    context_tables = [s for s in data["sections"] if s["type"] == "table" and s.get("title") == "工作区上下文"]
+    assert context_tables, "Expected context alignment table"
+    rows = {row["key"]: row["value"] for row in context_tables[0]["content"]}
+    assert "feature/a" in rows["执行上下文"]
+    assert "feature/b" in rows["当前会话上下文"]
+    assert "mismatch" in rows["对齐状态"]
+
+
+def test_status_detail_snapshot_panel_shows_latest_first_with_context(test_client, working_dir):
+    """Snapshot panel should use newest checkpoint first and include phase/branch context."""
+    checkpoints_file = working_dir / ".claude" / "checkpoints.json"
+    checkpoints_payload = {
+        "last_checkpoint_at": "2026-02-12T03:00:00.000000Z",
+        "max_entries": 50,
+        "entries": [
+            {
+                "timestamp": "2026-02-12T01:00:00.000000Z",
+                "feature_id": 2,
+                "feature_name": "Feature 2",
+                "phase": "planning",
+                "current_task": 1,
+                "total_tasks": 5,
+                "branch": "feature/old",
+                "worktree_path": "/tmp/old-worktree",
+            },
+            {
+                "timestamp": "2026-02-12T03:00:00.000000Z",
+                "feature_id": 3,
+                "feature_name": "Feature 3",
+                "phase": "execution",
+                "current_task": 3,
+                "total_tasks": 6,
+                "branch": "feature/new",
+                "worktree_path": "/tmp/new-worktree",
+            },
+        ],
+    }
+    checkpoints_file.write_text(json.dumps(checkpoints_payload, indent=2))
+
+    response = test_client.get("/api/status-detail?panel=snapshot")
+    assert response.status_code == 200
+    data = response.json()
+
+    snapshot_list = data["sections"][0]["content"]
+    assert "Feature #3" in snapshot_list[0]
+    assert "execution" in snapshot_list[0]
+    assert "feature/new" in snapshot_list[0]
 
 
 # ========== Performance Tests ==========

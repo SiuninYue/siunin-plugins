@@ -1,28 +1,26 @@
-# Project Progress: Progress Tracker UI
+# Project Progress: Note Organizer Plugin
 
-**Created**: 2026-02-06T21:53:53.117095Z
+**Created**: 2026-02-25T23:15:37.840964Z
 
-**Status**: 17/17 completed
+**Status**: 3/10 completed
 
 ## Completed
-- [x] 创建 HTTP 服务器核心框架（含 P0 安全）
-- [x] 实现文件扫描与读取 API
-- [x] 实现写入 API 与并发控制
-- [x] 实现前端 UI 单文件框架
-- [x] 实现 6 状态 checkbox 渲染
-- [x] 实现文档切换与保存功能
-- [x] 实现冲突处理与状态栏
-- [x] 实现轮询与快捷键功能
-- [x] 编写核心功能测试
-- [x] 创建 /prog-ui 命令
-- [x] 更新 README 和文档
-- [x] 跨浏览器兼容性测试
-- [x] 创建 /prog start skill 命令
-- [x] 更新 git-auto skill 设置初始阶段
-- [x] 更新 feature-complete skill 设置完成阶段
-- [x] 更新 progress_manager.py 支持新字段
-- [x] 完善 UI 显示逻辑
+- [x] Plugin base structure and architecture
+- [x] Timestamp cleaning module with CLI
+- [x] Batch scanner module with CLI
 
-### Fixed (✅)
-- [x] [BUG-001] Status drawer suggested action click had no feedback and failed to copy command
-  Fix: Switched to delegated click handling with data-* attributes, hardened copy fallback path, and added no-store headers to avoid stale frontend script cache. Commit: c3f3781e525ae49530991c1a7cb9f0b14ec28d35
+## In Progress
+- [ ] Skill and reference documents
+  **Test steps**:
+  - 验证主 skill: ls plugins/note-organizer/skills/organize-note/SKILL.md
+  - 验证参考文档: ls plugins/note-organizer/skills/organize-note/references/*.md
+  - 检查输入契约: grep '接收：文件内容' plugins/note-organizer/skills/organize-note/SKILL.md
+  - 检查输出契约: grep '返回：格式化后的文本' plugins/note-organizer/skills/organize-note/SKILL.md
+
+## Pending
+- [ ] NotebookLM template and renderer
+- [ ] Obsidian template
+- [ ] Note-process command
+- [ ] Note-batch command
+- [ ] Marketplace and README updates
+- [ ] E2E structure tests

@@ -37,6 +37,7 @@ Coordinate `/prog next` execution by selecting the next feature, routing to the 
 5. Hand off cleanly to `/prog done` after implementation.
 6. Run Git/worktree preflight before delegation.
 7. Apply review + verification gates before claiming implementation complete.
+8. Persist execution context (branch/worktree) whenever workflow state/task progress advances.
 
 ## Use This Skill For
 
@@ -189,6 +190,10 @@ For task completion checkpoints during execution:
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-workflow-task <task_id> completed
 ```
+
+Context note:
+- `set-workflow-state` and `update-workflow-task` now also persist `workflow_state.execution_context` (branch/worktree).
+- Recovery flows and `/prog done` should use this context to detect worktree/branch mismatches.
 
 ### Step 6: Completion Handoff
 

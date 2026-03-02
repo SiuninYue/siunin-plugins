@@ -23,10 +23,11 @@ from urllib.parse import urlparse, parse_qs
 # Import validation functions from progress_manager
 sys.path.insert(0, str(Path(__file__).parent))
 try:
-    from progress_manager import validate_plan_path, validate_plan_document
+    from progress_manager import validate_plan_path, validate_plan_document, compare_contexts
     PROGRESS_MANAGER_AVAILABLE = True
 except ImportError:
     PROGRESS_MANAGER_AVAILABLE = False
+    compare_contexts = None  # type: ignore[assignment]
     print("Warning: progress_manager module not available, plan validation will be disabled", file=sys.stderr)
 
 PORT_RANGE = range(3737, 3748)  # 3737-3747 inclusive
@@ -843,6 +844,77 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
             "message": "正常"
         }
 
+    def _format_context_brief(self, context: Optional[Dict[str, Any]]) -> str:
+        """Format branch/worktree context into a compact display string."""
+        if not isinstance(context, dict):
+            return "未知"
+
+        branch = context.get("branch") or "(无分支)"
+        mode = context.get("workspace_mode") or "unknown"
+        worktree_path = context.get("worktree_path")
+
+        if worktree_path:
+            try:
+                worktree_name = Path(worktree_path).name or str(worktree_path)
+            except Exception:
+                worktree_name = str(worktree_path)
+            return f"{branch} @ {worktree_name} [{mode}]"
+
+        return f"{branch} [{mode}]"
+
+    def _compare_context_alignment(self, progress_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Compare execution_context and runtime_context for active-feature UI guidance."""
+        workflow_state = progress_data.get("workflow_state")
+        if not isinstance(workflow_state, dict):
+            workflow_state = {}
+
+        expected = workflow_state.get("execution_context")
+        current = progress_data.get("runtime_context")
+
+        if not isinstance(expected, dict) or not (
+            expected.get("branch") or expected.get("worktree_path")
+        ):
+            return {
+                "status": "unknown",
+                "message": "暂无执行上下文记录",
+                "expected": expected,
+                "current": current,
+            }
+
+        if not isinstance(current, dict) or not (
+            current.get("branch") or current.get("worktree_path")
+        ):
+            return {
+                "status": "unknown",
+                "message": "暂无当前会话上下文记录",
+                "expected": expected,
+                "current": current,
+            }
+
+        if compare_contexts is not None:
+            hint = compare_contexts(expected, current)
+            status = hint.get("status", "unknown")
+        else:
+            status = "unknown"
+
+        if status == "match":
+            message = "当前会话与最近执行上下文一致"
+        elif status == "path_mismatch":
+            message = "分支一致，但 worktree 路径不同"
+        elif status == "branch_mismatch":
+            message = "worktree 路径一致，但分支不同"
+        elif status == "mismatch":
+            message = "当前会话与最近执行上下文不一致"
+        else:
+            message = "无法确认当前会话与最近执行上下文是否一致"
+
+        return {
+            "status": status,
+            "message": message,
+            "expected": expected,
+            "current": current,
+        }
+
     def _load_recent_snapshot(self, checkpoints_data: Optional[Dict]) -> Dict[str, Any]:
         """Load most recent snapshot information"""
         if not checkpoints_data:
@@ -1017,6 +1089,21 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
             missing = ", ".join(doc_result["missing_sections"])
             validation_rows.append({"key": "结构合规", "value": f"✗ 缺少: {missing}"})
 
+        if isinstance(workflow_state, dict):
+            if workflow_state.get("phase") is not None:
+                validation_rows.append({"key": "当前阶段", "value": str(workflow_state.get("phase"))})
+
+            current_task = workflow_state.get("current_task")
+            total_tasks = workflow_state.get("total_tasks")
+            if current_task is not None or total_tasks is not None:
+                task_progress = f"{current_task if current_task is not None else '?'}"
+                if total_tasks is not None:
+                    task_progress += f"/{total_tasks}"
+                validation_rows.append({"key": "任务进度", "value": task_progress})
+
+            if workflow_state.get("next_action"):
+                validation_rows.append({"key": "下一步动作", "value": str(workflow_state.get("next_action"))})
+
         validation_section = {
             "type": "table",
             "title": "验证结果",
@@ -1096,6 +1183,27 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
         if is_active:
             active_stage = self._normalize_development_stage(next_feature)
             stage_label = self._development_stage_label(active_stage)
+            alignment = self._compare_context_alignment(progress_data)
+            sections.append(
+                {
+                    "type": "table",
+                    "title": "工作区上下文",
+                    "content": [
+                        {
+                            "key": "执行上下文",
+                            "value": self._format_context_brief(alignment.get("expected")),
+                        },
+                        {
+                            "key": "当前会话上下文",
+                            "value": self._format_context_brief(alignment.get("current")),
+                        },
+                        {
+                            "key": "对齐状态",
+                            "value": f"{alignment.get('status', 'unknown')} - {alignment.get('message', '')}",
+                        },
+                    ],
+                }
+            )
 
             action_map = {
                 "planning": {
@@ -1204,16 +1312,33 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
             }
 
         entries = checkpoints_data.get("entries", [])
-        last_entry = entries[0] if entries else None
+        last_entry = entries[-1] if entries else None
 
         # Build snapshot list
         snapshot_items = []
-        for entry in entries[:5]:  # Show only recent 5
+        for entry in reversed(entries[-5:]):  # Show recent 5, newest first
             timestamp = entry.get("timestamp", "")
             relative = self._format_relative_time(timestamp)
             feature_id = entry.get("feature_id", "?")
             feature_name = entry.get("feature_name", "Unknown")
-            snapshot_items.append(f"{relative} - Feature #{feature_id}: {feature_name}")
+            phase = entry.get("phase", "unknown")
+            current_task = entry.get("current_task")
+            total_tasks = entry.get("total_tasks")
+            if current_task is not None or total_tasks is not None:
+                task_progress = f"{current_task if current_task is not None else '?'}"
+                if total_tasks is not None:
+                    task_progress += f"/{total_tasks}"
+            else:
+                task_progress = "?"
+            branch = entry.get("branch") or "(无分支)"
+            worktree_path = entry.get("worktree_path")
+            try:
+                worktree_name = Path(worktree_path).name if worktree_path else "(未知 worktree)"
+            except Exception:
+                worktree_name = str(worktree_path) if worktree_path else "(未知 worktree)"
+            snapshot_items.append(
+                f"{relative} - Feature #{feature_id}: {feature_name} | {phase} | {task_progress} | {branch} @ {worktree_name}"
+            )
 
         return {
             "panel": "snapshot",

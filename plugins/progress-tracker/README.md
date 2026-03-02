@@ -27,6 +27,7 @@ The Progress Tracker plugin solves a critical problem in AI-assisted development
 - **Lightweight AI Metrics** - Tracks complexity bucket, selected model, and duration (no token/cost estimation)
 - **Technical Debt Unification** - Records debt items in existing bug system via `category=technical_debt`
 - **Lightweight Checkpoints** - Auto-saves workflow snapshots to `.claude/checkpoints.json` (no git history pollution)
+- **Worktree-Aware Recovery** - Records branch/worktree context so `/prog` and `/prog done` can warn when you resume in the wrong workspace
 
 ## Dependencies
 
@@ -109,6 +110,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py clear-workflow-s
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-feature-ai-metrics <feature_id> --complexity-score <score> --selected-model <model> --workflow-path <path>
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py complete-feature-ai-metrics <feature_id>
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py auto-checkpoint
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py sync-runtime-context [--source <session_start|manual>] [--quiet] [--force]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-plan [--plan-path <path>]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-feature <name> <test_steps...>
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py undo
@@ -564,12 +566,15 @@ The plugin automatically detects incomplete work when you open a new session and
 2. Are there uncompleted features?
 3. Is there a `current_feature_id` set?
 4. What is the `workflow_state.phase`?
-5. Are there uncommitted Git changes?
+5. Does the current session branch/worktree match the last recorded execution context?
+6. Are there uncommitted Git changes?
 
 **UserPromptSubmit Hook**:
 - Triggers lightweight `auto-checkpoint` every 30 minutes during active feature work
-- Writes snapshots to `.claude/checkpoints.json`
+- Writes snapshots (phase/task/branch/worktree) to `.claude/checkpoints.json`
 - Never creates git commits
+
+When a mismatch is detected (for example, feature implementation happened in a worktree and you resume in the main checkout), recovery/status output shows a strong warning with the recorded branch/worktree path before recommending next actions.
 
 ### Auto-Recovery Scenarios
 

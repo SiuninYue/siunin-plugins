@@ -3,36 +3,42 @@ import pytest
 from pathlib import Path
 import sys
 
+# 计算插件根目录：从测试文件位置向上查找
+TEST_FILE = Path(__file__).resolve()
+# 测试文件在 tests/test_base_structure.py
+# 插件根目录是 tests/ 的父目录
+PLUGIN_ROOT = TEST_FILE.parent.parent.resolve()
+
 
 def test_architecture_document_exists():
     """验证架构文档存在"""
-    assert Path("plugins/note-organizer/docs/ARCHITECTURE.md").exists(), \
-        "架构文档应存在于 docs/ARCHITECTURE.md"
+    assert (PLUGIN_ROOT / "docs" / "ARCHITECTURE.md").exists(), \
+        f"架构文档应存在于 {PLUGIN_ROOT / 'docs' / 'ARCHITECTURE.md'}"
 
 
 def test_plugin_manifest_exists():
     """验证插件清单存在"""
-    assert Path("plugins/note-organizer/.claude-plugin/plugin.json").exists(), \
-        "插件清单应存在于 .claude-plugin/plugin.json"
+    assert (PLUGIN_ROOT / ".claude-plugin" / "plugin.json").exists(), \
+        f"插件清单应存在于 {PLUGIN_ROOT / '.claude-plugin' / 'plugin.json'}"
 
 
 def test_readme_exists():
     """验证 README 存在"""
-    assert Path("plugins/note-organizer/README.md").exists(), \
-        "README 应存在于根目录"
+    assert (PLUGIN_ROOT / "README.md").exists(), \
+        f"README 应存在于 {PLUGIN_ROOT / 'README.md'}"
 
 
 def test_scripts_module_exists():
     """验证脚本模块存在"""
-    assert Path("plugins/note-organizer/scripts/__init__.py").exists(), \
-        "脚本模块应存在于 scripts/__init__.py"
+    assert (PLUGIN_ROOT / "scripts" / "__init__.py").exists(), \
+        f"脚本模块应存在于 {PLUGIN_ROOT / 'scripts' / '__init__.py'}"
 
 
 def test_plugin_manifest_content():
     """验证 plugin.json 内容"""
     import json
 
-    manifest_path = Path("plugins/note-organizer/.claude-plugin/plugin.json")
+    manifest_path = PLUGIN_ROOT / ".claude-plugin" / "plugin.json"
     assert manifest_path.exists(), "plugin.json 应该存在"
 
     with open(manifest_path) as f:
@@ -46,10 +52,9 @@ def test_plugin_manifest_content():
 
 def test_scripts_module_version():
     """验证脚本模块版本"""
-    # 添加到路径以便导入
-    plugin_root = Path("plugins/note-organizer")
-    if str(plugin_root) not in sys.path:
-        sys.path.insert(0, str(plugin_root))
+    # 使用计算的插件根目录
+    if str(PLUGIN_ROOT) not in sys.path:
+        sys.path.insert(0, str(PLUGIN_ROOT))
 
     from scripts import __version__
     assert __version__ == "1.0.0", f"版本应为 1.0.0，实际为 {__version__}"

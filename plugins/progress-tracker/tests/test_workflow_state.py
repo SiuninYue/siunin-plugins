@@ -45,6 +45,27 @@ class TestWorkflowStatePhases:
         data = progress_manager.load_progress_json()
         assert data["workflow_state"]["next_action"] == "run_tests"
 
+    def test_set_workflow_state_records_execution_context(self, in_progress_file):
+        """Should stamp execution_context when workflow state changes."""
+        fake_ctx = {
+            "workspace_mode": "worktree",
+            "worktree_path": "/tmp/worktree-a",
+            "project_root": "/tmp/worktree-a",
+            "git_dir": "/tmp/repo/.git/worktrees/wt-a",
+            "branch": "feature/demo",
+            "upstream": "origin/feature/demo",
+            "cwd": "/tmp/worktree-a",
+        }
+        with patch("progress_manager.collect_git_context", return_value=fake_ctx):
+            progress_manager.set_workflow_state(phase="execution")
+
+        data = progress_manager.load_progress_json()
+        execution_context = data["workflow_state"]["execution_context"]
+        assert execution_context["branch"] == "feature/demo"
+        assert execution_context["worktree_path"] == "/tmp/worktree-a"
+        assert execution_context["workspace_mode"] == "worktree"
+        assert execution_context["source"] == "set_workflow_state"
+
 
 class TestWorkflowStatePersistence:
     """Test workflow state saving and loading."""
@@ -93,6 +114,25 @@ class TestWorkflowTaskTracking:
         data = progress_manager.load_progress_json()
         # Should only appear once
         assert data["workflow_state"]["completed_tasks"].count(3) == 1
+
+    def test_update_workflow_task_refreshes_execution_context(self, in_progress_file):
+        """Task progress updates should refresh execution_context."""
+        fake_ctx = {
+            "workspace_mode": "in_place",
+            "worktree_path": "/tmp/project",
+            "project_root": "/tmp/project",
+            "git_dir": "/tmp/project/.git",
+            "branch": "feature/task-progress",
+            "upstream": "origin/feature/task-progress",
+            "cwd": "/tmp/project",
+        }
+        with patch("progress_manager.collect_git_context", return_value=fake_ctx):
+            progress_manager.update_workflow_task(3, "completed")
+
+        data = progress_manager.load_progress_json()
+        execution_context = data["workflow_state"]["execution_context"]
+        assert execution_context["branch"] == "feature/task-progress"
+        assert execution_context["source"] == "update_workflow_task"
 
 
 class TestWorkflowStateClearing:
@@ -170,8 +210,74 @@ class TestCheckCommandWithWorkflowState:
             assert data["status"] == "incomplete"
             assert "feature_id" in data
             assert "recommendation" in data
+            assert "context_hint" in data
+            assert data["context_hint"]["status"] in {
+                "match",
+                "path_mismatch",
+                "branch_mismatch",
+                "mismatch",
+                "unknown",
+            }
         except json.JSONDecodeError:
             pytest.fail("Expected JSON output from check command")
+
+    def test_check_falls_back_to_checkpoint_context(self, in_progress_file, capsys):
+        """Should emit context_hint using last checkpoint when execution_context missing."""
+        data = progress_manager.load_progress_json()
+        data["workflow_state"].pop("execution_context", None)
+        progress_manager.save_progress_json(data)
+
+        checkpoints = {
+            "last_checkpoint_at": "2026-02-25T00:00:00Z",
+            "max_entries": 50,
+            "entries": [
+                {
+                    "timestamp": "2026-02-24T23:00:00Z",
+                    "feature_id": 2,
+                    "feature_name": "In Progress Feature",
+                    "phase": "execution",
+                    "current_task": 3,
+                    "total_tasks": 5,
+                    "branch": "feature/checkpoint",
+                    "worktree_path": "/tmp/feature-worktree",
+                }
+            ],
+        }
+        Path(".claude/checkpoints.json").write_text(json.dumps(checkpoints), encoding="utf-8")
+
+        progress_manager.check()
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["last_checkpoint_hint"]["branch"] == "feature/checkpoint"
+        assert "context_hint" in payload
+
+    def test_check_does_not_use_other_feature_checkpoint_as_context_fallback(self, in_progress_file, capsys):
+        """Checkpoint fallback should use active-feature snapshots only."""
+        data = progress_manager.load_progress_json()
+        data["workflow_state"].pop("execution_context", None)
+        progress_manager.save_progress_json(data)
+
+        checkpoints = {
+            "last_checkpoint_at": "2026-02-25T00:00:00Z",
+            "max_entries": 50,
+            "entries": [
+                {
+                    "timestamp": "2026-02-24T23:00:00Z",
+                    "feature_id": 99,
+                    "feature_name": "Other Feature",
+                    "phase": "execution",
+                    "current_task": 9,
+                    "total_tasks": 10,
+                    "branch": "feature/other",
+                    "worktree_path": "/tmp/other-worktree",
+                }
+            ],
+        }
+        Path(".claude/checkpoints.json").write_text(json.dumps(checkpoints), encoding="utf-8")
+
+        progress_manager.check()
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["last_checkpoint_hint"]["feature_id"] == 99
+        assert payload["context_hint"]["status"] == "unknown"
 
 
 class TestWorkflowStateTimestamps:

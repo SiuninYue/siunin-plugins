@@ -1,431 +1,178 @@
 {
-  "project_name": "Progress Tracker UI",
-  "created_at": "2026-02-06T21:53:53.117095Z",
+  "schema_version": "2.0",
+  "project_name": "Note Organizer Plugin",
+  "created_at": "2026-02-25T23:15:37.840964Z",
+  "updated_at": "2026-03-03T06:44:18.621275Z",
   "features": [
     {
       "id": 1,
-      "name": "创建 HTTP 服务器核心框架（含 P0 安全）",
+      "name": "Plugin base structure and architecture",
       "test_steps": [
-        "依赖检查: command -v jq >/dev/null 2>&1 || { echo '需要 jq: brew install jq'; exit 1; } && command -v lsof >/dev/null 2>&1 || { echo '需要 lsof'; exit 1; }",
-        "验证文件存在: ls plugins/progress-tracker/hooks/scripts/progress_ui_server.py",
-        "测试端口启动: python3 -c 'import sys; sys.path.insert(0, \"plugins/progress-tracker/hooks/scripts\"); from progress_ui_server import main; print(\"Server module loads successfully\")'",
-        "检查端口探测逻辑: grep -E '3737|3747' plugins/progress-tracker/hooks/scripts/progress_ui_server.py",
-        "端口动态探测: PORT=$(lsof -nP -iTCP -sTCP:LISTEN | awk '$9 ~ /127\\.0\\.0\\.1:(3737|3738|3739|3740|3741|3742|3743|3744|3745|3746|3747)$/ {split($9,a,\":\"); print a[2]; exit}') && [ -z \"$PORT\" ] && PORT=3737 && BASE=\"http://127.0.0.1:$PORT\" && echo \"Using port: $PORT\"",
-        "行为验证：仅监听 127.0.0.1: lsof -i :$PORT -P -n | grep LISTEN | grep '127.0.0.1'",
-        "验证路径安全校验: grep -E 'Path\\.resolve|relative_to|parts' plugins/progress-tracker/hooks/scripts/progress_ui_server.py"
+        "验证架构文档: ls plugins/note-organizer/docs/ARCHITECTURE.md",
+        "验证插件清单: ls plugins/note-organizer/.claude-plugin/plugin.json",
+        "验证 README: ls plugins/note-organizer/README.md",
+        "验证脚本模块: ls plugins/note-organizer/scripts/__init__.py"
       ],
       "completed": true,
-      "completed_at": "2026-02-08T00:21:25.676926Z",
-      "commit_hash": "c0e4db15a056079313a02220fd9f674106878d2a",
+      "development_stage": "completed",
+      "ai_metrics": {
+        "complexity_score": 8,
+        "complexity_bucket": "simple",
+        "selected_model": "haiku",
+        "workflow_path": "direct_tdd",
+        "started_at": "2026-02-25T23:19:21.579773Z",
+        "finished_at": "2026-03-01T08:10:37.175780+08:00",
+        "duration_seconds": 262275
+      },
+      "completed_at": "2026-03-01T08:10:34.762868Z",
+      "commit_hash": "0527fec7c87aa0ee975f727c675f78d59493cd66",
       "archive_info": {
-        "archived_at": "2026-02-08T00:21:25.699127Z",
+        "archived_at": "2026-03-01T08:10:34.798472Z",
         "files_moved": 0,
         "files": []
       }
     },
     {
       "id": 2,
-      "name": "实现文件扫描与读取 API",
+      "name": "Timestamp cleaning module with CLI",
       "test_steps": [
-        "端口动态探测: PORT=$(lsof -nP -iTCP -sTCP:LISTEN | awk '$9 ~ /127\\.0\\.0\\.1:(3737|3738|3739|3740|3741|3742|3743|3744|3745|3746|3747)$/ {split($9,a,\":\"); print a[2]; exit}') && [ -z \"$PORT\" ] && PORT=3737 && BASE=\"http://127.0.0.1:$PORT\"",
-        "测试 GET /api/files: curl -s $BASE/api/files | head -20",
-        "验证扫描顺序（progress.md 优先）: curl -s $BASE/api/files | jq -r '.[0].name' | grep progress",
-        "验证去重（无重复路径）: curl -s $BASE/api/files | jq -r '.[].path' | sort | uniq -d | wc -l | grep 0",
-        "测试 GET /api/file: curl -s \"$BASE/api/file?path=.claude/progress.md\" | jq '.content,.mtime,.rev'",
-        "测试 Content-Type（正确响应头）: curl -s -D - -o /dev/null \"$BASE/api/file?path=.claude/progress.md\" | grep -i 'content-type:.*application/json'"
+        "验证模块存在: ls plugins/note-organizer/scripts/clean_timestamps.py",
+        "运行单元测试: cd plugins/note-organizer && pytest tests/test_clean_timestamps.py -v",
+        "测试 CLI 入口: cd plugins/note-organizer && python3 scripts/clean_timestamps.py --help",
+        "测试清理功能: echo '[00:01:23] test content' | python3 scripts/clean_timestamps.py /dev/stdin"
       ],
       "completed": true,
-      "completed_at": "2026-02-08T00:34:22.889361Z",
-      "commit_hash": "2af7781934c73b1d454b6a0dd34191707242ba90",
+      "development_stage": "completed",
+      "ai_metrics": {
+        "complexity_score": 21,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-03-01T08:12:07.424058Z",
+        "finished_at": "2026-03-02T07:13:11.631655+08:00",
+        "duration_seconds": 54064
+      },
+      "completed_at": "2026-03-02T07:13:11.655437Z",
+      "commit_hash": "8ea0b32",
       "archive_info": {
-        "archived_at": "2026-02-08T00:34:22.911718Z",
+        "archived_at": "2026-03-02T07:13:11.686019Z",
         "files_moved": 0,
         "files": []
       }
     },
     {
       "id": 3,
-      "name": "实现写入 API 与并发控制",
+      "name": "Batch scanner module with CLI",
       "test_steps": [
-        "端口动态探测: PORT=$(lsof -nP -iTCP -sTCP:LISTEN | awk '$9 ~ /127\\.0\\.0\\.1:(3737|3738|3739|3740|3741|3742|3743|3744|3745|3746|3747)$/ {split($9,a,\":\"); print a[2]; exit}') && [ -z \"$PORT\" ] && PORT=3737 && BASE=\"http://127.0.0.1:$PORT\"",
-        "创建测试文件: TEST_PATH='.claude/progress-ui-test.md' && printf -- '- [ ] test item 1\\n- [ ] test item 2\\n' > \"$TEST_PATH\" && echo 'Test file created'",
-        "正例：GET 获取 rev/mtime: READ=$(curl -s \"$BASE/api/file?path=$TEST_PATH\") && REV=$(echo \"$READ\" | jq -r '.rev') && MTIME=$(echo \"$READ\" | jq -r '.mtime') && echo \"REV=$REV MTIME=$MTIME\"",
-        "正例：用最新 rev/mtime PUT 成功（返回 200）: BODY=$(jq -nc --arg c \"test content updated\" --arg r \"$REV\" --argjson m \"$MTIME\" '{content:$c,base_rev:$r,base_mtime:$m}') && curl -s -o /dev/null -w '%{http_code}' -X PUT \"$BASE/api/file?path=$TEST_PATH\" -H 'Content-Type: application/json' --data \"$BODY\" | grep 200",
-        "非法 Origin 返回 403（文件已存在且 rev/mtime 有效）: curl -s -o /dev/null -w '%{http_code}' -X PUT \"$BASE/api/file?path=$TEST_PATH\" -H 'Content-Type: application/json' -H 'Origin: http://evil.com' --data \"$BODY\" | grep 403",
-        "负例：白名单拒绝（test.md 返回 403）: curl -s -o /dev/null -w '%{http_code}' -X PUT \"$BASE/api/file?path=test.md\" -H 'Content-Type: application/json' -d '{\"content\":\"test\",\"base_rev\":\"\",\"base_mtime\":0}' | grep 403",
-        "冲突例：旧 base_rev 返回 409: curl -s -o /dev/null -w '%{http_code}' -X PUT \"$BASE/api/file?path=$TEST_PATH\" -H 'Content-Type: application/json' -d '{\"content\":\"old\",\"base_rev\":\"wrong_rev\",\"base_mtime\":0}' | grep 409",
-        "测试 PATCH /api/checkbox: curl -s -X PATCH $BASE/api/checkbox -H 'Content-Type: application/json' -d '{\"file_path\":\".claude/progress-ui-test.md\",\"line_index\":0,\"new_status\":\"x\",\"base_rev\":\"\",\"base_mtime\":0}'",
-        "清理测试文件: rm -f .claude/progress-ui-test.md && echo 'Test file cleaned'"
+        "验证模块存在: ls plugins/note-organizer/scripts/batch_scanner.py",
+        "运行单元测试: cd plugins/note-organizer && pytest tests/test_batch_scanner.py -v",
+        "测试 CLI 入口: cd plugins/note-organizer && python3 scripts/batch_scanner.py --help",
+        "测试扫描功能: cd plugins/note-organizer && python3 scripts/batch_scanner.py 'tests/*.py' --json"
       ],
       "completed": true,
-      "completed_at": "2026-02-09T07:06:29.308901Z",
-      "commit_hash": "b3954f782720e3525b389e8741b6a51dcc93108e",
+      "development_stage": "completed",
+      "ai_metrics": {
+        "complexity_score": 18,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-03-02T07:20:51.219506Z",
+        "finished_at": "2026-03-02T07:50:00.922284+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-03-02T07:49:58.691114Z",
+      "commit_hash": "35197a7",
       "archive_info": {
-        "archived_at": "2026-02-09T07:06:29.330291Z",
+        "archived_at": "2026-03-02T07:49:58.719560Z",
         "files_moved": 0,
         "files": []
       }
     },
     {
       "id": 4,
-      "name": "实现前端 UI 单文件框架",
+      "name": "Skill and reference documents",
       "test_steps": [
-        "端口动态探测: PORT=$(lsof -nP -iTCP -sTCP:LISTEN | awk '$9 ~ /127\\.0\\.0\\.1:(3737|3738|3739|3740|3741|3742|3743|3744|3745|3746|3747)$/ {split($9,a,\":\"); print a[2]; exit}') && [ -z \"$PORT\" ] && PORT=3737 && BASE=\"http://127.0.0.1:$PORT\"",
-        "验证文件存在: ls plugins/progress-tracker/hooks/scripts/static/index.html",
-        "测试 / 返回 HTML: curl -s -D - -o /dev/null $BASE/ | grep -i 'content-type:.*text/html'",
-        "测试 /api/* 返回 JSON: curl -s -D - -o /dev/null \"$BASE/api/file?path=.claude/progress.md\" | grep -i 'content-type:.*application/json'",
-        "检查内联样式: grep -c '<style>' plugins/progress-tracker/hooks/scripts/static/index.html",
-        "检查内联脚本: grep -c '<script>' plugins/progress-tracker/hooks/scripts/static/index.html"
+        "验证主 skill: ls plugins/note-organizer/skills/organize-note/SKILL.md",
+        "验证参考文档: ls plugins/note-organizer/skills/organize-note/references/*.md",
+        "检查输入契约: grep '接收：文件内容' plugins/note-organizer/skills/organize-note/SKILL.md",
+        "检查输出契约: grep '返回：格式化后的文本' plugins/note-organizer/skills/organize-note/SKILL.md"
       ],
-      "completed": true,
-      "completed_at": "2026-02-10T07:11:02.669323Z",
-      "commit_hash": "eeed1d8957c7f2bdf9e4464ebc4ee7762947b5fa",
-      "archive_info": {
-        "archived_at": "2026-02-10T07:11:02.691940Z",
-        "files_moved": 0,
-        "files": []
+      "completed": false,
+      "development_stage": "planning",
+      "ai_metrics": {
+        "complexity_score": 21,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-03-03T06:44:18.613991Z"
       }
     },
     {
       "id": 5,
-      "name": "实现 6 状态 checkbox 渲染",
+      "name": "NotebookLM template and renderer",
       "test_steps": [
-        "测试 checkbox 渲染: 打开页面检查是否显示 ☐🔄☑➖❌❓ 六种状态",
-        "验证状态切换: 点击 checkbox 应按 ☐->🔄->☑ 主循环切换",
-        "测试右键菜单: 右键点击 checkbox 应显示 6 状态选项",
-        "检查快捷键: 按 1-6 键应切换对应状态"
+        "验证模板: ls plugins/note-organizer/templates/notebooklm-template.md",
+        "验证渲染器: ls plugins/note-organizer/scripts/template_renderer.py",
+        "运行测试: cd plugins/note-organizer && pytest tests/test_template_renderer.py -v",
+        "测试标签格式化: python3 -c 'from scripts.template_renderer import format_tags_list; print(format_tags_list([\"tech/ai\", \"tutorial\"]))'"
       ],
-      "completed": true,
-      "ai_metrics": {
-        "complexity_score": 18,
-        "complexity_bucket": "standard",
-        "selected_model": "sonnet",
-        "workflow_path": "plan_execute",
-        "started_at": "2026-02-12T11:12:41.558464Z",
-        "finished_at": "2026-02-12T14:03:28.152671+08:00",
-        "duration_seconds": 0
-      },
-      "completed_at": "2026-02-12T14:03:28.173478Z",
-      "commit_hash": "7ce7a7a35255ddec09b87a1065110668c57bbef9",
-      "archive_info": {
-        "archived_at": "2026-02-12T14:03:28.217217Z",
-        "files_moved": 2,
-        "files": [
-          {
-            "from": "docs/testing/feature-5-acceptance-report.md",
-            "to": "docs/archive/testing/feature-5-acceptance-report.md"
-          },
-          {
-            "from": "docs/plans/feature-5-six-status-checkbox-rendering.md",
-            "to": "docs/archive/plans/feature-5-six-status-checkbox-rendering.md"
-          }
-        ]
-      }
+      "completed": false
     },
     {
       "id": 6,
-      "name": "实现文档切换与保存功能",
+      "name": "Obsidian template",
       "test_steps": [
-        "测试文档列表: 左侧应显示可切换的文档列表",
-        "测试文档切换: 点击文档名称应切换右侧内容",
-        "测试保存功能: 修改状态后应显示'保存中...'然后'已保存'",
-        "测试手动刷新: 点击刷新按钮或按 Ctrl+R 应重新加载文档"
+        "验证模板: ls plugins/note-organizer/templates/obsidian-template.md",
+        "运行测试: cd plugins/note-organizer && pytest tests/test_template_renderer.py::test_render_obsidian_template -v",
+        "检查模板变量: grep '{note_type}' plugins/note-organizer/templates/obsidian-template.md",
+        "检查元数据格式: grep 'cssclass:' plugins/note-organizer/templates/obsidian-template.md"
       ],
-      "completed": true,
-      "ai_metrics": {
-        "complexity_score": 18,
-        "complexity_bucket": "standard",
-        "selected_model": "sonnet",
-        "workflow_path": "plan_execute",
-        "started_at": "2026-02-12T14:13:03.170560Z",
-        "finished_at": "2026-02-12T15:25:39.769920+08:00",
-        "duration_seconds": 0
-      },
-      "completed_at": "2026-02-12T15:25:36.538752Z",
-      "commit_hash": "d5b97d4",
-      "archive_info": {
-        "archived_at": "2026-02-12T15:25:36.583483Z",
-        "files_moved": 2,
-        "files": [
-          {
-            "from": "docs/testing/feature-6-acceptance-report.md",
-            "to": "docs/archive/testing/feature-6-acceptance-report.md"
-          },
-          {
-            "from": "docs/plans/feature-6-document-switch-and-save.md",
-            "to": "docs/archive/plans/feature-6-document-switch-and-save.md"
-          }
-        ]
-      }
+      "completed": false
     },
     {
       "id": 7,
-      "name": "实现冲突处理与状态栏",
+      "name": "Note-process command",
       "test_steps": [
-        "测试冲突检测: 模拟并发修改应显示冲突弹窗",
-        "验证冲突弹窗: 应显示当前版本和你的版本的差异",
-        "测试推荐选项: 冲突弹窗应有'逐行保留我的状态变更'选项",
-        "检查状态栏: 顶部应正确显示 未保存/保存中/已保存/冲突 状态"
+        "验证命令文件: ls plugins/note-organizer/commands/note-process.md",
+        "检查命令格式: grep 'scope: command' plugins/note-organizer/commands/note-process.md",
+        "检查 skill 引用: grep 'organize-note' plugins/note-organizer/commands/note-process.md",
+        "验证处理步骤: grep '第一步\\|第二步\\|第三步\\|第四步' plugins/note-organizer/commands/note-process.md"
       ],
-      "completed": true,
-      "completed_at": "2026-02-14T06:44:02.959854Z",
-      "commit_hash": "70de99cdb0c8b931bc87a46e60dc8fdbc51d0c05",
-      "archive_info": {
-        "archived_at": "2026-02-14T06:44:02.976292Z",
-        "files_moved": 1,
-        "files": [
-          {
-            "from": "docs/testing/feature-7-acceptance-report.md",
-            "to": "docs/archive/testing/feature-7-acceptance-report.md"
-          }
-        ]
-      }
+      "completed": false
     },
     {
       "id": 8,
-      "name": "实现轮询与快捷键功能",
+      "name": "Note-batch command",
       "test_steps": [
-        "测试自动轮询: 页面应在 10-30 秒内自动刷新",
-        "测试聚焦刷新: 窗口重新聚焦时应自动刷新",
-        "测试快捷键: Ctrl+S 保存、j/k 导航、Esc 关闭弹窗",
-        "验证帮助浮层: 按 ? 应显示快捷键帮助"
+        "验证命令文件: ls plugins/note-organizer/commands/note-batch.md",
+        "检查命令格式: grep 'scope: command' plugins/note-organizer/commands/note-batch.md",
+        "检查路径约定: grep 'CLAUDE_PLUGIN_ROOT' plugins/note-organizer/commands/note-batch.md",
+        "验证批量步骤: grep '扫描文件\\|逐个处理\\|生成报告' plugins/note-organizer/commands/note-batch.md"
       ],
-      "completed": true,
-      "completed_at": "2026-02-14T07:08:23.257600Z",
-      "commit_hash": "9e4c6cc",
-      "archive_info": {
-        "archived_at": "2026-02-14T07:08:23.273555Z",
-        "files_moved": 0,
-        "files": []
-      }
+      "completed": false
     },
     {
       "id": 9,
-      "name": "编写核心功能测试",
+      "name": "Marketplace and README updates",
       "test_steps": [
-        "验证测试文件: ls plugins/progress-tracker/tests/test_progress_ui.py",
-        "运行路径安全测试: pytest plugins/progress-tracker/tests/test_progress_ui.py -k path -v",
-        "运行冲突检测测试: pytest plugins/progress-tracker/tests/test_progress_ui.py -k concurrency -v",
-        "运行 6 状态解析测试: pytest plugins/progress-tracker/tests/test_progress_ui.py -k checkbox -v",
-        "运行 P0 安全测试: pytest plugins/progress-tracker/tests/test_progress_ui.py -k \"origin or validation\" -v"
+        "验证市场配置: grep 'note-organizer' .claude-plugin/marketplace.json",
+        "验证 README 更新: grep 'note-organizer' README.md",
+        "检查版本号: grep '1.0.0' .claude-plugin/marketplace.json",
+        "验证插件位置: grep 'plugins/note-organizer' .claude-plugin/marketplace.json"
       ],
-      "completed": true,
-      "completed_at": "2026-02-14T07:51:41.820200Z",
-      "commit_hash": "164ee28a8e5f41922695419e61332b28df518c13",
-      "archive_info": {
-        "archived_at": "2026-02-14T07:51:41.853728Z",
-        "files_moved": 0,
-        "files": []
-      }
+      "completed": false
     },
     {
       "id": 10,
-      "name": "创建 /prog-ui 命令",
+      "name": "E2E structure tests",
       "test_steps": [
-        "验证命令文件存在: ls plugins/progress-tracker/commands/prog-ui.md",
-        "检查命令注册: grep 'prog-ui' plugins/progress-tracker/.claude-plugin/plugin.json",
-        "测试命令启动: 执行 /prog-ui 应启动服务器并打开浏览器",
-        "验证命令文档: 命令应显示使用说明和参数"
+        "验证测试文件: ls plugins/note-organizer/tests/test_e2e_structure.py",
+        "运行 E2E 测试: cd plugins/note-organizer && pytest tests/test_e2e_structure.py -v",
+        "验证 NotebookLM 结构测试: grep 'test_notebooklm_output_structure' plugins/note-organizer/tests/test_e2e_structure.py",
+        "验证时间戳测试: grep 'test_timestamps_removed' plugins/note-organizer/tests/test_e2e_structure.py"
       ],
-      "completed": true,
-      "completed_at": "2026-02-18T06:37:12.131236Z",
-      "commit_hash": "8fed26f11abb30dd4268b0272f1af1e84ee871a8",
-      "archive_info": {
-        "archived_at": "2026-02-18T06:37:12.163102Z",
-        "files_moved": 0,
-        "files": []
-      }
-    },
-    {
-      "id": 11,
-      "name": "更新 README 和文档",
-      "test_steps": [
-        "检查 README 更新: grep -E 'UI|/prog-ui|progress_ui' plugins/progress-tracker/README.md",
-        "验证使用说明: README 应包含启动命令和功能介绍",
-        "检查 CHANGELOG: grep '1.3.0' plugins/progress-tracker/CHANGELOG.md",
-        "确认版本更新: plugin.json 版本应更新为 1.3.0"
-      ],
-      "completed": true,
-      "completed_at": "2026-02-18T07:23:59.148636Z",
-      "commit_hash": "3568a9e4d8972f7f23bae30d7d7ca2a7b5e0a45f",
-      "archive_info": {
-        "archived_at": "2026-02-18T07:23:59.165285Z",
-        "files_moved": 0,
-        "files": []
-      }
-    },
-    {
-      "id": 12,
-      "name": "跨浏览器兼容性测试",
-      "test_steps": [
-        "测试 Firefox: 在 Firefox 中打开并验证所有功能正常",
-        "测试 Chrome: 在 Chrome 中打开并验证所有功能正常",
-        "测试 Zen: 在 Zen Browser 中打开并验证所有功能正常",
-        "验证 API 契约: 所有浏览器返回格式一致"
-      ],
-      "completed": true,
-      "ai_metrics": {
-        "complexity_score": 9,
-        "complexity_bucket": "simple",
-        "selected_model": "haiku",
-        "workflow_path": "direct_tdd",
-        "started_at": "2026-02-20T08:36:38.620520Z",
-        "finished_at": "2026-02-21T07:03:37.796485+08:00",
-        "duration_seconds": 52019
-      },
-      "completed_at": "2026-02-21T07:03:37.809658Z",
-      "commit_hash": "f5f1801",
-      "development_stage": "completed",
-      "archive_info": {
-        "archived_at": "2026-02-21T07:03:37.825393Z",
-        "files_moved": 1,
-        "files": [
-          {
-            "from": "docs/testing/feature-12-acceptance-report.md",
-            "to": "docs/archive/testing/feature-12-acceptance-report_20260221_070337.md"
-          }
-        ]
-      }
-    },
-    {
-      "id": 13,
-      "name": "创建 /prog start skill 命令",
-      "test_steps": [
-        "验证 skill 文件存在: ls plugins/progress-tracker/skills/prog-start/SKILL.md",
-        "检查命令注册: grep 'prog-start' plugins/progress-tracker/.claude-plugin/plugin.json",
-        "测试无活跃功能时错误提示",
-        "测试有活跃功能时设置 development_stage = 'developing'",
-        "验证 started_at 时间戳记录"
-      ],
-      "ai_metrics": {
-        "complexity_score": 15,
-        "complexity_bucket": "simple",
-        "selected_model": "haiku",
-        "workflow_path": "direct_tdd",
-        "started_at": "2026-02-21T07:10:45.199883Z"
-      },
-      "completed": true,
-      "development_stage": "completed",
-      "completed_at": "2026-02-23T23:28:35.623036Z",
-      "archive_info": {
-        "archived_at": null,
-        "files_moved": 0,
-        "files": []
-      },
-      "commit_hash": "f5f1801"
-    },
-    {
-      "id": 14,
-      "name": "更新 git-auto skill 设置初始阶段",
-      "test_steps": [
-        "定位 skill 文件: ls plugins/progress-tracker/skills/git-auto/SKILL.md",
-        "验证 /prog next 设置 development_stage = 'planning'",
-        "测试新功能显示为'规划中'",
-        "确认 progress.json 包含 development_stage 字段"
-      ],
-      "started_at": "2026-02-21T07:27:55.512175",
-      "completed": true,
-      "development_stage": "completed",
-      "completed_at": "2026-02-24T07:07:50.295045Z",
-      "commit_hash": "f5f1801",
-      "archive_info": {
-        "archived_at": "2026-02-24T07:07:50.300000Z",
-        "files_moved": 1,
-        "files": [
-          {
-            "from": "docs/plans/feature-14-initial-stage-planning.md",
-            "to": "docs/archive/plans/feature-14-initial-stage-planning.md"
-          }
-        ]
-      }
-    },
-    {
-      "id": 15,
-      "name": "更新 feature-complete skill 设置完成阶段",
-      "test_steps": [
-        "定位 skill 文件: ls plugins/progress-tracker/skills/feature-complete/SKILL.md",
-        "验证 /prog done 设置 development_stage = 'completed'",
-        "测试 planning→developing→completed 状态转换",
-        "确认 completed_at 时间戳正确记录"
-      ],
-      "completed": true,
-      "development_stage": "completed",
-      "completed_at": "2026-02-23T23:29:35.623036Z",
-      "archive_info": {
-        "archived_at": null,
-        "files_moved": 0,
-        "files": []
-      },
-      "commit_hash": "f5f1801"
-    },
-    {
-      "id": 16,
-      "name": "更新 progress_manager.py 支持新字段",
-      "test_steps": [
-        "验证文件存在: ls plugins/progress-tracker/hooks/scripts/progress_manager.py",
-        "检查 development_stage 字段读写逻辑",
-        "测试向后兼容: 旧格式默认为 'developing'",
-        "测试新格式: 正确解析 planning/developing/completed"
-      ],
-      "completed": true,
-      "development_stage": "completed",
-      "completed_at": "2026-02-23T23:30:35.623036Z",
-      "archive_info": {
-        "archived_at": null,
-        "files_moved": 0,
-        "files": []
-      },
-      "commit_hash": "f5f1801"
-    },
-    {
-      "id": 17,
-      "name": "完善 UI 显示逻辑",
-      "test_steps": [
-        "启动 UI 服务器: 执行 /prog ui",
-        "验证 planning 阶段显示'开始开发'→ /prog start",
-        "验证 developing 阶段显示'完成此功能'→ /prog done",
-        "验证 completed 阶段标记为已完成",
-        "测试状态标题: '当前功能详情' vs '下一步详情'"
-      ],
-      "completed": true,
-      "development_stage": "completed",
-      "completed_at": "2026-02-23T23:31:35.623036Z",
-      "archive_info": {
-        "archived_at": null,
-        "files_moved": 0,
-        "files": []
-      },
-      "commit_hash": "f5f1801"
+      "completed": false
     }
   ],
-  "current_feature_id": null,
-  "updated_at": "2026-02-23T23:32:35.623036Z",
-  "schema_version": "2.0",
-  "bugs": [
-    {
-      "id": "BUG-001",
-      "description": "Status drawer suggested action click had no feedback and failed to copy command",
-      "status": "fixed",
-      "priority": "medium",
-      "category": "bug",
-      "created_at": "2026-02-12T10:54:52.847542Z",
-      "quick_verification": {
-        "code_exists": true,
-        "related_files": [
-          "plugins/progress-tracker/hooks/scripts/static/index.html"
-        ],
-        "reproducibility": "high",
-        "confidence": "confirmed"
-      },
-      "updated_at": "2026-02-12T10:54:59.136301Z",
-      "root_cause": "Drawer actions relied on inline onclick and browser scope/caching constraints, so handlers were not reliably invoked.",
-      "investigation": {
-        "root_cause": "Drawer actions relied on inline onclick and browser scope/caching constraints, so handlers were not reliably invoked.",
-        "confirmed_at": "2026-02-12T10:54:59.136573Z"
-      },
-      "fix_summary": "Switched to delegated click handling with data-* attributes, hardened copy fallback path, and added no-store headers to avoid stale frontend script cache. Commit: c3f3781e525ae49530991c1a7cb9f0b14ec28d35",
-      "fixed_at": "2026-02-12T10:55:27.083057Z"
-    }
-  ],
-  "current_bug_id": null
+  "current_feature_id": 4
 }

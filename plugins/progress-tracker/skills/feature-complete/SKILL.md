@@ -53,11 +53,15 @@ Inspect `workflow_state.phase`.
 
 - Required phase: `execution_complete`.
 - If not `execution_complete`, do not complete feature.
+- Also inspect execution/runtime context alignment from `.claude/progress.json` (or `check` output):
+  - If worktree/branch mismatches the recorded execution context, show a strong warning and ask user to switch first.
+  - Do not silently mutate progress state to "fix" mismatch.
 
 Return an actionable message:
 
 - current phase value
 - what is missing
+- context mismatch details (if any)
 - how to continue (`/prog`, `/prog next`, or recovery)
 
 ### Step 3: Validate Plan Contract
@@ -203,6 +207,10 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-bug \
 
 - Message: unable to detect PR status (e.g. `gh` unavailable or unauthenticated).
 - Next action: do not auto-run branch finishing; ask user whether to proceed manually.
+
+- Workflow Context Mismatch (warning path):
+  - Message: current session branch/worktree differs from recorded execution context.
+  - Next action: switch to recorded context, then rerun `/prog done`; if user confirms verification was done in current context, continue manually.
 
 ## Required Output Shape
 

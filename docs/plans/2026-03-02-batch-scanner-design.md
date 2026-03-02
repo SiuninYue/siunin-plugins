@@ -111,3 +111,38 @@ tests/test_batch_scanner.py
 ✅ 相对路径输出
 ✅ 准确的文件大小
 ✅ 符合项目编码规范
+
+## Tasks
+
+- [x] Create `scripts/batch_scanner.py` with shebang, module docstring, and core structure
+- [x] Implement `scan_files(patterns: List[str]) -> Dict` function with glob matching
+- [x] Add JSON output formatting with `{"files": [{"path": "...", "size": N}]}`
+- [x] Implement CLI interface with argparse for pattern arguments and `--json` flag
+- [x] Add error handling for no matches and invalid patterns
+- [x] Create test file `tests/test_batch_scanner.py`
+- [x] Implement `test_basic_glob_match()` for basic pattern matching
+- [x] Implement `test_recursive_glob()` for `**/*.py` recursive patterns
+- [x] Implement `test_multiple_patterns()` for multiple pattern arguments
+- [x] Implement `test_no_matches()` for empty results
+- [x] Implement `test_json_output()` for JSON format validation
+- [x] Implement `test_file_size_accuracy()` for correct size reporting
+- [x] Implement `test_cli_help()` for CLI interface verification
+- [x] Run all tests and verify they pass
+
+## Acceptance Mapping
+
+| Test Step | Verification Method | Task(s) |
+|-----------|-------------------|---------|
+| 验证模块存在: `ls plugins/note-organizer/scripts/batch_scanner.py` | File exists check | Create `scripts/batch_scanner.py` |
+| 运行单元测试: `pytest tests/test_batch_scanner.py -v` | Test execution | All test tasks |
+| 测试 CLI 入口: `python3 scripts/batch_scanner.py --help` | CLI help output | Implement CLI interface |
+| 测试扫描功能: `python3 scripts/batch_scanner.py 'tests/*.py' --json` | JSON output verification | Implement scan_files and JSON output |
+
+## Risks
+
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| Glob pattern complexity | Medium | Use Python's built-in glob module with recursive=True |
+| Large file counts | Low | Only collect metadata (path, size), not content |
+| Cross-platform paths | Low | Use pathlib for cross-platform compatibility |
+| JSON escaping issues | Low | Use json.dumps() for proper encoding |

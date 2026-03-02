@@ -27,6 +27,7 @@ Progress Tracker 插件解决了 AI 辅助开发中的一个关键问题：**如
 - **轻量 AI 统计** - 仅记录复杂度、模型和时长（不做 token/cost 估算）
 - **技术债归一化** - 技术债复用现有 bug 体系（`category=technical_debt`）
 - **轻量检查点** - 自动快照写入 `.claude/checkpoints.json`（不创建 git 提交）
+- **Worktree 感知恢复** - 记录 branch/worktree 上下文，`/prog` 与 `/prog done` 可在错误工作区恢复时给出强告警
 
 ## 依赖项
 
@@ -144,6 +145,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py clear-workflow-s
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-feature-ai-metrics <feature_id> --complexity-score <score> --selected-model <model> --workflow-path <path>
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py complete-feature-ai-metrics <feature_id>
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py auto-checkpoint
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py sync-runtime-context [--source <session_start|manual>] [--quiet] [--force]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-plan [--plan-path <path>]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-feature <name> <test_steps...>
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py undo
@@ -561,12 +563,15 @@ plugins/progress-tracker/
 2. 是否有未完成的功能？
 3. 是否设置了 `current_feature_id`？
 4. `workflow_state.phase` 是什么？
-5. 是否有未提交的 Git 更改？
+5. 当前会话 branch/worktree 是否与最近一次执行上下文一致？
+6. 是否有未提交的 Git 更改？
 
 **UserPromptSubmit 钩子**：
 - 每 30 分钟自动创建轻量检查点
-- 快照保存到 `.claude/checkpoints.json`
+- 快照（含 phase/task/branch/worktree）保存到 `.claude/checkpoints.json`
 - 不执行 git commit
+
+如果检测到上下文不匹配（例如功能在 worktree 中推进，但你在主工作区恢复），恢复/状态输出会先给出强告警并展示记录的 branch/worktree，再推荐下一步动作。
 
 ### 自动恢复场景
 

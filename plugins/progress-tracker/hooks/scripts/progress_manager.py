@@ -397,8 +397,13 @@ def load_progress_json():
         return None
 
 
-def save_progress_json(data):
-    """Save data to progress.json file with automatic updated_at and migration."""
+def _iso_now() -> str:
+    """Return current local timestamp with trailing Z for compatibility."""
+    return datetime.now().isoformat() + "Z"
+
+
+def save_progress_json(data, touch_updated_at: bool = True):
+    """Save data to progress.json file with optional updated_at touch and migration."""
     progress_dir = get_progress_dir()
     json_path = progress_dir / PROGRESS_JSON
 
@@ -406,7 +411,8 @@ def save_progress_json(data):
     progress_dir.mkdir(parents=True, exist_ok=True)
 
     # Auto-update updated_at timestamp
-    data["updated_at"] = datetime.now().isoformat() + "Z"
+    if touch_updated_at:
+        data["updated_at"] = _iso_now()
 
     # Ensure schema_version exists (migrate old files)
     if "schema_version" not in data:
@@ -462,6 +468,366 @@ def _parse_iso_timestamp(value: Optional[str]) -> Optional[datetime]:
     except (TypeError, ValueError):
         logger.debug(f"Invalid ISO timestamp: {value}")
         return None
+
+
+RUNTIME_CONTEXT_COMPARE_KEYS = (
+    "workspace_mode",
+    "worktree_path",
+    "project_root",
+    "cwd",
+    "git_dir",
+    "branch",
+    "upstream",
+    "current_feature_id",
+    "workflow_phase",
+    "current_task",
+    "total_tasks",
+    "next_action",
+)
+
+
+def _normalize_context_path(value: Optional[str]) -> Optional[str]:
+    """Normalize paths for cross-platform comparison."""
+    if not value:
+        return None
+    try:
+        return Path(value).resolve().as_posix()
+    except Exception:
+        return str(value).replace("\\", "/")
+
+
+def _normalize_optional_string(value: Optional[str]) -> Optional[str]:
+    """Normalize optional string values for context comparison."""
+    if value is None:
+        return None
+    value = str(value).strip()
+    return value or None
+
+
+def collect_git_context() -> Dict[str, Any]:
+    """
+    Collect current git/worktree context using lightweight git probes.
+
+    workspace_mode contract:
+    - unknown: not a git repo or probes failed
+    - worktree: git dir path contains '/worktrees/'
+    - in_place: git repo and not a linked worktree git dir
+    """
+    fallback_root = find_project_root()
+    fallback_root_str = str(fallback_root.resolve())
+    cwd_str = str(Path.cwd().resolve())
+    context: Dict[str, Any] = {
+        "workspace_mode": "unknown",
+        "worktree_path": fallback_root_str,
+        "project_root": fallback_root_str,
+        "cwd": cwd_str,
+        "git_dir": None,
+        "branch": None,
+        "upstream": None,
+    }
+
+    exit_code, stdout, _ = _run_git(
+        ["rev-parse", "--show-toplevel"],
+        cwd=str(fallback_root),
+        timeout=5,
+    )
+    if exit_code != 0 or not stdout.strip():
+        return context
+
+    project_root_raw = stdout.strip()
+    try:
+        project_root = Path(project_root_raw).resolve()
+    except Exception:
+        project_root = Path(project_root_raw)
+
+    project_root_str = str(project_root)
+    context["project_root"] = project_root_str
+    context["worktree_path"] = project_root_str
+
+    exit_code, stdout, _ = _run_git(
+        ["rev-parse", "--absolute-git-dir"],
+        cwd=str(project_root),
+        timeout=5,
+    )
+    git_dir = stdout.strip() if exit_code == 0 and stdout.strip() else None
+    context["git_dir"] = git_dir
+
+    if git_dir:
+        git_dir_posix = _normalize_context_path(git_dir) or ""
+        context["workspace_mode"] = (
+            "worktree" if "/worktrees/" in git_dir_posix else "in_place"
+        )
+    else:
+        context["workspace_mode"] = "in_place"
+
+    exit_code, stdout, _ = _run_git(
+        ["symbolic-ref", "--quiet", "--short", "HEAD"],
+        cwd=str(project_root),
+        timeout=5,
+    )
+    context["branch"] = stdout.strip() if exit_code == 0 and stdout.strip() else None
+
+    exit_code, stdout, _ = _run_git(
+        ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"],
+        cwd=str(project_root),
+        timeout=5,
+    )
+    context["upstream"] = stdout.strip() if exit_code == 0 and stdout.strip() else None
+
+    return context
+
+
+def build_runtime_context(data: Dict[str, Any], source: str) -> Dict[str, Any]:
+    """Build top-level runtime_context snapshot from current repository + progress state."""
+    git_context = collect_git_context()
+    workflow_state = data.get("workflow_state", {})
+    if not isinstance(workflow_state, dict):
+        workflow_state = {}
+
+    runtime_context: Dict[str, Any] = {
+        "recorded_at": _iso_now(),
+        "source": source,
+        **git_context,
+        "current_feature_id": data.get("current_feature_id"),
+        "workflow_phase": workflow_state.get("phase"),
+        "current_task": workflow_state.get("current_task"),
+        "total_tasks": workflow_state.get("total_tasks"),
+        "next_action": workflow_state.get("next_action"),
+    }
+    return runtime_context
+
+
+def build_execution_context(source: str) -> Dict[str, Any]:
+    """Build workflow_state.execution_context snapshot for workflow semantic transitions."""
+    git_context = collect_git_context()
+    return {
+        "recorded_at": _iso_now(),
+        "source": source,
+        "workspace_mode": git_context.get("workspace_mode"),
+        "worktree_path": git_context.get("worktree_path"),
+        "project_root": git_context.get("project_root"),
+        "git_dir": git_context.get("git_dir"),
+        "branch": git_context.get("branch"),
+        "upstream": git_context.get("upstream"),
+    }
+
+
+def _runtime_context_fingerprint(ctx: Optional[Dict[str, Any]]) -> Tuple[Any, ...]:
+    """Build a comparable fingerprint for runtime_context deduplication."""
+    if not isinstance(ctx, dict):
+        return tuple([None] * len(RUNTIME_CONTEXT_COMPARE_KEYS))
+    normalized: List[Any] = []
+    for key in RUNTIME_CONTEXT_COMPARE_KEYS:
+        value = ctx.get(key)
+        if key in {"worktree_path", "project_root", "cwd", "git_dir"}:
+            normalized.append(_normalize_context_path(value))
+        else:
+            normalized.append(value)
+    return tuple(normalized)
+
+
+def _update_runtime_context(data: Dict[str, Any], source: str, force: bool = False) -> bool:
+    """Update top-level runtime_context in progress data; returns True if changed."""
+    if not isinstance(data, dict):
+        return False
+
+    new_context = build_runtime_context(data, source)
+    old_context = data.get("runtime_context")
+
+    if not force and _runtime_context_fingerprint(old_context) == _runtime_context_fingerprint(new_context):
+        return False
+
+    data["runtime_context"] = new_context
+    return True
+
+
+def _update_execution_context(workflow_state: Dict[str, Any], source: str) -> None:
+    """Refresh workflow_state.execution_context after semantic workflow progress changes."""
+    if not isinstance(workflow_state, dict):
+        return
+    workflow_state["execution_context"] = build_execution_context(source)
+
+
+def compare_contexts(
+    expected: Optional[Dict[str, Any]], current: Optional[Dict[str, Any]]
+) -> Dict[str, Any]:
+    """
+    Compare expected execution context with current/runtime context.
+
+    Returns a normalized hint object suitable for recovery/status output.
+    """
+    if not isinstance(expected, dict):
+        expected = {}
+    if not isinstance(current, dict):
+        current = {}
+
+    expected_branch = _normalize_optional_string(expected.get("branch"))
+    expected_path = _normalize_context_path(expected.get("worktree_path"))
+    current_branch = _normalize_optional_string(current.get("branch"))
+    current_path = _normalize_context_path(current.get("worktree_path"))
+
+    expected_has_signal = bool(expected_branch or expected_path)
+    current_has_signal = bool(current_branch or current_path)
+
+    result: Dict[str, Any] = {
+        "status": "unknown",
+        "severity": "info",
+        "expected_branch": expected_branch,
+        "expected_worktree_path": expected_path,
+        "current_branch": current_branch,
+        "current_worktree_path": current_path,
+        "message": "No execution context available yet.",
+    }
+
+    if not expected_has_signal:
+        return result
+
+    if not current_has_signal:
+        result.update(
+            {
+                "status": "unknown",
+                "severity": "warning",
+                "message": "Current session context is unavailable; cannot verify worktree/branch alignment.",
+            }
+        )
+        return result
+
+    expected_needs_path = bool(expected_path)
+    expected_needs_branch = bool(expected_branch)
+
+    path_missing_current = expected_needs_path and not current_path
+    branch_missing_current = expected_needs_branch and not current_branch
+
+    path_mismatch = bool(expected_path and current_path and expected_path != current_path)
+    branch_mismatch = bool(expected_branch and current_branch and expected_branch != current_branch)
+
+    if path_mismatch or branch_mismatch:
+        if path_mismatch and branch_mismatch:
+            status = "mismatch"
+        elif path_mismatch:
+            status = "path_mismatch"
+        else:
+            status = "branch_mismatch"
+
+        msg_parts: List[str] = ["Current session does not match the last recorded execution context"]
+        details: List[str] = []
+        if path_mismatch:
+            details.append("worktree path differs")
+        if branch_mismatch:
+            details.append("branch differs")
+        if path_missing_current:
+            details.append("current worktree path unavailable")
+        if branch_missing_current:
+            details.append("current branch unavailable")
+        if details:
+            msg_parts.append(f"({', '.join(details)})")
+
+        result.update(
+            {
+                "status": status,
+                "severity": "warning",
+                "message": " ".join(msg_parts) + ".",
+            }
+        )
+        return result
+
+    missing_parts: List[str] = []
+    if path_missing_current:
+        missing_parts.append("worktree path")
+    if branch_missing_current:
+        missing_parts.append("branch")
+    if missing_parts:
+        result.update(
+            {
+                "status": "unknown",
+                "severity": "warning",
+                "message": (
+                    "Current session context is incomplete; cannot verify "
+                    + " and ".join(missing_parts)
+                    + " alignment."
+                ),
+            }
+        )
+        return result
+
+    if (not expected_needs_path or expected_path == current_path) and (
+        not expected_needs_branch or expected_branch == current_branch
+    ):
+        result.update(
+            {
+                "status": "match",
+                "severity": "info",
+                "message": "Current session matches the last recorded execution context.",
+            }
+        )
+        return result
+
+    result.update(
+        {
+            "status": "unknown",
+            "severity": "warning",
+            "message": "Current session context could not be fully compared with the recorded execution context.",
+        }
+    )
+    return result
+
+
+def _format_context_summary(context: Optional[Dict[str, Any]]) -> str:
+    """Format a concise context summary for CLI/markdown displays."""
+    if not isinstance(context, dict):
+        return "unknown"
+
+    branch = context.get("branch") or "(no-branch)"
+    worktree_path = context.get("worktree_path")
+    mode = context.get("workspace_mode") or "unknown"
+
+    if worktree_path:
+        try:
+            worktree_label = Path(worktree_path).name or worktree_path
+        except Exception:
+            worktree_label = str(worktree_path)
+        return f"{branch} @ {worktree_label} [{mode}]"
+    return f"{branch} [{mode}]"
+
+
+def _latest_checkpoint_entry(checkpoints: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Return the most recent checkpoint entry (append semantics => last entry)."""
+    if not isinstance(checkpoints, dict):
+        return None
+    entries = checkpoints.get("entries")
+    if not isinstance(entries, list) or not entries:
+        return None
+    last = entries[-1]
+    return last if isinstance(last, dict) else None
+
+
+def _latest_checkpoint_entry_for_feature(
+    checkpoints: Optional[Dict[str, Any]], feature_id: Optional[int]
+) -> Optional[Dict[str, Any]]:
+    """Return the most recent checkpoint entry for the given feature."""
+    if feature_id is None or not isinstance(checkpoints, dict):
+        return None
+    entries = checkpoints.get("entries")
+    if not isinstance(entries, list) or not entries:
+        return None
+    for entry in reversed(entries):
+        if isinstance(entry, dict) and entry.get("feature_id") == feature_id:
+            return entry
+    return None
+
+
+def _build_checkpoint_context(entry: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Adapt a checkpoint entry to the context comparison shape."""
+    if not isinstance(entry, dict):
+        return None
+    return {
+        "workspace_mode": entry.get("workspace_mode"),
+        "worktree_path": entry.get("worktree_path"),
+        "project_root": entry.get("worktree_path"),
+        "git_dir": None,
+        "branch": entry.get("branch"),
+        "upstream": entry.get("upstream"),
+    }
 
 
 def load_checkpoints(path: Optional[Path] = None) -> Dict[str, Any]:
@@ -536,6 +902,7 @@ def auto_checkpoint() -> bool:
     features = data.get("features", [])
     feature = next((f for f in features if f.get("id") == current_feature_id), None)
     workflow_state = data.get("workflow_state", {})
+    git_context = collect_git_context()
 
     checkpoint_entry = {
         "timestamp": now.isoformat().replace("+00:00", "Z"),
@@ -545,6 +912,11 @@ def auto_checkpoint() -> bool:
         "plan_path": workflow_state.get("plan_path"),
         "current_task": workflow_state.get("current_task"),
         "total_tasks": workflow_state.get("total_tasks"),
+        "next_action": workflow_state.get("next_action"),
+        "workspace_mode": git_context.get("workspace_mode"),
+        "worktree_path": git_context.get("worktree_path"),
+        "branch": git_context.get("branch"),
+        "upstream": git_context.get("upstream"),
         "reason": "auto_interval",
     }
 
@@ -622,6 +994,10 @@ def status():
     project_name = data.get("project_name", "Unknown")
     features = data.get("features", [])
     current_id = data.get("current_feature_id")
+    workflow_state = data.get("workflow_state", {})
+    if not isinstance(workflow_state, dict):
+        workflow_state = {}
+    runtime_context = data.get("runtime_context")
 
     # Calculate statistics
     total = len(features)
@@ -639,6 +1015,38 @@ def status():
             print(
                 f"**Current Feature**: {current_feature.get('name', 'Unknown')} (in progress)"
             )
+            if workflow_state:
+                phase = workflow_state.get("phase", "unknown")
+                current_task = workflow_state.get("current_task")
+                total_tasks = workflow_state.get("total_tasks")
+                next_action = workflow_state.get("next_action")
+                print(f"**Workflow Phase**: {phase}")
+                if current_task is not None or total_tasks is not None:
+                    task_progress = f"{current_task if current_task is not None else '?'}"
+                    if total_tasks is not None:
+                        task_progress += f"/{total_tasks}"
+                    print(f"**Task Progress**: {task_progress}")
+                if next_action:
+                    print(f"**Next Action**: {next_action}")
+
+                execution_context = workflow_state.get("execution_context")
+                if execution_context:
+                    print(f"**Execution Context**: {_format_context_summary(execution_context)}")
+                if runtime_context:
+                    print(f"**Current Session Context**: {_format_context_summary(runtime_context)}")
+
+                context_hint = compare_contexts(execution_context, runtime_context)
+                if context_hint.get("status") in {
+                    "mismatch",
+                    "path_mismatch",
+                    "branch_mismatch",
+                }:
+                    print(
+                        "**Context Warning**: "
+                        f"{context_hint.get('message')} "
+                        f"(expected {context_hint.get('expected_branch') or '?'} @ "
+                        f"{context_hint.get('expected_worktree_path') or '?'})"
+                    )
 
     # Display features
     if completed > 0:
@@ -970,6 +1378,40 @@ def git_sync_check() -> bool:
     return True
 
 
+def sync_runtime_context(source: str = "manual", quiet: bool = False, force: bool = False) -> bool:
+    """
+    Persist current runtime_context snapshot without touching semantic updated_at.
+
+    Intended for SessionStart hooks and manual troubleshooting. This command is
+    intentionally non-blocking when no progress tracking exists.
+    """
+    allowed_sources = {"session_start", "manual"}
+    if source not in allowed_sources:
+        if not quiet:
+            print(f"Error: Invalid runtime context source '{source}'. Allowed: {sorted(allowed_sources)}")
+        return False
+
+    data = load_progress_json()
+    if not data:
+        if not quiet:
+            print("No progress tracking found; runtime context sync skipped.")
+        return True
+
+    changed = _update_runtime_context(data, source=source, force=force)
+    if not changed:
+        if not quiet:
+            print("Runtime context unchanged.")
+        return True
+
+    save_progress_json(data, touch_updated_at=False)
+
+    if not quiet:
+        ctx = data.get("runtime_context", {})
+        print(f"Runtime context synced: {_format_context_summary(ctx)}")
+
+    return True
+
+
 def check():
     """
     Check if progress tracking exists and has incomplete features.
@@ -999,6 +1441,28 @@ def check():
                 plan_path = workflow_state.get("plan_path", "")
                 completed_tasks = workflow_state.get("completed_tasks", [])
                 total_tasks = workflow_state.get("total_tasks", 0)
+                checkpoints = load_checkpoints()
+                latest_checkpoint = _latest_checkpoint_entry(checkpoints)
+                latest_feature_checkpoint = _latest_checkpoint_entry_for_feature(checkpoints, current_id)
+                latest_checkpoint_context = _build_checkpoint_context(latest_checkpoint)
+                latest_feature_checkpoint_context = _build_checkpoint_context(latest_feature_checkpoint)
+                execution_context = workflow_state.get("execution_context")
+                expected_context = execution_context
+                if not isinstance(expected_context, dict) or not (
+                    expected_context.get("worktree_path") or expected_context.get("branch")
+                ):
+                    expected_context = latest_feature_checkpoint_context
+
+                # Build a live context snapshot for comparison without persisting it.
+                current_context = build_runtime_context(data, source="manual")
+                context_hint = compare_contexts(expected_context, current_context)
+                if (
+                    context_hint.get("status") == "unknown"
+                    and latest_feature_checkpoint_context
+                    and latest_feature_checkpoint_context is not expected_context
+                ):
+                    # Fallback compare if execution_context existed but was incomplete.
+                    context_hint = compare_contexts(latest_feature_checkpoint_context, current_context)
 
                 # Determine recovery recommendation
                 recommendation = determine_recovery_action(
@@ -1019,7 +1483,23 @@ def check():
                     "plan_path_error": plan_validation["error"],
                     "completed_tasks": completed_tasks,
                     "total_tasks": total_tasks,
-                    "recommendation": recommendation
+                    "recommendation": recommendation,
+                    "context_hint": context_hint,
+                    "last_checkpoint_hint": (
+                        {
+                            "timestamp": latest_checkpoint.get("timestamp"),
+                            "feature_id": latest_checkpoint.get("feature_id"),
+                            "feature_name": latest_checkpoint.get("feature_name"),
+                            "phase": latest_checkpoint.get("phase"),
+                            "current_task": latest_checkpoint.get("current_task"),
+                            "total_tasks": latest_checkpoint.get("total_tasks"),
+                            "next_action": latest_checkpoint.get("next_action"),
+                            "branch": latest_checkpoint.get("branch"),
+                            "worktree_path": latest_checkpoint.get("worktree_path"),
+                        }
+                        if latest_checkpoint
+                        else None
+                    ),
                 }
 
                 print(json.dumps(recovery_info))
@@ -1077,6 +1557,7 @@ def set_current(feature_id):
     # /prog start will explicitly transition planning -> developing.
     if not feature.get("completed", False):
         feature["development_stage"] = "planning"
+    _update_runtime_context(data, source="set_current")
     save_progress_json(data)
 
     # Update progress.md
@@ -1111,8 +1592,9 @@ def set_development_stage(stage: str, feature_id: Optional[int] = None) -> bool:
 
     feature["development_stage"] = stage
     if stage == "developing" and not feature.get("started_at"):
-        feature["started_at"] = datetime.now().isoformat() + "Z"
+        feature["started_at"] = _iso_now()
 
+    _update_runtime_context(data, source="set_development_stage")
     save_progress_json(data)
 
     # Update progress.md
@@ -1400,11 +1882,12 @@ def complete_feature(feature_id, commit_hash=None, skip_archive=False):
 
     feature["completed"] = True
     feature["development_stage"] = "completed"
-    feature["completed_at"] = datetime.now().isoformat() + "Z"
+    feature["completed_at"] = _iso_now()
     if commit_hash:
         feature["commit_hash"] = commit_hash
 
     data["current_feature_id"] = None
+    _update_runtime_context(data, source="complete_feature")
 
     save_progress_json(data)
 
@@ -2089,9 +2572,11 @@ def set_workflow_state(phase=None, plan_path=None, next_action=None):
     if next_action:
         workflow_state["next_action"] = next_action
 
-    workflow_state["updated_at"] = datetime.now().isoformat() + "Z"
+    workflow_state["updated_at"] = _iso_now()
+    _update_execution_context(workflow_state, source="set_workflow_state")
 
     data["workflow_state"] = workflow_state
+    _update_runtime_context(data, source="set_workflow_state")
     save_progress_json(data)
 
     # Update progress.md
@@ -2118,9 +2603,11 @@ def update_workflow_task(task_id, status):
             workflow_state["completed_tasks"] = completed_tasks
             workflow_state["current_task"] = task_id + 1
 
-    workflow_state["updated_at"] = datetime.now().isoformat() + "Z"
+    workflow_state["updated_at"] = _iso_now()
+    _update_execution_context(workflow_state, source="update_workflow_task")
 
     data["workflow_state"] = workflow_state
+    _update_runtime_context(data, source="update_workflow_task")
     save_progress_json(data)
 
     # Update progress.md
@@ -2267,6 +2754,10 @@ def generate_progress_md(data):
     current_id = data.get("current_feature_id")
     current_bug_id = data.get("current_bug_id")
     created_at = data.get("created_at", "")
+    workflow_state = data.get("workflow_state", {})
+    if not isinstance(workflow_state, dict):
+        workflow_state = {}
+    runtime_context = data.get("runtime_context")
 
     md_lines = [
         f"# Project Progress: {project_name}",
@@ -2310,6 +2801,40 @@ def generate_progress_md(data):
         md_lines.append("## Pending")
         for f in pending:
             md_lines.append(f"- [ ] {f.get('name', 'Unknown')}")
+        md_lines.append("")
+
+    if current_id and workflow_state:
+        phase = workflow_state.get("phase", "unknown")
+        current_task = workflow_state.get("current_task")
+        total_tasks = workflow_state.get("total_tasks")
+        next_action = workflow_state.get("next_action")
+        execution_context = workflow_state.get("execution_context")
+        context_hint = compare_contexts(execution_context, runtime_context)
+
+        md_lines.append("## Workflow Context")
+        md_lines.append(f"- Phase: {phase}")
+
+        if current_task is not None or total_tasks is not None:
+            task_progress = f"{current_task if current_task is not None else '?'}"
+            if total_tasks is not None:
+                task_progress += f"/{total_tasks}"
+            md_lines.append(f"- Task progress: {task_progress}")
+
+        if next_action:
+            md_lines.append(f"- Next action: {next_action}")
+
+        if execution_context:
+            md_lines.append(f"- Execution context: {_format_context_summary(execution_context)}")
+        if runtime_context:
+            md_lines.append(f"- Current session context: {_format_context_summary(runtime_context)}")
+
+        if context_hint.get("status") in {"mismatch", "path_mismatch", "branch_mismatch"}:
+            md_lines.append(
+                "- Context mismatch: "
+                f"{context_hint.get('message')} "
+                f"(expected {context_hint.get('expected_branch') or '?'} @ "
+                f"{context_hint.get('expected_worktree_path') or '?'})"
+            )
         md_lines.append("")
 
     # Add bugs section if any exist
@@ -2496,6 +3021,22 @@ def main():
 
     # Auto-checkpoint command
     subparsers.add_parser("auto-checkpoint", help="Create checkpoint snapshot if interval elapsed")
+    runtime_sync_parser = subparsers.add_parser(
+        "sync-runtime-context",
+        help="Record current session/worktree context without changing semantic progress timestamps",
+    )
+    runtime_sync_parser.add_argument(
+        "--source",
+        choices=["session_start", "manual"],
+        default="manual",
+        help="Source of runtime context sync",
+    )
+    runtime_sync_parser.add_argument(
+        "--quiet", action="store_true", help="Suppress non-essential output"
+    )
+    runtime_sync_parser.add_argument(
+        "--force", action="store_true", help="Write even when context fingerprint is unchanged"
+    )
 
     # Plan validation command
     validate_plan_parser = subparsers.add_parser(
@@ -2588,6 +3129,8 @@ def main():
         return complete_feature_ai_metrics(args.feature_id)
     elif args.command == "auto-checkpoint":
         return auto_checkpoint()
+    elif args.command == "sync-runtime-context":
+        return sync_runtime_context(source=args.source, quiet=args.quiet, force=args.force)
     elif args.command == "validate-plan":
         return validate_plan(plan_path=args.plan_path)
     elif args.command == "add-bug":

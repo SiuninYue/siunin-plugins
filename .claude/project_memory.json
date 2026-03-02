@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "created_at": "2026-02-21T17:15:50.647128Z",
-  "updated_at": "2026-02-21T23:59:00.563648Z",
-  "next_capability_seq": 7,
+  "updated_at": "2026-03-01T23:54:31.978528Z",
+  "next_capability_seq": 9,
   "last_synced_commit": "f5f1801",
   "capabilities": [
     {
@@ -128,6 +128,49 @@
       },
       "created_at": "2026-02-21T23:59:00.555117Z",
       "updated_at": "2026-02-21T23:59:00.555117Z"
+    },
+    {
+      "cap_id": "CAP-007",
+      "fingerprint": "4c5490801f63769d",
+      "title": "Note Organizer Plugin 基础架构",
+      "summary": "创建了 note-organizer 插件的基础结构，包括插件清单(plugin.json)、运行时架构文档(ARCHITECTURE.md)、README 和脚本模块。采用混合架构模式，将使用 Python 处理确定性任务，AI 处理创造性任务。",
+      "tags": [
+        "plugin-architecture",
+        "note-organizer",
+        "hybrid-architecture"
+      ],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": "1",
+        "commit_hash": "0527fec7c87aa0ee975f727c675f78d59493cd66",
+        "commit_range": ""
+      },
+      "created_at": "2026-03-01T00:10:40.195902Z",
+      "updated_at": "2026-03-01T00:10:40.195902Z"
+    },
+    {
+      "cap_id": "CAP-008",
+      "fingerprint": "e75573f88182e382",
+      "title": "Batch Scanner Module with CLI",
+      "summary": "Implemented a Python module for scanning files matching glob patterns with JSON output. Features include recursive pattern support (using **), multiple pattern arguments, duplicate detection, and sorted output. The module follows Unix tool philosophy with simple, predictable behavior. Includes comprehensive test suite with 11 tests covering basic matching, recursion, multiple patterns, edge cases, duplicates, and sorting.",
+      "tags": [
+        "python",
+        "glob",
+        "cli",
+        "file-scanner",
+        "json",
+        "testing"
+      ],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 3,
+        "commit_hash": "35197a7",
+        "commit_range": ""
+      },
+      "created_at": "2026-03-01T23:54:31.970578Z",
+      "updated_at": "2026-03-01T23:54:31.970578Z"
     }
   ],
   "rejected_fingerprints": [],

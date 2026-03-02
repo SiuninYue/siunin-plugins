@@ -18,7 +18,9 @@
 
 ---
 
-## Task 0: 定义运行时架构和契约
+## Tasks
+
+### Task 0: 定义运行时架构和契约
 
 **Files:**
 - Create: `plugins/note-organizer/docs/ARCHITECTURE.md`
@@ -67,6 +69,12 @@
 ### 输出
 - NotebookLM 格式: `<name>-notebooklm.md`
 - Obsidian 格式: `<name>-obsidian.md`
+
+## 运行时路径约定
+
+**插件脚本路径**: 使用 `${CLAUDE_PLUGIN_ROOT}` 环境变量
+- 命令层调用: `cd "${CLAUDE_PLUGIN_ROOT}" && python3 scripts/xxx.py`
+- Python 内部: 使用 `Path(__file__)` 计算相对路径（安全）
 
 ## 错误处理
 - 文件读取失败: 返回错误，跳过该文件
@@ -226,6 +234,9 @@ pytest tests/test_clean_timestamps.py -v
 ```python
 # scripts/clean_timestamps.py
 import re
+import sys
+import argparse
+from pathlib import Path
 from typing import List
 
 # 时间戳正则模式（带锚定，避免误删）
@@ -255,8 +266,9 @@ def clean_timestamps(text: str) -> str:
     for pattern in TIMESTAMP_PATTERNS:
         result = re.sub(pattern, "", result)
 
-    # 清理多余的空格和空行
-    result = re.sub(r"\s+", " ", result)  # 多个空格 -> 单个空格
+    # 清理多余的空格（但保留换行结构）
+    result = re.sub(r" +", " ", result)  # 多个空格 -> 单个空格
+    result = re.sub(r"\n\s+", "\n", result)  # 移除行首空格
     result = re.sub(r"(\n\s*){3,}", "\n\n", result)  # 多个空行 -> 两个
     result = result.strip()
 
@@ -282,6 +294,39 @@ def clean_timestamps_preserve_speakers(text: str) -> str:
     result = clean_timestamps(result)
 
     return result
+
+def main() -> None:
+    """CLI 入口点"""
+    parser = argparse.ArgumentParser(description="清理文本中的时间戳")
+    parser.add_argument("input", help="输入文件路径")
+    parser.add_argument("-o", "--output", help="输出文件路径（默认stdout）")
+    parser.add_argument("--preserve-speakers", action="store_true",
+                       help="保留说话人标记")
+
+    args = parser.parse_args()
+
+    # 读取输入文件
+    input_path = Path(args.input)
+    if not input_path.exists():
+        print(f"Error: Input file not found: {args.input}", file=sys.stderr)
+        sys.exit(1)
+
+    content = input_path.read_text(encoding="utf-8")
+
+    # 处理内容
+    if args.preserve_speakers:
+        result = clean_timestamps_preserve_speakers(content)
+    else:
+        result = clean_timestamps(content)
+
+    # 输出结果
+    if args.output:
+        Path(args.output).write_text(result, encoding="utf-8")
+    else:
+        print(result)
+
+if __name__ == "__main__":
+    main()
 ```
 
 **Step 4: 运行测试确认通过**
@@ -320,7 +365,7 @@ def test_scan_files_with_pattern():
     """测试按模式扫描文件"""
     # 创建测试文件
     test_dir = Path("tests/fixtures/scan-test")
-    test_dir.mkdir(exist_ok=True)
+    test_dir.mkdir(parents=True, exist_ok=True)
     (test_dir / "note1.txt").write_text("content 1")
     (test_dir / "note2.txt").write_text("content 2")
     (test_dir / "ignore.md").write_text("ignored")
@@ -334,7 +379,7 @@ def test_scan_files_with_pattern():
 def test_validate_readable_file():
     """测试验证可读文件"""
     test_file = Path("tests/fixtures/test.txt")
-    test_file.parent.mkdir(exist_ok=True)
+    test_file.parent.mkdir(parents=True, exist_ok=True)
     test_file.write_text("test content")
 
     assert validate_file(test_file) == True
@@ -347,6 +392,7 @@ def test_validate_nonexistent_file():
 **Step 2: 运行测试确认失败**
 
 ```bash
+cd plugins/note-organizer
 pytest tests/test_batch_scanner.py -v
 ```
 
@@ -355,6 +401,7 @@ pytest tests/test_batch_scanner.py -v
 ```python
 # scripts/batch_scanner.py
 import glob
+import os
 from pathlib import Path
 from typing import Iterator, Optional
 
@@ -415,15 +462,55 @@ def batch_scan(
         "matched": len(files),
         "valid": len(files),
         "files": [str(f) for f in files],
-        "output_dir": str(output_dir) if output_dir else None
+        "output_dir": str(output_dir) if output_dir else None,
+        "output_writable": None
     }
 
     # 验证输出目录
     if output_dir:
         output_dir = Path(output_dir)
-        result["output_writable"] = output_dir.exists() or output_dir.mkdir(parents=True, exist_ok=True)
+        if not output_dir.exists():
+            output_dir.mkdir(parents=True, exist_ok=True)
+        # 检查是否是目录且可写
+        result["output_writable"] = (
+            output_dir.is_dir() and
+            os.access(output_dir, os.W_OK)
+        )
 
     return result
+
+def main() -> None:
+    """CLI 入口点"""
+    import json
+    import argparse
+
+    parser = argparse.ArgumentParser(description="批量扫描文件并返回结果摘要")
+    parser.add_argument("pattern", help="Glob 模式（如 './notes/*.txt'）")
+    parser.add_argument("-o", "--output-dir", help="验证输出目录可写性")
+    parser.add_argument("--json", action="store_true",
+                       help="以 JSON 格式输出结果")
+
+    args = parser.parse_args()
+
+    # 执行扫描
+    result = batch_scan(args.pattern, Path(args.output_dir) if args.output_dir else None)
+
+    # 输出结果
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        print(f"匹配文件: {result['matched']}")
+        print(f"有效文件: {result['valid']}")
+        if result['files']:
+            print("\n找到的文件:")
+            for f in result['files']:
+                print(f"  - {f}")
+        if result['output_writable'] is not None:
+            status = "可写" if result['output_writable'] else "不可写"
+            print(f"\n输出目录 {result['output_dir']}: {status}")
+
+if __name__ == "__main__":
+    main()
 ```
 
 **Step 4: 运行测试确认通过**
@@ -470,20 +557,27 @@ tags: [note-taking, transcript, organization]
 - 带时间戳的会议记录
 - 需要整理的碎片化笔记
 
+## 输入契约
+
+**接收：文件内容（文本），不是文件路径**
+
+命令层负责读取文件，skill 只处理文本内容。
+
 ## 处理步骤
 
-### 1. 调用 Python 脚本清理时间戳
+### 1. 清理时间戳（函数调用，非 CLI）
 
-使用 Bash 工具调用：
-```bash
-python3 scripts/clean_timestamps.py "$INPUT_FILE"
+直接调用 Python 函数清理时间戳：
+```python
+from scripts.clean_timestamps import clean_timestamps_preserve_speakers
+cleaned = clean_timestamps_preserve_speakers(content)
 ```
 
 ### 2. 分析内容并生成元数据
 
 基于 `references/auto-categorization.md` 的规则：
 - 识别内容类型（视频/会议/文章）
-- 生成层级标签
+- 生成层级标签（不带 `#` 前缀）
 - 提取关键主题
 
 ### 3. 重组内容结构
@@ -491,17 +585,19 @@ python3 scripts/clean_timestamps.py "$INPUT_FILE"
 基于 `references/content-structuring.md` 的模式：
 - 生成内容概览
 - 提取核心要点
-- 组织详细内容
+- 组织详细内容（保留段落结构）
 
 ### 4. 格式化输出
 
 根据目标平台应用相应格式：
-- NotebookLM: 参考 `references/notebooklm-format.md`
-- Obsidian: 调用 `obsidian-markdown` skill
+- **NotebookLM**: 调用 `render_template()` 渲染模板
+- **Obsidian**: 调用 `obsidian-markdown` skill 格式化
 
-## 输出格式
+## 输出契约
 
-确保输出符合目标平台的最佳实践。
+**返回：格式化后的文本内容**
+
+命令层负责写入文件。
 ```
 
 **Step 2: 创建参考文档**
@@ -677,6 +773,7 @@ def test_render_notebooklm_template():
 **Step 3: 运行测试确认失败**
 
 ```bash
+cd plugins/note-organizer
 pytest tests/test_template_renderer.py -v
 ```
 
@@ -709,13 +806,23 @@ def render_template(template_name: str, data: Dict[str, Any]) -> str:
     return template.format(**data)
 
 def format_tags_list(tags: list) -> str:
-    """格式化标签列表为 YAML 格式"""
-    return "\n".join(f"  - #{tag}" for tag in tags)
+    """
+    格式化标签列表为 YAML 格式。
+
+    注意：标签应该不带 # 前缀，函数会统一添加。
+    如果标签已经带 #，需要先 strip掉。
+    """
+    return "\n".join(
+        f"  - #{tag.lstrip('#')}"
+        for tag in tags
+        if tag  # 跳过空标签
+    )
 ```
 
 **Step 5: 运行测试确认通过**
 
 ```bash
+cd plugins/note-organizer
 pytest tests/test_template_renderer.py -v
 ```
 
@@ -730,10 +837,97 @@ git commit -m "feat(note-organizer): implement template renderer"
 
 ---
 
+## Task 5.5: 创建 Obsidian 模板
+
+**Files:**
+- Create: `plugins/note-organizer/templates/obsidian-template.md`
+- Modify: `plugins/note-organizer/tests/test_template_renderer.py` (添加 Obsidian 测试)
+
+**Step 1: 创建 Obsidian 模板**
+
+```markdown
+---
+cssclass: note-review
+type: {note_type}
+tags:
+{tags}
+category: {category}
+created: {created_date}
+---
+
+# {title}
+
+## Metadata
+
+- **Source Type**: {source_type}
+- **Created**: {created_date}
+- **Confidence**: {confidence}
+
+## 📋 Summary
+
+{summary}
+
+## 🔑 Key Points
+
+{key_points}
+
+## 📚 Content
+
+{detailed_content}
+
+## 🔗 Resources
+
+{resources}
+
+## 📝 Notes
+
+{conclusion}
+```
+
+**Step 2: 添加 Obsidian 渲染测试**
+
+```python
+def test_render_obsidian_template():
+    """测试渲染 Obsidian 模板"""
+    data = {
+        "note_type": "video-notes",
+        "tags": "  - #technology/ai\n  - #tutorial",
+        "category": "技术教程",
+        "created_date": "2026-02-25",
+        "title": "测试标题",
+        "source_type": "video_transcript",
+        "confidence": "high",
+        "summary": "摘要",
+        "key_points": "- 要点1\n- 要点2",
+        "detailed_content": "详细内容...",
+        "resources": "- [[相关笔记]]",
+        "conclusion": "总结"
+    }
+
+    result = render_template("obsidian-template.md", data)
+
+    assert "cssclass: note-review" in result
+    assert "# 测试标题" in result
+    assert "## 📋 Summary" in result
+    assert "#technology/ai" in result
+```
+
+**Step 3: 提交**
+
+```bash
+git add plugins/note-organizer/templates/obsidian-template.md
+git add plugins/note-organizer/tests/test_template_renderer.py
+git commit -m "feat(note-organizer): add Obsidian template"
+```
+
+---
+
 ## Task 6: 创建 /note-process 命令（正确格式）
 
 **Files:**
-- Create: `plugins/note-organizer/commands/process.md`
+- Create: `plugins/note-organizer/commands/note-process.md`
+
+**注意**: 命令文件名必须与命令名一致，才能被正确识别为 `/note-process`。
 
 **Step 1: 创建命令文件**
 
@@ -784,7 +978,7 @@ model: sonnet
 **Step 2: 提交**
 
 ```bash
-git add plugins/note-organizer/commands/process.md
+git add plugins/note-organizer/commands/note-process.md
 git commit -m "feat(note-organizer): add /note-process command"
 ```
 
@@ -793,7 +987,9 @@ git commit -m "feat(note-organizer): add /note-process command"
 ## Task 7: 创建 /note-batch 命令（正确格式）
 
 **Files:**
-- Create: `plugins/note-organizer/commands/batch.md`
+- Create: `plugins/note-organizer/commands/note-batch.md`
+
+**注意**: 命令文件名必须与命令名一致，才能被正确识别为 `/note-batch`。
 
 **Step 1: 创建命令文件**
 
@@ -824,10 +1020,12 @@ model: sonnet
 
 ## 第二步：扫描文件
 
-使用 Bash 工具调用批量扫描器：
+使用 Bash 工具调用批量扫描器（使用插件根目录的绝对路径）：
 ```bash
-python3 scripts/batch_scanner.py "$PATTERN"
+cd "${CLAUDE_PLUGIN_ROOT:-.}" && python3 scripts/batch_scanner.py "$PATTERN" --json
 ```
+
+**注意**: `CLAUDE_PLUGIN_ROOT` 是插件运行时自动设置的环境变量，指向插件根目录。如果未设置则使用当前目录。
 
 ## 第三步：逐个处理文件
 
@@ -844,7 +1042,7 @@ python3 scripts/batch_scanner.py "$PATTERN"
 **Step 2: 提交**
 
 ```bash
-git add plugins/note-organizer/commands/batch.md
+git add plugins/note-organizer/commands/note-batch.md
 git commit -m "feat(note-organizer): add /note-batch command"
 ```
 
@@ -961,6 +1159,7 @@ def test_timestamps_removed():
 **Step 2: 运行测试**
 
 ```bash
+cd plugins/note-organizer
 pytest tests/test_e2e_structure.py -v
 ```
 
@@ -982,12 +1181,13 @@ git commit -m "test(note-organizer): add end-to-end structure tests"
 3. Task 2: 实现时间戳清理模块
 4. Task 3: 实现批量扫描器
 5. Task 4: 创建参考文档（所有 references）
-6. Task 5: 创建模板和渲染器
-7. Task 6: 创建 /note-process 命令
-8. Task 7: 创建 /note-batch 命令
-9. Task 8: 更新市场配置
-10. Task 9: 更新项目 README
-11. Task 10: 创建端到端测试
+6. Task 5: 创建 NotebookLM 模板和渲染器
+7. Task 5.5: 创建 Obsidian 模板
+8. Task 6: 创建 /note-process 命令
+9. Task 7: 创建 /note-batch 命令
+10. Task 8: 更新市场配置
+11. Task 9: 更新项目 README
+12. Task 10: 创建端到端测试
 
 ## 验收标准
 

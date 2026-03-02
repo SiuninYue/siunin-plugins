@@ -116,6 +116,21 @@ class TestProgressLoadSave:
         assert loaded["project_name"] == "Save Test"
 
 
+class TestContextComparison:
+    """Test execution/runtime context comparison semantics."""
+
+    def test_compare_contexts_missing_current_branch_returns_unknown(self):
+        """Missing current branch should not be treated as a match when expected branch exists."""
+        expected = {"branch": "feature/demo", "worktree_path": "/tmp/worktree-a"}
+        current = {"branch": None, "worktree_path": "/tmp/worktree-a"}
+
+        hint = progress_manager.compare_contexts(expected, current)
+
+        assert hint["status"] == "unknown"
+        assert hint["severity"] == "warning"
+        assert "branch" in hint["message"].lower()
+
+
 class TestFeatureManagement:
     """Test feature add and complete operations."""
 
@@ -708,6 +723,24 @@ class TestMainFunction:
             # reset_tracking() returns True on success
             assert result is True
 
+    def test_main_sync_runtime_context_command(self, in_progress_file):
+        """Should handle sync-runtime-context command."""
+        fake_ctx = {
+            "workspace_mode": "worktree",
+            "worktree_path": "/tmp/demo-worktree",
+            "project_root": "/tmp/demo-worktree",
+            "cwd": "/tmp/demo-worktree",
+            "git_dir": "/tmp/repo/.git/worktrees/demo",
+            "branch": "feature/demo",
+            "upstream": "origin/feature/demo",
+        }
+        with patch("progress_manager.collect_git_context", return_value=fake_ctx), patch(
+            "sys.argv",
+            ["progress_manager.py", "sync-runtime-context", "--quiet"],
+        ):
+            result = progress_manager.main()
+            assert result is True
+
 
 class TestAiMetricsAndCheckpoints:
     """Test AI metrics persistence and lightweight checkpoint behavior."""
@@ -753,6 +786,9 @@ class TestAiMetricsAndCheckpoints:
         assert len(payload["entries"]) == 1
         assert payload["entries"][0]["feature_id"] == 2
         assert payload["entries"][0]["reason"] == "auto_interval"
+        assert "branch" in payload["entries"][0]
+        assert "worktree_path" in payload["entries"][0]
+        assert "next_action" in payload["entries"][0]
 
     def test_auto_checkpoint_respects_interval(self, in_progress_file):
         """Should avoid duplicate snapshots within the checkpoint interval."""
@@ -807,3 +843,76 @@ class TestAiMetricsAndCheckpoints:
         with patch("sys.argv", ["progress_manager.py", "validate-plan"]):
             result = progress_manager.main()
             assert result is True
+
+
+class TestRuntimeContextSync:
+    """Test runtime_context sync behavior and updated_at semantics."""
+
+    def test_sync_runtime_context_no_tracking_is_non_blocking(self, temp_dir):
+        """Should return success when progress tracking doesn't exist."""
+        assert progress_manager.sync_runtime_context(quiet=True) is True
+
+    def test_sync_runtime_context_writes_runtime_context(self, in_progress_file):
+        """Should write runtime_context with git/worktree metadata."""
+        fake_ctx = {
+            "workspace_mode": "worktree",
+            "worktree_path": "/tmp/feature-wt",
+            "project_root": "/tmp/feature-wt",
+            "cwd": "/tmp/feature-wt",
+            "git_dir": "/tmp/repo/.git/worktrees/feature-wt",
+            "branch": "feature/context",
+            "upstream": "origin/feature/context",
+        }
+        with patch("progress_manager.collect_git_context", return_value=fake_ctx):
+            assert progress_manager.sync_runtime_context(quiet=True) is True
+
+        data = progress_manager.load_progress_json()
+        runtime_context = data.get("runtime_context")
+        assert runtime_context is not None
+        assert runtime_context["branch"] == "feature/context"
+        assert runtime_context["worktree_path"] == "/tmp/feature-wt"
+        assert runtime_context["workflow_phase"] == "execution"
+
+    def test_sync_runtime_context_does_not_touch_updated_at(self, in_progress_file):
+        """Runtime-only sync should preserve top-level updated_at timestamp."""
+        data = progress_manager.load_progress_json()
+        data["updated_at"] = "2024-01-10T00:00:00Z"
+        progress_manager.save_progress_json(data, touch_updated_at=False)
+        before = progress_manager.load_progress_json()["updated_at"]
+
+        fake_ctx = {
+            "workspace_mode": "in_place",
+            "worktree_path": "/tmp/project",
+            "project_root": "/tmp/project",
+            "cwd": "/tmp/project",
+            "git_dir": "/tmp/project/.git",
+            "branch": "feature/no-touch",
+            "upstream": "origin/feature/no-touch",
+        }
+        with patch("progress_manager.collect_git_context", return_value=fake_ctx):
+            assert progress_manager.sync_runtime_context(quiet=True) is True
+
+        after_data = progress_manager.load_progress_json()
+        assert after_data["updated_at"] == before
+
+    def test_sync_runtime_context_noop_when_unchanged(self, in_progress_file):
+        """Should skip rewriting runtime_context when fingerprint is unchanged."""
+        fake_ctx = {
+            "workspace_mode": "in_place",
+            "worktree_path": "/tmp/project",
+            "project_root": "/tmp/project",
+            "cwd": "/tmp/project",
+            "git_dir": "/tmp/project/.git",
+            "branch": "feature/noop",
+            "upstream": "origin/feature/noop",
+        }
+        with patch("progress_manager.collect_git_context", return_value=fake_ctx):
+            assert progress_manager.sync_runtime_context(quiet=True) is True
+
+        first = progress_manager.load_progress_json()["runtime_context"]["recorded_at"]
+
+        with patch("progress_manager.collect_git_context", return_value=fake_ctx):
+            assert progress_manager.sync_runtime_context(quiet=True) is True
+
+        second = progress_manager.load_progress_json()["runtime_context"]["recorded_at"]
+        assert second == first

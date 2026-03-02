@@ -207,6 +207,7 @@ class TestFullWorkflow:
         assert workflow_state['phase'] == 'planning'
         assert workflow_state['plan_path'] == 'docs/plans/test.md'
         assert workflow_state['next_action'] == 'execution'
+        assert 'execution_context' in workflow_state
 
         # Update task completion
         result = subprocess.run(
@@ -222,6 +223,59 @@ class TestFullWorkflow:
 
         workflow_state = data.get('workflow_state', {})
         assert 1 in workflow_state.get('completed_tasks', [])
+        assert workflow_state.get('execution_context', {}).get('branch') is not None
+
+    def test_sync_runtime_context_command_writes_runtime_context(self):
+        """sync-runtime-context should write runtime_context without failing in a git repo."""
+        subprocess.run(['python3', self.progress_manager, 'init', 'RuntimeCtxTest', '--force'],
+                       capture_output=True)
+        subprocess.run(['python3', self.progress_manager, 'add-feature', 'Feature1', 'step1'],
+                       capture_output=True)
+        subprocess.run(['python3', self.progress_manager, 'set-current', '1'],
+                       capture_output=True)
+
+        result = subprocess.run(
+            ['python3', self.progress_manager, 'sync-runtime-context', '--source', 'manual'],
+            capture_output=True,
+            text=True
+        )
+        assert result.returncode == 0, f"sync-runtime-context failed: {result.stderr}"
+
+        with open('.claude/progress.json', 'r') as f:
+            data = json.load(f)
+
+        runtime_context = data.get('runtime_context', {})
+        assert runtime_context.get('branch') is not None
+        assert runtime_context.get('worktree_path') is not None
+
+    def test_check_outputs_context_hint(self):
+        """check command JSON should include context_hint for active workflow."""
+        subprocess.run(['python3', self.progress_manager, 'init', 'CheckCtxTest', '--force'],
+                       capture_output=True)
+        subprocess.run(['python3', self.progress_manager, 'add-feature', 'Feature1', 'step1'],
+                       capture_output=True)
+        subprocess.run(['python3', self.progress_manager, 'set-current', '1'],
+                       capture_output=True)
+        (Path('docs') / 'plans').mkdir(parents=True, exist_ok=True)
+        (Path('docs') / 'plans' / 'test.md').write_text(
+            "# Plan\n\n## Tasks\n- Task\n\n## Acceptance Mapping\n- Map\n\n## Risks\n- None\n",
+            encoding='utf-8'
+        )
+        subprocess.run(
+            ['python3', self.progress_manager, 'set-workflow-state',
+             '--phase', 'execution',
+             '--plan-path', 'docs/plans/test.md'],
+            capture_output=True
+        )
+
+        result = subprocess.run(
+            ['python3', self.progress_manager, 'check'],
+            capture_output=True,
+            text=True
+        )
+        assert result.stdout.strip(), "Expected JSON output from check command"
+        payload = json.loads(result.stdout)
+        assert 'context_hint' in payload
 
 
 class TestGitSecurity:
