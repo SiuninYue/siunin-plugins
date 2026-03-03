@@ -916,3 +916,166 @@ class TestRuntimeContextSync:
 
         second = progress_manager.load_progress_json()["runtime_context"]["recorded_at"]
         assert second == first
+
+
+class TestWorktreeDetection:
+    """Test detection of incomplete work in other worktrees."""
+
+    def test_check_other_worktrees_no_worktrees(self, temp_dir):
+        """Should return empty list when no other worktrees exist."""
+        with patch("progress_manager._run_git", return_value=(0, "", "")):
+            result = progress_manager._check_other_worktrees_for_incomplete_work(str(temp_dir))
+            assert result == []
+
+    def test_check_other_worktrees_no_progress_files(self, temp_dir):
+        """Should return empty list when worktrees exist but have no progress files."""
+        worktree_output = "worktree /tmp/wt1\nHEAD abc123\nworktree /tmp/wt2\nHEAD def456\n"
+        with patch("progress_manager._run_git", return_value=(0, worktree_output, "")):
+            result = progress_manager._check_other_worktrees_for_incomplete_work(str(temp_dir))
+            assert result == []
+
+    def test_check_other_worktrees_with_complete_work(self, temp_dir):
+        """Should skip worktrees where all features are completed."""
+        # Create another worktree with completed progress
+        wt_dir = temp_dir / "other_wt"
+        wt_dir.mkdir()
+        wt_claude = wt_dir / ".claude"
+        wt_claude.mkdir()
+
+        progress_data = {
+            "project_name": "Completed Project",
+            "features": [
+                {"id": 1, "name": "Feature 1", "completed": True},
+                {"id": 2, "name": "Feature 2", "completed": True},
+            ],
+            "current_feature_id": None,
+        }
+
+        with open(wt_claude / "progress.json", "w") as f:
+            json.dump(progress_data, f)
+
+        worktree_output = f"worktree {str(temp_dir)}\nHEAD abc123\nworktree {str(wt_dir)}\nHEAD def456\n"
+        with patch("progress_manager._run_git", return_value=(0, worktree_output, "")):
+            result = progress_manager._check_other_worktrees_for_incomplete_work(str(temp_dir))
+            assert result == []
+
+    def test_check_other_worktrees_with_incomplete_work(self, temp_dir):
+        """Should detect worktrees with incomplete features."""
+        # Create another worktree with incomplete progress
+        wt_dir = temp_dir / "active_wt"
+        wt_dir.mkdir()
+        wt_claude = wt_dir / ".claude"
+        wt_claude.mkdir()
+
+        progress_data = {
+            "project_name": "Active Project",
+            "features": [
+                {"id": 1, "name": "Feature 1", "completed": True},
+                {"id": 2, "name": "Feature 2", "completed": False},
+            ],
+            "current_feature_id": 2,
+        }
+
+        with open(wt_claude / "progress.json", "w") as f:
+            json.dump(progress_data, f)
+
+        worktree_output = f"worktree {str(temp_dir)}\nHEAD abc123\nworktree {str(wt_dir)}\nHEAD def456\n"
+        with patch("progress_manager._run_git", return_value=(0, worktree_output, "")):
+            result = progress_manager._check_other_worktrees_for_incomplete_work(str(temp_dir))
+
+        assert len(result) == 1
+        assert result[0]["worktree_path"] == str(wt_dir)
+        assert result[0]["project_name"] == "Active Project"
+        assert result[0]["current_feature_id"] == 2
+        assert result[0]["incomplete_count"] == 1
+        assert result[0]["total_features"] == 2
+
+    def test_check_other_worktrees_multiple_worktrees(self, temp_dir):
+        """Should detect multiple worktrees with incomplete work."""
+        # Create two worktrees with incomplete progress
+        wt1_dir = temp_dir / "wt1"
+        wt1_dir.mkdir()
+        wt1_claude = wt1_dir / ".claude"
+        wt1_claude.mkdir()
+
+        wt2_dir = temp_dir / "wt2"
+        wt2_dir.mkdir()
+        wt2_claude = wt2_dir / ".claude"
+        wt2_claude.mkdir()
+
+        progress_data_1 = {
+            "project_name": "Project 1",
+            "features": [{"id": 1, "name": "F1", "completed": False}],
+            "current_feature_id": 1,
+        }
+
+        progress_data_2 = {
+            "project_name": "Project 2",
+            "features": [{"id": 1, "name": "F1", "completed": True}, {"id": 2, "name": "F2", "completed": False}],
+            "current_feature_id": 2,
+        }
+
+        with open(wt1_claude / "progress.json", "w") as f:
+            json.dump(progress_data_1, f)
+        with open(wt2_claude / "progress.json", "w") as f:
+            json.dump(progress_data_2, f)
+
+        worktree_output = f"worktree {str(temp_dir)}\nHEAD abc123\nworktree {str(wt1_dir)}\nHEAD def456\nworktree {str(wt2_dir)}\nHEAD ghi789\n"
+        with patch("progress_manager._run_git", return_value=(0, worktree_output, "")):
+            result = progress_manager._check_other_worktrees_for_incomplete_work(str(temp_dir))
+
+        assert len(result) == 2
+
+    def test_check_other_worktrees_skips_current(self, temp_dir):
+        """Should skip the current worktree even if it has incomplete work."""
+        # Current worktree has incomplete work
+        progress_data = {
+            "project_name": "Current Project",
+            "features": [{"id": 1, "name": "F1", "completed": False}],
+            "current_feature_id": 1,
+        }
+
+        claude_dir = temp_dir / ".claude"
+        claude_dir.mkdir(exist_ok=True)
+        with open(claude_dir / "progress.json", "w") as f:
+            json.dump(progress_data, f)
+
+        worktree_output = f"worktree {str(temp_dir)}\nHEAD abc123\n"
+        with patch("progress_manager._run_git", return_value=(0, worktree_output, "")):
+            result = progress_manager._check_other_worktrees_for_incomplete_work(str(temp_dir))
+
+        # Should skip current worktree
+        assert len(result) == 0
+
+    def test_check_outputs_warning_for_other_worktrees(self, temp_dir, capsys):
+        """Should output warning when other worktrees have incomplete work."""
+        # Create another worktree with incomplete progress
+        wt_dir = temp_dir / "active_wt"
+        wt_dir.mkdir()
+        wt_claude = wt_dir / ".claude"
+        wt_claude.mkdir()
+
+        progress_data = {
+            "project_name": "Active Project",
+            "features": [{"id": 1, "name": "F1", "completed": False}],
+            "current_feature_id": 1,
+        }
+
+        with open(wt_claude / "progress.json", "w") as f:
+            json.dump(progress_data, f)
+
+        # Mock _run_git for worktree list and collect_git_context
+        worktree_output = f"worktree {str(temp_dir)}\nHEAD abc123\nworktree {str(wt_dir)}\nHEAD def456\n"
+
+        def mock_run_git(args, timeout=None, cwd=None):
+            if "worktree" in args:
+                return (0, worktree_output, "")
+            # For other git commands, return empty/success
+            return (0, "", "")
+
+        with patch("progress_manager._run_git", side_effect=mock_run_git):
+            with patch("progress_manager.find_project_root", return_value=temp_dir):
+                # This should print warning
+                result = progress_manager._check_other_worktrees_for_incomplete_work(str(temp_dir))
+                assert len(result) == 1
+                assert result[0]["project_name"] == "Active Project"

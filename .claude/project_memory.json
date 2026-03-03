@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "created_at": "2026-02-21T17:15:50.647128Z",
-  "updated_at": "2026-03-01T23:54:31.978528Z",
-  "next_capability_seq": 9,
+  "updated_at": "2026-03-02T23:44:51.636806Z",
+  "next_capability_seq": 10,
   "last_synced_commit": "f5f1801",
   "capabilities": [
     {
@@ -171,6 +171,27 @@
       },
       "created_at": "2026-03-01T23:54:31.970578Z",
       "updated_at": "2026-03-01T23:54:31.970578Z"
+    },
+    {
+      "cap_id": "CAP-009",
+      "fingerprint": "5d2ca644d3cfaa5d",
+      "title": "organize-note Skill and Reference Documents",
+      "summary": "实现了 organize-note skill 的核心结构和参考文档。SKILL.md 定义了输入输出契约和处理流程，4个参考文档涵盖笔记类型分类、时间戳格式、模板字段和命令集成规范",
+      "tags": [
+        "note-organizer",
+        "skill",
+        "documentation",
+        "sonnet"
+      ],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 4,
+        "commit_hash": "4f0b80f",
+        "commit_range": ""
+      },
+      "created_at": "2026-03-02T23:44:51.630095Z",
+      "updated_at": "2026-03-02T23:44:51.630095Z"
     }
   ],
   "rejected_fingerprints": [],

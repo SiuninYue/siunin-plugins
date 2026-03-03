@@ -1412,13 +1412,81 @@ def sync_runtime_context(source: str = "manual", quiet: bool = False, force: boo
     return True
 
 
+def _check_other_worktrees_for_incomplete_work(current_worktree: str) -> List[Dict[str, Any]]:
+    """
+    Check other worktrees for incomplete progress work.
+
+    Args:
+        current_worktree: Path to the current worktree/root
+
+    Returns:
+        List of worktrees with incomplete work, each containing:
+        - worktree_path: Path to the worktree
+        - project_name: Name of the project
+        - current_feature_id: ID of the current feature (if any)
+        - incomplete_count: Number of incomplete features
+        - total_features: Total number of features
+    """
+    other_worktrees = []
+
+    # Get list of all worktrees
+    exit_code, stdout, _ = _run_git(["worktree", "list", "--porcelain"], timeout=10)
+    if exit_code != 0:
+        return other_worktrees
+
+    # Parse worktree paths
+    worktree_paths = []
+    for line in stdout.strip().split('\n'):
+        if line.startswith('worktree '):
+            path = line[9:].strip()  # Remove 'worktree ' prefix
+            worktree_paths.append(path)
+
+    # Check each worktree for progress files
+    for wt_path in worktree_paths:
+        # Skip current worktree
+        if Path(wt_path).resolve() == Path(current_worktree).resolve():
+            continue
+
+        # Check if progress.json exists
+        progress_file = Path(wt_path) / DEFAULT_CLAUDE_DIR / PROGRESS_JSON
+        if not progress_file.exists():
+            continue
+
+        try:
+            with open(progress_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+
+            features = data.get("features", [])
+            incomplete = [f for f in features if not f.get("completed", False)]
+
+            if incomplete:
+                other_worktrees.append({
+                    "worktree_path": wt_path,
+                    "project_name": data.get("project_name", "Unknown"),
+                    "current_feature_id": data.get("current_feature_id"),
+                    "incomplete_count": len(incomplete),
+                    "total_features": len(features),
+                })
+        except (json.JSONDecodeError, IOError):
+            # Skip worktrees with corrupted or unreadable progress files
+            continue
+
+    return other_worktrees
+
+
 def check():
     """
     Check if progress tracking exists and has incomplete features.
     Returns exit code 0 if tracking is complete or doesn't exist, 1 if incomplete.
 
     Outputs JSON-formatted recovery information when incomplete work is detected.
+    Also checks other worktrees for incomplete work and provides informative messages.
     """
+    # Check for incomplete work in other worktrees
+    current_root = str(find_project_root())
+    other_worktrees_with_work = _check_other_worktrees_for_incomplete_work(current_root)
+
+    # Check current worktree for incomplete work
     data = load_progress_json()
     if not data:
         return 0  # No tracking = nothing to recover
@@ -1427,6 +1495,25 @@ def check():
     incomplete = [f for f in features if not f.get("completed", False)]
 
     if incomplete:
+        # First, show info about other worktrees with incomplete work (if any)
+        # This is informational only - doesn't block current worktree recovery
+        if other_worktrees_with_work:
+            wt_list = []
+            for wt in other_worktrees_with_work[:3]:  # Show at most 3 worktrees
+                wt_info = f"{wt['worktree_path']} ({wt['project_name']}: {wt['total_features'] - wt['incomplete_count']}/{wt['total_features']} 完成)"
+                wt_list.append(wt_info)
+
+            info_msg = f"[Progress Tracker] ℹ️ 注意：其他 worktree 中也有未完成的工作\n"
+            info_msg += f"其他 worktree: {'; '.join(wt_list)}\n"
+            info_msg += f"如需切换，使用: cd <worktree_path>\n"
+
+            print(json.dumps({
+                "status": "info_other_worktrees",
+                "message": info_msg,
+                "other_worktrees": other_worktrees_with_work[:3],
+            }))
+
+        # Then proceed with current worktree recovery
         project_name = data.get("project_name", "Unknown")
         total = len(features)
         completed = total - len(incomplete)
@@ -1473,6 +1560,22 @@ def check():
                     require_exists=phase in ["planning_complete", "execution", "execution_complete"],
                 )
 
+                # Build a user-friendly recovery message
+                recovery_message = f"[Progress Tracker] 恢复功能开发: {feature.get('name', 'Unknown')}\n"
+                recovery_message += f"阶段: {phase}\n"
+                if plan_path:
+                    recovery_message += f"Plan 文档: {plan_path}\n"
+
+                # Add worktree switch hint if context mismatch
+                if context_hint.get("status") in ("mismatch", "path_mismatch"):
+                    expected_path = context_hint.get("expected_worktree_path")
+                    if expected_path and expected_path != context_hint.get("current_worktree_path"):
+                        recovery_message += f"\n⚠️ 当前会话不在上次执行的工作目录中\n"
+                        recovery_message += f"上次执行位置: {expected_path}\n"
+                        recovery_message += f"当前位置: {context_hint.get('current_worktree_path')}\n"
+                        recovery_message += f"\n💡 切换到正确的工作目录:\n"
+                        recovery_message += f"   cd {expected_path}\n"
+
                 recovery_info = {
                     "status": "incomplete",
                     "feature_id": current_id,
@@ -1485,6 +1588,7 @@ def check():
                     "total_tasks": total_tasks,
                     "recommendation": recommendation,
                     "context_hint": context_hint,
+                    "recovery_message": recovery_message,
                     "last_checkpoint_hint": (
                         {
                             "timestamp": latest_checkpoint.get("timestamp"),
@@ -2641,6 +2745,86 @@ def clear_workflow_state():
     return True
 
 
+def check_workspace():
+    """
+    Check current workspace safety and provide recommendations.
+
+    Returns:
+        int: 0 if workspace is safe, 1 if warnings exist
+
+    Output:
+        JSON with workspace status and recommendations
+    """
+    git_context = collect_git_context()
+    current_branch = git_context.get("branch")
+    workspace_mode = git_context.get("workspace_mode")
+    worktree_path = git_context.get("worktree_path")
+    project_root = git_context.get("project_root")
+
+    result = {
+        "status": "safe",
+        "workspace_mode": workspace_mode,
+        "current_branch": current_branch,
+        "worktree_path": worktree_path,
+        "project_root": project_root,
+        "warnings": [],
+        "recommendations": [],
+    }
+
+    # Check if on main/master branch
+    main_branches = {"main", "master"}
+    if current_branch in main_branches:
+        result["status"] = "warning"
+        result["warnings"].append({
+            "type": "on_main_branch",
+            "message": f"您当前在主分支 ({current_branch}) 上",
+            "severity": "high",
+        })
+        result["recommendations"].append({
+            "action": "create_worktree",
+            "priority": "strong",
+            "message": "强烈建议创建 worktree 来隔离开发环境",
+            "how_to": "使用 /prog next 或 superpowers:using-git-worktrees 技能创建 worktree",
+        })
+
+    # Check if in worktree mode
+    if workspace_mode == "worktree":
+        result["recommendations"].append({
+            "action": "none",
+            "priority": "info",
+            "message": f"✓ 已在 worktree 中: {worktree_path}",
+        })
+    elif workspace_mode == "in_place" and current_branch not in main_branches:
+        result["status"] = "warning"
+        result["warnings"].append({
+            "type": "feature_branch_not_worktree",
+            "message": f"当前在功能分支 ({current_branch}) 但不是 worktree",
+            "severity": "medium",
+        })
+        result["recommendations"].append({
+            "action": "consider_worktree",
+            "priority": "moderate",
+            "message": "建议使用 worktree 来更好地隔离开发环境",
+        })
+
+    # Check for detached HEAD
+    if current_branch is None:
+        result["status"] = "warning"
+        result["warnings"].append({
+            "type": "detached_head",
+            "message": "当前处于 detached HEAD 状态",
+            "severity": "medium",
+        })
+        result["recommendations"].append({
+            "action": "create_worktree_or_branch",
+            "priority": "moderate",
+            "message": "建议创建 worktree 或切换到功能分支",
+        })
+
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0 if result["status"] == "safe" else 1
+
+
 def health_check():
     """
     Perform health check and return JSON metrics.
@@ -2990,6 +3174,9 @@ def main():
     # Clear workflow state command
     subparsers.add_parser("clear-workflow-state", help="Clear workflow state")
 
+    # Workspace check command
+    subparsers.add_parser("check-workspace", help="Check workspace safety and provide recommendations")
+
     # Health check command
     subparsers.add_parser("health", help="Perform health check and return metrics")
     subparsers.add_parser(
@@ -3114,6 +3301,8 @@ def main():
         return update_workflow_task(args.task_id, args.status)
     elif args.command == "clear-workflow-state":
         return clear_workflow_state()
+    elif args.command == "check-workspace":
+        return check_workspace()
     elif args.command == "health":
         return health_check()
     elif args.command == "git-sync-check":
