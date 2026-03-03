@@ -72,7 +72,7 @@ If `.claude/architecture.md` exists, include `Execution Constraints` (`CONSTRAIN
 5. Update workflow to design complete:
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state \
+plugins/progress-tracker/prog set-workflow-state \
   --phase "design_complete" \
   --next-action "planning"
 ```
@@ -86,7 +86,7 @@ Skill("writing-plans", args="<feature_name>: create implementation plan\nArchite
 7. Update workflow to planning complete with plan path:
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state \
+plugins/progress-tracker/prog set-workflow-state \
   --phase "planning_complete" \
   --plan-path "<returned_plan_path>" \
   --next-action "execution"
@@ -108,11 +108,11 @@ Skill("verification-before-completion", args="Verify complex feature evidence fo
 10. Mark workflow as execution complete and save AI metrics:
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state \
+plugins/progress-tracker/prog set-workflow-state \
   --phase "execution_complete" \
   --next-action "verify_and_complete"
 
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-feature-ai-metrics <feature_id> \
+plugins/progress-tracker/prog set-feature-ai-metrics <feature_id> \
   --complexity-score <score> \
   --selected-model opus \
   --workflow-path full_design_plan_execute
@@ -136,8 +136,8 @@ If returned path is invalid or missing, regenerate the plan before execution.
 
 # Commands
 
-- `python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state ...`
-- `python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-feature-ai-metrics ...`
+- `plugins/progress-tracker/prog set-workflow-state ...`
+- `plugins/progress-tracker/prog set-feature-ai-metrics ...`
 
 # Examples
 

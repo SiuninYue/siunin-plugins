@@ -59,7 +59,7 @@ Read from progress state:
 If there is an active feature, validate plan path:
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-plan
+plugins/progress-tracker/prog validate-plan
 ```
 
 ### Step 4: Check Working Tree Safety
@@ -112,13 +112,13 @@ Detailed branching logic is in `references/scenario-playbook.md`.
 ### Validate Plan Integrity
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-plan
+plugins/progress-tracker/prog validate-plan
 ```
 
 ### Re-check Recovery Signal (hook/manual parity)
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py check
+plugins/progress-tracker/prog check
 ```
 
 ## Output Requirements

@@ -261,12 +261,12 @@ After determining the feature list:
 
 1. **Call the script** to initialize progress tracking:
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py init "<project_name>"
+plugins/progress-tracker/prog init "<project_name>"
 ```
 
 2. **Add each feature** individually:
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-feature "<feature_name>" "<test_step_1>" "<test_step_2>" ...
+plugins/progress-tracker/prog add-feature "<feature_name>" "<test_step_1>" "<test_step_2>" ...
 ```
 
 3. **Verify creation** by checking `.claude/progress.json` and `.claude/progress.md`

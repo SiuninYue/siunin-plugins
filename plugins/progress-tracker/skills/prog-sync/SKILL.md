@@ -32,7 +32,7 @@ Synchronize capability memory from incremental Git history and persist accepted 
 Use this script for all persistence:
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py
+plugins/progress-tracker/prog memory
 ```
 
 ## Main Flow
@@ -42,7 +42,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py
 Read current memory:
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py read
+plugins/progress-tracker/prog memory read
 ```
 
 Extract:
@@ -87,7 +87,7 @@ Ask user for accepted indexes:
 Parse selection with:
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py parse-selection --selection "<selection>" --total <N>
+plugins/progress-tracker/prog memory parse-selection --selection "<selection>" --total <N>
 ```
 
 On invalid selection:
@@ -101,7 +101,7 @@ Build `accepted_candidates` and `rejected_candidates` by parsed indexes.
 Batch write accepted:
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py batch-upsert \
+plugins/progress-tracker/prog memory batch-upsert \
   --payload-json '<accepted_json_array>' \
   --sync-meta-json '<sync_meta_json>'
 ```
@@ -115,7 +115,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py batch-upsert \
 Persist rejected fingerprints:
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py register-rejections \
+plugins/progress-tracker/prog memory register-rejections \
   --payload-json '<rejected_json_array>' \
   --sync-id '<sync_id>'
 ```

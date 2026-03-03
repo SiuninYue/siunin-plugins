@@ -69,7 +69,7 @@ Return an actionable message:
 Before running acceptance, validate plan path and required sections:
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-plan
+plugins/progress-tracker/prog validate-plan
 ```
 
 - If validation fails: stop completion and request plan recovery.
@@ -108,7 +108,7 @@ Skill("requesting-code-review", args="Final review before marking feature <featu
 5. Mark feature complete:
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py complete <feature_id> --commit <commit_hash>
+plugins/progress-tracker/prog complete <feature_id> --commit <commit_hash>
 ```
 
 6. Append capability memory (non-blocking):
@@ -124,7 +124,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py complete <featur
 - Persist via:
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py append --payload-json '<capability_json>'
+plugins/progress-tracker/prog memory append --payload-json '<capability_json>'
 ```
 
 - If this command fails:
@@ -135,13 +135,13 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py append --payload-j
 7. Finalize AI metrics:
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py complete-feature-ai-metrics <feature_id>
+plugins/progress-tracker/prog complete-feature-ai-metrics <feature_id>
 ```
 
 8. Clear workflow state:
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py clear-workflow-state
+plugins/progress-tracker/prog clear-workflow-state
 ```
 
 9. Show next step:
@@ -179,7 +179,7 @@ If project defines `quality_gates.pre_commit_checks`, run them before completion
 If user identifies technical debt during verification, record it in bug system:
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-bug \
+plugins/progress-tracker/prog add-bug \
   --description "<technical debt item>" \
   --status pending_investigation \
   --priority medium \

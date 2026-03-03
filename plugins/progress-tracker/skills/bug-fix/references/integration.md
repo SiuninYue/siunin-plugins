@@ -52,7 +52,7 @@ The systematic-debugging skill performs:
 Update bug status to `confirmed` with root cause:
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug \
+plugins/progress-tracker/prog update-bug \
   --bug-id "BUG-001" \
   --status "confirmed" \
   --root-cause "<identified root cause>"
@@ -89,7 +89,7 @@ The test-driven-development skill performs:
 Update bug status to `fixed`:
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug \
+plugins/progress-tracker/prog update-bug \
   --bug-id "BUG-001" \
   --status "fixed" \
   --fix-summary "<what was changed>"
@@ -236,15 +236,15 @@ Tests still failing after implementation.
 
 ```bash
 # Update bug status during workflow
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug \
+plugins/progress-tracker/prog update-bug \
   --bug-id "BUG-XXX" \
   --status "<pending_investigation|investigating|confirmed|fixing|fixed|false_positive>" \
   --root-cause "<cause when confirmed>" \
   --fix-summary "<summary when fixed>"
 
 # List all bugs
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-bugs
+plugins/progress-tracker/prog list-bugs
 
 # Remove false positive
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py remove-bug "BUG-XXX"
+plugins/progress-tracker/prog remove-bug "BUG-XXX"
 ```

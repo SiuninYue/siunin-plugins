@@ -33,7 +33,7 @@ Coordinate `/prog next` execution by selecting the next feature, routing to the 
 1. Select the next actionable feature from `.claude/progress.json`.
 2. Set and persist workflow state before delegating implementation.
 3. Route work by deterministic complexity rules.
-4. Ensure all commands use `${CLAUDE_PLUGIN_ROOT}` absolute plugin path style.
+4. Ensure all commands use `plugins/progress-tracker/prog` entry point.
 5. Hand off cleanly to `/prog done` after implementation.
 6. Run Git/worktree preflight before delegation.
 7. Apply review + verification gates before claiming implementation complete.
@@ -55,12 +55,12 @@ Coordinate `/prog next` execution by selecting the next feature, routing to the 
 3. Before any delegation, create lightweight checkpoint:
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py auto-checkpoint
+plugins/progress-tracker/prog auto-checkpoint
 ```
 4. Run Git sync preflight:
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py git-sync-check
+plugins/progress-tracker/prog git-sync-check
 ```
 
 ## Main Flow
@@ -80,13 +80,13 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py git-sync-check
 - Persist as active feature:
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-current <feature_id>
+plugins/progress-tracker/prog set-current <feature_id>
 ```
 
 - Ensure initial stage is explicitly `planning`:
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-development-stage planning --feature-id <feature_id>
+plugins/progress-tracker/prog set-development-stage planning --feature-id <feature_id>
 ```
 
 - Display:
@@ -101,7 +101,7 @@ After selecting the feature and before implementation:
 1. Read project memory:
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py read
+plugins/progress-tracker/prog memory read
 ```
 
 2. Compare selected feature (`name`, `test_steps`, constraints) against memory capabilities using Claude reasoning.
@@ -113,12 +113,37 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py read
 5. Never block `/prog next`; warning is advisory only.
 6. If JSON parsing fails, silently degrade to "no overlap warning" and continue.
 
-### Step 2.5: Workspace Safety Gate
+### Step 2.5: Workspace Safety Check
 
-- Before coding, verify branch/worktree safety:
-  - If currently on `main`/`master`, strongly prefer `using-git-worktrees`.
-  - If user explicitly declines, continue only after warning about isolation risk.
-- Keep this gate lightweight for resumed sessions that are already isolated.
+Lightweight check before implementation:
+
+1. Check current branch:
+
+```bash
+current_branch=$(git symbolic-ref --quiet --short HEAD || echo "detached")
+```
+
+2. **If on `main`, `master`, or `detached HEAD`**:
+
+   - Consider if this change warrants a worktree:
+     - **Small changes** (docs, config, minor fixes): OK to proceed
+     - **Feature work** (new functionality, refactoring): Prefer worktree
+
+   - If worktree is preferred, mention it as an option:
+     ```
+     💡 可选：如果这个功能需要较长时间开发，可以考虑创建 worktree 来隔离工作环境。
+     使用 /prog-workspace 查看当前工作区状态。
+     ```
+
+3. **If on a feature branch**:
+
+   - Verify it's a worktree if that matters for your workflow
+   - Otherwise, proceed normally
+
+4. **Resume scenarios** (when current_feature_id is already set):
+
+   - Skip this check if `execution_context.worktree_path` matches current directory
+   - Otherwise, mention the context difference but don't block
 
 ### Step 3: Score Complexity
 
@@ -132,7 +157,7 @@ Use `references/complexity-assessment.md` to calculate:
 Persist AI metrics immediately:
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-feature-ai-metrics <feature_id> \
+plugins/progress-tracker/prog set-feature-ai-metrics <feature_id> \
   --complexity-score <score> \
   --selected-model <haiku|sonnet|opus> \
   --workflow-path <direct_tdd|plan_execute|full_design_plan_execute>
@@ -179,7 +204,7 @@ If delegation fails for simple/complex path, fallback to standard coordinator pa
 Use these commands when phase changes:
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state \
+plugins/progress-tracker/prog set-workflow-state \
   --phase <design_complete|planning_complete|execution|execution_complete> \
   --plan-path <docs/plans/...> \
   --next-action "<human-readable next action>"
@@ -188,7 +213,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-sta
 For task completion checkpoints during execution:
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-workflow-task <task_id> completed
+plugins/progress-tracker/prog update-workflow-task <task_id> completed
 ```
 
 Context note:
@@ -213,7 +238,7 @@ When an interrupted workflow is detected:
 - Validate plan integrity before resuming:
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-plan
+plugins/progress-tracker/prog validate-plan
 ```
 
 - If plan is invalid/missing, regenerate plan before continuing execution.

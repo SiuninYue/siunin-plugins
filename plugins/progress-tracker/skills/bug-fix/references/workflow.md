@@ -181,7 +181,7 @@ This bug hasn't been deeply analyzed yet.
 ```
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug \
+plugins/progress-tracker/prog update-bug \
   --bug-id "BUG-001" \
   --status "confirmed" \
   --root-cause "session.js line 45: TIMEOUT hardcoded to 300 seconds instead of 86400"
@@ -211,7 +211,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug \
 ```
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug \
+plugins/progress-tracker/prog update-bug \
   --bug-id "BUG-001" \
   --status "fixed" \
   --fix-summary "Updated TIMEOUT constant from 300 to 86400 seconds"

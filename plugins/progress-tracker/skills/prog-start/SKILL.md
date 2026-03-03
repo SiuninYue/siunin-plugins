@@ -18,12 +18,24 @@ references: []
 
 Transition the active feature to implementation mode.
 
+## Optional: Workspace Check
+
+Before starting implementation, you may optionally check workspace state:
+
+```bash
+plugins/progress-tracker/prog check-workspace
+```
+
+This is informational only - use your judgment based on:
+- **Small changes**: Can proceed directly
+- **Feature work**: Consider worktree for better isolation
+
 ## Main Flow
 
 1. Set active feature stage to `developing`:
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-development-stage developing
+plugins/progress-tracker/prog set-development-stage developing
 ```
 
 2. Handle common error cases:
@@ -40,3 +52,4 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-development-
 - `/prog next` should place the selected feature in `planning`.
 - `/prog start` is the explicit transition from `planning -> developing`.
 - Runtime session context is persisted automatically by progress-manager commands; recovery and `/prog done` may warn if later sessions run in a different worktree/branch.
+- **Workspace safety is critical**: Always verify worktree isolation before starting implementation.

@@ -71,11 +71,11 @@ Skill("verification-before-completion", args="Verify tests and acceptance eviden
 6. On success, update workflow and metrics:
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state \
+plugins/progress-tracker/prog set-workflow-state \
   --phase "execution_complete" \
   --next-action "verify_and_complete"
 
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-feature-ai-metrics <feature_id> \
+plugins/progress-tracker/prog set-feature-ai-metrics <feature_id> \
   --complexity-score <score> \
   --selected-model haiku \
   --workflow-path direct_tdd
@@ -90,8 +90,8 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-feature-ai-m
 
 # Commands
 
-- `python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state ...`
-- `python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-feature-ai-metrics ...`
+- `plugins/progress-tracker/prog set-workflow-state ...`
+- `plugins/progress-tracker/prog set-feature-ai-metrics ...`
 
 # Examples
 

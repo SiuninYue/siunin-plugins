@@ -244,7 +244,7 @@ Use the Skill tool with these exact parameters:
 WAIT for the skill to complete.
 
 After investigation completes, update bug status:
-→ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug --bug-id "BUG-XXX" --status "confirmed"
+→ plugins/progress-tracker/prog update-bug --bug-id "BUG-XXX" --status "confirmed"
 
 For confirmed bugs requiring TDD fix:
 Use the Skill tool with these exact parameters:
@@ -254,7 +254,7 @@ Use the Skill tool with these exact parameters:
 WAIT for the skill to complete.
 
 After TDD completes, update bug status:
-→ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug --bug-id "BUG-XXX" --status "fixed"
+→ plugins/progress-tracker/prog update-bug --bug-id "BUG-XXX" --status "fixed"
   (This automatically updates both progress.json and progress.md)
 
 Next, create a commit for the bug fix using git-auto:
@@ -273,7 +273,7 @@ The git-auto skill will:
 - Push and create PR for review
 
 After receiving the commit hash, update the bug:
-→ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug --bug-id "BUG-XXX" --fix-summary "Fix applied (commit: <commit_hash>)"
+→ plugins/progress-tracker/prog update-bug --bug-id "BUG-XXX" --fix-summary "Fix applied (commit: <commit_hash>)"
   (This automatically updates both progress.json and progress.md)
 </CRITICAL>
 
@@ -291,23 +291,23 @@ WAIT for the skill to complete.
 
 ```bash
 # Add bug
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-bug \
+plugins/progress-tracker/prog add-bug \
   --description "<desc>" \
   --status "<status>" \
   --priority "<high|medium|low>" \
   --scheduled-position "<before|after>:<feature_id>"
 
 # Update bug status
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug \
+plugins/progress-tracker/prog update-bug \
   --bug-id "BUG-XXX" \
   --status "<new_status>" \
   --root-cause "<cause>"
 
 # List bugs
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-bugs
+plugins/progress-tracker/prog list-bugs
 
 # Remove bug (false positive)
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py remove-bug "BUG-XXX"
+plugins/progress-tracker/prog remove-bug "BUG-XXX"
 ```
 
 ### Data Structure

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.8] - 2026-03-03
+
+### Fixed
+- Skills and commands now use `prog` entry point instead of `${CLAUDE_PLUGIN_ROOT}`:
+  - added `prog` CLI wrapper that auto-locates plugin root directory
+  - replaced all `${CLAUDE_PLUGIN_ROOT}/hooks/scripts/` references in SKILL.md files
+  - supports both `progress_manager.py` and `project_memory.py` via `prog memory` subcommand
+  - ensures commands work correctly from any working directory
+
 ## [1.6.7] - 2026-03-03
 
 ### Fixed

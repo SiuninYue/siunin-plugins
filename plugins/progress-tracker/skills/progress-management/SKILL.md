@@ -37,7 +37,7 @@ This capability reverts the most recently completed feature. It performs both a 
 
 2.  **Execute Undo**: Run the manager script.
     ```bash
-    python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py undo
+    plugins/progress-tracker/prog undo
     ```
 
 3.  **Report Result**:
@@ -61,7 +61,7 @@ This capability completely removes the `.claude/` directory containing progress 
 
 2.  **Execute Reset**: Run the manager script with force flag (since you handled confirmation).
     ```bash
-    python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py reset --force
+    plugins/progress-tracker/prog reset --force
     ```
 
 3.  **Report Result**: "Progress tracking has been reset. Use `/prog init` to start a new project."
