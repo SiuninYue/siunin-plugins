@@ -495,6 +495,104 @@ class TestGitSyncPreflight:
         assert "operation_in_progress" in issue_ids
         assert report["status"] == "critical"
 
+    def test_git_auto_preflight_requires_worktree_on_default_branch(self):
+        """Should require worktree for default branch feature work in-place."""
+        fake_context = {
+            "project_root": "/tmp/repo",
+            "workspace_mode": "in_place",
+            "branch": "main",
+        }
+        fake_sync = {
+            "status": "warning",
+            "project_root": "/tmp/repo",
+            "issues": [
+                {
+                    "id": "dirty_worktree",
+                    "level": "warning",
+                    "message": "Working tree has uncommitted changes.",
+                }
+            ],
+        }
+        with patch("progress_manager.collect_git_context", return_value=fake_context), patch(
+            "progress_manager.analyze_git_sync_risks", return_value=fake_sync
+        ), patch("progress_manager._detect_default_branch", return_value="main"):
+            report = progress_manager.analyze_git_auto_preflight()
+
+        assert report["decision"] == "REQUIRE_WORKTREE"
+        assert "default_branch_feature_work" in report["reason_codes"]
+        assert "dirty_on_default_branch" in report["reason_codes"]
+        assert report["default_branch"] == "main"
+
+    def test_git_auto_preflight_delegates_on_worktree_conflict(self):
+        """Should delegate to git-auto when branch is checked out elsewhere."""
+        fake_context = {
+            "project_root": "/tmp/repo",
+            "workspace_mode": "in_place",
+            "branch": "feature/demo",
+        }
+        fake_sync = {
+            "status": "warning",
+            "project_root": "/tmp/repo",
+            "issues": [
+                {
+                    "id": "branch_checked_out_elsewhere",
+                    "level": "warning",
+                    "message": "Branch is checked out in another worktree.",
+                }
+            ],
+        }
+        with patch("progress_manager.collect_git_context", return_value=fake_context), patch(
+            "progress_manager.analyze_git_sync_risks", return_value=fake_sync
+        ), patch("progress_manager._detect_default_branch", return_value="main"):
+            report = progress_manager.analyze_git_auto_preflight()
+
+        assert report["decision"] == "DELEGATE_GIT_AUTO"
+        assert "branch_checked_out_elsewhere" in report["reason_codes"]
+
+    def test_git_auto_preflight_allows_in_place_on_clean_feature_branch(self):
+        """Should allow in-place execution when no blocking risk exists."""
+        fake_context = {
+            "project_root": "/tmp/repo",
+            "workspace_mode": "in_place",
+            "branch": "feature/demo",
+        }
+        fake_sync = {
+            "status": "ok",
+            "project_root": "/tmp/repo",
+            "issues": [],
+        }
+        with patch("progress_manager.collect_git_context", return_value=fake_context), patch(
+            "progress_manager.analyze_git_sync_risks", return_value=fake_sync
+        ), patch("progress_manager._detect_default_branch", return_value="main"):
+            report = progress_manager.analyze_git_auto_preflight()
+
+        assert report["decision"] == "ALLOW_IN_PLACE"
+        assert report["reason_codes"] == ["no_blocking_workspace_risk"]
+
+    def test_git_auto_preflight_json_contract(self, capsys):
+        """Should emit stable JSON contract fields for machine consumers."""
+        fake_report = {
+            "status": "warning",
+            "workspace_mode": "in_place",
+            "branch": "main",
+            "issues": [],
+            "decision": "REQUIRE_WORKTREE",
+            "reason_codes": ["default_branch_feature_work"],
+            "default_branch": "main",
+            "project_root": "/tmp/repo",
+        }
+        with patch("progress_manager.analyze_git_auto_preflight", return_value=fake_report):
+            result = progress_manager.git_auto_preflight(output_json=True)
+            assert result is True
+
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["status"] == "warning"
+        assert payload["workspace_mode"] == "in_place"
+        assert payload["branch"] == "main"
+        assert payload["decision"] == "REQUIRE_WORKTREE"
+        assert payload["reason_codes"] == ["default_branch_feature_work"]
+        assert payload["default_branch"] == "main"
+
 
 class TestSetCurrent:
     """Test set current feature."""
@@ -664,6 +762,17 @@ class TestMainFunction:
         with patch("sys.argv", ["progress_manager.py", "git-sync-check"]):
             result = progress_manager.main()
             assert result is True
+
+    def test_main_git_auto_preflight_command(self):
+        """Should handle git-auto-preflight command with JSON flag."""
+        with patch(
+            "progress_manager.git_auto_preflight", return_value=True
+        ) as mock_preflight, patch(
+            "sys.argv", ["progress_manager.py", "git-auto-preflight", "--json"]
+        ):
+            result = progress_manager.main()
+            assert result is True
+            mock_preflight.assert_called_once_with(output_json=True)
 
     def test_main_init_command(self, temp_dir):
         """Should handle init command."""

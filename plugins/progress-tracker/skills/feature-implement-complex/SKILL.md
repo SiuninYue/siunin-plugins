@@ -55,11 +55,21 @@ Write:
 
 1. Validate complexity bucket is `complex`.
 2. Display complex-mode banner and rationale.
-3. Ensure workspace isolation for large refactors:
+3. Run unified preflight and follow decision before design/execution:
 
+```bash
+plugins/progress-tracker/prog git-auto-preflight --json
+```
+
+- If `decision=REQUIRE_WORKTREE`, run:
 ```text
 Skill("using-git-worktrees", args="Set up isolated workspace for feature-<id>")
 ```
+- If `decision=DELEGATE_GIT_AUTO`, run:
+```text
+Skill("progress-tracker:git-auto", args="Resolve workspace/git preflight blockers for feature-<id>")
+```
+- If `decision=ALLOW_IN_PLACE`, continue in current workspace.
 
 4. Run design phase:
 

@@ -127,6 +127,8 @@ plugins/progress-tracker/prog complete <feature_id> --commit <commit_hash>
 plugins/progress-tracker/prog memory append --payload-json '<capability_json>'
 ```
 
+Legacy CLI equivalent: `project_memory.py append`.
+
 - If this command fails:
   - print a warning
   - do not roll back feature completion

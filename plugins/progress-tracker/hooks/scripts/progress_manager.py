@@ -10,6 +10,7 @@ Usage:
     python3 progress_manager.py status
     python3 progress_manager.py check
     python3 progress_manager.py git-sync-check
+    python3 progress_manager.py git-auto-preflight [--json]
     python3 progress_manager.py set-current <feature_id>
     python3 progress_manager.py set-development-stage <planning|developing|completed> [--feature-id <id>]
     python3 progress_manager.py complete <feature_id>
@@ -1136,6 +1137,35 @@ def _parse_worktree_list_output(output: str) -> List[Dict[str, str]]:
     return entries
 
 
+def _detect_default_branch(project_root: Path) -> Optional[str]:
+    """
+    Detect repository default branch using origin/HEAD when available.
+    """
+    exit_code, stdout, _ = _run_git(
+        ["symbolic-ref", "--quiet", "refs/remotes/origin/HEAD"],
+        cwd=str(project_root),
+        timeout=5,
+    )
+    if exit_code == 0 and stdout.strip():
+        ref = stdout.strip()
+        prefix = "refs/remotes/origin/"
+        if ref.startswith(prefix):
+            branch = ref[len(prefix):].strip()
+            if branch:
+                return branch
+
+    for candidate in ("main", "master"):
+        exit_code, _, _ = _run_git(
+            ["show-ref", "--verify", "--quiet", f"refs/heads/{candidate}"],
+            cwd=str(project_root),
+            timeout=5,
+        )
+        if exit_code == 0:
+            return candidate
+
+    return None
+
+
 def analyze_git_sync_risks() -> Dict[str, Any]:
     """
     Analyze repository state for sync/rebase/divergence risks.
@@ -1374,6 +1404,106 @@ def git_sync_check() -> bool:
         print("Recommended actions:")
         for action in recommendations:
             print(f"  - {action}")
+
+    return True
+
+
+def analyze_git_auto_preflight() -> Dict[str, Any]:
+    """
+    Produce the canonical git-auto preflight report and tri-state decision.
+    """
+    git_context = collect_git_context()
+    sync_report = analyze_git_sync_risks()
+
+    project_root_raw = (
+        git_context.get("project_root")
+        or sync_report.get("project_root")
+        or str(find_project_root())
+    )
+    project_root = Path(project_root_raw)
+    default_branch = _detect_default_branch(project_root)
+
+    branch = git_context.get("branch") or sync_report.get("branch")
+    workspace_mode = git_context.get("workspace_mode") or "unknown"
+    issues: List[Dict[str, Any]] = sync_report.get("issues", [])
+    issue_ids = {issue.get("id") for issue in issues}
+    status = sync_report.get("status", "ok")
+
+    decision = "ALLOW_IN_PLACE"
+    reason_codes: List[str] = []
+
+    delegate_issue_ids = {
+        "detached_head",
+        "operation_in_progress",
+        "branch_diverged",
+        "branch_checked_out_elsewhere",
+    }
+    triggered_delegate_ids = sorted(
+        issue_id
+        for issue_id in issue_ids
+        if issue_id in delegate_issue_ids
+    )
+
+    default_branch_candidates = {candidate for candidate in (default_branch, "main", "master") if candidate}
+    on_default_branch = branch in default_branch_candidates
+
+    if triggered_delegate_ids:
+        decision = "DELEGATE_GIT_AUTO"
+        reason_codes.extend(triggered_delegate_ids)
+    elif status == "critical":
+        decision = "DELEGATE_GIT_AUTO"
+        reason_codes.append("critical_sync_risk")
+    elif on_default_branch and workspace_mode != "worktree":
+        decision = "REQUIRE_WORKTREE"
+        reason_codes.append("default_branch_feature_work")
+        if "dirty_worktree" in issue_ids:
+            reason_codes.append("dirty_on_default_branch")
+    elif on_default_branch and "dirty_worktree" in issue_ids:
+        decision = "REQUIRE_WORKTREE"
+        reason_codes.append("dirty_on_default_branch")
+    else:
+        reason_codes.append("no_blocking_workspace_risk")
+
+    return {
+        "status": status,
+        "workspace_mode": workspace_mode,
+        "branch": branch,
+        "issues": issues,
+        "decision": decision,
+        "reason_codes": reason_codes,
+        "default_branch": default_branch,
+        "project_root": str(project_root),
+    }
+
+
+def git_auto_preflight(output_json: bool = False) -> bool:
+    """
+    Emit preflight information for git-auto consumers.
+    """
+    report = analyze_git_auto_preflight()
+
+    if output_json:
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        return True
+
+    print("[Progress Tracker][Git Auto Preflight]")
+    print(f"Repository: {report.get('project_root')}")
+    print(f"Branch: {report.get('branch') or 'detached'}")
+    print(f"Default branch: {report.get('default_branch') or 'unknown'}")
+    print(f"Workspace mode: {report.get('workspace_mode')}")
+    print(f"Status: {report.get('status')}")
+    print(f"Decision: {report.get('decision')}")
+
+    if report.get("issues"):
+        print("Issues:")
+        for issue in report["issues"]:
+            print(f"- [{issue.get('level')}] {issue.get('id')}: {issue.get('message')}")
+
+    reason_codes = report.get("reason_codes") or []
+    if reason_codes:
+        print("Reason codes:")
+        for code in reason_codes:
+            print(f"  - {code}")
 
     return True
 
@@ -2745,86 +2875,6 @@ def clear_workflow_state():
     return True
 
 
-def check_workspace():
-    """
-    Check current workspace safety and provide recommendations.
-
-    Returns:
-        int: 0 if workspace is safe, 1 if warnings exist
-
-    Output:
-        JSON with workspace status and recommendations
-    """
-    git_context = collect_git_context()
-    current_branch = git_context.get("branch")
-    workspace_mode = git_context.get("workspace_mode")
-    worktree_path = git_context.get("worktree_path")
-    project_root = git_context.get("project_root")
-
-    result = {
-        "status": "safe",
-        "workspace_mode": workspace_mode,
-        "current_branch": current_branch,
-        "worktree_path": worktree_path,
-        "project_root": project_root,
-        "warnings": [],
-        "recommendations": [],
-    }
-
-    # Check if on main/master branch
-    main_branches = {"main", "master"}
-    if current_branch in main_branches:
-        result["status"] = "warning"
-        result["warnings"].append({
-            "type": "on_main_branch",
-            "message": f"您当前在主分支 ({current_branch}) 上",
-            "severity": "high",
-        })
-        result["recommendations"].append({
-            "action": "create_worktree",
-            "priority": "strong",
-            "message": "强烈建议创建 worktree 来隔离开发环境",
-            "how_to": "使用 /prog next 或 superpowers:using-git-worktrees 技能创建 worktree",
-        })
-
-    # Check if in worktree mode
-    if workspace_mode == "worktree":
-        result["recommendations"].append({
-            "action": "none",
-            "priority": "info",
-            "message": f"✓ 已在 worktree 中: {worktree_path}",
-        })
-    elif workspace_mode == "in_place" and current_branch not in main_branches:
-        result["status"] = "warning"
-        result["warnings"].append({
-            "type": "feature_branch_not_worktree",
-            "message": f"当前在功能分支 ({current_branch}) 但不是 worktree",
-            "severity": "medium",
-        })
-        result["recommendations"].append({
-            "action": "consider_worktree",
-            "priority": "moderate",
-            "message": "建议使用 worktree 来更好地隔离开发环境",
-        })
-
-    # Check for detached HEAD
-    if current_branch is None:
-        result["status"] = "warning"
-        result["warnings"].append({
-            "type": "detached_head",
-            "message": "当前处于 detached HEAD 状态",
-            "severity": "medium",
-        })
-        result["recommendations"].append({
-            "action": "create_worktree_or_branch",
-            "priority": "moderate",
-            "message": "建议创建 worktree 或切换到功能分支",
-        })
-
-    print(json.dumps(result, ensure_ascii=False, indent=2))
-    return 0 if result["status"] == "safe" else 1
-
-
 def health_check():
     """
     Perform health check and return JSON metrics.
@@ -3174,14 +3224,21 @@ def main():
     # Clear workflow state command
     subparsers.add_parser("clear-workflow-state", help="Clear workflow state")
 
-    # Workspace check command
-    subparsers.add_parser("check-workspace", help="Check workspace safety and provide recommendations")
-
     # Health check command
     subparsers.add_parser("health", help="Perform health check and return metrics")
     subparsers.add_parser(
         "git-sync-check",
         help="Run non-blocking Git sync preflight and print risk warnings",
+    )
+    preflight_parser = subparsers.add_parser(
+        "git-auto-preflight",
+        help="Run git-auto preflight and emit tri-state workspace decision",
+    )
+    preflight_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="output_json",
+        help="Emit machine-readable JSON output",
     )
 
     # Feature AI metrics commands
@@ -3301,12 +3358,12 @@ def main():
         return update_workflow_task(args.task_id, args.status)
     elif args.command == "clear-workflow-state":
         return clear_workflow_state()
-    elif args.command == "check-workspace":
-        return check_workspace()
     elif args.command == "health":
         return health_check()
     elif args.command == "git-sync-check":
         return git_sync_check()
+    elif args.command == "git-auto-preflight":
+        return git_auto_preflight(output_json=args.output_json)
     elif args.command == "set-feature-ai-metrics":
         return set_feature_ai_metrics(
             args.feature_id,

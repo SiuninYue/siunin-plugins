@@ -18,17 +18,18 @@ references: []
 
 Transition the active feature to implementation mode.
 
-## Optional: Workspace Check
+## Optional: Git Auto Preflight
 
-Before starting implementation, you may optionally check workspace state:
+Before starting implementation, run unified workspace preflight:
 
 ```bash
-plugins/progress-tracker/prog check-workspace
+plugins/progress-tracker/prog git-auto-preflight --json
 ```
 
-This is informational only - use your judgment based on:
-- **Small changes**: Can proceed directly
-- **Feature work**: Consider worktree for better isolation
+Interpret `decision` as:
+- `ALLOW_IN_PLACE`: continue directly.
+- `REQUIRE_WORKTREE`: set up isolated workspace via `using-git-worktrees`.
+- `DELEGATE_GIT_AUTO`: run `progress-tracker:git-auto` to resolve blockers first.
 
 ## Main Flow
 
@@ -52,4 +53,4 @@ plugins/progress-tracker/prog set-development-stage developing
 - `/prog next` should place the selected feature in `planning`.
 - `/prog start` is the explicit transition from `planning -> developing`.
 - Runtime session context is persisted automatically by progress-manager commands; recovery and `/prog done` may warn if later sessions run in a different worktree/branch.
-- **Workspace safety is critical**: Always verify worktree isolation before starting implementation.
+- **Workspace safety is critical**: always follow `git-auto-preflight` decision before implementation.

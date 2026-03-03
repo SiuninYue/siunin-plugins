@@ -28,6 +28,7 @@ Progress Tracker 插件解决了 AI 辅助开发中的一个关键问题：**如
 - **技术债归一化** - 技术债复用现有 bug 体系（`category=technical_debt`）
 - **轻量检查点** - 自动快照写入 `.claude/checkpoints.json`（不创建 git 提交）
 - **Worktree 感知恢复** - 记录 branch/worktree 上下文，`/prog` 与 `/prog done` 可在错误工作区恢复时给出强告警
+- **统一 Git 预检** - `prog git-auto-preflight --json` 作为唯一工作区/Git 风险探针，被 `git-auto`、`/prog next` 与 `/prog-start` 共同使用
 
 ## 依赖项
 
@@ -145,6 +146,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py clear-workflow-s
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-feature-ai-metrics <feature_id> --complexity-score <score> --selected-model <model> --workflow-path <path>
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py complete-feature-ai-metrics <feature_id>
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py auto-checkpoint
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py git-auto-preflight [--json]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py sync-runtime-context [--source <session_start|manual>] [--quiet] [--force]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-plan [--plan-path <path>]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-feature <name> <test_steps...>

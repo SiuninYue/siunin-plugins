@@ -104,6 +104,8 @@ After selecting the feature and before implementation:
 plugins/progress-tracker/prog memory read
 ```
 
+Legacy CLI equivalent: `project_memory.py read`.
+
 2. Compare selected feature (`name`, `test_steps`, constraints) against memory capabilities using Claude reasoning.
 3. Return JSON object shape:
    - `has_overlap` (boolean)
@@ -113,37 +115,33 @@ plugins/progress-tracker/prog memory read
 5. Never block `/prog next`; warning is advisory only.
 6. If JSON parsing fails, silently degrade to "no overlap warning" and continue.
 
-### Step 2.5: Workspace Safety Check
+### Step 2.5: Unified Git Auto Preflight
 
-Lightweight check before implementation:
-
-1. Check current branch:
+Use the single workspace/Git preflight source:
 
 ```bash
-current_branch=$(git symbolic-ref --quiet --short HEAD || echo "detached")
+plugins/progress-tracker/prog git-auto-preflight --json
 ```
 
-2. **If on `main`, `master`, or `detached HEAD`**:
+Parse JSON result and branch by `decision`:
 
-   - Consider if this change warrants a worktree:
-     - **Small changes** (docs, config, minor fixes): OK to proceed
-     - **Feature work** (new functionality, refactoring): Prefer worktree
+1. `ALLOW_IN_PLACE`
+   - Continue `/prog next` flow without workspace changes.
+2. `REQUIRE_WORKTREE`
+   - Isolate work before implementation:
+   ```text
+   Skill("using-git-worktrees", args="Set up isolated workspace for feature-<id>")
+   ```
+3. `DELEGATE_GIT_AUTO`
+   - Delegate Git handling:
+   ```text
+   Skill("progress-tracker:git-auto", args="Resolve workspace/git preflight blockers before feature implementation")
+   ```
 
-   - If worktree is preferred, mention it as an option:
-     ```
-     💡 可选：如果这个功能需要较长时间开发，可以考虑创建 worktree 来隔离工作环境。
-     使用 /prog-workspace 查看当前工作区状态。
-     ```
-
-3. **If on a feature branch**:
-
-   - Verify it's a worktree if that matters for your workflow
-   - Otherwise, proceed normally
-
-4. **Resume scenarios** (when current_feature_id is already set):
-
-   - Skip this check if `execution_context.worktree_path` matches current directory
-   - Otherwise, mention the context difference but don't block
+Rules:
+- Never block `/prog next` permanently; if delegation fails, return actionable recovery guidance.
+- Surface `reason_codes` and top `issues` in a short warning summary.
+- Resume scenarios still remain advisory: if execution context differs, explain mismatch but continue once preflight is satisfied.
 
 ### Step 3: Score Complexity
 
