@@ -107,5 +107,93 @@ def render_template(template_path: str, data: NoteData) -> str:
     return rendered
 
 
+def main() -> None:
+    """CLI 入口
+
+    输入优先级 (从高到低):
+        1. stdin (如果有数据)
+        2. --input 指定的文件
+        3. 位置参数 (JSON 字符串)
+
+    退出码:
+        0: 成功
+        1: 模板文件不存在
+        2: 必填字段为空
+        3: JSON 格式错误
+        4: 模板占位符未定义
+        5: 字段类型不匹配
+    """
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Render notebook templates")
+    parser.add_argument("template", help="Path to template file")
+    parser.add_argument("--input", "-i", help="Input JSON file (default: stdin or arg)")
+    parser.add_argument("json_data", nargs="?", help="JSON data as string (fallback)")
+
+    args = parser.parse_args()
+
+    # 确定输入源 (优先级: stdin > --input > json_data)
+    json_input = None
+
+    # 优先级 1: stdin (只有在非 tty 且有数据时)
+    if not sys.stdin.isatty():
+        stdin_data = sys.stdin.read()
+        if stdin_data.strip():  # 确保不是空数据
+            json_input = stdin_data
+
+    # 优先级 2: --input 文件 (只有在 stdin 没有数据时)
+    if json_input is None and args.input:
+        try:
+            with open(args.input, 'r', encoding='utf-8') as f:
+                json_input = f.read()
+        except FileNotFoundError:
+            print(f"Error: Input file not found: {args.input}", file=sys.stderr)
+            sys.exit(3)
+
+    # 优先级 3: 位置参数 (只有在前面都没有数据时)
+    if json_input is None and args.json_data:
+        json_input = args.json_data
+
+    # 如果没有任何输入源，显示帮助并退出
+    if json_input is None:
+        parser.print_help()
+        sys.exit(1)
+
+    # 解析 JSON
+    try:
+        data_dict = json.loads(json_input)
+    except json.JSONDecodeError as e:
+        print(f"Error: Invalid JSON: {e}", file=sys.stderr)
+        sys.exit(3)
+
+    # 创建 NoteData
+    try:
+        note_data = NoteData(
+            title=data_dict.get("title", ""),
+            note_type=data_dict.get("note_type", ""),
+            tags=data_dict.get("tags", []),
+            summary=data_dict.get("summary", ""),
+            key_points=data_dict.get("key_points", ""),
+            content=data_dict.get("content", "")
+        )
+    except TypeError as e:
+        print(f"Error: Type mismatch in data: {e}", file=sys.stderr)
+        sys.exit(5)
+
+    # 渲染模板
+    try:
+        result = render_template(args.template, note_data)
+        print(result, end='')
+    except FileNotFoundError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(2)
+    except KeyError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(4)
+
+
 if __name__ == '__main__':
     main()

@@ -15,6 +15,12 @@ try:
 except ImportError:
     _has_render = False
 
+try:
+    from scripts.template_renderer import main
+    _has_main = True
+except ImportError:
+    _has_main = False
+
 
 class TestFormatTagsList:
     """Test format_tags_list function"""
@@ -137,7 +143,7 @@ class TestRenderTemplate:
             render_template(str(template_file), data)
 
 
-@pytest.mark.skipif(not _has_render, reason="CLI not implemented yet")
+@pytest.mark.skipif(not _has_main, reason="CLI not implemented yet")
 class TestCLI:
     """Test CLI interface"""
 
@@ -162,7 +168,7 @@ class TestCLI:
             input=json.dumps(input_data),
             capture_output=True,
             text=True,
-            cwd="plugins/note-organizer"
+            cwd=str(plugin_root)
         )
 
         assert result.returncode == 0
@@ -182,7 +188,7 @@ class TestCLI:
             ["python3", "scripts/template_renderer.py", str(template_file), "--input", str(input_file)],
             capture_output=True,
             text=True,
-            cwd="plugins/note-organizer"
+            cwd=str(plugin_root)
         )
 
         assert result.returncode == 0
@@ -199,7 +205,7 @@ class TestCLI:
             input="invalid json{",
             capture_output=True,
             text=True,
-            cwd="plugins/note-organizer"
+            cwd=str(plugin_root)
         )
 
         assert result.returncode == 3
@@ -212,7 +218,7 @@ class TestCLI:
             input='{"title": "T", "note_type": "t", "tags": [], "summary": "S", "key_points": "- P", "content": "C"}',
             capture_output=True,
             text=True,
-            cwd="plugins/note-organizer"
+            cwd=str(plugin_root)
         )
 
         assert result.returncode == 1
@@ -228,7 +234,7 @@ class TestCLI:
             input='{"title": "", "note_type": "t", "tags": [], "summary": "S", "key_points": "- P", "content": "C"}',
             capture_output=True,
             text=True,
-            cwd="plugins/note-organizer"
+            cwd=str(plugin_root)
         )
 
         assert result.returncode == 2
