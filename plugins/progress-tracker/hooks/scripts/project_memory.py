@@ -2,7 +2,7 @@
 """Project memory data layer for progress-tracker.
 
 This module intentionally keeps only data concerns:
-- Read/write `.claude/project_memory.json`
+- Read/write `docs/progress-tracker/state/project_memory.json`
 - Fingerprint-based idempotent writes
 - Retention policies
 - Corruption recovery with backup
@@ -18,17 +18,27 @@ import json
 import os
 import re
 import shutil
-import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-DEFAULT_CLAUDE_DIR = ".claude"
+from prog_paths import (
+    ProjectRootResolutionError,
+    ensure_storage_migrated,
+    ensure_tracker_layout,
+    get_project_memory_path,
+    resolve_target_project_root,
+)
+
 PROJECT_MEMORY_JSON = "project_memory.json"
 SCHEMA_VERSION = "1.0"
 DEFAULT_MAX_SYNC_HISTORY = 50
 DEFAULT_MAX_REJECTED_FINGERPRINTS = 500
+
+_PROJECT_ROOT_OVERRIDE: Optional[Path] = None
+_REPO_ROOT: Optional[Path] = None
+_STORAGE_READY_ROOT: Optional[Path] = None
 
 
 def utc_now_iso() -> str:
@@ -54,36 +64,44 @@ def _default_memory() -> Dict[str, Any]:
     }
 
 
-def find_project_root() -> Path:
-    """Find project root via git root, `.claude` parents, then cwd."""
-    cwd = Path.cwd()
-
+def configure_project_scope(project_root_arg: Optional[str]) -> bool:
+    global _PROJECT_ROOT_OVERRIDE, _REPO_ROOT, _STORAGE_READY_ROOT
     try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--show-toplevel"],
-            cwd=str(cwd),
-            check=False,
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            return Path(result.stdout.strip())
-    except Exception:
-        pass
+        target_root, repo_root = resolve_target_project_root(project_root_arg=project_root_arg)
+    except ProjectRootResolutionError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return False
+    _PROJECT_ROOT_OVERRIDE = target_root if project_root_arg else None
+    _REPO_ROOT = repo_root
+    _STORAGE_READY_ROOT = None
+    return True
 
-    current = cwd
-    while current != current.parent:
-        if (current / DEFAULT_CLAUDE_DIR).exists():
-            return current
-        current = current.parent
-    return cwd
+
+def find_project_root() -> Path:
+    """Resolve target project root with monorepo-safe rules."""
+    global _PROJECT_ROOT_OVERRIDE
+    if _PROJECT_ROOT_OVERRIDE is not None:
+        return _PROJECT_ROOT_OVERRIDE
+    target_root, _ = resolve_target_project_root(project_root_arg=None)
+    return target_root
+
+
+def _ensure_storage_ready() -> None:
+    global _STORAGE_READY_ROOT
+    target_root = find_project_root()
+    if _STORAGE_READY_ROOT is not None and _STORAGE_READY_ROOT == target_root:
+        return
+    ensure_tracker_layout(target_root)
+    ensure_storage_migrated(target_root)
+    _STORAGE_READY_ROOT = target_root
 
 
 def get_memory_path(path: Optional[Path] = None) -> Path:
     """Resolve project memory path."""
     if path is not None:
         return path
-    return find_project_root() / DEFAULT_CLAUDE_DIR / PROJECT_MEMORY_JSON
+    _ensure_storage_ready()
+    return get_project_memory_path(find_project_root())
 
 
 def normalize_text(value: Any) -> str:
@@ -494,6 +512,13 @@ def _print_json(payload: Dict[str, Any]) -> None:
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Project memory data manager")
+    parser.add_argument(
+        "--project-root",
+        help=(
+            "Target project root. Required in monorepo root contexts, e.g. "
+            "'plugins/note-organizer'."
+        ),
+    )
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     subparsers.add_parser("read", help="Read project memory JSON")
@@ -520,6 +545,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     selection_parser.add_argument("--total", required=True, type=int, help="Total candidate count")
 
     args = parser.parse_args(argv)
+
+    if not configure_project_scope(args.project_root):
+        return 1
 
     try:
         if args.command == "parse-selection":

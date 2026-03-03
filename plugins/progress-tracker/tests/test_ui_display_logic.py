@@ -14,8 +14,8 @@ from pathlib import Path
 @pytest.fixture
 def working_dir(tmp_path):
     """Create a temporary working directory with test data"""
-    claude_dir = tmp_path / ".claude"
-    claude_dir.mkdir()
+    state_dir = tmp_path / "docs" / "progress-tracker" / "state"
+    state_dir.mkdir(parents=True)
 
     # Create test progress.json with Feature 2 as active
     progress_data = {
@@ -57,7 +57,7 @@ def working_dir(tmp_path):
         "schema_version": "2.0"
     }
 
-    progress_file = claude_dir / "progress.json"
+    progress_file = state_dir / "progress.json"
     progress_file.write_text(json.dumps(progress_data, indent=2))
 
     return tmp_path
@@ -134,7 +134,7 @@ def test_ui_displays_prog_start_button_when_planning(test_client, working_dir):
     the drawer should display "开始开发" button with /prog start command.
     """
     # Set Feature 2 as active (planning stage)
-    progress_file = working_dir / ".claude" / "progress.json"
+    progress_file = working_dir / "docs" / "progress-tracker" / "state" / "progress.json"
     progress_data = json.loads(progress_file.read_text())
     progress_data["current_feature_id"] = 2
     progress_file.write_text(json.dumps(progress_data, indent=2))
@@ -160,7 +160,7 @@ def test_ui_displays_prog_done_button_when_developing(test_client, working_dir):
     the drawer should display "完成此功能" button with /prog done command.
     """
     # Set Feature 3 as active (developing stage)
-    progress_file = working_dir / ".claude" / "progress.json"
+    progress_file = working_dir / "docs" / "progress-tracker" / "state" / "progress.json"
     progress_data = json.loads(progress_file.read_text())
     progress_data["current_feature_id"] = 3
     progress_file.write_text(json.dumps(progress_data, indent=2))
@@ -187,7 +187,7 @@ def test_ui_displays_next_step_title_when_pending(test_client, working_dir):
     """
     # Leave current_feature_id as null (no active feature)
     # This should make Feature 2 a pending feature
-    progress_file = working_dir / ".claude" / "progress.json"
+    progress_file = working_dir / "docs" / "progress-tracker" / "state" / "progress.json"
     progress_data = json.loads(progress_file.read_text())
     progress_data["current_feature_id"] = None
     progress_file.write_text(json.dumps(progress_data, indent=2))
@@ -208,7 +208,7 @@ def test_ui_marks_completed_feature_as_completed(test_client, working_dir):
     '已完成' marker and no suggested actions.
     """
     # Check Feature 4 which is already completed
-    progress_file = working_dir / ".claude" / "progress.json"
+    progress_file = working_dir / "docs" / "progress-tracker" / "state" / "progress.json"
     progress_data = json.loads(progress_file.read_text())
     # Make Feature 4 the "next" feature to display
     for i, f in enumerate(progress_data["features"]):
@@ -229,7 +229,7 @@ def test_ui_displays_correct_stage_label_in_summary(test_client, working_dir):
     (规划中/开发中/已完成) based on development_stage field.
     """
     # Set Feature 2 (planning) as active
-    progress_file = working_dir / ".claude" / "progress.json"
+    progress_file = working_dir / "docs" / "progress-tracker" / "state" / "progress.json"
     progress_data = json.loads(progress_file.read_text())
     progress_data["current_feature_id"] = 2
     progress_file.write_text(json.dumps(progress_data, indent=2))

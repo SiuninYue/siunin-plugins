@@ -8,7 +8,7 @@ inputs:
 outputs:
   - Technology stack recommendations
   - System architecture design
-  - Architectural decision records (.claude/architecture.md)
+  - Architectural decision records (docs/progress-tracker/architecture/architecture.md)
   - Integration guidance for feature breakdown
 evidence: optional
 references: []

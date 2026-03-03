@@ -42,7 +42,7 @@ Finalize the active feature only after verification passes, then update tracking
 
 ### Step 1: Load Active Feature
 
-Read `.claude/progress.json` and locate `current_feature_id`.
+Read `docs/progress-tracker/state/progress.json` and locate `current_feature_id`.
 
 - If no active feature: stop and guide user to `/prog next`.
 - If feature already completed: show status and stop.
@@ -53,7 +53,7 @@ Inspect `workflow_state.phase`.
 
 - Required phase: `execution_complete`.
 - If not `execution_complete`, do not complete feature.
-- Also inspect execution/runtime context alignment from `.claude/progress.json` (or `check` output):
+- Also inspect execution/runtime context alignment from `docs/progress-tracker/state/progress.json` (or `check` output):
   - If worktree/branch mismatches the recorded execution context, show a strong warning and ask user to switch first.
   - Do not silently mutate progress state to "fix" mismatch.
 
@@ -110,6 +110,11 @@ Skill("requesting-code-review", args="Final review before marking feature <featu
 ```bash
 plugins/progress-tracker/prog complete <feature_id> --commit <commit_hash>
 ```
+
+This step will automatically:
+- Move associated plan and test documents to `docs/progress-tracker/archive/`
+- Rename archived plans to `feature-{id}-{original-name}.md` for consistency
+- Support both legacy (`feature-N-*.md`) and current date-based naming patterns (`YYYY-MM-DD-*.md`)
 
 6. Append capability memory (non-blocking):
 

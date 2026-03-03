@@ -47,7 +47,7 @@ Revert the most recently completed feature safely via `git revert`.
 
 ### `/progress-tracker:prog-reset` (alias: `/prog-reset`)
 
-Reset progress tracking files after explicit confirmation.
+Reset active progress tracking files after explicit confirmation (auto-archives previous snapshot).
 
 ### `/progress-tracker:help`
 
@@ -59,10 +59,18 @@ Launch the Progress UI web server and open in browser. Auto-detects available po
 
 ### Progress Manager CLI
 
+Global scope override (recommended in monorepos):
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py --project-root plugins/<name> status
+```
+
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py init <project_name> [--force]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py status
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py check
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-archives [--limit <n>]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py restore-archive <archive_id> [--force]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-current <feature_id>
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py complete <feature_id> --commit <hash>
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state --phase <phase> [--plan-path <path>] [--next-action <action>]
@@ -84,6 +92,12 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py remove-bug "BUG-
 ```
 
 ### Project Memory CLI
+
+Global scope override (recommended in monorepos):
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py --project-root plugins/<name> read
+```
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py read
@@ -130,7 +144,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py register-rejection
 
 ### `/progress-tracker:prog-reset` (别名：`/prog-reset`)
 
-在明确确认后重置进度跟踪文件。
+在明确确认后重置当前活动进度文件（会自动归档旧快照）。
 
 ### `/progress-tracker:help`
 
@@ -142,10 +156,18 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py register-rejection
 
 ### Progress Manager 命令行
 
+Monorepo 中建议显式指定作用域：
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py --project-root plugins/<name> status
+```
+
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py init <project_name> [--force]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py status
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py check
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-archives [--limit <n>]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py restore-archive <archive_id> [--force]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-current <feature_id>
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py complete <feature_id> --commit <hash>
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state --phase <phase> [--plan-path <path>] [--next-action <action>]
@@ -167,6 +189,12 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py remove-bug "BUG-
 ```
 
 ### Project Memory 命令行
+
+Monorepo 中建议显式指定作用域：
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py --project-root plugins/<name> read
+```
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py read
@@ -191,7 +219,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py register-rejection
 - `/progress-tracker:prog-done` (alias: `/prog-done`): run acceptance checks and complete the current feature.
 - `/progress-tracker:prog-fix [description|BUG-ID]` (alias: `/prog-fix`): report/list/fix bugs.
 - `/progress-tracker:prog-undo` (alias: `/prog-undo`): revert the most recently completed feature.
-- `/progress-tracker:prog-reset` (alias: `/prog-reset`): reset tracking files with confirmation.
+- `/progress-tracker:prog-reset` (alias: `/prog-reset`): reset active tracking files with confirmation (auto-archive previous snapshot).
 - `/progress-tracker:help`: show plugin command help (prefer namespaced form to avoid `/help` conflicts).
 - `/progress-tracker:prog-ui` (alias: `/prog-ui`): launch web UI server and open browser.
 
@@ -199,6 +227,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py register-rejection
 
 - Command docs in README/readme-zh are generated from this file.
 - Namespaced command format must not include a space after `:` (use `/progress-tracker:prog`, not `/progress-tracker: prog`).
+- In monorepo root contexts, pass `--project-root plugins/<name>` to `progress_manager.py`, `project_memory.py`, and `progress_ui_server.py`.
 - Use `generate_prog_docs.py --check` in CI-style validation.
 - Use `generate_prog_docs.py --write` after changing this source.
 <!-- SOURCE:PROG_HELP:END -->

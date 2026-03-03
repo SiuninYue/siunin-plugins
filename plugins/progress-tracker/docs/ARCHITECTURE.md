@@ -51,12 +51,14 @@ Progress Tracker is a Claude Code plugin that provides cross-session progress tr
 │  ┌────────────────────────────────────────────────────────────┐ │
 │  │                    Persistence Layer                        │ │
 │  │                                                             │ │
-│  │  .claude/                                                   │ │
-│  │  ├── progress.json   (feature list, bugs, workflow state)   │ │
-│  │  ├── progress.md     (human-readable status)                │ │
-│  │  ├── architecture.md (technical decisions)                  │ │
-│  │  └── .cache/                                                   │
-│  │      └── complexity_cache.json                               │ │
+│  │  docs/progress-tracker/                                      │ │
+│  │  ├── state/                                                  │ │
+│  │  │   ├── progress.json   (feature list, bugs, workflow state)│ │
+│  │  │   └── progress.md     (human-readable status)            │ │
+│  │  ├── architecture/                                           │ │
+│  │  │   └── architecture.md (technical decisions)              │ │
+│  │  └── cache/                                                  │ │
+│  │      └── complexity_cache.json                              │ │
 │  └────────────────────────────────────────────────────────────┘ │
 │                                                                   │
 │  ┌────────────────────────────────────────────────────────────┐ │
@@ -83,7 +85,7 @@ User Input
        │
        ▼
 ┌─────────────────────────────────┐
-│  Load .claude/progress.json     │
+│  Load docs/progress-tracker/state/progress.json     │
 │  - Find next incomplete feature │
 │  - Check workflow state         │
 └──────┬──────────────────────────┘
@@ -337,7 +339,7 @@ progress-tracker/
   "current_bug_id": "BUG-001",
   "workflow_state": {
     "phase": "execution",
-    "plan_path": "docs/plans/2024-01-15-feature.md",
+    "plan_path": "docs/progress-tracker/plans/2024-01-15-feature.md",
     "completed_tasks": [1, 2],
     "current_task": 3,
     "total_tasks": 5,
@@ -390,7 +392,7 @@ progress-tracker/
 
 ### Cache Strategy
 - Complexity analysis cached for 1 hour
-- Cache stored in `.claude/.cache/complexity_cache.json`
+- Cache stored in `docs/progress-tracker/cache/complexity_cache.json`
 - Automatic expiration on read
 
 ### Git Operations

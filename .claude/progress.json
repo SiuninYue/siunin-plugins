@@ -2,7 +2,7 @@
   "schema_version": "2.0",
   "project_name": "Note Organizer Plugin",
   "created_at": "2026-02-25T23:15:37.840964Z",
-  "updated_at": "2026-03-03T16:20:03.756925Z",
+  "updated_at": "2026-03-03T18:22:31.695895Z",
   "features": [
     {
       "id": 1,
@@ -214,5 +214,59 @@
     "current_task": null,
     "total_tasks": null,
     "next_action": "Execute implementation plan"
-  }
+  },
+  "bugs": [
+    {
+      "id": "BUG-001",
+      "description": "[note-organizer] 测试跨目录执行失败与等价路径未去重（1f84d9b）",
+      "status": "fixed",
+      "priority": "high",
+      "category": "bug",
+      "created_at": "2026-03-03T18:22:18.514208Z",
+      "quick_verification": {},
+      "updated_at": "2026-03-03T18:22:23.016824Z",
+      "root_cause": "测试依赖当前工作目录且批量扫描未统一路径规范，导致等价路径重复与测试不稳定。",
+      "investigation": {
+        "root_cause": "测试依赖当前工作目录且批量扫描未统一路径规范，导致等价路径重复与测试不稳定。",
+        "confirmed_at": "2026-03-03T18:22:23.017159Z"
+      },
+      "fix_summary": "改为基于 Path(__file__).resolve() 推导根目录，扫描阶段使用 Path.resolve() 归一化；测试改用绝对路径并新增路径归一化覆盖。",
+      "fixed_at": "2026-03-03T18:22:23.017310Z"
+    },
+    {
+      "id": "BUG-002",
+      "description": "[note-organizer] 批量扫描输出存在重复且顺序不稳定（35197a7）",
+      "status": "fixed",
+      "priority": "medium",
+      "category": "bug",
+      "created_at": "2026-03-03T18:22:25.021756Z",
+      "quick_verification": {},
+      "updated_at": "2026-03-03T18:22:27.352041Z",
+      "root_cause": "文件聚合阶段缺少去重与排序约束，导致多 pattern 下重复项和结果顺序波动。",
+      "investigation": {
+        "root_cause": "文件聚合阶段缺少去重与排序约束，导致多 pattern 下重复项和结果顺序波动。",
+        "confirmed_at": "2026-03-03T18:22:27.352285Z"
+      },
+      "fix_summary": "引入 seen set 去重并按 path 排序输出；补充 duplicate removal 与 output sorted 测试并强化断言。",
+      "fixed_at": "2026-03-03T18:22:27.352438Z"
+    },
+    {
+      "id": "BUG-003",
+      "description": "[note-organizer] 命令名与文档不一致：/note-format 与 /note-process（c4eefb0）",
+      "status": "fixed",
+      "priority": "medium",
+      "category": "technical_debt",
+      "created_at": "2026-03-03T18:22:29.266159Z",
+      "quick_verification": {},
+      "updated_at": "2026-03-03T18:22:31.684864Z",
+      "root_cause": "计划文档中的命令命名未与架构和 README 对齐，造成使用入口歧义。",
+      "investigation": {
+        "root_cause": "计划文档中的命令命名未与架构和 README 对齐，造成使用入口歧义。",
+        "confirmed_at": "2026-03-03T18:22:31.685169Z"
+      },
+      "fix_summary": "统一命令名为 /note-process，并修正文档引用，消除命名漂移。",
+      "fixed_at": "2026-03-03T18:22:31.685332Z"
+    }
+  ],
+  "current_bug_id": null
 }

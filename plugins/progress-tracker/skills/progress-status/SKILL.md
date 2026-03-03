@@ -55,7 +55,7 @@ Present progress information in this structured format:
 
 ### Progress JSON Structure
 
-Read `.claude/progress.json` which contains:
+Read `docs/progress-tracker/state/progress.json` which contains:
 ```json
 {
   "project_name": "Project Name",
@@ -74,7 +74,7 @@ Read `.claude/progress.json` which contains:
 
 ### Progress MD Structure
 
-Read `.claude/progress.md` for human-readable context. It contains:
+Read `docs/progress-tracker/state/progress.md` for human-readable context. It contains:
 - Project name and creation date
 - Completed features checklist
 - In-progress features with test steps
@@ -244,8 +244,8 @@ Use `/prog-fix` to review and schedule cleanup.
 
 ## Reading Strategy
 
-1. **First**: Attempt to read `.claude/progress.json`
-2. **Then**: Read `.claude/progress.md` for human context
+1. **First**: Attempt to read `docs/progress-tracker/state/progress.json`
+2. **Then**: Read `docs/progress-tracker/state/progress.md` for human context
 3. **Finally**: Run `git log --oneline -5` for recent activity
 
 If files don't exist, handle gracefully and suggest initialization.

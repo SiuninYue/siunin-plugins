@@ -198,7 +198,7 @@ class TestGitIntegrationEdgeCases:
         # Now undo
         progress_manager.undo_last_feature()
 
-        md_file = temp_dir / ".claude" / "progress.md"
+        md_file = temp_dir / "docs" / "progress-tracker" / "state" / "progress.md"
         assert md_file.exists()
         content = md_file.read_text()
         # Feature 1 should no longer be in completed section

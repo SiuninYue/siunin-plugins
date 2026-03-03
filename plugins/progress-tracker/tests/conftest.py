@@ -20,6 +20,38 @@ sys.path.insert(0, str(SCRIPT_DIR))
 import progress_manager
 
 
+@pytest.fixture(autouse=True)
+def reset_progress_tracker_module_state():
+    """Reset module-level root/storage caches between tests."""
+    progress_manager._PROJECT_ROOT_OVERRIDE = None
+    progress_manager._REPO_ROOT = None
+    progress_manager._STORAGE_READY_ROOT = None
+
+    try:
+        import project_memory  # type: ignore
+
+        project_memory._PROJECT_ROOT_OVERRIDE = None
+        project_memory._REPO_ROOT = None
+        project_memory._STORAGE_READY_ROOT = None
+    except Exception:
+        pass
+
+    yield
+
+    progress_manager._PROJECT_ROOT_OVERRIDE = None
+    progress_manager._REPO_ROOT = None
+    progress_manager._STORAGE_READY_ROOT = None
+
+    try:
+        import project_memory  # type: ignore
+
+        project_memory._PROJECT_ROOT_OVERRIDE = None
+        project_memory._REPO_ROOT = None
+        project_memory._STORAGE_READY_ROOT = None
+    except Exception:
+        pass
+
+
 @pytest.fixture
 def temp_dir(tmp_path):
     """Create a temporary directory for testing."""
@@ -64,10 +96,10 @@ def sample_progress_data():
 @pytest.fixture
 def progress_file(temp_dir, sample_progress_data):
     """Create a progress.json file with sample data."""
-    claude_dir = temp_dir / ".claude"
-    claude_dir.mkdir(parents=True, exist_ok=True)
+    state_dir = temp_dir / "docs" / "progress-tracker" / "state"
+    state_dir.mkdir(parents=True, exist_ok=True)
 
-    progress_file = claude_dir / "progress.json"
+    progress_file = state_dir / "progress.json"
     with open(progress_file, "w", encoding="utf-8") as f:
         json.dump(sample_progress_data, f)
 
@@ -138,7 +170,7 @@ def in_progress_data():
         "current_feature_id": 2,
         "workflow_state": {
             "phase": "execution",
-            "plan_path": "docs/plans/feature-2-in-progress.md",
+            "plan_path": "docs/progress-tracker/plans/feature-2-in-progress.md",
             "completed_tasks": [1, 2],
             "total_tasks": 5,
             "current_task": 3,
@@ -150,16 +182,16 @@ def in_progress_data():
 @pytest.fixture
 def in_progress_file(temp_dir, in_progress_data):
     """Create a progress.json file with in-progress feature."""
-    claude_dir = temp_dir / ".claude"
-    claude_dir.mkdir(parents=True, exist_ok=True)
-    plans_dir = temp_dir / "docs" / "plans"
+    state_dir = temp_dir / "docs" / "progress-tracker" / "state"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    plans_dir = temp_dir / "docs" / "progress-tracker" / "plans"
     plans_dir.mkdir(parents=True, exist_ok=True)
     (plans_dir / "feature-2-in-progress.md").write_text(
         "# Plan\n\n## Tasks\n- Task 1\n\n## Acceptance Mapping\n- Step A -> Verification\n\n## Risks\n- None\n",
         encoding="utf-8",
     )
 
-    progress_file = claude_dir / "progress.json"
+    progress_file = state_dir / "progress.json"
     with open(progress_file, "w", encoding="utf-8") as f:
         json.dump(in_progress_data, f)
 
@@ -183,7 +215,7 @@ def execution_complete_data():
         "current_feature_id": 1,
         "workflow_state": {
             "phase": "execution_complete",
-            "plan_path": "docs/plans/feature-1-execution-complete.md",
+            "plan_path": "docs/progress-tracker/plans/feature-1-execution-complete.md",
             "completed_tasks": [1, 2, 3, 4, 5],
             "total_tasks": 5,
             "current_task": 6,

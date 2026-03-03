@@ -14,12 +14,38 @@ set -e
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Check first argument to determine which script to run
-if [ "$1" = "memory" ]; then
-    # Shift 'memory' argument and run project_memory.py
+# Normalize global args so --project-root can appear anywhere.
+PROJECT_ARGS=()
+OTHER_ARGS=()
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --project-root)
+            PROJECT_ARGS+=("$1")
+            shift
+            if [ "$#" -eq 0 ]; then
+                echo "Error: --project-root requires a value" >&2
+                exit 1
+            fi
+            PROJECT_ARGS+=("$1")
+            ;;
+        --project-root=*)
+            PROJECT_ARGS+=("$1")
+            ;;
+        *)
+            OTHER_ARGS+=("$1")
+            ;;
+    esac
     shift
-    python3 "$SCRIPT_DIR/hooks/scripts/project_memory.py" "$@"
+done
+
+# Route to project_memory.py when first non-global arg is `memory`.
+if [ "${#OTHER_ARGS[@]}" -gt 0 ] && [ "${OTHER_ARGS[0]}" = "memory" ]; then
+    python3 "$SCRIPT_DIR/hooks/scripts/project_memory.py" \
+        "${PROJECT_ARGS[@]}" \
+        "${OTHER_ARGS[@]:1}"
 else
-    # Default to progress_manager.py
-    python3 "$SCRIPT_DIR/hooks/scripts/progress_manager.py" "$@"
+    python3 "$SCRIPT_DIR/hooks/scripts/progress_manager.py" \
+        "${PROJECT_ARGS[@]}" \
+        "${OTHER_ARGS[@]}"
 fi

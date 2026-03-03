@@ -15,10 +15,11 @@ Features:
 
 import json
 import hashlib
-import os
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Dict, List, Tuple, Optional
+
+from prog_paths import get_complexity_cache_path, resolve_target_project_root
 
 
 class ComplexityAnalyzer:
@@ -42,21 +43,26 @@ class ComplexityAnalyzer:
     COMPLEX_MIN_FILES = 5
     COMPLEX_MIN_STEPS = 5
 
-    def __init__(self, cache_dir: Optional[Path] = None):
+    def __init__(self, cache_dir: Optional[Path] = None, project_root: Optional[Path] = None):
         """
         Initialize the complexity analyzer.
 
         Args:
-            cache_dir: Directory for cache storage. Defaults to .claude/.cache/
+            cache_dir: Directory for cache storage. Defaults to docs/progress-tracker/cache/
         """
         if cache_dir is None:
-            # Default to .claude/.cache/ in current directory
-            self.cache_dir = Path.cwd() / ".claude" / ".cache"
+            # Default to target project's docs/progress-tracker/cache directory
+            if project_root is not None:
+                target_root = Path(project_root).resolve()
+            else:
+                target_root, _ = resolve_target_project_root(project_root_arg=None)
+            self.cache_file = get_complexity_cache_path(target_root)
+            self.cache_dir = self.cache_file.parent
         else:
             self.cache_dir = Path(cache_dir)
+            self.cache_file = self.cache_dir / "complexity_cache.json"
 
         self.cache_dir.mkdir(parents=True, exist_ok=True)
-        self.cache_file = self.cache_dir / "complexity_cache.json"
 
     def _get_cache_key(self, feature_description: str, test_steps: List[str]) -> str:
         """

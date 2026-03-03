@@ -1,6 +1,6 @@
 ---
 name: testing-standards
-description: This skill should be used when the user asks to "generate test documentation", "create acceptance report", "write bug fix report", "document testing results", "create test guide", or "standardize test documents". Defines naming conventions, frontmatter standards, and content structure for all testing documents in docs/testing/. Automatically referenced by feature-complete and bug-fix skills.
+description: This skill should be used when the user asks to "generate test documentation", "create acceptance report", "write bug fix report", "document testing results", "create test guide", or "standardize test documents". Defines naming conventions, frontmatter standards, and content structure for all testing documents in docs/progress-tracker/testing/. Automatically referenced by feature-complete and bug-fix skills.
 version: "1.0.0"
 scope: skill
 inputs:
@@ -58,7 +58,7 @@ All test documents must follow these naming patterns:
 
 ## Document Location
 
-All testing documents go in: `docs/testing/`
+All testing documents go in: `docs/progress-tracker/testing/`
 
 ```
 project-root/
@@ -137,7 +137,7 @@ Handle different response types appropriately:
 | User Response | AI Action |
 |---------------|-----------|
 | "All passed" / "1,2,3 passed" | Fill in checklist, generate report |
-| "Already filled in docs/testing/..." | Read existing document, validate format |
+| "Already filled in docs/progress-tracker/testing/..." | Read existing document, validate format |
 | "1,2 passed but don't know how to test 3" | Explain testing method for item 3 |
 | "1,2 passed, forgot to test 3" | Remind about missing item, wait for response |
 | "Item 3 has a bug" | Record the issue, ask how to proceed |
@@ -156,7 +156,7 @@ If user reports they haven't tested some items:
 Once all items are addressed:
 1. Fill in the checklist based on user's responses
 2. Generate the complete report with frontmatter
-3. Save to `docs/testing/` with correct filename
+3. Save to `docs/progress-tracker/testing/` with correct filename
 4. Update progress tracking
 
 ### 5. Handle Issues
@@ -225,9 +225,9 @@ docs/
 
 ### What Gets Archived
 
-- `docs/testing/feature-{id}-acceptance-report.md`
-- `docs/testing/feature-{id}-test-guide.md`
-- `docs/plans/feature-{id}-*.md`
+- `docs/progress-tracker/testing/feature-{id}-acceptance-report.md`
+- `docs/progress-tracker/testing/feature-{id}-test-guide.md`
+- `docs/progress-tracker/plans/feature-{id}-*.md`
 
 ### Archive Behavior
 
@@ -247,7 +247,7 @@ When documents are archived, the feature's entry in `progress.json` includes an 
     "files_moved": 2,
     "files": [
       {
-        "from": "docs/testing/feature-1-acceptance-report.md",
+        "from": "docs/progress-tracker/testing/feature-1-acceptance-report.md",
         "to": "docs/archive/testing/feature-1-acceptance-report.md"
       }
     ]

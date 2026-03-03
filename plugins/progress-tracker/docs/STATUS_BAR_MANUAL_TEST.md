@@ -113,7 +113,7 @@ python3 plugins/progress-tracker/hooks/scripts/progress_ui_server.py --port 3737
 - [x] 状态位显示 "-/-" 等降级数据
 
 #### 5.2 数据缺失
-- [x] 重命名 `.claude/progress.json` 为 `.claude/progress.json.bak`
+- [x] 重命名 `docs/progress-tracker/state/progress.json` 为 `docs/progress-tracker/state/progress.json.bak`
 - [x] 刷新页面
 - [x] 状态栏显示空态："0/0 (0%)"
 - [x] 其他状态位显示降级数据 」(TODO: 文件是Unable to load file list. 状态是Failed to load status. 总进度/下一步没变 4/12(33%) #5)
@@ -159,11 +159,11 @@ python3 plugins/progress-tracker/hooks/scripts/progress_ui_server.py --port 3737
 ### 验证方式
 ```bash
 # 查看实际数据
-cat .claude/progress.json | jq '.features | length'  # 应为 12
-cat .claude/progress.json | jq '[.features[] | select(.completed)] | length'  # 应为 4
-cat .claude/progress.json | jq '.current_feature_id'  # 应为 null
-cat .claude/progress.json | jq '.bugs | length'  # 应为 0
-ls .claude/checkpoints.json 2>/dev/null || echo "文件不存在"  # 应显示不存在
+cat docs/progress-tracker/state/progress.json | jq '.features | length'  # 应为 12
+cat docs/progress-tracker/state/progress.json | jq '[.features[] | select(.completed)] | length'  # 应为 4
+cat docs/progress-tracker/state/progress.json | jq '.current_feature_id'  # 应为 null
+cat docs/progress-tracker/state/progress.json | jq '.bugs | length'  # 应为 0
+ls docs/progress-tracker/state/checkpoints.json 2>/dev/null || echo "文件不存在"  # 应显示不存在
 ```
 
 ## 通过标准

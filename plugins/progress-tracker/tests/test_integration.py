@@ -14,6 +14,7 @@ import tempfile
 import shutil
 from pathlib import Path
 from datetime import datetime
+import pytest
 
 # Add hooks/scripts to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'hooks', 'scripts'))
@@ -66,7 +67,7 @@ class TestFullWorkflow:
         assert result.returncode == 0, f"Init failed: {result.stderr}"
 
         # Verify progress.json exists
-        progress_file = Path('.claude/progress.json')
+        progress_file = Path('docs/progress-tracker/state/progress.json')
         assert progress_file.exists(), "progress.json not created"
 
         # 2. Add a feature
@@ -129,7 +130,7 @@ class TestFullWorkflow:
         assert result.returncode == 0
 
         # Verify in progress.json
-        with open('.claude/progress.json', 'r') as f:
+        with open('docs/progress-tracker/state/progress.json', 'r') as f:
             data = json.load(f)
 
         features = data.get('features', [])
@@ -158,7 +159,7 @@ class TestFullWorkflow:
         assert result.returncode == 0, f"Add bug failed: {result.stderr}"
 
         # Verify bug in progress.json
-        with open('.claude/progress.json', 'r') as f:
+        with open('docs/progress-tracker/state/progress.json', 'r') as f:
             data = json.load(f)
 
         bugs = data.get('bugs', [])
@@ -192,7 +193,7 @@ class TestFullWorkflow:
         result = subprocess.run(
             ['python3', self.progress_manager, 'set-workflow-state',
              '--phase', 'planning',
-             '--plan-path', 'docs/plans/test.md',
+             '--plan-path', 'docs/progress-tracker/plans/test.md',
              '--next-action', 'execution'],
             capture_output=True,
             text=True
@@ -200,12 +201,12 @@ class TestFullWorkflow:
         assert result.returncode == 0
 
         # Verify workflow state
-        with open('.claude/progress.json', 'r') as f:
+        with open('docs/progress-tracker/state/progress.json', 'r') as f:
             data = json.load(f)
 
         workflow_state = data.get('workflow_state', {})
         assert workflow_state['phase'] == 'planning'
-        assert workflow_state['plan_path'] == 'docs/plans/test.md'
+        assert workflow_state['plan_path'] == 'docs/progress-tracker/plans/test.md'
         assert workflow_state['next_action'] == 'execution'
         assert 'execution_context' in workflow_state
 
@@ -218,7 +219,7 @@ class TestFullWorkflow:
         assert result.returncode == 0
 
         # Verify task update
-        with open('.claude/progress.json', 'r') as f:
+        with open('docs/progress-tracker/state/progress.json', 'r') as f:
             data = json.load(f)
 
         workflow_state = data.get('workflow_state', {})
@@ -241,7 +242,7 @@ class TestFullWorkflow:
         )
         assert result.returncode == 0, f"sync-runtime-context failed: {result.stderr}"
 
-        with open('.claude/progress.json', 'r') as f:
+        with open('docs/progress-tracker/state/progress.json', 'r') as f:
             data = json.load(f)
 
         runtime_context = data.get('runtime_context', {})
@@ -256,15 +257,15 @@ class TestFullWorkflow:
                        capture_output=True)
         subprocess.run(['python3', self.progress_manager, 'set-current', '1'],
                        capture_output=True)
-        (Path('docs') / 'plans').mkdir(parents=True, exist_ok=True)
-        (Path('docs') / 'plans' / 'test.md').write_text(
+        (Path("docs") / "progress-tracker" / "plans").mkdir(parents=True, exist_ok=True)
+        (Path("docs") / "progress-tracker" / "plans" / "test.md").write_text(
             "# Plan\n\n## Tasks\n- Task\n\n## Acceptance Mapping\n- Map\n\n## Risks\n- None\n",
-            encoding='utf-8'
+            encoding="utf-8"
         )
         subprocess.run(
             ['python3', self.progress_manager, 'set-workflow-state',
              '--phase', 'execution',
-             '--plan-path', 'docs/plans/test.md'],
+             '--plan-path', 'docs/progress-tracker/plans/test.md'],
             capture_output=True
         )
 
@@ -515,6 +516,92 @@ class TestHealthCheck:
         health_data = json.loads(result.stdout)
         # Should still be healthy even without tracking
         assert health_data['status'] in ['healthy', 'degraded']
+
+
+class TestProjectRootScoping:
+    """Integration coverage for monorepo/standalone project-root resolution."""
+
+    def setup_method(self):
+        self.temp_dir = tempfile.mkdtemp()
+        self.original_dir = os.getcwd()
+        os.chdir(self.temp_dir)
+
+        subprocess.run(["git", "init"], capture_output=True)
+        subprocess.run(["git", "config", "user.email", "test@example.com"], capture_output=True)
+        subprocess.run(["git", "config", "user.name", "Test"], capture_output=True)
+
+        self.progress_manager = os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "hooks",
+            "scripts",
+            "progress_manager.py",
+        )
+
+    def teardown_method(self):
+        os.chdir(self.original_dir)
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    def test_monorepo_project_root_isolation(self):
+        """Two plugin roots should keep independent progress state files."""
+        (Path("plugins") / "note-organizer").mkdir(parents=True)
+        (Path("plugins") / "super-product-manager").mkdir(parents=True)
+
+        result = subprocess.run(
+            [
+                "python3",
+                self.progress_manager,
+                "--project-root",
+                "plugins/note-organizer",
+                "init",
+                "Note Organizer",
+                "--force",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, result.stderr
+
+        result = subprocess.run(
+            [
+                "python3",
+                self.progress_manager,
+                "--project-root",
+                "plugins/super-product-manager",
+                "init",
+                "SPM",
+                "--force",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, result.stderr
+
+        note_progress = Path("plugins/note-organizer/docs/progress-tracker/state/progress.json")
+        spm_progress = Path(
+            "plugins/super-product-manager/docs/progress-tracker/state/progress.json"
+        )
+        assert note_progress.exists()
+        assert spm_progress.exists()
+
+        note_data = json.loads(note_progress.read_text(encoding="utf-8"))
+        spm_data = json.loads(spm_progress.read_text(encoding="utf-8"))
+        assert note_data["project_name"] == "Note Organizer"
+        assert spm_data["project_name"] == "SPM"
+
+    def test_standalone_repo_defaults_to_git_root(self):
+        """Without plugins/ and without --project-root, git root should be target."""
+        result = subprocess.run(
+            ["python3", self.progress_manager, "init", "Standalone", "--force"],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, result.stderr
+
+        progress_file = Path("docs/progress-tracker/state/progress.json")
+        assert progress_file.exists()
+        data = json.loads(progress_file.read_text(encoding="utf-8"))
+        assert data["project_name"] == "Standalone"
 
 
 # Performance tests

@@ -42,7 +42,7 @@ Invoke this skill when:
 
 ## Mandatory Output Contract (Required)
 
-For `/prog plan`, always save architecture to `.claude/architecture.md` and enforce this exact top-level structure:
+For `/prog plan`, always save architecture to `docs/progress-tracker/architecture/architecture.md` and enforce this exact top-level structure:
 
 1. `## Goals`
 2. `## Scope Boundaries`
@@ -200,7 +200,7 @@ Create visual and textual architecture description:
 
 ### Phase 4: Decision Documentation
 
-Create `.claude/architecture.md` with:
+Create `docs/progress-tracker/architecture/architecture.md` with:
 
 ```markdown
 # Architecture: <Project Name>
@@ -314,7 +314,7 @@ Before finalizing, validate that the document includes:
 
 When architecture exists, `feature-breakdown` skill should:
 
-1. **Read** `.claude/architecture.md`
+1. **Read** `docs/progress-tracker/architecture/architecture.md`
 2. **Adapt** feature list to selected technologies
 3. **Include** technology-specific test steps
 4. **Reference** architectural decisions
@@ -335,7 +335,7 @@ Example:
 
 ### Architecture Already Exists
 
-If `.claude/architecture.md` exists:
+If `docs/progress-tracker/architecture/architecture.md` exists:
 
 ```markdown
 ## Existing Architecture Found
@@ -386,7 +386,7 @@ Let's make key technical decisions...
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ✓ Architecture Planning Complete
 
-Architecture document saved to: .claude/architecture.md
+Architecture document saved to: docs/progress-tracker/architecture/architecture.md
 
 Technology Stack:
   • Backend: <choice>
@@ -420,7 +420,7 @@ Next Steps:
 3. **Recommend**:
    - Small scale (<1000): Node.js + Socket.io + Redis
    - Large scale (>10000): Go + WebSocket + Redis Cluster + RabbitMQ
-4. **Document**: Save decisions to `.claude/architecture.md`
+4. **Document**: Save decisions to `docs/progress-tracker/architecture/architecture.md`
 5. **Guide**: Suggest running `/prog init` next
 
 ## Questions to Ask

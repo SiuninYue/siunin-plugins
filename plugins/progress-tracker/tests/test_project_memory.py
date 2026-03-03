@@ -147,9 +147,9 @@ class TestProjectMemoryCore:
 
     def test_load_memory_recovers_from_corruption_with_backup(self, temp_dir):
         """Corrupted JSON should be backed up and replaced with default structure."""
-        claude_dir = Path(".claude")
-        claude_dir.mkdir(parents=True, exist_ok=True)
-        memory_path = claude_dir / "project_memory.json"
+        state_dir = Path("docs/progress-tracker/state")
+        state_dir.mkdir(parents=True, exist_ok=True)
+        memory_path = state_dir / "project_memory.json"
         memory_path.write_text("{invalid json", encoding="utf-8")
 
         data, recovered, backup = project_memory.load_memory()

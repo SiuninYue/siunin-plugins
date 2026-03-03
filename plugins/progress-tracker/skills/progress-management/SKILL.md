@@ -52,7 +52,7 @@ The script uses `git revert` instead of `git reset` because:
 
 ## Capability: Reset Project
 
-This capability completely removes the `.claude/` directory containing progress data. It does **not** touch the user's code or git history.
+This capability resets active progress tracking files (`progress.json`, `progress.md`, `checkpoints.json`) without deleting unrelated files under `docs/progress-tracker/`. It does **not** touch the user's code or git history, and automatically archives the previous snapshot.
 
 ### Workflow
 
@@ -64,7 +64,9 @@ This capability completely removes the `.claude/` directory containing progress 
     plugins/progress-tracker/prog reset --force
     ```
 
-3.  **Report Result**: "Progress tracking has been reset. Use `/prog init` to start a new project."
+3.  **Report Result**:
+    * "Progress tracking has been reset."
+    * "Previous snapshot was archived; use `plugins/progress-tracker/prog list-archives` to inspect and `restore-archive` to recover."
 
 ## Integration with Commands
 
@@ -90,4 +92,4 @@ This skill is invoked by:
 
 **You**:
 1. Run `python3 .../progress_manager.py reset --force`
-2. Response: "🗑️ Progress tracking deleted."
+2. Response: "🗑️ Active progress reset and previous snapshot archived."

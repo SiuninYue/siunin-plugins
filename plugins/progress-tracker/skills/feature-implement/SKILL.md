@@ -30,7 +30,7 @@ Coordinate `/prog next` execution by selecting the next feature, routing to the 
 
 ## Core Responsibilities
 
-1. Select the next actionable feature from `.claude/progress.json`.
+1. Select the next actionable feature from `docs/progress-tracker/state/progress.json`.
 2. Set and persist workflow state before delegating implementation.
 3. Route work by deterministic complexity rules.
 4. Ensure all commands use `plugins/progress-tracker/prog` entry point.
@@ -47,11 +47,11 @@ Coordinate `/prog next` execution by selecting the next feature, routing to the 
 
 ## Required Read Order
 
-1. Read `.claude/progress.json` and identify:
+1. Read `docs/progress-tracker/state/progress.json` and identify:
    - `current_feature_id`
    - next incomplete feature
    - `workflow_state` (if present)
-2. If `.claude/architecture.md` exists, read constraints and apply them.
+2. If `docs/progress-tracker/architecture/architecture.md` exists, read constraints and apply them.
 3. Before any delegation, create lightweight checkpoint:
 
 ```bash
@@ -204,7 +204,7 @@ Use these commands when phase changes:
 ```bash
 plugins/progress-tracker/prog set-workflow-state \
   --phase <design_complete|planning_complete|execution|execution_complete> \
-  --plan-path <docs/plans/...> \
+  --plan-path <docs/progress-tracker/plans/...> \
   --next-action "<human-readable next action>"
 ```
 

@@ -71,7 +71,7 @@
     }
   ],
   "sources": [
-    {"path": ".claude/progress.json", "label": "进度数据"}
+    {"path": "docs/progress-tracker/state/progress.json", "label": "进度数据"}
   ],
   "actions": [
     {"label": "刷新进度", "command": "/prog", "type": "copy"}
@@ -91,7 +91,7 @@
 **响应结构**：
 ```json
 {
-  "plan_path": "docs/plans/feature-5.md",
+  "plan_path": "docs/progress-tracker/plans/feature-5.md",
   "path_validation": {"valid": true, "normalized_path": "...", "error": null},
   "document_validation": {"valid": true, "errors": [], "missing_sections": []},
   "overall_status": "OK"  // OK | WARN | INVALID | N/A

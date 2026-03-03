@@ -9,6 +9,8 @@ Usage:
     python3 progress_manager.py init [--force] <project_name>
     python3 progress_manager.py status
     python3 progress_manager.py check
+    python3 progress_manager.py list-archives [--limit <n>]
+    python3 progress_manager.py restore-archive <archive_id> [--force]
     python3 progress_manager.py git-sync-check
     python3 progress_manager.py git-auto-preflight [--json]
     python3 progress_manager.py set-current <feature_id>
@@ -35,6 +37,22 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, List, Dict, Any, Tuple
 
+from prog_paths import (
+    PROGRESS_ARCHIVE_DIR,
+    PROGRESS_HISTORY_JSON,
+    ProjectRootResolutionError,
+    ensure_storage_migrated,
+    ensure_tracker_layout,
+    get_checkpoints_path,
+    get_progress_archive_dir,
+    get_progress_history_path,
+    get_progress_json_path,
+    get_progress_md_path,
+    get_state_dir,
+    get_tracker_docs_root,
+    resolve_target_project_root,
+)
+
 # Import git_validator for secure Git operations
 try:
     from git_validator import (
@@ -52,14 +70,13 @@ except ImportError:
     GIT_VALIDATOR_AVAILABLE = False
     GitCommandError = subprocess.CalledProcessError
 
-# Default paths
-DEFAULT_CLAUDE_DIR = ".claude"
 PROGRESS_JSON = "progress.json"
 PROGRESS_MD = "progress.md"
 CHECKPOINTS_JSON = "checkpoints.json"
 CHECKPOINT_MAX_ENTRIES = 50
 CHECKPOINT_INTERVAL_SECONDS = 1800
-PLAN_PATH_PREFIX = "docs/plans/"
+PLAN_PATH_PREFIX = "docs/progress-tracker/plans/"
+PROGRESS_ARCHIVE_MAX_ENTRIES = 200
 
 # Schema version - increment when breaking changes occur
 CURRENT_SCHEMA_VERSION = "2.0"
@@ -79,6 +96,12 @@ logging.basicConfig(
     format="%(levelname)s: %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+
+# Resolved project scope (set per process / explicit override only)
+_PROJECT_ROOT_OVERRIDE: Optional[Path] = None
+_REPO_ROOT: Optional[Path] = None
+_STORAGE_READY_ROOT: Optional[Path] = None
 
 
 def get_plugin_root():
@@ -175,54 +198,61 @@ def validate_plugin_root(path):
     return False
 
 
-def find_project_root():
+def configure_project_scope(project_root_arg: Optional[str]) -> bool:
+    """Resolve and lock the target project root for this process."""
+    global _PROJECT_ROOT_OVERRIDE, _REPO_ROOT, _STORAGE_READY_ROOT
+    try:
+        target_root, repo_root = resolve_target_project_root(project_root_arg=project_root_arg)
+    except ProjectRootResolutionError as exc:
+        print(f"Error: {exc}")
+        return False
+    # Keep explicit override only when --project-root was provided.
+    # Without explicit override we re-resolve from cwd each call, which avoids
+    # stale cached roots in long-running test/session processes.
+    _PROJECT_ROOT_OVERRIDE = target_root if project_root_arg else None
+    _REPO_ROOT = repo_root
+    _STORAGE_READY_ROOT = None
+    return True
+
+
+def find_project_root() -> Path:
     """
-    Find the project root directory.
+    Resolve target project root.
 
-    Priority:
-    1. Git root (using secure git_validator if available)
-    2. Parent directory containing .claude
-    3. Current working directory
+    Rules:
+    - explicit --project-root (if provided)
+    - plugin subtree auto-detection (plugins/<name>/...)
+    - monorepo root without explicit scope => error
+    - standalone repository => repo root
     """
-    cwd = Path.cwd()
+    global _PROJECT_ROOT_OVERRIDE
+    if _PROJECT_ROOT_OVERRIDE is not None:
+        return _PROJECT_ROOT_OVERRIDE
 
-    # Check for git root using secure validator
-    if GIT_VALIDATOR_AVAILABLE:
-        try:
-            git_root = get_git_root(str(cwd))
-            if git_root:
-                return Path(git_root)
-        except Exception:
-            pass
-    else:
-        # Fallback to subprocess if validator not available
-        try:
-            git_root = (
-                subprocess.check_output(
-                    ["git", "rev-parse", "--show-toplevel"], stderr=subprocess.DEVNULL
-                )
-                .decode("utf-8")
-                .strip()
-            )
-            return Path(git_root)
-        except subprocess.CalledProcessError:
-            pass
-
-    # Check for existing .claude directory in parents
-    current = cwd
-    while current != current.parent:
-        if (current / DEFAULT_CLAUDE_DIR).exists():
-            return current
-        current = current.parent
-
-    return cwd
+    target_root, _ = resolve_target_project_root(project_root_arg=None)
+    return target_root
 
 
-def get_progress_dir():
-    """Get the .claude directory path for progress tracking."""
-    root = find_project_root()
-    claude_dir = root / DEFAULT_CLAUDE_DIR
-    return claude_dir
+def _ensure_storage_ready() -> None:
+    """Ensure new docs/progress-tracker layout exists and legacy data is migrated once."""
+    global _STORAGE_READY_ROOT
+    target_root = find_project_root()
+    if _STORAGE_READY_ROOT is not None and _STORAGE_READY_ROOT == target_root:
+        return
+    ensure_tracker_layout(target_root)
+    migration_result = ensure_storage_migrated(target_root)
+    if migration_result.get("migrated"):
+        logger.info(
+            "Migrated legacy progress storage to docs/progress-tracker "
+            f"for project root: {target_root}"
+        )
+    _STORAGE_READY_ROOT = target_root
+
+
+def get_progress_dir() -> Path:
+    """Get docs/progress-tracker/state directory for progress tracking."""
+    _ensure_storage_ready()
+    return get_state_dir(find_project_root())
 
 
 def validate_plan_path(
@@ -231,7 +261,7 @@ def validate_plan_path(
     """
     Validate workflow plan path shape and optional existence.
 
-    Expected format: docs/plans/<name>.md
+    Expected format: docs/progress-tracker/plans/<name>.md
     """
     if plan_path is None:
         return {"valid": True, "normalized_path": None, "error": None}
@@ -408,7 +438,7 @@ def save_progress_json(data, touch_updated_at: bool = True):
     progress_dir = get_progress_dir()
     json_path = progress_dir / PROGRESS_JSON
 
-    # Ensure .claude directory exists
+    # Ensure state directory exists
     progress_dir.mkdir(parents=True, exist_ok=True)
 
     # Auto-update updated_at timestamp
@@ -441,11 +471,182 @@ def save_progress_md(content):
     progress_dir = get_progress_dir()
     md_path = progress_dir / PROGRESS_MD
 
-    # Ensure .claude directory exists
+    # Ensure state directory exists
     progress_dir.mkdir(parents=True, exist_ok=True)
 
     with open(md_path, "w", encoding="utf-8") as f:
         f.write(content)
+
+
+def _slugify(text: Optional[str], fallback: str = "project") -> str:
+    """Create a filesystem-safe slug from free-form text."""
+    if not text:
+        return fallback
+    slug = re.sub(r"[^a-zA-Z0-9]+", "-", text.strip().lower()).strip("-")
+    return slug[:48] if slug else fallback
+
+
+def _load_progress_history() -> List[Dict[str, Any]]:
+    """Load archived progress metadata from progress_history.json."""
+    history_path = get_progress_dir() / PROGRESS_HISTORY_JSON
+    if not history_path.exists():
+        return []
+    try:
+        with open(history_path, "r", encoding="utf-8") as f:
+            payload = json.load(f)
+        if isinstance(payload, list):
+            return [item for item in payload if isinstance(item, dict)]
+    except (json.JSONDecodeError, OSError):
+        pass
+    return []
+
+
+def _save_progress_history(entries: List[Dict[str, Any]]) -> None:
+    """Persist archived progress metadata."""
+    progress_dir = get_progress_dir()
+    progress_dir.mkdir(parents=True, exist_ok=True)
+    history_path = progress_dir / PROGRESS_HISTORY_JSON
+    with open(history_path, "w", encoding="utf-8") as f:
+        json.dump(entries[-PROGRESS_ARCHIVE_MAX_ENTRIES :], f, indent=2, ensure_ascii=False)
+
+
+def _make_archive_id(project_name: str) -> str:
+    """Build a unique archive identifier."""
+    timestamp = datetime.now().strftime("%Y%m%dT%H%M%S%f")
+    return f"{timestamp}-{_slugify(project_name)}"
+
+
+def archive_current_progress(reason: str) -> Optional[Dict[str, Any]]:
+    """
+    Archive the current active progress files before destructive operations.
+
+    Returns metadata for the created archive entry, or None when no active
+    progress files exist.
+    """
+    progress_dir = get_progress_dir()
+    json_path = progress_dir / PROGRESS_JSON
+    md_path = progress_dir / PROGRESS_MD
+
+    if not json_path.exists() and not md_path.exists():
+        return None
+
+    active_data = load_progress_json() if json_path.exists() else {}
+    if not isinstance(active_data, dict):
+        active_data = {}
+
+    project_name = active_data.get("project_name", "unknown-project")
+    archive_id = _make_archive_id(project_name)
+    archive_dir = progress_dir / PROGRESS_ARCHIVE_DIR
+    archive_dir.mkdir(parents=True, exist_ok=True)
+
+    archive_json_rel = None
+    archive_md_rel = None
+
+    if json_path.exists():
+        archive_json_name = f"{archive_id}.progress.json"
+        shutil.copy2(json_path, archive_dir / archive_json_name)
+        archive_json_rel = f"{PROGRESS_ARCHIVE_DIR}/{archive_json_name}"
+
+    if md_path.exists():
+        archive_md_name = f"{archive_id}.progress.md"
+        shutil.copy2(md_path, archive_dir / archive_md_name)
+        archive_md_rel = f"{PROGRESS_ARCHIVE_DIR}/{archive_md_name}"
+
+    features = active_data.get("features", [])
+    if not isinstance(features, list):
+        features = []
+    completed_features = sum(1 for f in features if isinstance(f, dict) and f.get("completed"))
+
+    entry: Dict[str, Any] = {
+        "archive_id": archive_id,
+        "archived_at": _iso_now(),
+        "reason": reason,
+        "project_name": project_name,
+        "total_features": len(features),
+        "completed_features": completed_features,
+        "current_feature_id": active_data.get("current_feature_id"),
+        "progress_json": archive_json_rel,
+        "progress_md": archive_md_rel,
+    }
+
+    history = _load_progress_history()
+    history.append(entry)
+    _save_progress_history(history)
+    return entry
+
+
+def list_archives(limit: int = 20) -> bool:
+    """List archived progress snapshots."""
+    history = _load_progress_history()
+    if not history:
+        print("No progress archives found.")
+        return True
+
+    safe_limit = max(1, limit)
+    print(f"\n## Progress Archives (latest {safe_limit})")
+    for entry in list(reversed(history))[:safe_limit]:
+        archive_id = entry.get("archive_id", "unknown")
+        project_name = entry.get("project_name", "Unknown Project")
+        reason = entry.get("reason", "unknown")
+        archived_at = entry.get("archived_at", "unknown")
+        completed = entry.get("completed_features", 0)
+        total = entry.get("total_features", 0)
+        print(
+            f"- [{archive_id}] {project_name} | reason={reason} | "
+            f"progress={completed}/{total} | archived_at={archived_at}"
+        )
+    return True
+
+
+def restore_archive(archive_id: str, force: bool = False) -> bool:
+    """Restore an archived progress snapshot into active progress files."""
+    history = _load_progress_history()
+    target = next((entry for entry in history if entry.get("archive_id") == archive_id), None)
+    if not target:
+        print(f"Archive '{archive_id}' not found.")
+        return False
+
+    progress_dir = get_progress_dir()
+    active_json = progress_dir / PROGRESS_JSON
+    active_md = progress_dir / PROGRESS_MD
+    has_active = active_json.exists() or active_md.exists()
+
+    if has_active and not force:
+        print("Active progress tracking exists. Use --force to overwrite current progress files.")
+        return False
+
+    if has_active and force:
+        archive_current_progress(reason=f"pre_restore:{archive_id}")
+
+    json_rel = target.get("progress_json")
+    if not json_rel:
+        print(f"Archive '{archive_id}' does not contain progress.json snapshot.")
+        return False
+
+    source_json = progress_dir / json_rel
+    if not source_json.exists():
+        print(f"Archived progress.json not found: {source_json}")
+        return False
+
+    progress_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source_json, active_json)
+
+    md_rel = target.get("progress_md")
+    if md_rel:
+        source_md = progress_dir / md_rel
+        if source_md.exists():
+            shutil.copy2(source_md, active_md)
+        else:
+            restored_data = load_progress_json()
+            if restored_data:
+                save_progress_md(generate_progress_md(restored_data))
+    else:
+        restored_data = load_progress_json()
+        if restored_data:
+            save_progress_md(generate_progress_md(restored_data))
+
+    print(f"Restored archive: {archive_id}")
+    return True
 
 
 def determine_complexity_bucket(score: int) -> str:
@@ -832,7 +1033,7 @@ def _build_checkpoint_context(entry: Optional[Dict[str, Any]]) -> Optional[Dict[
 
 
 def load_checkpoints(path: Optional[Path] = None) -> Dict[str, Any]:
-    """Load checkpoints from .claude/checkpoints.json."""
+    """Load checkpoints from docs/progress-tracker/state/checkpoints.json."""
     checkpoints_path = path or (get_progress_dir() / CHECKPOINTS_JSON)
     if not checkpoints_path.exists():
         return {
@@ -875,7 +1076,7 @@ def load_checkpoints(path: Optional[Path] = None) -> Dict[str, Any]:
 
 
 def save_checkpoints(data: Dict[str, Any], path: Optional[Path] = None) -> None:
-    """Save checkpoints to .claude/checkpoints.json."""
+    """Save checkpoints to docs/progress-tracker/state/checkpoints.json."""
     progress_dir = get_progress_dir()
     progress_dir.mkdir(parents=True, exist_ok=True)
     checkpoints_path = path or (progress_dir / CHECKPOINTS_JSON)
@@ -961,6 +1162,10 @@ def init_tracking(project_name, features=None, force=False):
             print("Use --force to re-initialize")
             return False
 
+    archived_entry = None
+    if force:
+        archived_entry = archive_current_progress(reason="reinitialize")
+
     # Create initial progress structure
     now = datetime.now().isoformat() + "Z"
     data = {
@@ -980,6 +1185,12 @@ def init_tracking(project_name, features=None, force=False):
 
     print(f"Initialized progress tracking for: {project_name}")
     print(f"Location: {progress_dir}")
+    if archived_entry:
+        print(
+            "Archived previous progress as "
+            f"{archived_entry.get('archive_id')} "
+            f"(reason={archived_entry.get('reason')})"
+        )
     if features:
         print(f"Added {len(features)} features")
     return True
@@ -1577,8 +1788,8 @@ def _check_other_worktrees_for_incomplete_work(current_worktree: str) -> List[Di
         if Path(wt_path).resolve() == Path(current_worktree).resolve():
             continue
 
-        # Check if progress.json exists
-        progress_file = Path(wt_path) / DEFAULT_CLAUDE_DIR / PROGRESS_JSON
+        # Check if progress.json exists in the new docs/progress-tracker layout
+        progress_file = Path(wt_path) / "docs" / "progress-tracker" / "state" / PROGRESS_JSON
         if not progress_file.exists():
             continue
 
@@ -1954,7 +2165,12 @@ def archive_feature_docs(feature_id: int, feature_name: str = None) -> Dict[str,
     """
     Archive testing and plan documents for a completed feature.
 
-    Moves documents from docs/testing/ and docs/plans/ to docs/archive/.
+    Moves documents from docs/progress-tracker/testing/ and
+    docs/progress-tracker/plans/ to docs/progress-tracker/archive/.
+
+    Supports both naming patterns:
+    - Legacy: feature-{feature_id}-*.md
+    - Current: YYYY-MM-DD-description.md (matched by reading content or manual mapping)
 
     Args:
         feature_id: The ID of the completed feature
@@ -1972,22 +2188,25 @@ def archive_feature_docs(feature_id: int, feature_name: str = None) -> Dict[str,
 
     try:
         project_root = find_project_root()
-        docs_dir = project_root / "docs"
+        prog_docs_dir = get_tracker_docs_root(project_root)
 
         # Define source and destination directories
-        testing_src = docs_dir / "testing"
-        plans_src = docs_dir / "plans"
-        testing_archive = docs_dir / "archive" / "testing"
-        plans_archive = docs_dir / "archive" / "plans"
+        testing_src = prog_docs_dir / "testing"
+        plans_src = prog_docs_dir / "plans"
+        testing_archive = prog_docs_dir / "archive" / "testing"
+        plans_archive = prog_docs_dir / "archive" / "plans"
 
         # Create archive directories if they don't exist
         testing_archive.mkdir(parents=True, exist_ok=True)
         plans_archive.mkdir(parents=True, exist_ok=True)
 
-        # Pattern to match feature documents
+        # Collect all patterns to try for this feature
         patterns = [
+            # Legacy pattern: feature-{feature_id}-*.md
             (testing_src, testing_archive, f"feature-{feature_id}-*.md"),
-            (plans_src, plans_archive, f"feature-{feature_id}-*.md")
+            (plans_src, plans_archive, f"feature-{feature_id}-*.md"),
+            # Modern pattern: bug-NNN-*.md for testing reports
+            (testing_src, testing_archive, f"bug-*-fix-report.md"),
         ]
 
         for src_dir, dst_dir, pattern in patterns:
@@ -1999,7 +2218,8 @@ def archive_feature_docs(feature_id: int, feature_name: str = None) -> Dict[str,
             matching_files = list(src_dir.glob(pattern))
 
             if not matching_files:
-                result["skipped_files"].append(f"No files found matching {pattern} in {src_dir}")
+                # Debug log but don't report to user (too verbose)
+                logger.debug(f"No files found matching {pattern} in {src_dir}")
                 continue
 
             # Move each matching file
@@ -2034,10 +2254,6 @@ def archive_feature_docs(feature_id: int, feature_name: str = None) -> Dict[str,
             logger.info(f"Archived {len(result['archived_files'])} file(s) for feature {feature_id}")
             for file_info in result["archived_files"]:
                 print(f"  Archived: {file_info['from']} -> {file_info['to']}")
-
-        if result["skipped_files"]:
-            for skip in result["skipped_files"]:
-                logger.debug(skip)
 
         if result["errors"]:
             result["success"] = False
@@ -2747,23 +2963,44 @@ def remove_bug(bug_id: str):
 
 
 def reset_tracking(force=False):
-    """Reset progress tracking by removing the .claude directory."""
+    """Reset active progress tracking files while preserving archive/history."""
     progress_dir = get_progress_dir()
-    if not progress_dir.exists():
+    tracked_files = [
+        progress_dir / PROGRESS_JSON,
+        progress_dir / PROGRESS_MD,
+        progress_dir / CHECKPOINTS_JSON,
+    ]
+    if not progress_dir.exists() or not any(path.exists() for path in tracked_files):
         print("No progress tracking found to reset.")
         return True
 
     if not force:
         confirm = input(
-            f"Are you sure you want to remove progress tracking at {progress_dir}? (y/N): "
+            f"Are you sure you want to reset active progress files at {progress_dir}? (y/N): "
         )
         if confirm.lower() != "y":
             print("Reset cancelled.")
             return False
 
     try:
-        shutil.rmtree(progress_dir)
-        print("Progress tracking reset successfully.")
+        archived_entry = archive_current_progress(reason="reset")
+        removed = []
+        for path in tracked_files:
+            if path.exists():
+                path.unlink()
+                removed.append(path.name)
+
+        if not removed:
+            print("No active progress files found to reset.")
+            return True
+
+        print(f"Progress tracking reset successfully. Removed: {', '.join(removed)}")
+        if archived_entry:
+            print(
+                "Archived previous progress as "
+                f"{archived_entry.get('archive_id')} "
+                f"(reason={archived_entry.get('reason')})"
+            )
         return True
     except Exception as e:
         print(f"Error resetting progress tracking: {e}")
@@ -3150,6 +3387,13 @@ def generate_progress_md(data):
 
 def main():
     parser = argparse.ArgumentParser(description="Progress Tracker Manager")
+    parser.add_argument(
+        "--project-root",
+        help=(
+            "Target project root. Required in monorepo root contexts, e.g. "
+            "'plugins/note-organizer'."
+        ),
+    )
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # Init command
@@ -3164,6 +3408,21 @@ def main():
 
     # Check command
     subparsers.add_parser("check", help="Check for incomplete progress")
+
+    # Archive history commands
+    archives_parser = subparsers.add_parser(
+        "list-archives", help="List archived progress snapshots"
+    )
+    archives_parser.add_argument(
+        "--limit", type=int, default=20, help="Maximum number of archives to display"
+    )
+    restore_parser = subparsers.add_parser(
+        "restore-archive", help="Restore archived progress snapshot"
+    )
+    restore_parser.add_argument("archive_id", help="Archive ID to restore")
+    restore_parser.add_argument(
+        "--force", action="store_true", help="Overwrite current active progress files"
+    )
 
     # Set current command
     current_parser = subparsers.add_parser("set-current", help="Set current feature")
@@ -3324,12 +3583,19 @@ def main():
 
     args = parser.parse_args()
 
+    if not configure_project_scope(args.project_root):
+        return False
+
     if args.command == "init":
         return init_tracking(args.project_name, force=args.force)
     elif args.command == "status":
         return status()
     elif args.command == "check":
         return check()
+    elif args.command == "list-archives":
+        return list_archives(limit=args.limit)
+    elif args.command == "restore-archive":
+        return restore_archive(args.archive_id, force=args.force)
     elif args.command == "set-current":
         return set_current(args.feature_id)
     elif args.command == "set-development-stage":
@@ -3413,4 +3679,9 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(0 if main() else 1)
+    result = main()
+    if isinstance(result, bool):
+        sys.exit(0 if result else 1)
+    if isinstance(result, int):
+        sys.exit(result)
+    sys.exit(0 if result else 1)

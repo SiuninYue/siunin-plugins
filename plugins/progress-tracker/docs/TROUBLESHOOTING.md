@@ -23,13 +23,13 @@ This guide helps you diagnose and resolve common issues with the Progress Tracke
 **Possible Causes**:
 1. Never initialized tracking in this directory
 2. Working in wrong directory
-3. `.claude/` directory was deleted
+3. `docs/progress-tracker/state/` directory was deleted
 
 **Solutions**:
 
 ```bash
 # Check if progress.json exists
-ls -la .claude/progress.json
+ls -la docs/progress-tracker/state/progress.json
 
 # If not found, initialize tracking
 /prog init <project-name>
@@ -197,7 +197,7 @@ python3 hooks/scripts/progress_manager.py health
 
 3. **Clear cache**:
 ```bash
-rm .claude/.cache/complexity_cache.json
+rm docs/progress-tracker/cache/complexity_cache.json
 ```
 
 ---
@@ -281,7 +281,7 @@ print(json.dumps(analyzer.get_cache_stats(), indent=2))
 
 2. **Clear old cache**:
 ```bash
-rm .claude/.cache/complexity_cache.json
+rm docs/progress-tracker/cache/complexity_cache.json
 ```
 
 3. **Disable caching temporarily**:
@@ -306,7 +306,7 @@ rm .claude/.cache/complexity_cache.json
 2. **Split project**:
 ```bash
 # Export current features
-jq '.features' .claude/progress.json > features-backup.json
+jq '.features' docs/progress-tracker/state/progress.json > features-backup.json
 
 # Start fresh with remaining features
 /prog reset
@@ -323,7 +323,7 @@ jq '.features' .claude/progress.json > features-backup.json
 **Symptoms**: JSON decode error, malformed data
 
 **Symptoms**:
-- `Error: .claude/progress.json is corrupted`
+- `Error: docs/progress-tracker/state/progress.json is corrupted`
 - `JSONDecodeError`
 
 **Solutions**:
@@ -331,16 +331,16 @@ jq '.features' .claude/progress.json > features-backup.json
 1. **Check backup**:
 ```bash
 # Git history
-git log --follow .claude/progress.json
+git log --follow docs/progress-tracker/state/progress.json
 
 # Recover from last known good version
-git checkout HEAD~1 -- .claude/progress.json
+git checkout HEAD~1 -- docs/progress-tracker/state/progress.json
 ```
 
 2. **Manual repair**:
 ```bash
 # Validate JSON
-python3 -m json.tool .claude/progress.json
+python3 -m json.tool docs/progress-tracker/state/progress.json
 
 # Fix syntax errors (missing commas, brackets, etc.)
 # Use JSON linter
@@ -349,7 +349,7 @@ python3 -m json.tool .claude/progress.json
 3. **Recover from progress.md**:
 ```bash
 # progress.md is human-readable
-cat .claude/progress.md
+cat docs/progress-tracker/state/progress.md
 
 # Manually reconstruct progress.json based on progress.md content
 ```
@@ -417,7 +417,7 @@ python3 hooks/scripts/progress_manager.py clear-workflow-state
 ```bash
 python3 -c "
 import json
-data = json.load(open('.claude/progress.json'))
+data = json.load(open('docs/progress-tracker/state/progress.json'))
 print(json.dumps(data.get('workflow_state', {}), indent=2))
 "
 ```
@@ -510,10 +510,10 @@ $(git status --short)
 $(python3 hooks/scripts/progress_manager.py status)
 
 === Progress JSON (first 50 lines) ===
-$(head -n 50 .claude/progress.json)
+$(head -n 50 docs/progress-tracker/state/progress.json)
 
-=== Files in .claude ===
-$(ls -la .claude/)
+=== Files in docs/progress-tracker/state ===
+$(ls -la docs/progress-tracker/state/)
 EOF
 
 cat diagnostic-report.txt

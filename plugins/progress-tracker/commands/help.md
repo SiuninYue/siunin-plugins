@@ -27,7 +27,7 @@ Use this structure:
 - `/progress-tracker:prog-done` (alias: `/prog-done`): run acceptance checks and complete current feature.
 - `/progress-tracker:prog-fix [description|BUG-ID]` (alias: `/prog-fix`): report/list/fix bugs.
 - `/progress-tracker:prog-undo` (alias: `/prog-undo`): revert most recently completed feature.
-- `/progress-tracker:prog-reset` (alias: `/prog-reset`): reset tracking files with confirmation.
+- `/progress-tracker:prog-reset` (alias: `/prog-reset`): reset active tracking files with confirmation (auto-archive previous snapshot).
 - `/progress-tracker:help`: show plugin command help (prefer namespaced form to avoid `/help` conflicts).
 - `/progress-tracker:prog-ui` (alias: `/prog-ui`): launch web UI server and open browser.
 

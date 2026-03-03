@@ -21,8 +21,8 @@ from unittest.mock import Mock, patch
 @pytest.fixture
 def working_dir(tmp_path):
     """Create a temporary working directory with test data"""
-    claude_dir = tmp_path / ".claude"
-    claude_dir.mkdir()
+    state_dir = tmp_path / "docs" / "progress-tracker" / "state"
+    state_dir.mkdir(parents=True)
 
     # Create test progress.json
     progress_data = {
@@ -54,7 +54,7 @@ def working_dir(tmp_path):
         "schema_version": "2.0"
     }
 
-    progress_file = claude_dir / "progress.json"
+    progress_file = state_dir / "progress.json"
     progress_file.write_text(json.dumps(progress_data, indent=2))
 
     return tmp_path
@@ -259,19 +259,19 @@ def test_status_detail_plan_panel_without_workflow_state(test_client, working_di
 
 def test_status_detail_plan_panel_includes_workflow_progress_rows(test_client, working_dir):
     """Plan panel should expose workflow phase/task progress metadata."""
-    progress_file = working_dir / ".claude" / "progress.json"
+    progress_file = working_dir / "docs" / "progress-tracker" / "state" / "progress.json"
     progress_data = json.loads(progress_file.read_text())
     progress_data["current_feature_id"] = 2
     progress_data["workflow_state"] = {
         "phase": "execution",
-        "plan_path": "docs/plans/feature-2-plan.md",
+        "plan_path": "docs/progress-tracker/plans/feature-2-plan.md",
         "current_task": 2,
         "total_tasks": 5,
         "next_action": "continue coding",
     }
     progress_file.write_text(json.dumps(progress_data, indent=2))
 
-    plans_dir = working_dir / "docs" / "plans"
+    plans_dir = working_dir / "docs" / "progress-tracker" / "plans"
     plans_dir.mkdir(parents=True, exist_ok=True)
     (plans_dir / "feature-2-plan.md").write_text(
         "# Plan\n\n## Tasks\n- Task\n\n## Acceptance Mapping\n- Map\n\n## Risks\n- None\n",
@@ -292,7 +292,7 @@ def test_status_detail_plan_panel_includes_workflow_progress_rows(test_client, w
 
 def test_status_summary_without_progress_json(test_client, working_dir):
     """Test graceful degradation when progress.json is missing"""
-    progress_file = working_dir / ".claude" / "progress.json"
+    progress_file = working_dir / "docs" / "progress-tracker" / "state" / "progress.json"
     if progress_file.exists():
         progress_file.unlink()
 
@@ -335,7 +335,7 @@ def test_plan_health_missing_path_parameter(test_client):
 def test_status_summary_with_bugs(test_client, working_dir):
     """Test risk_blocker detection with high-priority bugs"""
     # Modify progress.json to add bugs
-    progress_file = working_dir / ".claude" / "progress.json"
+    progress_file = working_dir / "docs" / "progress-tracker" / "state" / "progress.json"
     progress_data = json.loads(progress_file.read_text())
 
     progress_data["bugs"] = [
@@ -361,7 +361,7 @@ def test_status_summary_with_bugs(test_client, working_dir):
 def test_status_summary_with_current_feature(test_client, working_dir):
     """Test next_action when current_feature_id is set"""
     # Modify progress.json to set current_feature_id
-    progress_file = working_dir / ".claude" / "progress.json"
+    progress_file = working_dir / "docs" / "progress-tracker" / "state" / "progress.json"
     progress_data = json.loads(progress_file.read_text())
     progress_data["current_feature_id"] = 3
     progress_file.write_text(json.dumps(progress_data, indent=2))
@@ -379,7 +379,7 @@ def test_status_summary_with_current_feature(test_client, working_dir):
 
 def test_status_summary_active_feature_planning_stage(test_client, working_dir):
     """Active planning feature should expose planning stage label."""
-    progress_file = working_dir / ".claude" / "progress.json"
+    progress_file = working_dir / "docs" / "progress-tracker" / "state" / "progress.json"
     progress_data = json.loads(progress_file.read_text())
     progress_data["current_feature_id"] = 2
     progress_data["features"][1]["development_stage"] = "planning"
@@ -396,7 +396,7 @@ def test_status_summary_active_feature_planning_stage(test_client, working_dir):
 def test_status_detail_next_panel_all_completed(test_client, working_dir):
     """Test next panel when all features are completed"""
     # Mark all features as completed
-    progress_file = working_dir / ".claude" / "progress.json"
+    progress_file = working_dir / "docs" / "progress-tracker" / "state" / "progress.json"
     progress_data = json.loads(progress_file.read_text())
 
     for feature in progress_data["features"]:
@@ -414,7 +414,7 @@ def test_status_detail_next_panel_all_completed(test_client, working_dir):
 
 def test_status_detail_next_panel_active_planning_action(test_client, working_dir):
     """Planning-stage active feature should suggest /prog start."""
-    progress_file = working_dir / ".claude" / "progress.json"
+    progress_file = working_dir / "docs" / "progress-tracker" / "state" / "progress.json"
     progress_data = json.loads(progress_file.read_text())
     progress_data["current_feature_id"] = 2
     progress_data["features"][1]["development_stage"] = "planning"
@@ -430,7 +430,7 @@ def test_status_detail_next_panel_active_planning_action(test_client, working_di
 
 def test_status_detail_next_panel_active_developing_action(test_client, working_dir):
     """Legacy active feature without stage should default to developing."""
-    progress_file = working_dir / ".claude" / "progress.json"
+    progress_file = working_dir / "docs" / "progress-tracker" / "state" / "progress.json"
     progress_data = json.loads(progress_file.read_text())
     progress_data["current_feature_id"] = 2
     progress_data["features"][1].pop("development_stage", None)
@@ -446,12 +446,12 @@ def test_status_detail_next_panel_active_developing_action(test_client, working_
 
 def test_status_detail_next_panel_shows_context_alignment(test_client, working_dir):
     """Active feature next panel should show execution/runtime context alignment table."""
-    progress_file = working_dir / ".claude" / "progress.json"
+    progress_file = working_dir / "docs" / "progress-tracker" / "state" / "progress.json"
     progress_data = json.loads(progress_file.read_text())
     progress_data["current_feature_id"] = 2
     progress_data["workflow_state"] = {
         "phase": "execution",
-        "plan_path": "docs/plans/feature-2-plan.md",
+        "plan_path": "docs/progress-tracker/plans/feature-2-plan.md",
         "execution_context": {
             "workspace_mode": "worktree",
             "worktree_path": "/tmp/wt-a",
@@ -479,7 +479,7 @@ def test_status_detail_next_panel_shows_context_alignment(test_client, working_d
 
 def test_status_detail_snapshot_panel_shows_latest_first_with_context(test_client, working_dir):
     """Snapshot panel should use newest checkpoint first and include phase/branch context."""
-    checkpoints_file = working_dir / ".claude" / "checkpoints.json"
+    checkpoints_file = working_dir / "docs" / "progress-tracker" / "state" / "checkpoints.json"
     checkpoints_payload = {
         "last_checkpoint_at": "2026-02-12T03:00:00.000000Z",
         "max_entries": 50,

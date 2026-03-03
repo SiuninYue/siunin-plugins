@@ -37,7 +37,7 @@ Detect interrupted progress-tracker sessions and provide deterministic resume ac
 
 ### Step 1: Check Tracking Existence
 
-If `.claude/progress.json` does not exist, recovery is not needed.
+If `docs/progress-tracker/state/progress.json` does not exist, recovery is not needed.
 
 ### Step 2: Evaluate Completion State
 

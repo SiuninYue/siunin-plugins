@@ -128,7 +128,7 @@ When `progress.json` already exists:
 
 ### Mandatory Architecture Read
 
-When `.claude/architecture.md` exists, reading it is required (not optional).
+When `docs/progress-tracker/architecture/architecture.md` exists, reading it is required (not optional).
 Extract and carry forward:
 - Interface contracts
 - State flow and transitions
@@ -141,7 +141,7 @@ Do not generate feature breakdown until this extraction is complete.
 
 When starting feature breakdown:
 
-1. **First**, attempt to read `.claude/architecture.md`
+1. **First**, attempt to read `docs/progress-tracker/architecture/architecture.md`
 2. **If exists**, extract:
    - Technology stack (backend language, database, cache, etc.)
    - Architecture patterns (monolith, microservices, event-driven)
@@ -198,7 +198,7 @@ Test steps:
 
 ### When No Architecture Exists
 
-If `.claude/architecture.md` doesn't exist:
+If `docs/progress-tracker/architecture/architecture.md` doesn't exist:
 
 1. **For simple projects**: Proceed with generic feature breakdown
 2. **For complex projects**: Suggest running `/prog plan` first
@@ -232,7 +232,7 @@ I've broken this down into N features:
 ```
 
 Each feature must include explicit architecture alignment:
-- `Architecture constraints`: list of referenced `CONSTRAINT-*` IDs from `.claude/architecture.md`
+- `Architecture constraints`: list of referenced `CONSTRAINT-*` IDs from `docs/progress-tracker/architecture/architecture.md`
 - `Contract touchpoints`: interface/state/failure sections this feature implements
 
 ## Smart Decision Making
@@ -269,7 +269,7 @@ plugins/progress-tracker/prog init "<project_name>"
 plugins/progress-tracker/prog add-feature "<feature_name>" "<test_step_1>" "<test_step_2>" ...
 ```
 
-3. **Verify creation** by checking `.claude/progress.json` and `.claude/progress.md`
+3. **Verify creation** by checking `docs/progress-tracker/state/progress.json` and `docs/progress-tracker/state/progress.md`
 
 ## Output Format
 

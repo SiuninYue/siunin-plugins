@@ -1,12 +1,13 @@
 ---
-description: Reset progress tracking by deleting all tracking files
+description: Reset active progress tracking files with confirmation and auto-archive
 version: "1.0.0"
 scope: command
 inputs:
   - User request to reset progress
   - Optional force flag to skip confirmation
 outputs:
-  - Progress tracking files removed
+  - Active progress tracking files removed
+  - Previous snapshot archived automatically
   - Confirmation of reset completion
 evidence: optional
 references: []

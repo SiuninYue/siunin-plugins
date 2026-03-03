@@ -41,10 +41,10 @@ Execute low-complexity features quickly with a direct TDD flow.
 # State Read/Write
 
 Read:
-- `.claude/progress.json`
+- `docs/progress-tracker/state/progress.json`
 
 Write:
-- `.claude/progress.json` via `progress_manager.py`
+- `docs/progress-tracker/state/progress.json` via `progress_manager.py`
 
 # Steps
 

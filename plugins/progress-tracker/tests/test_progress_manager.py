@@ -23,19 +23,38 @@ class TestProjectRootDetection:
         root = progress_manager.find_project_root()
         assert root == mock_git_repo
 
-    def test_find_project_root_with_claude_dir(self, temp_dir):
-        """Should find parent directory containing .claude."""
-        claude_dir = temp_dir / "subdir" / ".claude"
-        claude_dir.mkdir(parents=True)
+    def test_find_project_root_in_plugin_subtree(self, temp_dir):
+        """Should auto-detect target plugin root when running under plugins/<name>/..."""
+        os.system(f"git -C {temp_dir} init >/dev/null 2>&1")
+        plugin_src = temp_dir / "plugins" / "note-organizer" / "src"
+        plugin_src.mkdir(parents=True)
 
-        os.chdir(temp_dir / "subdir")
+        os.chdir(plugin_src)
         root = progress_manager.find_project_root()
-        assert root == temp_dir / "subdir"
+        assert root == temp_dir / "plugins" / "note-organizer"
 
     def test_find_project_root_fallback_to_cwd(self, temp_dir):
         """Should fallback to current working directory."""
         root = progress_manager.find_project_root()
         assert root == temp_dir
+
+    def test_configure_project_scope_accepts_explicit_project_root(self, temp_dir):
+        """Should accept explicit --project-root in monorepo root."""
+        os.system(f"git -C {temp_dir} init >/dev/null 2>&1")
+        plugin_root = temp_dir / "plugins" / "note-organizer"
+        plugin_root.mkdir(parents=True)
+        os.chdir(temp_dir)
+
+        assert progress_manager.configure_project_scope("plugins/note-organizer") is True
+        assert progress_manager.find_project_root() == plugin_root
+
+    def test_configure_project_scope_requires_explicit_scope_in_monorepo_root(self, temp_dir):
+        """Should fail in monorepo root when --project-root is omitted."""
+        os.system(f"git -C {temp_dir} init >/dev/null 2>&1")
+        (temp_dir / "plugins" / "note-organizer").mkdir(parents=True)
+        os.chdir(temp_dir)
+
+        assert progress_manager.configure_project_scope(None) is False
 
 
 class TestProgressInit:
@@ -46,7 +65,7 @@ class TestProgressInit:
         result = progress_manager.init_tracking("Test Project", force=True)
         assert result is True
 
-        progress_file = temp_dir / ".claude" / "progress.json"
+        progress_file = temp_dir / "docs" / "progress-tracker" / "state" / "progress.json"
         assert progress_file.exists()
 
         data = json.loads(progress_file.read_text())
@@ -79,11 +98,19 @@ class TestProgressInit:
         data = progress_manager.load_progress_json()
         assert data["project_name"] == "New Project"
 
+        history = progress_manager._load_progress_history()
+        assert len(history) == 1
+        assert history[0]["reason"] == "reinitialize"
+        assert history[0]["project_name"] == "Test Project"
+
+        archive_json = Path("docs/progress-tracker/state") / history[0]["progress_json"]
+        assert archive_json.exists()
+
     def test_init_creates_progress_md(self, temp_dir):
         """Should create progress.md file."""
         progress_manager.init_tracking("Test Project", force=True)
 
-        md_file = temp_dir / ".claude" / "progress.md"
+        md_file = temp_dir / "docs" / "progress-tracker" / "state" / "progress.md"
         assert md_file.exists()
         content = md_file.read_text()
         assert "Test Project" in content
@@ -109,7 +136,7 @@ class TestProgressLoadSave:
         test_data = {"project_name": "Save Test", "features": [], "current_feature_id": None}
         progress_manager.save_progress_json(test_data)
 
-        progress_file = temp_dir / ".claude" / "progress.json"
+        progress_file = temp_dir / "docs" / "progress-tracker" / "state" / "progress.json"
         assert progress_file.exists()
 
         loaded = json.loads(progress_file.read_text())
@@ -287,7 +314,7 @@ class TestProgressMdGeneration:
         progress_manager.init_tracking("MD Test", force=True)
         progress_manager.save_progress_md("# Test Content")
 
-        md_file = temp_dir / ".claude" / "progress.md"
+        md_file = temp_dir / "docs" / "progress-tracker" / "state" / "progress.md"
         assert md_file.read_text() == "# Test Content"
 
 
@@ -295,17 +322,67 @@ class TestReset:
     """Test reset functionality."""
 
     def test_reset_removes_tracking(self, progress_file):
-        """Should remove .claude directory."""
+        """Should remove active progress files and keep archive metadata."""
         result = progress_manager.reset_tracking(force=True)
         assert result is True
 
         claude_dir = progress_file.parent
-        assert not claude_dir.exists()
+        assert claude_dir.exists()
+        assert not (claude_dir / "progress.json").exists()
+        assert not (claude_dir / "progress.md").exists()
+        assert (claude_dir / "progress_history.json").exists()
 
     def test_reset_without_tracking(self, temp_dir):
         """Should handle gracefully when no tracking exists."""
         result = progress_manager.reset_tracking(force=True)
         assert result is True
+
+    def test_reset_preserves_non_tracking_docs_files(self, temp_dir):
+        """Reset should not remove unrelated docs/progress-tracker files."""
+        progress_manager.init_tracking("Reset Preserve Test", force=True)
+        architecture_file = (
+            temp_dir
+            / "docs"
+            / "progress-tracker"
+            / "architecture"
+            / "architecture.md"
+        )
+        architecture_file.parent.mkdir(parents=True, exist_ok=True)
+        architecture_file.write_text("# Architecture", encoding="utf-8")
+
+        result = progress_manager.reset_tracking(force=True)
+        assert result is True
+        assert architecture_file.exists()
+
+
+class TestProgressArchiveRestore:
+    """Test archive listing and restore workflow."""
+
+    def test_restore_archive_recovers_previous_progress(self, temp_dir):
+        """Should restore archived progress snapshot as active progress."""
+        progress_manager.init_tracking("Old Project", force=True)
+        progress_manager.add_feature("Old Feature", ["step-1"])
+
+        progress_manager.init_tracking("New Project", force=True)
+        history = progress_manager._load_progress_history()
+        assert history
+        archive_id = history[-1]["archive_id"]
+
+        restored = progress_manager.restore_archive(archive_id, force=True)
+        assert restored is True
+
+        data = progress_manager.load_progress_json()
+        assert data["project_name"] == "Old Project"
+        assert len(data["features"]) == 1
+
+    def test_restore_archive_requires_force_when_active_exists(self, temp_dir):
+        """Should refuse restore when active progress exists without --force."""
+        progress_manager.init_tracking("Old Project", force=True)
+        progress_manager.init_tracking("New Project", force=True)
+        archive_id = progress_manager._load_progress_history()[-1]["archive_id"]
+
+        restored = progress_manager.restore_archive(archive_id, force=False)
+        assert restored is False
 
 
 class TestUndo:
@@ -630,10 +707,10 @@ class TestGetProgressDir:
     """Test get_progress_dir function."""
 
     def test_get_progress_dir_returns_path(self, temp_dir):
-        """Should return path to .claude directory."""
+        """Should return docs/progress-tracker/state path."""
         progress_dir = progress_manager.get_progress_dir()
         assert progress_dir is not None
-        assert ".claude" in str(progress_dir)
+        assert str(progress_dir).endswith("docs/progress-tracker/state")
 
 
 class TestWorkflowStateEdgeCases:
@@ -652,20 +729,20 @@ class TestWorkflowStateEdgeCases:
         assert data["workflow_state"]["phase"] == "test_phase"
 
     def test_validate_plan_path_accepts_docs_plans(self):
-        """Should accept docs/plans markdown paths."""
-        result = progress_manager.validate_plan_path("docs/plans/feature-1-test.md")
+        """Should accept docs/progress-tracker/plans markdown paths."""
+        result = progress_manager.validate_plan_path("docs/progress-tracker/plans/feature-1-test.md")
         assert result["valid"] is True
-        assert result["normalized_path"] == "docs/plans/feature-1-test.md"
+        assert result["normalized_path"] == "docs/progress-tracker/plans/feature-1-test.md"
 
     def test_validate_plan_path_rejects_non_standard_paths(self):
-        """Should reject plan paths outside docs/plans."""
-        result = progress_manager.validate_plan_path(".claude/plan.md")
+        """Should reject plan paths outside docs/progress-tracker/plans."""
+        result = progress_manager.validate_plan_path("docs/plans/plan.md")
         assert result["valid"] is False
 
     def test_set_workflow_state_execution_requires_existing_plan(self, in_progress_file):
         """Should fail if execution phase references a missing plan file."""
         result = progress_manager.set_workflow_state(
-            phase="execution", plan_path="docs/plans/missing.md"
+            phase="execution", plan_path="docs/progress-tracker/plans/missing.md"
         )
         assert result is False
 
@@ -676,7 +753,7 @@ class TestWorkflowStateEdgeCases:
 
     def test_validate_plan_document_accepts_superpowers_template(self, temp_dir):
         """Should accept superpowers writing-plans format with advisory warnings."""
-        plans_dir = Path("docs/plans")
+        plans_dir = Path("docs/progress-tracker/plans")
         plans_dir.mkdir(parents=True, exist_ok=True)
         (plans_dir / "sp-plan.md").write_text(
             "# Feature Implementation Plan\n\n"
@@ -690,7 +767,7 @@ class TestWorkflowStateEdgeCases:
             encoding="utf-8",
         )
 
-        result = progress_manager.validate_plan_document("docs/plans/sp-plan.md")
+        result = progress_manager.validate_plan_document("docs/progress-tracker/plans/sp-plan.md")
 
         assert result["valid"] is True
         assert result["profile"] == "superpowers"
@@ -700,7 +777,7 @@ class TestWorkflowStateEdgeCases:
 
     def test_validate_plan_document_requires_tasks_even_for_superpowers_template(self, temp_dir):
         """Should reject plans missing tasks regardless of template style."""
-        plans_dir = Path("docs/plans")
+        plans_dir = Path("docs/progress-tracker/plans")
         plans_dir.mkdir(parents=True, exist_ok=True)
         (plans_dir / "invalid-plan.md").write_text(
             "# Feature Implementation Plan\n\n"
@@ -709,7 +786,7 @@ class TestWorkflowStateEdgeCases:
             encoding="utf-8",
         )
 
-        result = progress_manager.validate_plan_document("docs/plans/invalid-plan.md")
+        result = progress_manager.validate_plan_document("docs/progress-tracker/plans/invalid-plan.md")
 
         assert result["valid"] is False
         assert result["profile"] == "invalid"
@@ -721,9 +798,9 @@ class TestJsonErrorHandling:
 
     def test_load_corrupted_progress_json(self, temp_dir, capsys):
         """Should handle corrupted progress.json gracefully."""
-        claude_dir = temp_dir / ".claude"
-        claude_dir.mkdir(parents=True)
-        progress_file = claude_dir / "progress.json"
+        state_dir = temp_dir / "docs" / "progress-tracker" / "state"
+        state_dir.mkdir(parents=True)
+        progress_file = state_dir / "progress.json"
         progress_file.write_text("{invalid json content")
 
         result = progress_manager.load_progress_json()
@@ -768,7 +845,14 @@ class TestMainFunction:
         with patch(
             "progress_manager.git_auto_preflight", return_value=True
         ) as mock_preflight, patch(
-            "sys.argv", ["progress_manager.py", "git-auto-preflight", "--json"]
+            "sys.argv",
+            [
+                "progress_manager.py",
+                "--project-root",
+                "plugins/progress-tracker",
+                "git-auto-preflight",
+                "--json",
+            ],
         ):
             result = progress_manager.main()
             assert result is True
@@ -888,7 +972,7 @@ class TestAiMetricsAndCheckpoints:
         result = progress_manager.auto_checkpoint()
         assert result is True
 
-        checkpoints_path = Path(".claude/checkpoints.json")
+        checkpoints_path = Path("docs/progress-tracker/state/checkpoints.json")
         assert checkpoints_path.exists()
         payload = json.loads(checkpoints_path.read_text())
         assert payload["max_entries"] == 50
@@ -904,7 +988,7 @@ class TestAiMetricsAndCheckpoints:
         assert progress_manager.auto_checkpoint() is True
         assert progress_manager.auto_checkpoint() is True
 
-        checkpoints_path = Path(".claude/checkpoints.json")
+        checkpoints_path = Path("docs/progress-tracker/state/checkpoints.json")
         payload = json.loads(checkpoints_path.read_text())
         assert len(payload["entries"]) == 1
 
@@ -1048,8 +1132,8 @@ class TestWorktreeDetection:
         # Create another worktree with completed progress
         wt_dir = temp_dir / "other_wt"
         wt_dir.mkdir()
-        wt_claude = wt_dir / ".claude"
-        wt_claude.mkdir()
+        wt_state = wt_dir / "docs" / "progress-tracker" / "state"
+        wt_state.mkdir(parents=True)
 
         progress_data = {
             "project_name": "Completed Project",
@@ -1060,7 +1144,7 @@ class TestWorktreeDetection:
             "current_feature_id": None,
         }
 
-        with open(wt_claude / "progress.json", "w") as f:
+        with open(wt_state / "progress.json", "w") as f:
             json.dump(progress_data, f)
 
         worktree_output = f"worktree {str(temp_dir)}\nHEAD abc123\nworktree {str(wt_dir)}\nHEAD def456\n"
@@ -1073,8 +1157,8 @@ class TestWorktreeDetection:
         # Create another worktree with incomplete progress
         wt_dir = temp_dir / "active_wt"
         wt_dir.mkdir()
-        wt_claude = wt_dir / ".claude"
-        wt_claude.mkdir()
+        wt_state = wt_dir / "docs" / "progress-tracker" / "state"
+        wt_state.mkdir(parents=True)
 
         progress_data = {
             "project_name": "Active Project",
@@ -1085,7 +1169,7 @@ class TestWorktreeDetection:
             "current_feature_id": 2,
         }
 
-        with open(wt_claude / "progress.json", "w") as f:
+        with open(wt_state / "progress.json", "w") as f:
             json.dump(progress_data, f)
 
         worktree_output = f"worktree {str(temp_dir)}\nHEAD abc123\nworktree {str(wt_dir)}\nHEAD def456\n"
@@ -1104,13 +1188,13 @@ class TestWorktreeDetection:
         # Create two worktrees with incomplete progress
         wt1_dir = temp_dir / "wt1"
         wt1_dir.mkdir()
-        wt1_claude = wt1_dir / ".claude"
-        wt1_claude.mkdir()
+        wt1_state = wt1_dir / "docs" / "progress-tracker" / "state"
+        wt1_state.mkdir(parents=True)
 
         wt2_dir = temp_dir / "wt2"
         wt2_dir.mkdir()
-        wt2_claude = wt2_dir / ".claude"
-        wt2_claude.mkdir()
+        wt2_state = wt2_dir / "docs" / "progress-tracker" / "state"
+        wt2_state.mkdir(parents=True)
 
         progress_data_1 = {
             "project_name": "Project 1",
@@ -1124,9 +1208,9 @@ class TestWorktreeDetection:
             "current_feature_id": 2,
         }
 
-        with open(wt1_claude / "progress.json", "w") as f:
+        with open(wt1_state / "progress.json", "w") as f:
             json.dump(progress_data_1, f)
-        with open(wt2_claude / "progress.json", "w") as f:
+        with open(wt2_state / "progress.json", "w") as f:
             json.dump(progress_data_2, f)
 
         worktree_output = f"worktree {str(temp_dir)}\nHEAD abc123\nworktree {str(wt1_dir)}\nHEAD def456\nworktree {str(wt2_dir)}\nHEAD ghi789\n"
@@ -1144,9 +1228,9 @@ class TestWorktreeDetection:
             "current_feature_id": 1,
         }
 
-        claude_dir = temp_dir / ".claude"
-        claude_dir.mkdir(exist_ok=True)
-        with open(claude_dir / "progress.json", "w") as f:
+        state_dir = temp_dir / "docs" / "progress-tracker" / "state"
+        state_dir.mkdir(parents=True, exist_ok=True)
+        with open(state_dir / "progress.json", "w") as f:
             json.dump(progress_data, f)
 
         worktree_output = f"worktree {str(temp_dir)}\nHEAD abc123\n"
@@ -1161,8 +1245,8 @@ class TestWorktreeDetection:
         # Create another worktree with incomplete progress
         wt_dir = temp_dir / "active_wt"
         wt_dir.mkdir()
-        wt_claude = wt_dir / ".claude"
-        wt_claude.mkdir()
+        wt_state = wt_dir / "docs" / "progress-tracker" / "state"
+        wt_state.mkdir(parents=True)
 
         progress_data = {
             "project_name": "Active Project",
@@ -1170,7 +1254,7 @@ class TestWorktreeDetection:
             "current_feature_id": 1,
         }
 
-        with open(wt_claude / "progress.json", "w") as f:
+        with open(wt_state / "progress.json", "w") as f:
             json.dump(progress_data, f)
 
         # Mock _run_git for worktree list and collect_git_context

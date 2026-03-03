@@ -4,7 +4,7 @@ Date: 2026-02-08
 
 ## Test Environment
 - Server: `progress_ui_server.py` on port 3737
-- Test file: `.claude/checkbox-test.md`
+- Test file: `docs/progress-tracker/state/checkbox-test.md`
 
 ## Test Results Summary
 All tests PASSED ✓

@@ -6,7 +6,7 @@ A lightweight HTTP server for viewing and editing progress.md files via web UI.
 P0 Security: Binds to 127.0.0.1 only, validates all file paths.
 
 Usage:
-    python3 progress_ui_server.py [--port PORT] [--working-dir DIR]
+    python3 progress_ui_server.py [--port PORT] [--working-dir DIR] [--project-root PATH]
 """
 
 import argparse
@@ -20,9 +20,23 @@ from pathlib import Path
 from typing import Optional, Dict, Any, Tuple
 from urllib.parse import urlparse, parse_qs
 
+from prog_paths import (
+    ProjectRootResolutionError,
+    ensure_storage_migrated,
+    ensure_tracker_layout,
+    get_checkpoints_path,
+    get_progress_json_path,
+    get_progress_md_path,
+    get_state_dir,
+    rel_progress_path,
+    resolve_target_project_root,
+)
+
 # Import validation functions from progress_manager
 sys.path.insert(0, str(Path(__file__).parent))
+progress_manager_module = None
 try:
+    import progress_manager as progress_manager_module
     from progress_manager import validate_plan_path, validate_plan_document, compare_contexts
     PROGRESS_MANAGER_AVAILABLE = True
 except ImportError:
@@ -129,7 +143,7 @@ CHECKBOX_STATES = {
 
 # --- Path Whitelist ---
 # Default writable paths - only project data directory
-DEFAULT_WRITABLE_PATHS = [".claude"]
+DEFAULT_WRITABLE_PATHS = ["docs/progress-tracker"]
 
 # Runtime writable list (default + extra)
 WRITABLE_PATHS = list(DEFAULT_WRITABLE_PATHS)
@@ -524,9 +538,9 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
 
     def handle_get_files(self):
         """Handle GET /api/files - list available markdown files"""
-        claude_dir = self.working_dir / ".claude"
+        state_dir = get_state_dir(self.working_dir)
 
-        if not claude_dir.exists():
+        if not state_dir.exists():
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
@@ -534,10 +548,10 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
             return
 
         # Find all .md files
-        md_files = sorted(claude_dir.glob("*.md"), key=lambda p: p.name)
+        md_files = sorted(state_dir.glob("*.md"), key=lambda p: p.name)
 
         # Ensure progress.md is first if it exists
-        progress_md = claude_dir / "progress.md"
+        progress_md = get_progress_md_path(self.working_dir)
         if progress_md.exists() and progress_md in md_files:
             md_files.remove(progress_md)
             md_files.insert(0, progress_md)
@@ -935,10 +949,10 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
             Dictionary with progress, next_action, plan_health, risk_blocker, recent_snapshot
         """
         progress_data = load_json_with_cache(
-            self.working_dir / ".claude" / "progress.json", "progress_json"
+            get_progress_json_path(self.working_dir), "progress_json"
         )
         checkpoints_data = load_json_with_cache(
-            self.working_dir / ".claude" / "checkpoints.json", "checkpoints_json"
+            get_checkpoints_path(self.working_dir), "checkpoints_json"
         )
 
         # Graceful degradation: return empty state if progress_data is missing
@@ -1008,7 +1022,7 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
             "summary": f"已完成 {completed} 个功能，待办 {pending} 个功能",
             "sections": [feature_list_section],
             "sources": [
-                {"path": ".claude/progress.json", "label": "进度数据"}
+                {"path": rel_progress_path("progress.json"), "label": "进度数据"}
             ],
             "actions": [
                 {"label": "刷新进度", "command": "/prog", "type": "copy"}
@@ -1231,7 +1245,7 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
                 ),
                 "sections": sections,
                 "sources": [
-                    {"path": ".claude/progress.json", "label": "进度数据"}
+                    {"path": rel_progress_path("progress.json"), "label": "进度数据"}
                 ],
                 "actions": actions
             }
@@ -1243,7 +1257,7 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
                 "summary": f"建议开始 Feature #{next_feature.get('id')}: {next_feature.get('name', 'Unknown')}",
                 "sections": sections,
                 "sources": [
-                    {"path": ".claude/progress.json", "label": "进度数据"}
+                    {"path": rel_progress_path("progress.json"), "label": "进度数据"}
                 ],
                 "actions": [
                     {"label": "开始此功能", "command": "/prog next", "type": "copy"}
@@ -1290,7 +1304,7 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
                 }
             ],
             "sources": [
-                {"path": ".claude/progress.json", "label": "进度数据"}
+                {"path": rel_progress_path("progress.json"), "label": "进度数据"}
             ],
             "actions": [
                 {"label": "查看问题", "command": "/prog-fix list", "type": "copy"}
@@ -1352,7 +1366,7 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
                 }
             ],
             "sources": [
-                {"path": ".claude/checkpoints.json", "label": "快照数据"}
+                {"path": rel_progress_path("checkpoints.json"), "label": "快照数据"}
             ],
             "actions": []
         }
@@ -1371,7 +1385,7 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
             return {"error": "Missing or invalid panel parameter"}, 400
 
         progress_data = load_json_with_cache(
-            self.working_dir / ".claude" / "progress.json", "progress_json"
+            get_progress_json_path(self.working_dir), "progress_json"
         )
 
         # Graceful degradation
@@ -1388,7 +1402,7 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
             return self._build_risk_detail(progress_data), 200
         elif panel == "snapshot":
             checkpoints_data = load_json_with_cache(
-                self.working_dir / ".claude" / "checkpoints.json", "checkpoints_json"
+                get_checkpoints_path(self.working_dir), "checkpoints_json"
             )
             return self._build_snapshot_detail(checkpoints_data), 200
 
@@ -1445,6 +1459,12 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
 
 def create_handler(working_dir: Path):
     """Factory to create handler with working_dir injected"""
+    if progress_manager_module is not None:
+        # create_handler() may be used in unit tests with temporary directories
+        # that are outside the current repository root. Inject scope directly.
+        progress_manager_module._PROJECT_ROOT_OVERRIDE = working_dir.resolve()
+        progress_manager_module._STORAGE_READY_ROOT = None
+
     def handler(*args, **kwargs):
         return ProgressUIHandler(*args, working_dir=working_dir, **kwargs)
     return handler
@@ -1466,7 +1486,14 @@ def parse_args() -> argparse.Namespace:
         "--working-dir", "-d",
         type=Path,
         default=Path.cwd(),
-        help="Working directory containing .claude folder"
+        help="Base directory for project root resolution"
+    )
+    parser.add_argument(
+        "--project-root",
+        help=(
+            "Target project root. Required in monorepo root contexts, e.g. "
+            "'plugins/note-organizer'."
+        ),
     )
     return parser.parse_args()
 
@@ -1475,12 +1502,26 @@ def main() -> int:
     """Main entry point"""
     args = parse_args()
 
-    # Resolve working directory to absolute path
-    working_dir = args.working_dir.resolve()
+    # Resolve base working directory to absolute path
+    base_dir = args.working_dir.resolve()
 
-    if not working_dir.exists():
-        print(f"Error: Working directory does not exist: {working_dir}", file=sys.stderr)
+    if not base_dir.exists():
+        print(f"Error: Working directory does not exist: {base_dir}", file=sys.stderr)
         return 1
+
+    try:
+        working_dir, _ = resolve_target_project_root(
+            project_root_arg=args.project_root,
+            cwd=base_dir,
+        )
+    except ProjectRootResolutionError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+
+    ensure_tracker_layout(working_dir)
+    ensure_storage_migrated(working_dir)
+    if progress_manager_module is not None:
+        progress_manager_module.configure_project_scope(str(working_dir))
 
     # Determine port
     port = args.port if args.port else find_available_port()

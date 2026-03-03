@@ -26,7 +26,7 @@ The Progress Tracker plugin solves a critical problem in AI-assisted development
 - **Deterministic Model Routing** - Explicitly routes simple/standard/complex work to haiku/sonnet/opus paths
 - **Lightweight AI Metrics** - Tracks complexity bucket, selected model, and duration (no token/cost estimation)
 - **Technical Debt Unification** - Records debt items in existing bug system via `category=technical_debt`
-- **Lightweight Checkpoints** - Auto-saves workflow snapshots to `.claude/checkpoints.json` (no git history pollution)
+- **Lightweight Checkpoints** - Auto-saves workflow snapshots to `docs/progress-tracker/state/checkpoints.json` (no git history pollution)
 - **Worktree-Aware Recovery** - Records branch/worktree context so `/prog` and `/prog done` can warn when you resume in the wrong workspace
 - **Unified Git Preflight** - `prog git-auto-preflight --json` is the single workspace/Git risk probe used by `git-auto`, `/prog next`, and `/prog-start`
 
@@ -87,7 +87,7 @@ Revert the most recently completed feature safely via `git revert`.
 
 ### `/progress-tracker:prog-reset` (alias: `/prog-reset`)
 
-Reset progress tracking files after explicit confirmation.
+Reset active progress tracking files after explicit confirmation (auto-archives previous snapshot).
 
 ### `/progress-tracker:help`
 
@@ -99,10 +99,18 @@ Launch the Progress UI web server and open in browser. Auto-detects available po
 
 ### Progress Manager CLI
 
+Global scope override (recommended in monorepos):
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py --project-root plugins/<name> status
+```
+
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py init <project_name> [--force]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py status
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py check
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-archives [--limit <n>]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py restore-archive <archive_id> [--force]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-current <feature_id>
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py complete <feature_id> --commit <hash>
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state --phase <phase> [--plan-path <path>] [--next-action <action>]
@@ -124,6 +132,12 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py remove-bug "BUG-
 ```
 
 ### Project Memory CLI
+
+Global scope override (recommended in monorepos):
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py --project-root plugins/<name> read
+```
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py read
@@ -167,7 +181,7 @@ Run `python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/generate_prog_docs.py --write` 
 
 ### Progress Files
 
-Stored in your project's `.claude/` directory:
+Stored in your project's `docs/progress-tracker/state/` directory:
 
 **progress.json** - Machine-readable state:
 ```json
@@ -212,7 +226,7 @@ Stored in your project's `.claude/` directory:
       "feature_id": 2,
       "feature_name": "Registration API",
       "phase": "execution",
-      "plan_path": "docs/plans/feature-2-registration-api.md",
+      "plan_path": "docs/progress-tracker/plans/feature-2-registration-api.md",
       "current_task": 2,
       "total_tasks": 5,
       "reason": "auto_interval"
@@ -241,9 +255,9 @@ Stored in your project's `.claude/` directory:
 
 ### Plan Artifacts
 
-- Architecture master plan: `.claude/architecture.md`
-- Feature execution plans: `docs/plans/feature-*.md`
-- `workflow_state.plan_path` must always reference `docs/plans/*.md`
+- Architecture master plan: `docs/progress-tracker/architecture/architecture.md`
+- Feature execution plans: `docs/progress-tracker/plans/feature-*.md`
+- `workflow_state.plan_path` must always reference `docs/progress-tracker/plans/*.md`
 
 ## Workflow Example
 
@@ -308,7 +322,7 @@ feat: complete user database model
 
 **Feature**: Registration API (ID: 2)
 **Status**: execution - 2/5 tasks completed
-**Plan**: docs/plans/2024-01-24-registration-api.md
+**Plan**: docs/progress-tracker/plans/2024-01-24-registration-api.md
 
 ### Recovery Options
 1️⃣ Resume from Task 3 (Recommended)
@@ -401,7 +415,7 @@ This command will:
 ### Features
 
 **📊 Visual Progress Tracking**
-- Real-time display of all progress documents (`.claude/*.md`)
+- Real-time display of all progress documents (`docs/progress-tracker/state/*.md`)
 - Six-state checkbox system with intuitive icons:
   - ☐ Pending (todo)
   - 🔄 In Progress (doing)
@@ -431,7 +445,7 @@ This command will:
 - No duplicate paths
 
 **🔒 Safety & Reliability**
-- Write whitelist (only `.claude/*.md` files)
+- Write whitelist (only `docs/progress-tracker/**/*.md` files)
 - Path traversal protection
 - Revision-based concurrency control
 - Origin validation (CORS protection)
@@ -564,7 +578,7 @@ plugins/progress-tracker/
 The plugin automatically detects incomplete work when you open a new session and provides intelligent recovery options.
 
 **SessionStart Hook** checks:
-1. Does `.claude/progress.json` exist?
+1. Does `docs/progress-tracker/state/progress.json` exist?
 2. Are there uncompleted features?
 3. Is there a `current_feature_id` set?
 4. What is the `workflow_state.phase`?
@@ -573,7 +587,7 @@ The plugin automatically detects incomplete work when you open a new session and
 
 **UserPromptSubmit Hook**:
 - Triggers lightweight `auto-checkpoint` every 30 minutes during active feature work
-- Writes snapshots (phase/task/branch/worktree) to `.claude/checkpoints.json`
+- Writes snapshots (phase/task/branch/worktree) to `docs/progress-tracker/state/checkpoints.json`
 - Never creates git commits
 
 When a mismatch is detected (for example, feature implementation happened in a worktree and you resume in the main checkout), recovery/status output shows a strong warning with the recorded branch/worktree path before recommending next actions.
@@ -604,7 +618,7 @@ Resuming automatically in 3 seconds... (type 'stop' to cancel)
 
 **Feature**: Registration API (ID: 2)
 **Status**: execution - 2/5 tasks completed
-**Plan**: docs/plans/2024-01-24-registration-api.md
+**Plan**: docs/progress-tracker/plans/2024-01-24-registration-api.md
 
 ### Recovery Options
 1️⃣ Resume from Task 3 (Recommended)
@@ -622,7 +636,7 @@ The plugin tracks detailed workflow state for accurate recovery:
   "current_feature_id": 2,
   "workflow_state": {
     "phase": "execution",
-    "plan_path": "docs/plans/2024-01-24-registration-api.md",
+    "plan_path": "docs/progress-tracker/plans/2024-01-24-registration-api.md",
     "completed_tasks": [1, 2],
     "current_task": 3,
     "total_tasks": 5,
@@ -691,7 +705,7 @@ The plugin tracks detailed workflow state for accurate recovery:
 - ✅ `/prog plan` - 架构规划命令
   - 技术栈推荐
   - 系统架构设计
-  - 架构决策记录 (`.claude/architecture.md`)
+  - 架构决策记录 (`docs/progress-tracker/architecture/architecture.md`)
   - 与 feature breakdown 的集成指导
 - ✅ `/prog-fix` - Bug 管理命令
   - Bug 报告与快速验证 (30秒)

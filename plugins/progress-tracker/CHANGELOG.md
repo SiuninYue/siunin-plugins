@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.9] - 2026-03-03
+
+### Added
+- Progress snapshot archive management in `progress_manager.py`:
+  - `list-archives [--limit <n>]` to inspect historical snapshots
+  - `restore-archive <archive_id> [--force]` to recover previous progress state
+
+### Changed
+- `init --force` now auto-archives existing `progress.json`/`progress.md` before re-initializing.
+- `progress-tracker` storage moved to `docs/progress-tracker/` under each target project root:
+  - state files now live under `docs/progress-tracker/state/`
+  - plans/testing moved to `docs/progress-tracker/plans|testing/`
+  - architecture moved to `docs/progress-tracker/architecture/architecture.md`
+  - complexity cache moved to `docs/progress-tracker/cache/complexity_cache.json`
+- Added strict project scope resolution with global `--project-root` for:
+  - `progress_manager.py`
+  - `project_memory.py`
+  - `progress_ui_server.py`
+- Monorepo root now requires explicit `--project-root plugins/<name>` (no implicit guessing).
+- One-time migration now moves legacy `.claude/*` and legacy `docs/plans|testing` into the new layout with conflict logging in `docs/progress-tracker/state/migration_log.json`.
+
 ## [1.6.8] - 2026-03-03
 
 ### Fixed

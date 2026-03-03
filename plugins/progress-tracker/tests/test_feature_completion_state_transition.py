@@ -37,10 +37,10 @@ class TestFeatureCompletionStateTransition:
             "schema_version": "2.0"
         }
 
-        claude_dir = temp_dir / '.claude'
-        claude_dir.mkdir(parents=True, exist_ok=True)
+        state_dir = temp_dir / "docs" / "progress-tracker" / "state"
+        state_dir.mkdir(parents=True, exist_ok=True)
 
-        progress_file = claude_dir / 'progress.json'
+        progress_file = state_dir / "progress.json"
         progress_file.write_text(json.dumps(data, indent=2))
 
         return progress_file

@@ -151,7 +151,7 @@ def test_path_validation_blocks_directory_traversal(server_module):
     assert not server_module.validate_path(working_dir, "/etc/passwd"), "Should block absolute paths outside working dir"
 
     # Should allow valid relative paths
-    assert server_module.validate_path(working_dir, ".claude/progress.md"), "Should allow valid .claude paths"
+    assert server_module.validate_path(working_dir, "docs/progress-tracker/state/progress.md"), "Should allow valid progress-tracker paths"
     assert server_module.validate_path(working_dir, "some/relative/path.md"), "Should allow relative paths"
 
 
@@ -178,8 +178,8 @@ def test_get_files_lists_markdown_files(live_server):
         assert "mtime" in files[0]
 
     paths = [item.get("path") for item in files]
-    if ".claude/progress.md" in paths:
-        assert files[0]["path"] == ".claude/progress.md", "progress.md should be listed first"
+    if "docs/progress-tracker/state/progress.md" in paths:
+        assert files[0]["path"] == "docs/progress-tracker/state/progress.md", "progress.md should be listed first"
 
 
 def test_put_file_concurrency_control(server_module):

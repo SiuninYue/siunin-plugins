@@ -19,7 +19,7 @@ from typing import List, Optional, Tuple
 
 
 # Git commit hash pattern: 7-40 hexadecimal characters
-COMMIT_HASH_PATTERN = re.compile(r'^[0-9a-f]{7,40}$')
+COMMIT_HASH_PATTERN = re.compile(r'^[0-9a-fA-F]{7,40}$')
 
 # Dangerous shell metacharacters that could enable command injection
 DANGEROUS_CHARS = [';', '&', '|', '$', '`', '(', ')', '<', '>', '\n', '\r', '\t']

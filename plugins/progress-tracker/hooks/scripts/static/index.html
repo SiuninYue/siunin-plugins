@@ -1432,7 +1432,7 @@
                 if (!state.files.length) {
                     const emptyItem = document.createElement("li");
                     emptyItem.className = "empty";
-                    emptyItem.textContent = "No markdown files in .claude.";
+                    emptyItem.textContent = "No markdown files in docs/progress-tracker/state.";
                     ui.docList.appendChild(emptyItem);
                     return;
                 }
@@ -2042,7 +2042,7 @@
                     if (!state.files.length) {
                         state.activePath = null;
                         ui.activePath.textContent = "No document selected";
-                        ui.activeTime.textContent = "No files available in .claude/";
+                        ui.activeTime.textContent = "No files available in docs/progress-tracker/state/";
                         renderFileList();
                         renderFileContent("");
                         setEditorHint(0, "当前没有可编辑文档");

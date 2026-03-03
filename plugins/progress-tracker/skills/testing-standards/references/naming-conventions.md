@@ -96,26 +96,26 @@ Before finalizing a test document name, verify:
 
 ```bash
 # User: /prog done
-# AI generates: docs/testing/feature-2-acceptance-report.md
+# AI generates: docs/progress-tracker/testing/feature-2-acceptance-report.md
 ```
 
 ### Use Case 2: Bug Fixed
 
 ```bash
 # User: /prog-fix BUG-002 --fixed
-# AI generates: docs/testing/bug-002-fix-report.md
+# AI generates: docs/progress-tracker/testing/bug-002-fix-report.md
 ```
 
 ### Use Case 3: Creating Test Guide
 
 ```bash
 # User: Need a test guide for feature 3
-# AI generates: docs/testing/feature-3-test-guide.md
+# AI generates: docs/progress-tracker/testing/feature-3-test-guide.md
 ```
 
 ### Use Case 4: Documenting Solution
 
 ```bash
 # User: Document the complete solution for bug-002
-# AI generates: docs/testing/bug-002-solution.md`
+# AI generates: docs/progress-tracker/testing/bug-002-solution.md`
 ```
