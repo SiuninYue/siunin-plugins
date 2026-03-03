@@ -34,8 +34,9 @@ MIGRATION_LOG_JSON = "migration_log.json"
 ARCHITECTURE_MD = "architecture.md"
 COMPLEXITY_CACHE_JSON = "complexity_cache.json"
 
-NEW_PLAN_PREFIX = "docs/progress-tracker/plans/"
-OLD_PLAN_PREFIX = "docs/plans/"
+PLAN_PREFIX = "docs/plans/"
+# Legacy paths kept for migration detection only
+LEGACY_PLAN_PREFIX = "docs/progress-tracker/plans/"
 OLD_TESTING_PREFIX = "docs/testing/"
 NEW_TESTING_PREFIX = "docs/progress-tracker/testing/"
 
@@ -226,7 +227,7 @@ def _ensure_parent(path: Path) -> None:
 def _deep_replace_paths(value: Any) -> Any:
     if isinstance(value, str):
         replacements = (
-            (OLD_PLAN_PREFIX, NEW_PLAN_PREFIX),
+            (LEGACY_PLAN_PREFIX, PLAN_PREFIX),
             (OLD_TESTING_PREFIX, NEW_TESTING_PREFIX),
             (".claude/architecture.md", "docs/progress-tracker/architecture/architecture.md"),
             (".claude/progress.json", "docs/progress-tracker/state/progress.json"),

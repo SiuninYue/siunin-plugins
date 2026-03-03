@@ -193,7 +193,7 @@ class TestFullWorkflow:
         result = subprocess.run(
             ['python3', self.progress_manager, 'set-workflow-state',
              '--phase', 'planning',
-             '--plan-path', 'docs/progress-tracker/plans/test.md',
+             '--plan-path', 'docs/plans/test.md',
              '--next-action', 'execution'],
             capture_output=True,
             text=True
@@ -206,7 +206,7 @@ class TestFullWorkflow:
 
         workflow_state = data.get('workflow_state', {})
         assert workflow_state['phase'] == 'planning'
-        assert workflow_state['plan_path'] == 'docs/progress-tracker/plans/test.md'
+        assert workflow_state['plan_path'] == 'docs/plans/test.md'
         assert workflow_state['next_action'] == 'execution'
         assert 'execution_context' in workflow_state
 
@@ -265,7 +265,7 @@ class TestFullWorkflow:
         subprocess.run(
             ['python3', self.progress_manager, 'set-workflow-state',
              '--phase', 'execution',
-             '--plan-path', 'docs/progress-tracker/plans/test.md'],
+             '--plan-path', 'docs/plans/test.md'],
             capture_output=True
         )
 

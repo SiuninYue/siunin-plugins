@@ -730,19 +730,21 @@ class TestWorkflowStateEdgeCases:
 
     def test_validate_plan_path_accepts_docs_plans(self):
         """Should accept docs/progress-tracker/plans markdown paths."""
-        result = progress_manager.validate_plan_path("docs/progress-tracker/plans/feature-1-test.md")
+        result = progress_manager.validate_plan_path("docs/plans/feature-1-test.md")
         assert result["valid"] is True
-        assert result["normalized_path"] == "docs/progress-tracker/plans/feature-1-test.md"
+        assert result["normalized_path"] == "docs/plans/feature-1-test.md"
 
     def test_validate_plan_path_rejects_non_standard_paths(self):
-        """Should reject plan paths outside docs/progress-tracker/plans."""
-        result = progress_manager.validate_plan_path("docs/plans/plan.md")
+        """Should reject plan paths outside docs/plans/ or docs/progress-tracker/plans/ (legacy)."""
+        result = progress_manager.validate_plan_path("some/other/path/plan.md")
         assert result["valid"] is False
+        result2 = progress_manager.validate_plan_path("docs/notes/plan.md")
+        assert result2["valid"] is False
 
     def test_set_workflow_state_execution_requires_existing_plan(self, in_progress_file):
         """Should fail if execution phase references a missing plan file."""
         result = progress_manager.set_workflow_state(
-            phase="execution", plan_path="docs/progress-tracker/plans/missing.md"
+            phase="execution", plan_path="docs/plans/missing.md"
         )
         assert result is False
 
@@ -753,7 +755,7 @@ class TestWorkflowStateEdgeCases:
 
     def test_validate_plan_document_accepts_superpowers_template(self, temp_dir):
         """Should accept superpowers writing-plans format with advisory warnings."""
-        plans_dir = Path("docs/progress-tracker/plans")
+        plans_dir = Path("docs/plans")
         plans_dir.mkdir(parents=True, exist_ok=True)
         (plans_dir / "sp-plan.md").write_text(
             "# Feature Implementation Plan\n\n"
@@ -767,7 +769,7 @@ class TestWorkflowStateEdgeCases:
             encoding="utf-8",
         )
 
-        result = progress_manager.validate_plan_document("docs/progress-tracker/plans/sp-plan.md")
+        result = progress_manager.validate_plan_document("docs/plans/sp-plan.md")
 
         assert result["valid"] is True
         assert result["profile"] == "superpowers"
@@ -777,7 +779,7 @@ class TestWorkflowStateEdgeCases:
 
     def test_validate_plan_document_requires_tasks_even_for_superpowers_template(self, temp_dir):
         """Should reject plans missing tasks regardless of template style."""
-        plans_dir = Path("docs/progress-tracker/plans")
+        plans_dir = Path("docs/plans")
         plans_dir.mkdir(parents=True, exist_ok=True)
         (plans_dir / "invalid-plan.md").write_text(
             "# Feature Implementation Plan\n\n"
@@ -786,7 +788,7 @@ class TestWorkflowStateEdgeCases:
             encoding="utf-8",
         )
 
-        result = progress_manager.validate_plan_document("docs/progress-tracker/plans/invalid-plan.md")
+        result = progress_manager.validate_plan_document("docs/plans/invalid-plan.md")
 
         assert result["valid"] is False
         assert result["profile"] == "invalid"

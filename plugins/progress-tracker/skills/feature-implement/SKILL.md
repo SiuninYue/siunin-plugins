@@ -204,7 +204,7 @@ Use these commands when phase changes:
 ```bash
 plugins/progress-tracker/prog set-workflow-state \
   --phase <design_complete|planning_complete|execution|execution_complete> \
-  --plan-path <docs/progress-tracker/plans/...> \
+  --plan-path <docs/plans/...> \
   --next-action "<human-readable next action>"
 ```
 

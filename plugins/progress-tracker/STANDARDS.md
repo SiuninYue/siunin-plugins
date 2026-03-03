@@ -103,13 +103,13 @@ Use these two artifacts with strict responsibilities:
 | Artifact | Location | Responsibility |
 |----------|----------|----------------|
 | Architecture master plan | `docs/progress-tracker/architecture/architecture.md` | Goals, boundaries, interface contracts, state flow, failure handling, ADRs, execution constraints |
-| Feature execution plans | `docs/progress-tracker/plans/feature-*.md` | Task-level execution plans for individual features |
+| Feature execution plans | `docs/plans/feature-*.md` | Task-level execution plans for individual features |
 
 Do not archive or mutate `docs/progress-tracker/architecture/architecture.md` during feature completion.
 
 ### Minimum Feature Plan Contract
 
-Every execution plan under `docs/progress-tracker/plans/feature-*.md` must include:
+Every execution plan under `docs/plans/feature-*.md` must include:
 
 1. `Tasks`
 2. `Acceptance Mapping`
@@ -183,7 +183,7 @@ Test steps:
 
 ## Plan Annotation Conventions
 
-These conventions apply to plan files in `docs/progress-tracker/plans/` and equivalent plan artifacts used by Progress Tracker workflows.
+These conventions apply to plan files in `docs/plans/` and equivalent plan artifacts used by Progress Tracker workflows.
 
 - **NOTE format**: `<!-- NOTE: ... -->`
 - **Authoring intent**: NOTE is primarily human-authored context, and must remain AI-readable for later runs.
@@ -270,7 +270,7 @@ These conventions apply to plan files in `docs/progress-tracker/plans/` and equi
 | Field | Type | Description |
 |-------|------|-------------|
 | `phase` | string | Current phase: `design_complete` \| `planning_complete` \| `execution` \| `execution_complete` |
-| `plan_path` | string | Relative path to execution plan file under `docs/progress-tracker/plans/*.md` |
+| `plan_path` | string | Relative path to execution plan file under `docs/plans/*.md` |
 | `completed_tasks` | array | List of completed task IDs |
 | `current_task` | int | Current task ID |
 | `total_tasks` | int | Total number of tasks |

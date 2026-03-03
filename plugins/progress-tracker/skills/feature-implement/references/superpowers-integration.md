@@ -98,20 +98,20 @@ Progress Tracker extends `progress.json` with workflow state for session recover
       "completed": true,
       "completed_at": "2026-01-20T10:30:00Z",
       "commit_hash": "abc123",
-      "plan_path": "docs/progress-tracker/plans/2026-01-20-database-schema.md"
+      "plan_path": "docs/plans/2026-01-20-database-schema.md"
     },
     {
       "id": 2,
       "name": "Create API",
       "test_steps": ["curl POST test", "Verify database entry"],
       "completed": false,
-      "plan_path": "docs/progress-tracker/plans/2026-01-20-create-api.md"
+      "plan_path": "docs/plans/2026-01-20-create-api.md"
     }
   ],
   "current_feature_id": 2,
   "workflow_state": {
     "phase": "execution",
-    "plan_path": "docs/progress-tracker/plans/2026-01-20-create-api.md",
+    "plan_path": "docs/plans/2026-01-20-create-api.md",
     "completed_tasks": [1, 2],
     "current_task": 3,
     "total_tasks": 5
@@ -147,7 +147,7 @@ graph TD
 
 ## Plan File Convention
 
-Superpowers expects plans in: `docs/progress-tracker/plans/YYYY-MM-DD-<feature-slug>.md`
+Superpowers expects plans in: `docs/plans/YYYY-MM-DD-<feature-slug>.md`
 
 Progress Tracker stores this path in `plan_path` field for:
 - Session recovery
@@ -313,7 +313,7 @@ Is it a single file change with clear requirements?
 
 ### "Plan file creation failed"
 
-**Cause**: `docs/progress-tracker/plans/` directory doesn't exist
+**Cause**: `docs/plans/` directory doesn't exist
 
 **Fix**: Auto-create directory before invoking writing-plans:
 ```bash

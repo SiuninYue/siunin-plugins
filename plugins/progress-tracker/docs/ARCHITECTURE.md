@@ -339,7 +339,7 @@ progress-tracker/
   "current_bug_id": "BUG-001",
   "workflow_state": {
     "phase": "execution",
-    "plan_path": "docs/progress-tracker/plans/2024-01-15-feature.md",
+    "plan_path": "docs/plans/2024-01-15-feature.md",
     "completed_tasks": [1, 2],
     "current_task": 3,
     "total_tasks": 5,

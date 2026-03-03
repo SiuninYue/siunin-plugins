@@ -226,7 +226,7 @@ Stored in your project's `docs/progress-tracker/state/` directory:
       "feature_id": 2,
       "feature_name": "Registration API",
       "phase": "execution",
-      "plan_path": "docs/progress-tracker/plans/feature-2-registration-api.md",
+      "plan_path": "docs/plans/feature-2-registration-api.md",
       "current_task": 2,
       "total_tasks": 5,
       "reason": "auto_interval"
@@ -256,8 +256,8 @@ Stored in your project's `docs/progress-tracker/state/` directory:
 ### Plan Artifacts
 
 - Architecture master plan: `docs/progress-tracker/architecture/architecture.md`
-- Feature execution plans: `docs/progress-tracker/plans/feature-*.md`
-- `workflow_state.plan_path` must always reference `docs/progress-tracker/plans/*.md`
+- Feature execution plans: `docs/plans/feature-*.md`
+- `workflow_state.plan_path` must always reference `docs/plans/*.md`
 
 ## Workflow Example
 
@@ -322,7 +322,7 @@ feat: complete user database model
 
 **Feature**: Registration API (ID: 2)
 **Status**: execution - 2/5 tasks completed
-**Plan**: docs/progress-tracker/plans/2024-01-24-registration-api.md
+**Plan**: docs/plans/2024-01-24-registration-api.md
 
 ### Recovery Options
 1️⃣ Resume from Task 3 (Recommended)
@@ -618,7 +618,7 @@ Resuming automatically in 3 seconds... (type 'stop' to cancel)
 
 **Feature**: Registration API (ID: 2)
 **Status**: execution - 2/5 tasks completed
-**Plan**: docs/progress-tracker/plans/2024-01-24-registration-api.md
+**Plan**: docs/plans/2024-01-24-registration-api.md
 
 ### Recovery Options
 1️⃣ Resume from Task 3 (Recommended)
@@ -636,7 +636,7 @@ The plugin tracks detailed workflow state for accurate recovery:
   "current_feature_id": 2,
   "workflow_state": {
     "phase": "execution",
-    "plan_path": "docs/progress-tracker/plans/2024-01-24-registration-api.md",
+    "plan_path": "docs/plans/2024-01-24-registration-api.md",
     "completed_tasks": [1, 2],
     "current_task": 3,
     "total_tasks": 5,

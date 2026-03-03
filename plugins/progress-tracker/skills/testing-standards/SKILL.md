@@ -227,7 +227,7 @@ docs/
 
 - `docs/progress-tracker/testing/feature-{id}-acceptance-report.md`
 - `docs/progress-tracker/testing/feature-{id}-test-guide.md`
-- `docs/progress-tracker/plans/feature-{id}-*.md`
+- `docs/plans/feature-{id}-*.md`
 
 ### Archive Behavior
 

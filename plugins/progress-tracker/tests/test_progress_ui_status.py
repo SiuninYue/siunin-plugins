@@ -264,7 +264,7 @@ def test_status_detail_plan_panel_includes_workflow_progress_rows(test_client, w
     progress_data["current_feature_id"] = 2
     progress_data["workflow_state"] = {
         "phase": "execution",
-        "plan_path": "docs/progress-tracker/plans/feature-2-plan.md",
+        "plan_path": "docs/plans/feature-2-plan.md",
         "current_task": 2,
         "total_tasks": 5,
         "next_action": "continue coding",
@@ -451,7 +451,7 @@ def test_status_detail_next_panel_shows_context_alignment(test_client, working_d
     progress_data["current_feature_id"] = 2
     progress_data["workflow_state"] = {
         "phase": "execution",
-        "plan_path": "docs/progress-tracker/plans/feature-2-plan.md",
+        "plan_path": "docs/plans/feature-2-plan.md",
         "execution_context": {
             "workspace_mode": "worktree",
             "worktree_path": "/tmp/wt-a",

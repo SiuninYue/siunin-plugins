@@ -90,7 +90,7 @@ plugins/progress-tracker/prog set-workflow-state \
 6. Run planning phase:
 
 ```text
-Skill("writing-plans", args="<feature_name>: create implementation plan\nArchitecture constraints:\n- <CONSTRAINT-...>\nPlan path policy: must output under docs/progress-tracker/plans/feature-<id>-<slug>.md")
+Skill("writing-plans", args="<feature_name>: create implementation plan\nArchitecture constraints:\n- <CONSTRAINT-...>\nPlan path policy: must output under docs/plans/YYYY-MM-DD-<slug>.md (e.g. docs/plans/2026-03-03-feature-name.md)")
 ```
 
 7. Update workflow to planning complete with plan path:
@@ -136,7 +136,7 @@ Compatibility rule:
 
 ## Plan Path Policy (Required)
 
-`set-workflow-state --plan-path` must only store `docs/progress-tracker/plans/*.md`.
+`set-workflow-state --plan-path` must only store `docs/plans/*.md`.
 If returned path is invalid or missing, regenerate the plan before execution.
 
 # Failure Modes

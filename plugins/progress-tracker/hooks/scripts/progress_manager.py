@@ -75,7 +75,11 @@ PROGRESS_MD = "progress.md"
 CHECKPOINTS_JSON = "checkpoints.json"
 CHECKPOINT_MAX_ENTRIES = 50
 CHECKPOINT_INTERVAL_SECONDS = 1800
-PLAN_PATH_PREFIX = "docs/progress-tracker/plans/"
+PLAN_PATH_PREFIX = "docs/plans/"
+PLAN_PATH_PREFIX_LEGACY = "docs/progress-tracker/plans/"
+# Both paths are accepted: docs/plans/ (Superpowers writing-plans standard)
+# and docs/progress-tracker/plans/ (legacy format for backward compatibility)
+VALID_PLAN_PREFIXES = (PLAN_PATH_PREFIX, PLAN_PATH_PREFIX_LEGACY)
 PROGRESS_ARCHIVE_MAX_ENTRIES = 200
 
 # Schema version - increment when breaking changes occur
@@ -261,7 +265,9 @@ def validate_plan_path(
     """
     Validate workflow plan path shape and optional existence.
 
-    Expected format: docs/progress-tracker/plans/<name>.md
+    Accepted formats:
+    - docs/plans/<YYYY-MM-DD-name>.md  (Superpowers writing-plans standard)
+    - docs/progress-tracker/plans/<name>.md  (legacy format)
     """
     if plan_path is None:
         return {"valid": True, "normalized_path": None, "error": None}
@@ -277,11 +283,11 @@ def validate_plan_path(
             "error": "plan_path must be relative (absolute paths are not allowed)",
         }
 
-    if not normalized.startswith(PLAN_PATH_PREFIX):
+    if not any(normalized.startswith(prefix) for prefix in VALID_PLAN_PREFIXES):
         return {
             "valid": False,
             "normalized_path": None,
-            "error": f"plan_path must be under '{PLAN_PATH_PREFIX}'",
+            "error": f"plan_path must be under '{PLAN_PATH_PREFIX}' (or legacy '{PLAN_PATH_PREFIX_LEGACY}')",
         }
 
     if not normalized.endswith(".md"):
@@ -2165,12 +2171,17 @@ def archive_feature_docs(feature_id: int, feature_name: str = None) -> Dict[str,
     """
     Archive testing and plan documents for a completed feature.
 
-    Moves documents from docs/progress-tracker/testing/ and
-    docs/progress-tracker/plans/ to docs/progress-tracker/archive/.
+    Moves documents from:
+    - docs/plans/ (Superpowers writing-plans standard location for plan files)
+    - docs/testing/ (bug fix reports and test documentation)
 
-    Supports both naming patterns:
+    To:
+    - docs/archive/plans/
+    - docs/archive/testing/
+
+    Supports naming patterns:
     - Legacy: feature-{feature_id}-*.md
-    - Current: YYYY-MM-DD-description.md (matched by reading content or manual mapping)
+    - Current: YYYY-MM-DD-description.md
 
     Args:
         feature_id: The ID of the completed feature
@@ -2188,13 +2199,13 @@ def archive_feature_docs(feature_id: int, feature_name: str = None) -> Dict[str,
 
     try:
         project_root = find_project_root()
-        prog_docs_dir = get_tracker_docs_root(project_root)
 
-        # Define source and destination directories
-        testing_src = prog_docs_dir / "testing"
-        plans_src = prog_docs_dir / "plans"
-        testing_archive = prog_docs_dir / "archive" / "testing"
-        plans_archive = prog_docs_dir / "archive" / "plans"
+        # Plans live at docs/plans/ (Superpowers standard)
+        # Testing reports live at docs/testing/
+        plans_src = project_root / "docs" / "plans"
+        testing_src = project_root / "docs" / "testing"
+        plans_archive = project_root / "docs" / "archive" / "plans"
+        testing_archive = project_root / "docs" / "archive" / "testing"
 
         # Create archive directories if they don't exist
         testing_archive.mkdir(parents=True, exist_ok=True)
