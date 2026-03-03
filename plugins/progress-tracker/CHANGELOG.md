@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.10] - 2026-03-04
+
+### Fixed
+- Plan path unification with Superpowers standard:
+  - Plans now stored in `docs/plans/` (Superpowers standard) instead of `docs/progress-tracker/plans/`
+  - Added legacy fallback support for old plan locations
+  - Separated implementation plans (public) from internal state files
+- Plan validation now supports both Superpowers and native formats:
+  - Supports `## Task 1:` style headings (Superpowers)
+  - Supports both English (`**Goal:**`) and Chinese (`**目标:**`) field names
+- Updated all tests and documentation to reflect `docs/plans/` path standard
+
 ## [1.6.9] - 2026-03-03
 
 ### Added
