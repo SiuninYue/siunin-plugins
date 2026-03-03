@@ -2,13 +2,18 @@
 """
 Shared path and migration helpers for progress-tracker storage.
 
-Storage target:
-  <target_project_root>/docs/progress-tracker/
-    state/
-    plans/
-    testing/
-    architecture/
-    cache/
+Storage layout:
+  <target_project_root>/
+    docs/
+      plans/              <- Feature implementation plans (Superpowers standard)
+      archive/
+        plans/            <- Completed feature plans
+        testing/          <- Archived test reports
+      progress-tracker/   <- Internal progress-tracker state (not plans)
+        state/            <- progress.json, checkpoints.json, etc.
+        architecture/     <- architecture.md
+        testing/          <- Active bug fix reports
+        cache/            <- Complexity cache
 """
 
 from __future__ import annotations

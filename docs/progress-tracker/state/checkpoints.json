@@ -1,0 +1,166 @@
+{
+  "last_checkpoint_at": "2026-03-03T17:48:43.958267+08:00",
+  "max_entries": 50,
+  "entries": [
+    {
+      "timestamp": "2026-02-12T11:08:29.955233+08:00",
+      "feature_id": 5,
+      "feature_name": "实现 6 状态 checkbox 渲染",
+      "phase": "unknown",
+      "plan_path": null,
+      "current_task": null,
+      "total_tasks": null,
+      "reason": "auto_interval"
+    },
+    {
+      "timestamp": "2026-02-25T23:20:07.667470+08:00",
+      "feature_id": 1,
+      "feature_name": "Plugin base structure and architecture",
+      "phase": "execution",
+      "plan_path": null,
+      "current_task": null,
+      "total_tasks": null,
+      "reason": "auto_interval"
+    },
+    {
+      "timestamp": "2026-02-25T23:50:11.351385+08:00",
+      "feature_id": 1,
+      "feature_name": "Plugin base structure and architecture",
+      "phase": "execution",
+      "plan_path": "docs/progress-tracker/plans/2026-02-25-note-organizer-implementation-v2.md",
+      "current_task": null,
+      "total_tasks": null,
+      "reason": "auto_interval"
+    },
+    {
+      "timestamp": "2026-03-01T07:32:56.118256+08:00",
+      "feature_id": 1,
+      "feature_name": "Plugin base structure and architecture",
+      "phase": "execution_complete",
+      "plan_path": "docs/progress-tracker/plans/2026-02-25-note-organizer-implementation-v2.md",
+      "current_task": null,
+      "total_tasks": null,
+      "reason": "auto_interval"
+    },
+    {
+      "timestamp": "2026-03-01T08:12:00.084197+08:00",
+      "feature_id": 2,
+      "feature_name": "Timestamp cleaning module with CLI",
+      "phase": "unknown",
+      "plan_path": null,
+      "current_task": null,
+      "total_tasks": null,
+      "reason": "auto_interval"
+    },
+    {
+      "timestamp": "2026-03-02T07:12:43.435058+08:00",
+      "feature_id": 2,
+      "feature_name": "Timestamp cleaning module with CLI",
+      "phase": "execution_complete",
+      "plan_path": "docs/progress-tracker/plans/2026-03-01-timestamp-cleaning-implementation.md",
+      "current_task": null,
+      "total_tasks": null,
+      "reason": "auto_interval"
+    },
+    {
+      "timestamp": "2026-03-02T07:49:34.007270+08:00",
+      "feature_id": 3,
+      "feature_name": "Batch scanner module with CLI",
+      "phase": "execution_complete",
+      "plan_path": "docs/progress-tracker/plans/2026-03-02-batch-scanner-design.md",
+      "current_task": null,
+      "total_tasks": null,
+      "reason": "auto_interval"
+    },
+    {
+      "timestamp": "2026-03-03T06:52:56.271688+08:00",
+      "feature_id": 4,
+      "feature_name": "Skill and reference documents",
+      "phase": "unknown",
+      "plan_path": null,
+      "current_task": null,
+      "total_tasks": null,
+      "reason": "auto_interval"
+    },
+    {
+      "timestamp": "2026-03-03T07:39:33.883425+08:00",
+      "feature_id": 4,
+      "feature_name": "Skill and reference documents",
+      "phase": "unknown",
+      "plan_path": null,
+      "current_task": null,
+      "total_tasks": null,
+      "reason": "auto_interval"
+    },
+    {
+      "timestamp": "2026-03-03T13:06:17.095839+08:00",
+      "feature_id": 5,
+      "feature_name": "NotebookLM template and renderer",
+      "phase": "design_complete",
+      "plan_path": "",
+      "current_task": null,
+      "total_tasks": null,
+      "reason": "auto_interval"
+    },
+    {
+      "timestamp": "2026-03-03T14:40:08.109201+08:00",
+      "feature_id": 5,
+      "feature_name": "NotebookLM template and renderer",
+      "phase": "design_complete",
+      "plan_path": "",
+      "current_task": null,
+      "total_tasks": null,
+      "reason": "auto_interval"
+    },
+    {
+      "timestamp": "2026-03-03T15:30:50.740321+08:00",
+      "feature_id": 5,
+      "feature_name": "NotebookLM template and renderer",
+      "phase": "design_complete",
+      "plan_path": "",
+      "current_task": null,
+      "total_tasks": null,
+      "reason": "auto_interval"
+    },
+    {
+      "timestamp": "2026-03-03T16:01:28.127043+08:00",
+      "feature_id": 5,
+      "feature_name": "NotebookLM template and renderer",
+      "phase": "design_complete",
+      "plan_path": "",
+      "current_task": null,
+      "total_tasks": null,
+      "reason": "auto_interval"
+    },
+    {
+      "timestamp": "2026-03-03T16:35:33.164420+08:00",
+      "feature_id": 5,
+      "feature_name": "NotebookLM template and renderer",
+      "phase": "planning_complete",
+      "plan_path": "docs/progress-tracker/plans/2026-03-03-notebooklm-template-implementation.md",
+      "current_task": null,
+      "total_tasks": null,
+      "reason": "auto_interval"
+    },
+    {
+      "timestamp": "2026-03-03T17:08:27.783367+08:00",
+      "feature_id": 5,
+      "feature_name": "NotebookLM template and renderer",
+      "phase": "planning_complete",
+      "plan_path": "docs/progress-tracker/plans/2026-03-03-notebooklm-template-implementation.md",
+      "current_task": null,
+      "total_tasks": null,
+      "reason": "auto_interval"
+    },
+    {
+      "timestamp": "2026-03-03T17:48:43.958267+08:00",
+      "feature_id": 5,
+      "feature_name": "NotebookLM template and renderer",
+      "phase": "planning_complete",
+      "plan_path": "docs/progress-tracker/plans/2026-03-03-notebooklm-template-implementation.md",
+      "current_task": null,
+      "total_tasks": null,
+      "reason": "auto_interval"
+    }
+  ]
+}

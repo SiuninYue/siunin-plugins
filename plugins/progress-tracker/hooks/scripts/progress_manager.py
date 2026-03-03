@@ -357,7 +357,8 @@ def validate_plan_document(plan_path: str) -> Dict[str, Any]:
         }
 
     checks = {
-        "tasks": re.search(r"^##+\s+Tasks\b", content, flags=re.IGNORECASE | re.MULTILINE),
+        # Match both "## Tasks" (list style) and "## Task 1: name" (Superpowers individual tasks)
+        "tasks": re.search(r"^##+\s+Tasks?\b", content, flags=re.IGNORECASE | re.MULTILINE),
         "acceptance_mapping": re.search(
             r"^##+\s+Acceptance(\s+Criteria)?(\s+Mapping)?\b",
             content,
@@ -366,8 +367,9 @@ def validate_plan_document(plan_path: str) -> Dict[str, Any]:
         "risks": re.search(r"^##+\s+Risks?\b", content, flags=re.IGNORECASE | re.MULTILINE),
     }
     superpowers_checks = {
-        "goal": re.search(r"^\*\*Goal:\*\*\s+.+", content, flags=re.MULTILINE),
-        "architecture": re.search(r"^\*\*Architecture:\*\*\s+.+", content, flags=re.MULTILINE),
+        # Accept English and Chinese field labels (writing-plans generates Chinese when prompted in Chinese)
+        "goal": re.search(r"^\*\*(Goal|目标):\*\*\s+.+", content, flags=re.MULTILINE),
+        "architecture": re.search(r"^\*\*(Architecture|架构):\*\*\s+.+", content, flags=re.MULTILINE),
     }
 
     missing_sections = [name for name, found in checks.items() if not found]
