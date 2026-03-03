@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.7] - 2026-03-03
+
+### Fixed
+- Hooks now use wrapper script to handle `CLAUDE_PLUGIN_ROOT` environment variable:
+  - added `hooks/run-hook.sh` wrapper that falls back to relative path when env var is not set
+  - ensures hooks work correctly regardless of Claude Code's environment variable setup
+
+## [1.6.6] - 2026-03-01
+
 ### Fixed
 - `prog-start` skill circular reference bug:
   - removed self-referencing `/progress-tracker:prog-start` from skill description to prevent infinite loop

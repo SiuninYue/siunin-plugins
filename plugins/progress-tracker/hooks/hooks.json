@@ -6,17 +6,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py check",
+            "command": "hooks/run-hook.sh check",
             "timeout": 30000
           },
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py sync-runtime-context --source session_start --quiet",
+            "command": "hooks/run-hook.sh sync-runtime-context --source session_start --quiet",
             "timeout": 5000
           },
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py git-sync-check",
+            "command": "hooks/run-hook.sh git-sync-check",
             "timeout": 10000
           }
         ]
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py auto-checkpoint",
+            "command": "hooks/run-hook.sh auto-checkpoint",
             "timeout": 5000
           }
         ]
