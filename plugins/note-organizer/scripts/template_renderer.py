@@ -62,5 +62,50 @@ def format_tags_list(tags: List[str]) -> str:
     return ", ".join(tags)
 
 
+def render_template(template_path: str, data: NoteData) -> str:
+    """渲染模板
+
+    Args:
+        template_path: 模板文件路径
+        data: 笔记数据
+
+    Returns:
+        渲染后的 Markdown 文本
+
+    Raises:
+        FileNotFoundError: 模板文件不存在
+        ValueError: 必填字段为空或数据验证失败
+        KeyError: 模板中有未定义的占位符
+    """
+    # Step 1: 读取模板文件
+    try:
+        with open(template_path, 'r', encoding='utf-8') as f:
+            template_content = f.read()
+    except FileNotFoundError:
+        raise FileNotFoundError(f"Template file not found: {template_path}")
+
+    # Step 2: 验证数据
+    data.validate()
+
+    # Step 3: 构建 render_context，将 tags 转换为逗号分隔字符串
+    render_context = {
+        "title": data.title,
+        "note_type": data.note_type,
+        "tags": format_tags_list(data.tags),
+        "summary": data.summary,
+        "key_points": data.key_points,
+        "content": data.content
+    }
+
+    # Step 4: 使用 str.format() 替换占位符
+    try:
+        rendered = template_content.format(**render_context)
+    except KeyError as e:
+        raise KeyError(f"Template placeholder not defined in data: {e}")
+
+    # Step 5: 返回渲染结果
+    return rendered
+
+
 if __name__ == '__main__':
     main()
