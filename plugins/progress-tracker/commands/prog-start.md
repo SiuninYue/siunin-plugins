@@ -19,7 +19,7 @@ DO NOT just describe or mention the skill. You MUST invoke it using the Skill to
 NOW invoke the skill:
 
 Use the Skill tool with these exact parameters:
-  - skill: "progress-tracker:prog-start"
+  - skill: "progress-tracker:prog-launcher"
   - args: ""
 
 WAIT for the skill to complete.

@@ -1,5 +1,5 @@
 ---
-name: prog-start
+name: prog-launcher
 description: This skill should be used when the user runs "/prog-start", asks to "start current feature", "start implementation now", "开始当前功能开发", or requests transitioning an active feature from planning to developing.
 model: haiku
 version: "1.0.0"

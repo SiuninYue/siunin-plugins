@@ -6,17 +6,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "hooks/run-hook.sh check",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.sh check",
             "timeout": 30000
           },
           {
             "type": "command",
-            "command": "hooks/run-hook.sh sync-runtime-context --source session_start --quiet",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.sh sync-runtime-context --source session_start --quiet",
             "timeout": 5000
           },
           {
             "type": "command",
-            "command": "hooks/run-hook.sh git-sync-check",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.sh git-sync-check",
             "timeout": 10000
           }
         ]
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "hooks/run-hook.sh auto-checkpoint",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.sh auto-checkpoint",
             "timeout": 5000
           }
         ]
