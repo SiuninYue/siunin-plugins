@@ -2,7 +2,7 @@
 name: git-auto
 description: This skill should be used when the user asks to "create a git commit", "commit changes", "commit and push", "make a commit", "handle git", "git auto", "git auto start", "git auto done", or "git auto fix", or needs git operations automated with branch/PR/merge decisions.
 model: sonnet
-version: "2.0.0"
+version: "2.0.1"
 scope: skill
 inputs:
   - Current git repository state
@@ -37,6 +37,25 @@ Keep command names unchanged:
 ## Normative Keywords
 
 `MUST`, `MUST NOT`, `SHOULD`, and `MAY` are normative.
+
+## Output Language Requirements
+
+**ALL output MUST be in English ONLY.** This is non-negotiable:
+
+- Plan descriptions MUST use English
+- All reason text (`Escalation Reason`, `Worktree Decision Reason`, `Strategy Reason`, etc.) MUST be in English
+- Status messages MUST be in English
+- Any user-facing content MUST be in English
+- DO NOT use Korean, Chinese, or any other language
+
+Examples of CORRECT output:
+- `Escalation Reason: Single-user project, no sync risk events in 14 days`
+- `Worktree Decision Reason: MAY rule — repeated feature branch, no conflict signals`
+- `Change Size: ~154 insertions, ~12,579 deletions (mostly old docs archive moves)`
+
+Examples of INCORRECT output (DO NOT DO THIS):
+- `Escalation Reason: 단독 프로젝트, 14일간 sync risk event 없음` ❌
+- `Worktree Decision Reason: MAY rule — 기존 feature branch 반복, 충돌 신호 없음` ❌
 
 ## Required Intent Parsing
 
