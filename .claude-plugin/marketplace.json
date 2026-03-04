@@ -34,6 +34,16 @@
         "name": "siunin"
       },
       "category": "productivity"
+    },
+    {
+      "name": "note-organizer",
+      "description": "智能笔记整理插件 - 将 AI 提取的笔记转换为结构化知识库内容",
+      "version": "1.0.0",
+      "source": "./plugins/note-organizer",
+      "author": {
+        "name": "siunin"
+      },
+      "category": "productivity"
     }
   ]
 }
