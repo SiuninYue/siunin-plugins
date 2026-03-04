@@ -40,18 +40,18 @@ Keep command names unchanged:
 
 ## Output Language Requirements
 
-**ALL output MUST be in English ONLY.** This is non-negotiable:
+**Output MUST use English OR Chinese ONLY.** DO NOT use Korean or any other language:
 
-- Plan descriptions MUST use English
-- All reason text (`Escalation Reason`, `Worktree Decision Reason`, `Strategy Reason`, etc.) MUST be in English
-- Status messages MUST be in English
-- Any user-facing content MUST be in English
-- DO NOT use Korean, Chinese, or any other language
+- Plan descriptions MUST use English or Chinese
+- All reason text MUST use English or Chinese
+- Status messages MUST use English or Chinese
+- Any user-facing content MUST use English or Chinese
+- **DO NOT use Korean** - this is a bug to prevent
 
 Examples of CORRECT output:
-- `Escalation Reason: Single-user project, no sync risk events in 14 days`
-- `Worktree Decision Reason: MAY rule — repeated feature branch, no conflict signals`
-- `Change Size: ~154 insertions, ~12,579 deletions (mostly old docs archive moves)`
+- `Escalation Reason: 单独项目，14天内无 sync risk 事件`
+- `Worktree Decision Reason: MAY rule — 重复使用 feature branch，无冲突信号`
+- `Change Size: ~154 insertions, ~12,579 deletions (主要是旧文档归档移动)`
 
 Examples of INCORRECT output (DO NOT DO THIS):
 - `Escalation Reason: 단독 프로젝트, 14일간 sync risk event 없음` ❌
