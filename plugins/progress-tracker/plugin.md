@@ -26,13 +26,13 @@ The Progress Tracker plugin solves the critical problem of maintaining progress 
 
 ```bash
 # Initialize project tracking
-/prog init Build a user authentication system
+/prog-init Build a user authentication system
 
 # Start next feature
-/prog next
+/prog-next
 
 # Complete and commit
-/prog done
+/prog-done
 ```
 
 ## Commands

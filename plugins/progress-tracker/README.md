@@ -73,6 +73,10 @@ Sync project capability memory from incremental Git history with batch confirmat
 
 Start the next pending feature with deterministic complexity routing.
 
+### `/progress-tracker:prog-start` (alias: `/prog-start`)
+
+Transition the active feature from planning to developing.
+
 ### `/progress-tracker:prog-done` (alias: `/prog-done`)
 
 Run acceptance verification and complete the current feature.

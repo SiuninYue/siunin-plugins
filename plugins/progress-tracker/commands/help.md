@@ -24,6 +24,7 @@ Use this structure:
 - `/progress-tracker:prog` (alias: `/prog`): show progress status and recommendations.
 - `/progress-tracker:prog-sync` (alias: `/prog-sync`): sync project capability memory from incremental Git history.
 - `/progress-tracker:prog-next` (alias: `/prog-next`): begin next feature using deterministic routing.
+- `/progress-tracker:prog-start` (alias: `/prog-start`): transition the active feature from planning to developing.
 - `/progress-tracker:prog-done` (alias: `/prog-done`): run acceptance checks and complete current feature.
 - `/progress-tracker:prog-fix [description|BUG-ID]` (alias: `/prog-fix`): report/list/fix bugs.
 - `/progress-tracker:prog-undo` (alias: `/prog-undo`): revert most recently completed feature.

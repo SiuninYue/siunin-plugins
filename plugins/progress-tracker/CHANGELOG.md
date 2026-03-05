@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.12] - 2026-03-05
+
+### Fixed
+- `prog-start` contract and anti-regression hardening:
+  - `/prog-start` now consistently routes to `progress-tracker:prog-launcher`
+  - removed remaining `/prog start|done|next` command text from runtime/UI critical paths in favor of hyphenated forms
+  - added `quick_validate` checks to block `prog-start` alias regression (`skills/prog-start/` reintroduction or deprecated command binding)
+- Progress UI next-step actions now consistently return hyphenated commands for active and pending states (`/prog-start`, `/prog-done`, `/prog-next`).
+- Restored `quick_validate` compatibility with current `bug-fix` skill command style (`plugins/progress-tracker/prog ...`).
+- Tightened git hash validation to reject leading/trailing whitespace inputs.
+
 ## [1.6.10] - 2026-03-04
 
 ### Fixed

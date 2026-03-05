@@ -51,7 +51,9 @@ def validate_commit_hash(commit_hash: str) -> bool:
     if not commit_hash or not isinstance(commit_hash, str):
         return False
 
-    commit_hash = commit_hash.strip()
+    # Reject hashes with surrounding whitespace instead of silently normalizing.
+    if commit_hash != commit_hash.strip():
+        return False
 
     # Check for shell metacharacters first (before regex)
     if any(char in commit_hash for char in DANGEROUS_CHARS):

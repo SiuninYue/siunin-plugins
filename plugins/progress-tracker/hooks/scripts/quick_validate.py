@@ -31,6 +31,10 @@ REQUIRED_REFERENCE_FILES = [
     "skills/progress-recovery/references/communication-templates.md",
 ]
 
+PROG_START_COMMAND = "commands/prog-start.md"
+PROG_LAUNCHER_SKILL = "skills/prog-launcher/SKILL.md"
+PROG_START_ALIAS_DIR = "skills/prog-start"
+
 
 def plugin_root() -> Path:
     return Path(__file__).resolve().parents[2]
@@ -90,8 +94,8 @@ def check_bug_fix_contract(root: Path, errors: list[str]) -> None:
     if re.search(r"\bpython3\s+progress_manager\.py\b", content):
         errors.append("Found bare 'python3 progress_manager.py' path in skills/bug-fix")
 
-    if "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py" not in content:
-        errors.append("Missing '${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py' usage in skills/bug-fix")
+    if not re.search(r"\bplugins/progress-tracker/prog\b", content):
+        errors.append("Missing 'plugins/progress-tracker/prog' usage in skills/bug-fix")
 
 
 def check_main_skill_word_counts(root: Path, errors: list[str]) -> None:
@@ -110,6 +114,31 @@ def check_required_references(root: Path, errors: list[str]) -> None:
         path = root / rel_path
         if not path.exists():
             errors.append(f"Missing reference file: {path}")
+
+
+def check_prog_start_contract(root: Path, errors: list[str]) -> None:
+    command_path = root / PROG_START_COMMAND
+    launcher_skill = root / PROG_LAUNCHER_SKILL
+    alias_dir = root / PROG_START_ALIAS_DIR
+
+    if not command_path.exists():
+        errors.append(f"Missing command file: {command_path}")
+    else:
+        command_content = read_text(command_path)
+        if 'skill: "progress-tracker:prog-launcher"' not in command_content:
+            errors.append(
+                "prog-start command must invoke 'progress-tracker:prog-launcher'"
+            )
+        if 'skill: "progress-tracker:prog-start"' in command_content:
+            errors.append(
+                "Found deprecated 'progress-tracker:prog-start' binding in commands/prog-start.md"
+            )
+
+    if not launcher_skill.exists():
+        errors.append(f"Missing launcher skill file: {launcher_skill}")
+
+    if alias_dir.exists():
+        errors.append(f"Deprecated alias directory exists: {alias_dir}")
 
 
 def check_generated_docs_sync(root: Path, errors: list[str]) -> None:
@@ -136,6 +165,7 @@ def run_checks(root: Path, *, run_docs_check: bool = True) -> list[str]:
     errors: list[str] = []
 
     check_bug_fix_contract(root, errors)
+    check_prog_start_contract(root, errors)
     check_description_tokens(root, errors)
     check_main_skill_word_counts(root, errors)
     check_required_references(root, errors)

@@ -108,6 +108,10 @@ Progress Tracker 插件解决了 AI 辅助开发中的一个关键问题：**如
 
 按复杂度路由启动下一个待完成功能。
 
+### `/progress-tracker:prog-start` (别名：`/prog-start`)
+
+将当前活跃功能从规划阶段切换到开发阶段。
+
 ### `/progress-tracker:prog-done` (别名：`/prog-done`)
 
 执行验收验证并完成当前功能。

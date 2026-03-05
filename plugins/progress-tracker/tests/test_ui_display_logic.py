@@ -131,7 +131,7 @@ def test_client(working_dir):
 def test_ui_displays_prog_start_button_when_planning(test_client, working_dir):
     """
     FAILING TEST: When feature is in 'planning' stage and is active,
-    the drawer should display "开始开发" button with /prog start command.
+    the drawer should display "开始开发" button with /prog-start command.
     """
     # Set Feature 2 as active (planning stage)
     progress_file = working_dir / "docs" / "progress-tracker" / "state" / "progress.json"
@@ -150,14 +150,14 @@ def test_ui_displays_prog_start_button_when_planning(test_client, working_dir):
     action = data["actions"][0]
     assert action["label"] == "开始开发", \
         f"Expected button label '开始开发', got '{action.get('label')}'"
-    assert action["command"] == "/prog start", \
-        f"Expected command '/prog start', got '{action.get('command')}'"
+    assert action["command"] == "/prog-start", \
+        f"Expected command '/prog-start', got '{action.get('command')}'"
 
 
 def test_ui_displays_prog_done_button_when_developing(test_client, working_dir):
     """
     FAILING TEST: When feature is in 'developing' stage and is active,
-    the drawer should display "完成此功能" button with /prog done command.
+    the drawer should display "完成此功能" button with /prog-done command.
     """
     # Set Feature 3 as active (developing stage)
     progress_file = working_dir / "docs" / "progress-tracker" / "state" / "progress.json"
@@ -176,8 +176,8 @@ def test_ui_displays_prog_done_button_when_developing(test_client, working_dir):
     action = data["actions"][0]
     assert action["label"] == "完成此功能", \
         f"Expected button label '完成此功能', got '{action.get('label')}'"
-    assert action["command"] == "/prog done", \
-        f"Expected command '/prog done', got '{action.get('command')}'"
+    assert action["command"] == "/prog-done", \
+        f"Expected command '/prog-done', got '{action.get('command')}'"
 
 
 def test_ui_displays_next_step_title_when_pending(test_client, working_dir):
@@ -198,8 +198,13 @@ def test_ui_displays_next_step_title_when_pending(test_client, working_dir):
     assert data["title"] == "下一步详情", \
         f"Expected title '下一步详情' for pending feature, got '{data.get('title')}'"
 
-    # Should not have suggested actions for pending feature
-    # (actions are only for active features)
+    # Pending feature should suggest starting with hyphenated command name
+    assert len(data["actions"]) > 0, "Expected actions to be present"
+    action = data["actions"][0]
+    assert action["label"] == "开始此功能", \
+        f"Expected button label '开始此功能', got '{action.get('label')}'"
+    assert action["command"] == "/prog-next", \
+        f"Expected command '/prog-next', got '{action.get('command')}'"
 
 
 def test_ui_marks_completed_feature_as_completed(test_client, working_dir):

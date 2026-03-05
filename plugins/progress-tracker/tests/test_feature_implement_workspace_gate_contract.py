@@ -6,7 +6,7 @@ from pathlib import Path
 
 PLUGIN_ROOT = Path(__file__).parent.parent
 FEATURE_IMPLEMENT_SKILL = PLUGIN_ROOT / "skills" / "feature-implement" / "SKILL.md"
-PROG_START_SKILL = PLUGIN_ROOT / "skills" / "prog-start" / "SKILL.md"
+PROG_START_SKILL = PLUGIN_ROOT / "skills" / "prog-launcher" / "SKILL.md"
 FEATURE_COMPLEX_SKILL = PLUGIN_ROOT / "skills" / "feature-implement-complex" / "SKILL.md"
 
 

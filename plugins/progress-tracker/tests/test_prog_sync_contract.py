@@ -31,8 +31,8 @@ def test_prog_sync_command_invokes_prog_sync_skill():
 
 
 def test_prog_sync_documented_in_prog_commands_source():
-    """PROG command source doc should include /prog sync entry."""
+    """PROG command source doc should include namespaced prog-sync entry."""
     source_path = PLUGIN_ROOT / "docs" / "PROG_COMMANDS.md"
     content = source_path.read_text(encoding="utf-8")
 
-    assert "### `/prog sync`" in content
+    assert "### `/progress-tracker:prog-sync`" in content

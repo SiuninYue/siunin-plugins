@@ -1042,12 +1042,12 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
                 "sections": [
                     {
                         "type": "text",
-                        "content": "没有进行中的功能，因此无活跃计划。使用 /prog next 开始下一个功能。"
+                        "content": "没有进行中的功能，因此无活跃计划。使用 /prog-next 开始下一个功能。"
                     }
                 ],
                 "sources": [],
                 "actions": [
-                    {"label": "开始下一个功能", "command": "/prog next", "type": "copy"}
+                    {"label": "开始下一个功能", "command": "/prog-next", "type": "copy"}
                 ]
             }
 
@@ -1222,11 +1222,11 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
             action_map = {
                 "planning": {
                     "label": "开始开发",
-                    "command": "/prog start",
+                    "command": "/prog-start",
                 },
                 "developing": {
                     "label": "完成此功能",
-                    "command": "/prog done",
+                    "command": "/prog-done",
                 },
             }
             action = action_map.get(active_stage)
@@ -1260,7 +1260,7 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
                     {"path": rel_progress_path("progress.json"), "label": "进度数据"}
                 ],
                 "actions": [
-                    {"label": "开始此功能", "command": "/prog next", "type": "copy"}
+                    {"label": "开始此功能", "command": "/prog-next", "type": "copy"}
                 ]
             }
 

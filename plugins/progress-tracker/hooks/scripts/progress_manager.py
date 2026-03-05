@@ -1961,7 +1961,7 @@ def check():
         # General incomplete status (no specific feature in progress)
         print(f"[Progress Tracker] Unfinished project detected: {project_name}")
         print(f"Progress: {completed}/{total} completed")
-        print(f"Use '/prog' to view status or '/prog next' to continue")
+        print(f"Use '/prog' to view status or '/prog-next' to continue")
         return 1
 
     return 0
@@ -2007,7 +2007,7 @@ def set_current(feature_id):
     data["current_feature_id"] = feature_id
 
     # Selecting a feature for work always starts in planning stage.
-    # /prog start will explicitly transition planning -> developing.
+    # /prog-start will explicitly transition planning -> developing.
     if not feature.get("completed", False):
         feature["development_stage"] = "planning"
     _update_runtime_context(data, source="set_current")
@@ -2034,7 +2034,7 @@ def set_development_stage(stage: str, feature_id: Optional[int] = None) -> bool:
 
     target_feature_id = feature_id if feature_id is not None else data.get("current_feature_id")
     if target_feature_id is None:
-        print("Error: No active feature. Run '/prog next' first or pass --feature-id.")
+        print("Error: No active feature. Run '/prog-next' first or pass --feature-id.")
         return False
 
     features = data.get("features", [])

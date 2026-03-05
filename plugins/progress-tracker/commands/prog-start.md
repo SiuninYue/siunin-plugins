@@ -7,7 +7,7 @@ inputs:
 outputs:
   - Active feature moved to developing stage
   - started_at timestamp persisted
-  - Next-step reminder to use /prog done
+  - Next-step reminder to use /prog-done
 evidence: optional
 references: []
 model: haiku

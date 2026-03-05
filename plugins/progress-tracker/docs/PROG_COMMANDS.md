@@ -33,6 +33,10 @@ Sync project capability memory from incremental Git history with batch confirmat
 
 Start the next pending feature with deterministic complexity routing.
 
+### `/progress-tracker:prog-start` (alias: `/prog-start`)
+
+Transition the active feature from planning to developing.
+
 ### `/progress-tracker:prog-done` (alias: `/prog-done`)
 
 Run acceptance verification and complete the current feature.
@@ -130,6 +134,10 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py register-rejection
 
 按复杂度路由启动下一个待完成功能。
 
+### `/progress-tracker:prog-start` (别名：`/prog-start`)
+
+将当前活跃功能从规划阶段切换到开发阶段。
+
 ### `/progress-tracker:prog-done` (别名：`/prog-done`)
 
 执行验收验证并完成当前功能。
@@ -216,6 +224,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py register-rejection
 - `/progress-tracker:prog` (alias: `/prog`): show progress status and recommendations.
 - `/progress-tracker:prog-sync` (alias: `/prog-sync`): sync capability memory from incremental Git history.
 - `/progress-tracker:prog-next` (alias: `/prog-next`): begin next feature using deterministic routing.
+- `/progress-tracker:prog-start` (alias: `/prog-start`): transition the active feature from planning to developing.
 - `/progress-tracker:prog-done` (alias: `/prog-done`): run acceptance checks and complete the current feature.
 - `/progress-tracker:prog-fix [description|BUG-ID]` (alias: `/prog-fix`): report/list/fix bugs.
 - `/progress-tracker:prog-undo` (alias: `/prog-undo`): revert the most recently completed feature.
