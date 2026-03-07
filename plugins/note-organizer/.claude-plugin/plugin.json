@@ -1,6 +1,6 @@
 {
   "name": "note-organizer",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "description": "智能笔记整理插件 - 将 AI 提取的笔记转换为结构化知识库内容，支持文件路径或直接粘贴内容",
   "author": {
     "name": "siunin"

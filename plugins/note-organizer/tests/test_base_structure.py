@@ -2,6 +2,8 @@
 import pytest
 from pathlib import Path
 import sys
+import json
+import re
 
 # 计算插件根目录：从测试文件位置向上查找
 TEST_FILE = Path(__file__).resolve()
@@ -36,8 +38,6 @@ def test_scripts_module_exists():
 
 def test_plugin_manifest_content():
     """验证 plugin.json 内容"""
-    import json
-
     manifest_path = PLUGIN_ROOT / ".claude-plugin" / "plugin.json"
     assert manifest_path.exists(), "plugin.json 应该存在"
 
@@ -45,7 +45,8 @@ def test_plugin_manifest_content():
         manifest = json.load(f)
 
     assert manifest["name"] == "note-organizer", "插件名应为 note-organizer"
-    assert manifest["version"] == "1.0.0", "版本应为 1.0.0"
+    assert re.match(r"^\d+\.\d+\.\d+$", manifest["version"]), \
+        f"版本应为 semver 格式，实际为 {manifest['version']}"
     assert "智能笔记整理插件" in manifest["description"], "描述应包含关键词"
     assert "note-taking" in manifest["keywords"], "关键词应包含 note-taking"
 
@@ -57,4 +58,10 @@ def test_scripts_module_version():
         sys.path.insert(0, str(PLUGIN_ROOT))
 
     from scripts import __version__
-    assert __version__ == "1.0.0", f"版本应为 1.0.0，实际为 {__version__}"
+
+    manifest_path = PLUGIN_ROOT / ".claude-plugin" / "plugin.json"
+    with open(manifest_path) as f:
+        manifest = json.load(f)
+
+    assert __version__ == manifest["version"], \
+        f"scripts.__version__ 应与 manifest 版本一致，manifest={manifest['version']} scripts={__version__}"

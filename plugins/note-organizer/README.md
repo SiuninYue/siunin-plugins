@@ -7,6 +7,8 @@
 - 时间戳清理（智能清理各种格式）
 - AI 自动分类（生成层级标签）
 - 内容重组（碎片化 → 结构化）
+- 内容增强（填充 / 优化 / 改写 / 扩展）
+- 双轨增强输出（正文严格原文事实 + `[推断]` 附录草案）
 - 双平台支持（NotebookLM + Obsidian）
 - **直接粘贴内容支持** - 无需先保存文件
 
@@ -35,6 +37,39 @@
 **指定输出路径：**
 ```bash
 /note-process 粘贴的内容 --output ./my-note.md
+```
+
+### `/note-enhance` - 增强不完整内容
+
+默认输出目录：`./enhanced-notes`（与原始笔记隔离）
+
+**文件路径模式：**
+```bash
+/note-enhance ./notes/meeting.txt
+# 生成 ./enhanced-notes/meeting-enhanced-notebooklm.md
+```
+
+**直接粘贴内容模式：**
+```bash
+/note-enhance 这里粘贴待增强内容...
+# 生成 ./enhanced-notes/note-enhanced-<timestamp>-notebooklm.md
+```
+
+**指定增强模式：**
+```bash
+/note-enhance ./notes/meeting.txt --mode rewrite
+/note-enhance ./notes/meeting.txt --mode fill
+```
+
+**指定格式：**
+```bash
+/note-enhance ./notes/meeting.txt --obsidian
+```
+
+**指定输出目录 / 输出文件：**
+```bash
+/note-enhance ./notes/meeting.txt --out-dir ./notes/enhanced
+/note-enhance ./notes/meeting.txt --output ./custom/meeting-v2.md
 ```
 
 ### `/note-batch` - 批量处理
