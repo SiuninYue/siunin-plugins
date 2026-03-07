@@ -8,15 +8,35 @@
 
 ### 调用流程
 
+**文件路径模式：**
 ```
-用户输入: /note-process ./notes/meeting.txt --format notebooklm
+用户输入: /note-process ./notes/meeting.txt
     ↓
 命令层: 读取文件内容
     ↓
-Skill: organize-note 处理内容
+Skill: organize-note 处理内容（自动使用默认设置）
     ↓
 命令层: 写入 ./notes/meeting-notebooklm.md
 ```
+
+**直接粘贴内容模式：**
+```
+用户输入: /note-process [粘贴的文章内容]
+    ↓
+命令层: 直接使用粘贴内容
+    ↓
+Skill: organize-note 处理内容（自动使用默认设置）
+    ↓
+命令层: 写入 ./notes/note-2026-03-07-143022-notebooklm.md
+```
+
+### 重要规则
+
+**不询问用户任何问题**：
+- 自动使用 NotebookLM 格式（除非指定 --obsidian）
+- 自动生成元数据（标题、标签、摘要）
+- 自动清理时间戳
+- 直接输出结果
 
 ### 命令结构
 
@@ -24,23 +44,26 @@ Skill: organize-note 处理内容
 ---
 name: note-process
 scope: command
-description: 格式化单个笔记文件
+description: 格式化笔记（支持文件路径或直接粘贴内容）
 ---
 
 # note-process 命令
 
-使用 organize-note skill 格式化单个笔记文件。
+使用 organize-note skill 格式化笔记内容。
 
 ## 参数
 
-- `file`: 笔记文件路径
-- `--format`: 目标格式 (notebooklm | obsidian)
+- 输入：文件路径 或 直接粘贴的文章内容
+- `--obsidian`: 使用 Obsidian 格式（可选，默认 NotebookLM）
+- `--output <路径>`: 指定输出路径（可选）
 
 ## 处理步骤
 
-1. 读取文件内容
-2. 调用 organize-note skill
-3. 将 skill 返回的格式化文本写入输出文件
+1. 判断输入类型（文件路径 vs 直接内容）
+2. 获取内容（读取文件 或 使用粘贴内容）
+3. 确定输出路径
+4. 调用 organize-note skill
+5. 将 skill 返回的格式化文本写入输出文件
 ```
 
 ## /note-batch 命令集成
