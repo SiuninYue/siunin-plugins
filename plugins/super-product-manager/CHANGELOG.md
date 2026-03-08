@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- Beta meeting workflow command set:
+  - `/meeting`
+  - `/roundtable`
+  - `/assign`
+  - `/followup`
+- `scripts/prog_bridge.py` for SPM -> PROG synchronization via CLI-only calls.
+- `scripts/meeting_workflow.py` for meeting artifact creation and best-effort sync degradation handling.
+- Contract/unit tests for meeting commands, bridge behavior, and workflow artifact guarantees.
+
 ## [1.3.0] - 2025-01-15
 
 ### prd 技能升级 (v1.1.0 → v1.2.0)

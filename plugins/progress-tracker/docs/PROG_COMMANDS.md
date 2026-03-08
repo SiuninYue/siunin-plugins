@@ -29,6 +29,10 @@ Show current project status and recommended next action.
 
 Sync project capability memory from incremental Git history with batch confirmation.
 
+### `/progress-tracker:prog-update` (alias: `/prog-update`)
+
+Record a structured progress update entry and optional role owner assignment.
+
 ### `/progress-tracker:prog-next` (alias: `/prog-next`)
 
 Start the next pending feature with deterministic complexity routing.
@@ -89,6 +93,9 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-plan [-
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-feature <name> <test_steps...>
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py undo
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py reset [--force]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-update --category <category> --summary "<summary>" [--details "<details>"] [--feature-id <id>] [--bug-id <BUG-ID>] [--role <role>] [--owner "<owner>"] [--source <source>] [--next-action "<next>"] [--ref <token> ...]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-updates [--limit <n>]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-feature-owner <feature_id> <architecture|coding|testing> "<owner|none>"
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-bug --description "<desc>" [--status <status>] [--priority <high|medium|low>] [--category <bug|technical_debt>]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug --bug-id "BUG-XXX" [--status <status>] [--root-cause "<cause>"] [--fix-summary "<summary>"]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-bugs
@@ -129,6 +136,10 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py register-rejection
 ### `/progress-tracker:prog-sync` (别名：`/prog-sync`)
 
 从增量 Git 历史同步项目能力记忆，并进行批量确认写入。
+
+### `/progress-tracker:prog-update` (别名：`/prog-update`)
+
+记录结构化进度更新，并可选同步角色负责人。
 
 ### `/progress-tracker:prog-next` (别名：`/prog-next`)
 
@@ -190,6 +201,9 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-plan [-
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-feature <name> <test_steps...>
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py undo
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py reset [--force]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-update --category <category> --summary "<summary>" [--details "<details>"] [--feature-id <id>] [--bug-id <BUG-ID>] [--role <role>] [--owner "<owner>"] [--source <source>] [--next-action "<next>"] [--ref <token> ...]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-updates [--limit <n>]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-feature-owner <feature_id> <architecture|coding|testing> "<owner|none>"
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-bug --description "<desc>" [--status <status>] [--priority <high|medium|low>] [--category <bug|technical_debt>]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug --bug-id "BUG-XXX" [--status <status>] [--root-cause "<cause>"] [--fix-summary "<summary>"]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-bugs
@@ -223,6 +237,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py register-rejection
 - `/progress-tracker:prog-init <goal description>` (alias: `/prog-init`): initialize tracking and feature decomposition.
 - `/progress-tracker:prog` (alias: `/prog`): show progress status and recommendations.
 - `/progress-tracker:prog-sync` (alias: `/prog-sync`): sync capability memory from incremental Git history.
+- `/progress-tracker:prog-update` (alias: `/prog-update`): append structured updates and optional owner assignments.
 - `/progress-tracker:prog-next` (alias: `/prog-next`): begin next feature using deterministic routing.
 - `/progress-tracker:prog-start` (alias: `/prog-start`): transition the active feature from planning to developing.
 - `/progress-tracker:prog-done` (alias: `/prog-done`): run acceptance checks and complete the current feature.

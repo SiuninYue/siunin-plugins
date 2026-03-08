@@ -26,6 +26,8 @@ The Progress Tracker plugin solves a critical problem in AI-assisted development
 - **Deterministic Model Routing** - Explicitly routes simple/standard/complex work to haiku/sonnet/opus paths
 - **Lightweight AI Metrics** - Tracks complexity bucket, selected model, and duration (no token/cost estimation)
 - **Technical Debt Unification** - Records debt items in existing bug system via `category=technical_debt`
+- **Structured Update Stream** - Captures `status|decision|risk|handoff|assignment|meeting` updates in `updates[]`
+- **Role Ownership Tracking** - Stores `architecture|coding|testing` owners per feature for cross-team handoff clarity
 - **Lightweight Checkpoints** - Auto-saves workflow snapshots to `docs/progress-tracker/state/checkpoints.json` (no git history pollution)
 - **Worktree-Aware Recovery** - Records branch/worktree context so `/prog` and `/prog done` can warn when you resume in the wrong workspace
 - **Unified Git Preflight** - `prog git-auto-preflight --json` is the single workspace/Git risk probe used by `git-auto`, `/prog next`, and `/prog-start`
@@ -68,6 +70,10 @@ Show current project status and recommended next action.
 ### `/progress-tracker:prog-sync` (alias: `/prog-sync`)
 
 Sync project capability memory from incremental Git history with batch confirmation.
+
+### `/progress-tracker:prog-update` (alias: `/prog-update`)
+
+Record a structured progress update entry and optional role owner assignment.
 
 ### `/progress-tracker:prog-next` (alias: `/prog-next`)
 
@@ -129,6 +135,9 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-plan [-
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-feature <name> <test_steps...>
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py undo
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py reset [--force]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-update --category <category> --summary "<summary>" [--details "<details>"] [--feature-id <id>] [--bug-id <BUG-ID>] [--role <role>] [--owner "<owner>"] [--source <source>] [--next-action "<next>"] [--ref <token> ...]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-updates [--limit <n>]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-feature-owner <feature_id> <architecture|coding|testing> "<owner|none>"
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-bug --description "<desc>" [--status <status>] [--priority <high|medium|low>] [--category <bug|technical_debt>]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug --bug-id "BUG-XXX" [--status <status>] [--root-cause "<cause>"] [--fix-summary "<summary>"]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-bugs

@@ -142,6 +142,37 @@ class TestProgressLoadSave:
         loaded = json.loads(progress_file.read_text())
         assert loaded["project_name"] == "Save Test"
 
+    def test_load_progress_json_backfills_updates_and_owners_defaults(self, temp_dir):
+        """Should backfill updates[] and feature owners defaults on load."""
+        state_dir = temp_dir / "docs" / "progress-tracker" / "state"
+        state_dir.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "project_name": "Legacy Project",
+            "created_at": "2024-01-01T00:00:00Z",
+            "features": [
+                {"id": 1, "name": "Legacy Feature", "test_steps": ["Step 1"], "completed": False},
+                {
+                    "id": 2,
+                    "name": "Partial Owners",
+                    "test_steps": ["Step 2"],
+                    "completed": False,
+                    "owners": {"coding": "alice"},
+                },
+            ],
+            "current_feature_id": None,
+        }
+        (state_dir / "progress.json").write_text(json.dumps(payload), encoding="utf-8")
+
+        data = progress_manager.load_progress_json()
+
+        assert data["updates"] == []
+        owners_1 = data["features"][0]["owners"]
+        owners_2 = data["features"][1]["owners"]
+        assert owners_1 == {"architecture": None, "coding": None, "testing": None}
+        assert owners_2["coding"] == "alice"
+        assert owners_2["architecture"] is None
+        assert owners_2["testing"] is None
+
 
 class TestContextComparison:
     """Test execution/runtime context comparison semantics."""
@@ -239,6 +270,37 @@ class TestStatusDisplay:
         assert "In Progress Feature" in captured.out
         assert "in progress" in captured.out.lower()
 
+    def test_status_shows_recent_updates_and_owner_assignments(self, progress_file, capsys):
+        """Should include latest updates and owner assignments in status output."""
+        data = progress_manager.load_progress_json()
+        feature = next(f for f in data["features"] if f["id"] == 2)
+        feature["owners"] = {"architecture": "lisa", "coding": "alice", "testing": None}
+        data["updates"] = [
+            {
+                "id": "UPD-001",
+                "created_at": "2026-03-09T00:00:00Z",
+                "category": "meeting",
+                "summary": "Kickoff complete",
+                "details": None,
+                "feature_id": 2,
+                "bug_id": None,
+                "role": "coding",
+                "owner": "alice",
+                "source": "spm_meeting",
+                "next_action": None,
+                "refs": [],
+            }
+        ]
+        progress_manager.save_progress_json(data)
+
+        progress_manager.status()
+        captured = capsys.readouterr()
+
+        assert "Recent Updates" in captured.out
+        assert "UPD-001" in captured.out
+        assert "Kickoff complete" in captured.out
+        assert "Owners: architecture=lisa, coding=alice" in captured.out
+
 
 class TestCurrentFeature:
     """Test current feature management."""
@@ -316,6 +378,34 @@ class TestProgressMdGeneration:
 
         md_file = temp_dir / "docs" / "progress-tracker" / "state" / "progress.md"
         assert md_file.read_text() == "# Test Content"
+
+    def test_generate_progress_md_includes_owners_and_recent_updates(self, progress_file):
+        """Markdown should include owner assignments and recent updates section."""
+        data = progress_manager.load_progress_json()
+        feature = next(f for f in data["features"] if f["id"] == 2)
+        feature["owners"] = {"architecture": None, "coding": "alice", "testing": "qa-bot"}
+        data["updates"] = [
+            {
+                "id": "UPD-002",
+                "created_at": "2026-03-09T00:10:00Z",
+                "category": "assignment",
+                "summary": "Assigned coding owner",
+                "details": None,
+                "feature_id": 2,
+                "bug_id": None,
+                "role": "coding",
+                "owner": "alice",
+                "source": "spm_assign",
+                "next_action": "Start implementation",
+                "refs": [],
+            }
+        ]
+
+        md_content = progress_manager.generate_progress_md(data)
+
+        assert "Owners: coding=alice, testing=qa-bot" in md_content
+        assert "## Recent Updates" in md_content
+        assert "[UPD-002] assignment: Assigned coding owner" in md_content
 
 
 class TestReset:
@@ -879,6 +969,47 @@ class TestMainFunction:
         with patch("sys.argv", ["progress_manager.py", "update-feature", "2", "RenamedFeature", "new-step"]):
             result = progress_manager.main()
             assert result is True
+
+    def test_main_add_update_command_writes_update_item(self, progress_file):
+        """Should handle add-update command and persist update payload."""
+        with patch(
+            "sys.argv",
+            [
+                "progress_manager.py",
+                "add-update",
+                "--category",
+                "meeting",
+                "--summary",
+                "Kickoff completed",
+                "--source",
+                "manual",
+            ],
+        ):
+            result = progress_manager.main()
+            assert result is True
+
+        data = progress_manager.load_progress_json()
+        assert len(data["updates"]) == 1
+        update = data["updates"][0]
+        assert update["id"].startswith("UPD-")
+        assert update["category"] == "meeting"
+        assert update["summary"] == "Kickoff completed"
+        assert update["source"] == "manual"
+
+    def test_main_set_feature_owner_updates_role_owner(self, progress_file):
+        """Should handle set-feature-owner command for architecture/coding/testing roles."""
+        with patch(
+            "sys.argv",
+            ["progress_manager.py", "set-feature-owner", "2", "coding", "alice"],
+        ):
+            result = progress_manager.main()
+            assert result is True
+
+        data = progress_manager.load_progress_json()
+        feature = next(f for f in data["features"] if f["id"] == 2)
+        assert feature["owners"]["coding"] == "alice"
+        assert feature["owners"]["architecture"] is None
+        assert feature["owners"]["testing"] is None
 
     def test_main_set_current_command(self, progress_file):
         """Should handle set-current command."""

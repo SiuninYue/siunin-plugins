@@ -85,6 +85,9 @@ PROGRESS_ARCHIVE_MAX_ENTRIES = 200
 # Schema version - increment when breaking changes occur
 CURRENT_SCHEMA_VERSION = "2.0"
 DEVELOPMENT_STAGES = ("planning", "developing", "completed")
+OWNER_ROLES = ("architecture", "coding", "testing")
+UPDATE_CATEGORIES = ("status", "decision", "risk", "handoff", "assignment", "meeting")
+UPDATE_SOURCES = ("prog_update", "spm_meeting", "spm_assign", "manual")
 
 # Bug field standards (for consistency)
 BUG_REQUIRED_FIELDS = ["id", "description", "status", "priority", "created_at"]
@@ -420,6 +423,40 @@ def validate_plan_document(plan_path: str) -> Dict[str, Any]:
     }
 
 
+def _default_owners() -> Dict[str, Optional[str]]:
+    """Build default feature owners payload for known roles."""
+    return {role: None for role in OWNER_ROLES}
+
+
+def _normalize_feature_owners(feature: Dict[str, Any]) -> None:
+    """Ensure feature owners map exists with known role keys."""
+    owners = feature.get("owners")
+    if not isinstance(owners, dict):
+        owners = {}
+    for role in OWNER_ROLES:
+        owners.setdefault(role, None)
+    feature["owners"] = owners
+
+
+def _apply_schema_defaults(data: Dict[str, Any]) -> None:
+    """Backfill backward-compatible defaults for evolving schema fields."""
+    if "schema_version" not in data:
+        data["schema_version"] = CURRENT_SCHEMA_VERSION
+
+    features = data.get("features")
+    if not isinstance(features, list):
+        features = []
+    data["features"] = features
+    for feature in features:
+        if isinstance(feature, dict):
+            _normalize_feature_owners(feature)
+
+    updates = data.get("updates")
+    if not isinstance(updates, list):
+        updates = []
+    data["updates"] = [item for item in updates if isinstance(item, dict)]
+
+
 def load_progress_json():
     """Load the progress.json file."""
     progress_dir = get_progress_dir()
@@ -430,7 +467,12 @@ def load_progress_json():
 
     try:
         with open(json_path, "r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+            if not isinstance(data, dict):
+                print(f"Error: {json_path} is not a valid JSON object.")
+                return None
+            _apply_schema_defaults(data)
+            return data
     except json.JSONDecodeError:
         print(f"Error: {json_path} is corrupted.")
         return None
@@ -449,14 +491,11 @@ def save_progress_json(data, touch_updated_at: bool = True):
     # Ensure state directory exists
     progress_dir.mkdir(parents=True, exist_ok=True)
 
+    _apply_schema_defaults(data)
+
     # Auto-update updated_at timestamp
     if touch_updated_at:
         data["updated_at"] = _iso_now()
-
-    # Ensure schema_version exists (migrate old files)
-    if "schema_version" not in data:
-        data["schema_version"] = CURRENT_SCHEMA_VERSION
-        logger.info(f"Migrated to schema version {CURRENT_SCHEMA_VERSION}")
 
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
@@ -1274,12 +1313,18 @@ def status():
         for f in features:
             if f.get("completed", False):
                 print(f"  [x] {f.get('name', 'Unknown')}")
+                owner_summary = _format_feature_owners(f)
+                if owner_summary:
+                    print(f"     Owners: {owner_summary}")
 
     if in_progress:
         print("\n### In Progress:")
         for f in features:
             if f.get("id") == current_id:
                 print(f"  [*] {f.get('name', 'Unknown')}")
+                owner_summary = _format_feature_owners(f)
+                if owner_summary:
+                    print(f"     Owners: {owner_summary}")
                 test_steps = f.get("test_steps", [])
                 if test_steps:
                     print("     Test steps:")
@@ -1295,6 +1340,23 @@ def status():
         print("\n### Pending:")
         for f in remaining:
             print(f"  [ ] {f.get('name', 'Unknown')}")
+            owner_summary = _format_feature_owners(f)
+            if owner_summary:
+                print(f"     Owners: {owner_summary}")
+
+    updates = data.get("updates", [])
+    if updates:
+        print("\n### Recent Updates:")
+        for update in updates[-5:]:
+            line = (
+                f"  [{update.get('id', 'UPD-???')}] "
+                f"{update.get('category', 'status')}: {update.get('summary', '')}"
+            )
+            if update.get("feature_id") is not None:
+                line += f" (feature:{update['feature_id']})"
+            if update.get("role") and update.get("owner"):
+                line += f" [{update['role']}={update['owner']}]"
+            print(line)
 
     return True
 
@@ -2493,6 +2555,172 @@ def undo_last_feature():
     return True
 
 
+def _next_update_id(updates: List[Dict[str, Any]]) -> str:
+    """Generate the next UPD-XXX identifier."""
+    max_num = 0
+    for item in updates:
+        update_id = str(item.get("id", ""))
+        match = re.match(r"^UPD-(\d+)$", update_id)
+        if match:
+            max_num = max(max_num, int(match.group(1)))
+    return f"UPD-{max_num + 1:03d}"
+
+
+def _format_feature_owners(feature: Dict[str, Any]) -> Optional[str]:
+    """Format non-empty feature owners as a compact status string."""
+    owners = feature.get("owners")
+    if not isinstance(owners, dict):
+        return None
+    populated = []
+    for role in OWNER_ROLES:
+        value = owners.get(role)
+        if isinstance(value, str) and value.strip():
+            populated.append(f"{role}={value.strip()}")
+    if not populated:
+        return None
+    return ", ".join(populated)
+
+
+def add_update(
+    category: str,
+    summary: str,
+    details: Optional[str] = None,
+    feature_id: Optional[int] = None,
+    bug_id: Optional[str] = None,
+    role: Optional[str] = None,
+    owner: Optional[str] = None,
+    source: str = "prog_update",
+    next_action: Optional[str] = None,
+    refs: Optional[List[str]] = None,
+) -> bool:
+    """Append a structured update entry into progress.json."""
+    data = load_progress_json()
+    if not data:
+        print("No progress tracking found. Use init first.")
+        return False
+
+    normalized_category = (category or "").strip().lower()
+    if normalized_category not in UPDATE_CATEGORIES:
+        print(
+            "Error: Invalid category "
+            f"'{category}'. Allowed: {', '.join(UPDATE_CATEGORIES)}"
+        )
+        return False
+
+    normalized_summary = (summary or "").strip()
+    if not normalized_summary:
+        print("Error: summary cannot be empty")
+        return False
+
+    normalized_role = None
+    if role:
+        normalized_role = role.strip().lower()
+        if normalized_role not in OWNER_ROLES:
+            print(f"Error: Invalid role '{role}'. Allowed: {', '.join(OWNER_ROLES)}")
+            return False
+
+    normalized_owner = owner.strip() if isinstance(owner, str) else owner
+    if normalized_owner and not normalized_role:
+        print("Error: owner requires role")
+        return False
+
+    normalized_source = (source or "").strip().lower()
+    if normalized_source not in UPDATE_SOURCES:
+        print(
+            "Error: Invalid source "
+            f"'{source}'. Allowed: {', '.join(UPDATE_SOURCES)}"
+        )
+        return False
+
+    if feature_id is not None:
+        features = data.get("features", [])
+        if not any(f.get("id") == feature_id for f in features):
+            print(f"Error: Feature ID {feature_id} not found")
+            return False
+
+    updates = data.setdefault("updates", [])
+    created_at = _iso_now()
+    update_item = {
+        "id": _next_update_id(updates),
+        "created_at": created_at,
+        "category": normalized_category,
+        "summary": normalized_summary,
+        "details": details.strip() if isinstance(details, str) and details.strip() else None,
+        "feature_id": feature_id,
+        "bug_id": bug_id.strip() if isinstance(bug_id, str) and bug_id.strip() else None,
+        "role": normalized_role,
+        "owner": normalized_owner if normalized_owner else None,
+        "source": normalized_source,
+        "next_action": (
+            next_action.strip()
+            if isinstance(next_action, str) and next_action.strip()
+            else None
+        ),
+        "refs": [ref for ref in (refs or []) if isinstance(ref, str) and ref.strip()],
+    }
+    updates.append(update_item)
+
+    save_progress_json(data)
+    save_progress_md(generate_progress_md(data))
+    print(f"Added update {update_item['id']}: {update_item['category']} - {update_item['summary']}")
+    return True
+
+
+def list_updates(limit: int = 10) -> bool:
+    """List the latest structured updates."""
+    data = load_progress_json()
+    if not data:
+        print("No progress tracking found")
+        return False
+
+    updates = data.get("updates", [])
+    if not updates:
+        print("No updates recorded.")
+        return True
+
+    safe_limit = max(1, limit)
+    print(f"Showing latest {min(safe_limit, len(updates))} update(s):")
+    for item in updates[-safe_limit:]:
+        line = f"- [{item.get('id', 'UPD-???')}] {item.get('category', 'status')}: {item.get('summary', '')}"
+        if item.get("feature_id") is not None:
+            line += f" (feature:{item['feature_id']})"
+        if item.get("role") and item.get("owner"):
+            line += f" [{item['role']}={item['owner']}]"
+        print(line)
+    return True
+
+
+def set_feature_owner(feature_id: int, role: str, owner: str) -> bool:
+    """Set feature owner for a specific role."""
+    data = load_progress_json()
+    if not data:
+        print("No progress tracking found. Use init first.")
+        return False
+
+    normalized_role = (role or "").strip().lower()
+    if normalized_role not in OWNER_ROLES:
+        print(f"Error: Invalid role '{role}'. Allowed: {', '.join(OWNER_ROLES)}")
+        return False
+
+    normalized_owner = (owner or "").strip()
+    owner_value = None if normalized_owner.lower() in {"", "-", "none", "null"} else normalized_owner
+
+    features = data.get("features", [])
+    feature = next((f for f in features if f.get("id") == feature_id), None)
+    if not feature:
+        print(f"Feature ID {feature_id} not found")
+        return False
+
+    _normalize_feature_owners(feature)
+    feature["owners"][normalized_role] = owner_value
+
+    save_progress_json(data)
+    save_progress_md(generate_progress_md(data))
+    assigned = owner_value if owner_value is not None else "None"
+    print(f"Set owner: feature {feature_id} {normalized_role} -> {assigned}")
+    return True
+
+
 def add_feature(name, test_steps):
     """Add a new feature to the tracking."""
     data = load_progress_json()
@@ -2511,6 +2739,7 @@ def add_feature(name, test_steps):
         "name": name,
         "test_steps": test_steps,
         "completed": False,
+        "owners": _default_owners(),
     }
 
     features.append(new_feature)
@@ -3268,12 +3497,18 @@ def generate_progress_md(data):
         md_lines.append("## Completed")
         for f in completed:
             md_lines.append(f"- [x] {f.get('name', 'Unknown')}")
+            owner_summary = _format_feature_owners(f)
+            if owner_summary:
+                md_lines.append(f"  Owners: {owner_summary}")
         md_lines.append("")
 
     if in_progress:
         md_lines.append("## In Progress")
         for f in in_progress:
             md_lines.append(f"- [ ] {f.get('name', 'Unknown')}")
+            owner_summary = _format_feature_owners(f)
+            if owner_summary:
+                md_lines.append(f"  Owners: {owner_summary}")
             test_steps = f.get("test_steps", [])
             if test_steps:
                 md_lines.append("  **Test steps**:")
@@ -3285,6 +3520,9 @@ def generate_progress_md(data):
         md_lines.append("## Pending")
         for f in pending:
             md_lines.append(f"- [ ] {f.get('name', 'Unknown')}")
+            owner_summary = _format_feature_owners(f)
+            if owner_summary:
+                md_lines.append(f"  Owners: {owner_summary}")
         md_lines.append("")
 
     if current_id and workflow_state:
@@ -3319,6 +3557,23 @@ def generate_progress_md(data):
                 f"(expected {context_hint.get('expected_branch') or '?'} @ "
                 f"{context_hint.get('expected_worktree_path') or '?'})"
             )
+        md_lines.append("")
+
+    updates = data.get("updates", [])
+    if updates:
+        md_lines.append("## Recent Updates")
+        for update in updates[-5:]:
+            line = (
+                f"- [{update.get('id', 'UPD-???')}] "
+                f"{update.get('category', 'status')}: {update.get('summary', '')}"
+            )
+            if update.get("feature_id") is not None:
+                line += f" (feature:{update['feature_id']})"
+            if update.get("role") and update.get("owner"):
+                line += f" [{update['role']}={update['owner']}]"
+            md_lines.append(line)
+            if update.get("next_action"):
+                md_lines.append(f"  Next: {update['next_action']}")
         md_lines.append("")
 
     # Add bugs section if any exist
@@ -3468,6 +3723,41 @@ def main():
     update_parser.add_argument(
         "test_steps", nargs="*", help="Updated test steps (optional)"
     )
+
+    # Structured updates commands
+    add_update_parser = subparsers.add_parser(
+        "add-update", help="Append a structured progress update entry"
+    )
+    add_update_parser.add_argument("--category", required=True, help="Update category")
+    add_update_parser.add_argument("--summary", required=True, help="Short summary")
+    add_update_parser.add_argument("--details", help="Additional details")
+    add_update_parser.add_argument("--feature-id", type=int, help="Related feature ID")
+    add_update_parser.add_argument("--bug-id", help="Related bug ID")
+    add_update_parser.add_argument("--role", help="Role: architecture|coding|testing")
+    add_update_parser.add_argument("--owner", help="Owner for the role")
+    add_update_parser.add_argument(
+        "--source",
+        default="prog_update",
+        help="Source: prog_update|spm_meeting|spm_assign|manual",
+    )
+    add_update_parser.add_argument("--next-action", help="Suggested next action")
+    add_update_parser.add_argument(
+        "--ref",
+        action="append",
+        dest="refs",
+        default=[],
+        help="Reference token (repeatable)",
+    )
+
+    list_updates_parser = subparsers.add_parser("list-updates", help="List recent updates")
+    list_updates_parser.add_argument("--limit", type=int, default=10, help="Max updates to show")
+
+    set_owner_parser = subparsers.add_parser(
+        "set-feature-owner", help="Assign feature owner for a role"
+    )
+    set_owner_parser.add_argument("feature_id", type=int, help="Feature ID")
+    set_owner_parser.add_argument("role", help="Role: architecture|coding|testing")
+    set_owner_parser.add_argument("owner", help="Owner name (use 'none' to clear)")
 
     # Undo command
     subparsers.add_parser("undo", help="Undo last completed feature")
@@ -3625,6 +3915,23 @@ def main():
         return update_feature(
             args.feature_id, args.name, args.test_steps if args.test_steps else None
         )
+    elif args.command == "add-update":
+        return add_update(
+            category=args.category,
+            summary=args.summary,
+            details=args.details,
+            feature_id=args.feature_id,
+            bug_id=args.bug_id,
+            role=args.role,
+            owner=args.owner,
+            source=args.source,
+            next_action=args.next_action,
+            refs=args.refs,
+        )
+    elif args.command == "list-updates":
+        return list_updates(limit=args.limit)
+    elif args.command == "set-feature-owner":
+        return set_feature_owner(args.feature_id, args.role, args.owner)
     elif args.command == "undo":
         return undo_last_feature()
     elif args.command == "reset":

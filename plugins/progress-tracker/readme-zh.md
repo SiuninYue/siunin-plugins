@@ -104,6 +104,10 @@ Progress Tracker 插件解决了 AI 辅助开发中的一个关键问题：**如
 
 从增量 Git 历史同步项目能力记忆，并进行批量确认写入。
 
+### `/progress-tracker:prog-update` (别名：`/prog-update`)
+
+记录结构化进度更新，并可选同步角色负责人。
+
 ### `/progress-tracker:prog-next` (别名：`/prog-next`)
 
 按复杂度路由启动下一个待完成功能。
@@ -164,6 +168,9 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-plan [-
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-feature <name> <test_steps...>
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py undo
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py reset [--force]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-update --category <category> --summary "<summary>" [--details "<details>"] [--feature-id <id>] [--bug-id <BUG-ID>] [--role <role>] [--owner "<owner>"] [--source <source>] [--next-action "<next>"] [--ref <token> ...]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-updates [--limit <n>]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-feature-owner <feature_id> <architecture|coding|testing> "<owner|none>"
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-bug --description "<desc>" [--status <status>] [--priority <high|medium|low>] [--category <bug|technical_debt>]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug --bug-id "BUG-XXX" [--status <status>] [--root-cause "<cause>"] [--fix-summary "<summary>"]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-bugs
