@@ -13,9 +13,9 @@ outputs:
 evidence: optional
 references:
   - "testing-standards"
-  - "requesting-code-review"
-  - "verification-before-completion"
-  - "finishing-a-development-branch"
+  - "superpowers:requesting-code-review"
+  - "superpowers:verification-before-completion"
+  - "superpowers:finishing-a-development-branch"
   - "./references/verification-playbook.md"
   - "./references/session-examples.md"
 ---
@@ -89,7 +89,7 @@ Detailed checklists and output templates are in `references/verification-playboo
 Before claiming pass, invoke:
 
 ```text
-Skill("verification-before-completion", args="Verify acceptance evidence for feature <feature_id>")
+Skill("superpowers:verification-before-completion", args="Verify acceptance evidence for feature <feature_id>")
 ```
 
 ### Step 5: Handle Verification Result
@@ -100,7 +100,7 @@ Skill("verification-before-completion", args="Verify acceptance evidence for fea
 2. Run final code review if none was recorded during implementation:
 
 ```text
-Skill("requesting-code-review", args="Final review before marking feature <feature_id> complete")
+Skill("superpowers:requesting-code-review", args="Final review before marking feature <feature_id> complete")
 ```
 
 3. Ensure no unresolved Critical/Important review findings remain.
@@ -170,7 +170,7 @@ EXISTING_PR_URL=$(gh pr list --head "$CURRENT_BRANCH" --json url --jq '.[0].url'
 - If no existing PR and user wants immediate integration/cleanup, invoke:
 
 ```text
-Skill("finishing-a-development-branch", args="Complete branch integration after progress-tracker project completion")
+Skill("superpowers:finishing-a-development-branch", args="Complete branch integration after progress-tracker project completion")
 ```
 
 #### Fail Path

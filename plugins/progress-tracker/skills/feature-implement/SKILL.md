@@ -12,13 +12,13 @@ outputs:
   - 注意事项与检查项
 evidence: optional
 references:
-  - "brainstorming"
-  - "using-git-worktrees"
-  - "writing-plans"
-  - "subagent-driven-development"
-  - "test-driven-development"
-  - "requesting-code-review"
-  - "verification-before-completion"
+  - "superpowers:brainstorming"
+  - "superpowers:using-git-worktrees"
+  - "superpowers:writing-plans"
+  - "superpowers:subagent-driven-development"
+  - "superpowers:test-driven-development"
+  - "superpowers:requesting-code-review"
+  - "superpowers:verification-before-completion"
   - "./references/complexity-assessment.md"
   - "./references/superpowers-integration.md"
   - "./references/session-playbook.md"
@@ -44,6 +44,17 @@ Coordinate `/prog next` execution by selecting the next feature, routing to the 
 - `/prog next` command execution.
 - Recovery-driven continuation after interrupted feature work.
 - Any request to start or continue the next pending feature.
+
+## Execution Context Requirements
+
+**CRITICAL**: All `plugins/progress-tracker/prog` commands MUST be executed from the project root directory.
+
+If not already in the project root, first run:
+```bash
+cd <project-root>
+```
+
+The `prog` tool uses relative paths and requires being in the correct project directory to resolve files correctly.
 
 ## Required Read Order
 
