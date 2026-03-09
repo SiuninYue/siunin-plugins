@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.13] - 2026-03-10
+
+### Fixed
+- AI command misinterpretation bug in skill documentation:
+  - Fixed issue where command references in parentheses like (`/prog`, `/prog next`) were being misinterpreted by AI as executable commands
+  - Updated `feature-complete`, `feature-implement`, `superpowers-integration`, and `testing-standards` skills to use descriptive text format instead
+  - Root cause: Parenthetical command references triggered AI command execution during skill processing
+
 ## [1.6.12] - 2026-03-05
 
 ### Fixed
