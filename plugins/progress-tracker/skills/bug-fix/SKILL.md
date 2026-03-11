@@ -12,9 +12,9 @@ outputs:
 evidence: optional
 references:
   - "testing-standards"
-  - "systematic-debugging"
-  - "test-driven-development"
-  - "requesting-code-review"
+  - "superpowers:systematic-debugging"
+  - "superpowers:test-driven-development"
+  - "superpowers:requesting-code-review"
   - "references/workflow.md"
   - "references/integration.md"
   - "examples/session.md"

@@ -2,7 +2,7 @@
 name: git-auto
 description: This skill should be used when the user asks to "create a git commit", "commit changes", "commit and push", "make a commit", "handle git", "git auto", "git auto start", "git auto done", or "git auto fix", or needs git operations automated with branch/PR/merge decisions.
 model: sonnet
-version: "2.0.1"
+version: "2.1.0"
 scope: skill
 inputs:
   - Current git repository state
@@ -13,12 +13,13 @@ outputs:
   - Execution results after confirmation or autorun
 evidence: optional
 references:
-  - "using-git-worktrees"
+  - "superpowers:using-git-worktrees"
   - "./references/enforcement-modes.md"
   - "./references/repo-policy-probe.md"
   - "./references/change-classification.md"
   - "./references/worktree-decision.md"
   - "./references/closeout-and-recovery.md"
+  - "./references/pr-maintenance.md"
 ---
 
 # Git Auto
@@ -144,6 +145,18 @@ Every plan MUST print:
 - If push fails with `GH006`, preserve local commits and switch to branch + PR fallback.
 - Merge execution is allowed only for `Execution Intent=commit_push_pr_merge` and all merge gates pass.
 
+## PR Maintenance Extensions (Comments + CI)
+
+`git-auto` MAY run a post-push PR maintenance lane when users ask to address review comments and/or fix CI.
+
+Core rules (details in `references/pr-maintenance.md`):
+
+- Keep stable command interface unchanged.
+- Run `gh auth status` before any `gh` operations.
+- Use activation modes: `address-comments`, `fix-ci`, `address-comments+fix-ci`.
+- Block merge for `commit_push_pr_merge` when required checks are failing.
+- Treat non-GitHub-Actions checks as external and report details URL only.
+
 ## Lightweight Autorun
 
 When intent includes push/PR and low-risk conditions are satisfied, autorun MAY execute without extra confirmation.
@@ -176,6 +189,13 @@ Strategy Reason: ...
 3. ...
 ```
 
+Optional lines when PR maintenance is active:
+
+- `PR Maintenance: <none|address-comments|fix-ci|address-comments+fix-ci>`
+- `PR URL: <url|n/a>`
+- `CI Status: <green|failing|unknown|external-checks>`
+- `Comment Status: <none|pending|resolved|unknown>`
+
 ## References
 
 - Enforcement rules: `references/enforcement-modes.md`
@@ -183,6 +203,7 @@ Strategy Reason: ...
 - Classification and strategy: `references/change-classification.md`
 - Worktree decision contract: `references/worktree-decision.md`
 - Autorun/closeout/recovery: `references/closeout-and-recovery.md`
+- PR maintenance lane: `references/pr-maintenance.md`
 
 ## Compatibility Guarantees
 

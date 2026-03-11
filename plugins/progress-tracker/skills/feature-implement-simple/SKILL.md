@@ -16,9 +16,9 @@ outputs:
   - ai_metrics update
 evidence: optional
 references:
-  - "test-driven-development"
-  - "requesting-code-review"
-  - "verification-before-completion"
+  - "superpowers:test-driven-development"
+  - "superpowers:requesting-code-review"
+  - "superpowers:verification-before-completion"
 ---
 
 # Purpose
@@ -45,6 +45,17 @@ Read:
 
 Write:
 - `docs/progress-tracker/state/progress.json` via `progress_manager.py`
+
+# Execution Context Requirements
+
+**CRITICAL**: All `plugins/progress-tracker/prog` commands MUST be executed from the project root directory.
+
+If not already in the project root, first run:
+```bash
+cd <project-root>
+```
+
+The `prog` tool uses relative paths and requires being in the correct project directory to resolve files correctly.
 
 # Steps
 
