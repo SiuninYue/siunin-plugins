@@ -4,10 +4,17 @@ Core functionality tests for progress_manager.py
 
 import json
 import os
+import subprocess
 import sys
+import time
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 import pytest
+
+try:
+    import fcntl  # POSIX only
+except ImportError:  # pragma: no cover
+    fcntl = None
 
 # Import progress_manager module
 SCRIPT_DIR = Path(__file__).parent.parent / "hooks" / "scripts"
@@ -55,6 +62,194 @@ class TestProjectRootDetection:
         os.chdir(temp_dir)
 
         assert progress_manager.configure_project_scope(None) is False
+
+    def test_scope_baseline_monorepo_root_next_feature_requires_explicit_scope(
+        self, temp_dir, capsys
+    ):
+        """
+        Feature 4 scope contract: next-feature must fail closed in monorepo root
+        when --project-root is omitted.
+        """
+        os.system(f"git -C {temp_dir} init >/dev/null 2>&1")
+        plugin_root = temp_dir / "plugins" / "note-organizer"
+        plugin_root.mkdir(parents=True)
+        os.chdir(temp_dir)
+
+        assert progress_manager.configure_project_scope("plugins/note-organizer") is True
+        assert progress_manager.init_tracking("Scope Baseline", force=True) is True
+        assert progress_manager.add_feature("Feature 1", ["Step 1"]) is True
+
+        progress_manager._PROJECT_ROOT_OVERRIDE = None
+        progress_manager._REPO_ROOT = None
+        progress_manager._STORAGE_READY_ROOT = None
+
+        with patch("sys.argv", ["progress_manager.py", "next-feature", "--json"]):
+            result = progress_manager.main()
+
+        captured = capsys.readouterr()
+        assert result is False
+        assert "Ambiguous monorepo scope" in captured.out
+
+    def test_scope_dot_project_root_from_plugin_dir_targets_plugin_root(self, temp_dir, capsys):
+        """`--project-root .` should resolve against cwd when invoked inside a plugin root."""
+        os.system(f"git -C {temp_dir} init >/dev/null 2>&1")
+        plugin_root = temp_dir / "plugins" / "note-organizer"
+        plugin_root.mkdir(parents=True)
+        os.chdir(plugin_root)
+
+        assert progress_manager.configure_project_scope(".") is True
+        assert progress_manager.init_tracking("Dot Scope", force=True) is True
+        assert progress_manager.add_feature("Feature 1", ["Step 1"]) is True
+
+        progress_manager._PROJECT_ROOT_OVERRIDE = None
+        progress_manager._REPO_ROOT = None
+        progress_manager._STORAGE_READY_ROOT = None
+
+        with patch(
+            "sys.argv",
+            ["progress_manager.py", "--project-root", ".", "next-feature", "--json"],
+        ):
+            result = progress_manager.main()
+
+        captured = capsys.readouterr()
+        assert result is True
+        payload = json.loads([line for line in captured.out.splitlines() if line.strip()][-1])
+        assert payload["status"] == "ok"
+        assert payload["feature_id"] == 1
+
+    def test_scope_monorepo_root_next_feature_recovers_with_explicit_project_root(
+        self, temp_dir, capsys
+    ):
+        """After root-scope failure, explicit --project-root should recover deterministically."""
+        os.system(f"git -C {temp_dir} init >/dev/null 2>&1")
+        plugin_root = temp_dir / "plugins" / "note-organizer"
+        plugin_root.mkdir(parents=True)
+        os.chdir(temp_dir)
+
+        assert progress_manager.configure_project_scope("plugins/note-organizer") is True
+        assert progress_manager.init_tracking("Scope Recovery", force=True) is True
+        assert progress_manager.add_feature("Feature 1", ["Step 1"]) is True
+
+        progress_manager._PROJECT_ROOT_OVERRIDE = None
+        progress_manager._REPO_ROOT = None
+        progress_manager._STORAGE_READY_ROOT = None
+
+        with patch("sys.argv", ["progress_manager.py", "next-feature", "--json"]):
+            first_result = progress_manager.main()
+        first_output = capsys.readouterr().out
+
+        assert first_result is False
+        assert "Ambiguous monorepo scope" in first_output
+
+        with patch(
+            "sys.argv",
+            [
+                "progress_manager.py",
+                "--project-root",
+                "plugins/note-organizer",
+                "next-feature",
+                "--json",
+            ],
+        ):
+            second_result = progress_manager.main()
+        second_output = capsys.readouterr().out
+
+        assert second_result is True
+        payload = json.loads([line for line in second_output.splitlines() if line.strip()][-1])
+        assert payload["status"] == "ok"
+        assert payload["feature_id"] == 1
+
+
+class TestTransactionAndLocking:
+    """Test transaction/lock behavior for concurrent state mutations."""
+
+    @pytest.mark.skipif(fcntl is None, reason="fcntl lock tests require POSIX")
+    def test_transaction_lock_blocks_parallel_mutation_command(self, temp_dir):
+        """A held progress lock should block another mutating CLI command until released."""
+        os.chdir(temp_dir)
+        assert progress_manager.init_tracking("Lock Blocking", force=True) is True
+        script_path = Path(progress_manager.__file__).resolve()
+
+        lock_path = temp_dir / "docs" / "progress-tracker" / "state" / "progress.lock"
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(lock_path, "a+", encoding="utf-8") as lock_handle:
+            fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX)
+
+            proc = subprocess.Popen(
+                [
+                    sys.executable,
+                    str(script_path),
+                    "--project-root",
+                    str(temp_dir),
+                    "add-update",
+                    "--category",
+                    "status",
+                    "--summary",
+                    "blocked until lock release",
+                    "--source",
+                    "manual",
+                ],
+                cwd=temp_dir,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+
+            time.sleep(0.25)
+            assert proc.poll() is None, "mutating command should block while lock is held"
+            fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
+
+        stdout, stderr = proc.communicate(timeout=10)
+        assert proc.returncode == 0, f"stdout={stdout}\nstderr={stderr}"
+
+        data = progress_manager.load_progress_json()
+        summaries = [update.get("summary") for update in data.get("updates", [])]
+        assert "blocked until lock release" in summaries
+
+    def test_concurrent_add_update_commands_preserve_all_updates(self, temp_dir):
+        """Concurrent add-update commands should not lose updates under transaction lock."""
+        os.chdir(temp_dir)
+        assert progress_manager.init_tracking("Concurrent Updates", force=True) is True
+        script_path = Path(progress_manager.__file__).resolve()
+
+        summaries = [f"concurrent-update-{idx}" for idx in range(12)]
+        procs = []
+        for summary in summaries:
+            procs.append(
+                subprocess.Popen(
+                    [
+                        sys.executable,
+                        str(script_path),
+                        "--project-root",
+                        str(temp_dir),
+                        "add-update",
+                        "--category",
+                        "status",
+                        "--summary",
+                        summary,
+                        "--source",
+                        "manual",
+                    ],
+                    cwd=temp_dir,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                )
+            )
+
+        for proc in procs:
+            stdout, stderr = proc.communicate(timeout=20)
+            assert proc.returncode == 0, f"stdout={stdout}\nstderr={stderr}"
+
+        progress_path = temp_dir / "docs" / "progress-tracker" / "state" / "progress.json"
+        raw = progress_path.read_text(encoding="utf-8")
+        parsed = json.loads(raw)
+        updates = parsed.get("updates", [])
+        got = {item.get("summary") for item in updates if isinstance(item, dict)}
+
+        assert set(summaries).issubset(got)
+        assert len([s for s in got if s in summaries]) == len(summaries)
 
 
 class TestProgressInit:
@@ -320,11 +515,57 @@ class TestCurrentFeature:
         result = progress_manager.set_current(999)
         assert result is False
 
+    def test_set_current_deferred_feature_fails(self, progress_file):
+        """Should reject setting a deferred feature as current."""
+        data = progress_manager.load_progress_json()
+        feature = next(f for f in data["features"] if f["id"] == 2)
+        feature["deferred"] = True
+        feature["defer_reason"] = "Paused for migration"
+        progress_manager.save_progress_json(data)
+
+        result = progress_manager.set_current(2)
+        assert result is False
+
+    def test_set_current_clears_stale_workflow_state_when_switching_feature(self, progress_file):
+        """Switching to a different feature should drop stale workflow_state."""
+        data = progress_manager.load_progress_json()
+        data["current_feature_id"] = 2
+        data["workflow_state"] = {"phase": "execution_complete", "plan_path": "docs/plans/f2.md"}
+        progress_manager.save_progress_json(data)
+
+        result = progress_manager.set_current(3)
+        assert result is True
+
+        data = progress_manager.load_progress_json()
+        assert data["current_feature_id"] == 3
+        assert "workflow_state" not in data
+
+    def test_set_current_preserves_workflow_state_when_reselecting_same_feature(self, in_progress_file):
+        """Reselecting the same current feature should keep existing workflow_state."""
+        result = progress_manager.set_current(2)
+        assert result is True
+
+        data = progress_manager.load_progress_json()
+        assert data["current_feature_id"] == 2
+        assert "workflow_state" in data
+
     def test_get_next_pending_feature(self, progress_file):
         """Should return first incomplete feature."""
         next_feature = progress_manager.get_next_feature()
         assert next_feature is not None
         assert next_feature["id"] == 2  # First incomplete
+
+    def test_get_next_pending_feature_skips_deferred(self, progress_file):
+        """Should skip deferred features when selecting next feature."""
+        data = progress_manager.load_progress_json()
+        feature = next(f for f in data["features"] if f["id"] == 2)
+        feature["deferred"] = True
+        feature["defer_reason"] = "Deferred for now"
+        progress_manager.save_progress_json(data)
+
+        next_feature = progress_manager.get_next_feature()
+        assert next_feature is not None
+        assert next_feature["id"] == 3
 
     def test_get_next_feature_when_all_complete(self, progress_file):
         """Should return None when all features complete."""
@@ -336,6 +577,15 @@ class TestCurrentFeature:
 
         next_feature = progress_manager.get_next_feature()
         assert next_feature is None
+
+    def test_next_feature_command_outputs_json(self, progress_file, capsys):
+        """next-feature command should emit machine-readable output."""
+        result = progress_manager.next_feature(output_json=True)
+        assert result is True
+
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["status"] == "ok"
+        assert payload["feature_id"] == 2
 
 
 class TestDevelopmentStage:
@@ -355,6 +605,91 @@ class TestDevelopmentStage:
         """Should fail when no current feature is active."""
         result = progress_manager.set_development_stage("developing")
         assert result is False
+
+
+class TestDeferResume:
+    """Test defer/resume feature lifecycle helpers."""
+
+    def test_defer_single_feature(self, progress_file):
+        """Should defer one pending feature and persist metadata."""
+        result = progress_manager.defer_features(
+            feature_id=2,
+            all_pending=False,
+            reason="Deferred for Drift Prevention P0",
+            defer_group="grp-a",
+        )
+        assert result is True
+
+        data = progress_manager.load_progress_json()
+        feature = next(f for f in data["features"] if f["id"] == 2)
+        assert feature["deferred"] is True
+        assert feature["defer_reason"] == "Deferred for Drift Prevention P0"
+        assert feature["defer_group"] == "grp-a"
+        assert feature["deferred_at"] is not None
+
+    def test_defer_all_pending_clears_active_feature_and_workflow(self, in_progress_file):
+        """Should clear current_feature_id/workflow_state when active feature is deferred."""
+        result = progress_manager.defer_features(
+            feature_id=None,
+            all_pending=True,
+            reason="Postponed",
+            defer_group="grp-b",
+        )
+        assert result is True
+
+        data = progress_manager.load_progress_json()
+        assert data["current_feature_id"] is None
+        assert "workflow_state" not in data
+        deferred = [f for f in data["features"] if f.get("deferred")]
+        assert len(deferred) == 1
+        assert deferred[0]["id"] == 2
+
+    def test_resume_by_group(self, progress_file):
+        """Should resume only deferred features in selected group."""
+        data = progress_manager.load_progress_json()
+        feature2 = next(f for f in data["features"] if f["id"] == 2)
+        feature3 = next(f for f in data["features"] if f["id"] == 3)
+        feature2["deferred"] = True
+        feature2["defer_group"] = "grp-a"
+        feature2["defer_reason"] = "A"
+        feature3["deferred"] = True
+        feature3["defer_group"] = "grp-b"
+        feature3["defer_reason"] = "B"
+        progress_manager.save_progress_json(data)
+
+        result = progress_manager.resume_deferred_features(
+            defer_group="grp-a",
+            resume_all=False,
+        )
+        assert result is True
+
+        data = progress_manager.load_progress_json()
+        feature2 = next(f for f in data["features"] if f["id"] == 2)
+        feature3 = next(f for f in data["features"] if f["id"] == 3)
+        assert feature2["deferred"] is False
+        assert feature2["defer_group"] is None
+        assert feature3["deferred"] is True
+        assert feature3["defer_group"] == "grp-b"
+
+    def test_resume_all(self, progress_file):
+        """Should resume all deferred features."""
+        data = progress_manager.load_progress_json()
+        for feature in data["features"]:
+            if not feature.get("completed", False):
+                feature["deferred"] = True
+                feature["defer_group"] = "grp-any"
+                feature["defer_reason"] = "Deferred"
+        progress_manager.save_progress_json(data)
+
+        result = progress_manager.resume_deferred_features(defer_group=None, resume_all=True)
+        assert result is True
+
+        data = progress_manager.load_progress_json()
+        assert all(
+            not f.get("deferred", False)
+            for f in data["features"]
+            if not f.get("completed", False)
+        )
 
 
 class TestProgressMdGeneration:
@@ -632,6 +967,138 @@ class TestCheckCommand:
 
         result = progress_manager.check()
         assert result == 0
+
+    def test_check_deferred_only_is_non_blocking(self, progress_file, capsys):
+        """Should return 0 when only deferred pending features remain."""
+        data = progress_manager.load_progress_json()
+        for feature in data["features"]:
+            if not feature.get("completed", False):
+                feature["deferred"] = True
+                feature["defer_reason"] = "Deferred for batch 2"
+        data["current_feature_id"] = None
+        data.pop("workflow_state", None)
+        progress_manager.save_progress_json(data)
+
+        result = progress_manager.check()
+        assert result == 0
+
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["status"] == "deferred_only"
+        assert payload["deferred_count"] == 2
+
+
+class TestReconcile:
+    """Test reconcile diagnostics and gates."""
+
+    def test_reconcile_reports_implementation_ahead_when_execution_complete(self, temp_dir):
+        """Execution-complete workflow should recommend /prog done."""
+        progress_manager.init_tracking("Reconcile Project", force=True)
+        progress_manager.add_feature("Feature 1", ["Step 1"])
+        progress_manager.set_current(1)
+        progress_manager.set_development_stage("developing", feature_id=1)
+        progress_manager.set_workflow_state(phase="execution_complete")
+
+        report = progress_manager.analyze_reconcile_state()
+
+        assert report["diagnosis"] == "implementation_ahead_of_tracker"
+        assert report["recommended_next_step"] == "/prog done"
+
+    def test_reconcile_reports_needs_manual_review_for_invalid_current_feature(self, progress_file):
+        """Invalid current_feature_id should suggest explicit state repair."""
+        data = progress_manager.load_progress_json()
+        data["current_feature_id"] = 999
+        progress_manager.save_progress_json(data)
+
+        report = progress_manager.analyze_reconcile_state()
+
+        assert report["diagnosis"] == "needs_manual_review"
+        assert report["recommended_next_step"] == "clear invalid current_feature_id"
+
+    def test_reconcile_reports_context_mismatch(self, mock_git_repo):
+        """Branch/worktree mismatch should be diagnosed as context_mismatch."""
+        progress_manager.init_tracking("Reconcile Context", force=True)
+        progress_manager.add_feature("Feature 1", ["Step 1"])
+        progress_manager.set_current(1)
+
+        data = progress_manager.load_progress_json()
+        root = str(progress_manager.find_project_root())
+        data["workflow_state"] = {
+            "phase": "execution",
+            "execution_context": {
+                "tracker_root": root,
+                "project_root": root,
+                "worktree_path": root,
+                "branch": "feature/other-worktree",
+            },
+        }
+        progress_manager.save_progress_json(data)
+
+        report = progress_manager.analyze_reconcile_state()
+
+        assert report["diagnosis"] == "context_mismatch"
+        assert report["recommended_next_step"] == "switch to recorded context"
+
+    def test_reconcile_reports_scope_mismatch_for_tracker_root(self, mock_git_repo):
+        """Tracker root mismatch should be diagnosed as scope_mismatch."""
+        progress_manager.init_tracking("Reconcile Scope", force=True)
+        progress_manager.add_feature("Feature 1", ["Step 1"])
+        progress_manager.set_current(1)
+
+        data = progress_manager.load_progress_json()
+        root = str(progress_manager.find_project_root())
+        data["workflow_state"] = {
+            "phase": "execution",
+            "execution_context": {
+                "tracker_root": f"{root}/plugins/other-project",
+                "project_root": root,
+                "worktree_path": root,
+                "branch": "main",
+            },
+        }
+        progress_manager.save_progress_json(data)
+
+        report = progress_manager.analyze_reconcile_state()
+        assert report["diagnosis"] == "scope_mismatch"
+        assert report["recommended_next_step"] == "switch to recorded context"
+
+    def test_next_feature_blocks_when_active_feature_should_be_done(self, temp_dir, capsys):
+        """next-feature should block if reconcile detects implementation ahead."""
+        progress_manager.init_tracking("Reconcile Block", force=True)
+        progress_manager.add_feature("Feature 1", ["Step 1"])
+        progress_manager.add_feature("Feature 2", ["Step 2"])
+        progress_manager.set_current(1)
+        progress_manager.set_development_stage("developing", feature_id=1)
+        progress_manager.set_workflow_state(phase="execution_complete")
+
+        result = progress_manager.next_feature(output_json=True)
+        assert result is False
+
+        output_lines = [line for line in capsys.readouterr().out.splitlines() if line.strip()]
+        payload = json.loads(output_lines[-1])
+        assert payload["status"] == "blocked"
+        assert payload["reason"] == "implementation_ahead_of_tracker"
+
+    def test_complete_feature_blocks_on_context_mismatch(self, mock_git_repo):
+        """complete should fail-closed when execution context mismatches current session."""
+        progress_manager.init_tracking("Reconcile Complete Gate", force=True)
+        progress_manager.add_feature("Feature 1", ["Step 1"])
+        progress_manager.set_current(1)
+
+        data = progress_manager.load_progress_json()
+        root = str(progress_manager.find_project_root())
+        data["workflow_state"] = {
+            "phase": "execution",
+            "execution_context": {
+                "tracker_root": root,
+                "project_root": root,
+                "worktree_path": root,
+                "branch": "feature/context-mismatch",
+            },
+        }
+        progress_manager.save_progress_json(data)
+
+        result = progress_manager.complete_feature(1)
+        assert result is False
 
 
 class TestGitSyncPreflight:
@@ -926,6 +1393,12 @@ class TestMainFunction:
             # check() returns 1 when incomplete
             assert result == 1
 
+    def test_main_reconcile_command(self, progress_file):
+        """Should handle reconcile command."""
+        with patch("sys.argv", ["progress_manager.py", "reconcile", "--json"]):
+            result = progress_manager.main()
+            assert result is True
+
     def test_main_git_sync_check_command(self, mock_git_repo):
         """Should handle git-sync-check command."""
         with patch("sys.argv", ["progress_manager.py", "git-sync-check"]):
@@ -967,6 +1440,67 @@ class TestMainFunction:
     def test_main_update_feature_command(self, progress_file):
         """Should handle update-feature command."""
         with patch("sys.argv", ["progress_manager.py", "update-feature", "2", "RenamedFeature", "new-step"]):
+            result = progress_manager.main()
+            assert result is True
+
+    def test_main_defer_command(self, progress_file):
+        """Should handle defer command."""
+        with patch(
+            "sys.argv",
+            [
+                "progress_manager.py",
+                "defer",
+                "--feature-id",
+                "2",
+                "--reason",
+                "Deferred for testing",
+                "--defer-group",
+                "grp-main",
+            ],
+        ):
+            result = progress_manager.main()
+            assert result is True
+
+        data = progress_manager.load_progress_json()
+        feature = next(f for f in data["features"] if f["id"] == 2)
+        assert feature["deferred"] is True
+        assert feature["defer_group"] == "grp-main"
+
+    def test_main_resume_command(self, progress_file):
+        """Should handle resume command."""
+        data = progress_manager.load_progress_json()
+        feature = next(f for f in data["features"] if f["id"] == 2)
+        feature["deferred"] = True
+        feature["defer_reason"] = "Deferred for testing"
+        feature["defer_group"] = "grp-main"
+        progress_manager.save_progress_json(data)
+
+        with patch(
+            "sys.argv",
+            [
+                "progress_manager.py",
+                "resume",
+                "--defer-group",
+                "grp-main",
+            ],
+        ):
+            result = progress_manager.main()
+            assert result is True
+
+        data = progress_manager.load_progress_json()
+        feature = next(f for f in data["features"] if f["id"] == 2)
+        assert feature["deferred"] is False
+
+    def test_main_next_feature_command(self, progress_file):
+        """Should handle next-feature command."""
+        with patch(
+            "sys.argv",
+            [
+                "progress_manager.py",
+                "next-feature",
+                "--json",
+            ],
+        ):
             result = progress_manager.main()
             assert result is True
 
@@ -1281,6 +1815,32 @@ class TestWorktreeDetection:
             json.dump(progress_data, f)
 
         worktree_output = f"worktree {str(temp_dir)}\nHEAD abc123\nworktree {str(wt_dir)}\nHEAD def456\n"
+        with patch("progress_manager._run_git", return_value=(0, worktree_output, "")):
+            result = progress_manager._check_other_worktrees_for_incomplete_work(str(temp_dir))
+            assert result == []
+
+    def test_check_other_worktrees_ignores_deferred_only(self, temp_dir):
+        """Should ignore worktrees where pending work is entirely deferred."""
+        wt_dir = temp_dir / "deferred_wt"
+        wt_dir.mkdir()
+        wt_state = wt_dir / "docs" / "progress-tracker" / "state"
+        wt_state.mkdir(parents=True)
+
+        progress_data = {
+            "project_name": "Deferred Project",
+            "features": [
+                {"id": 1, "name": "Feature 1", "completed": False, "deferred": True},
+            ],
+            "current_feature_id": None,
+        }
+
+        with open(wt_state / "progress.json", "w") as f:
+            json.dump(progress_data, f)
+
+        worktree_output = (
+            f"worktree {str(temp_dir)}\nHEAD abc123\n"
+            f"worktree {str(wt_dir)}\nHEAD def456\n"
+        )
         with patch("progress_manager._run_git", return_value=(0, worktree_output, "")):
             result = progress_manager._check_other_worktrees_for_incomplete_work(str(temp_dir))
             assert result == []

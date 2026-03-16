@@ -1,0 +1,21 @@
+{
+  "last_checkpoint_at": "2026-03-16T22:21:19.664952+08:00",
+  "max_entries": 50,
+  "entries": [
+    {
+      "timestamp": "2026-03-16T22:21:19.664952+08:00",
+      "feature_id": 4,
+      "feature_name": "4. 脑裂修复与降级开关",
+      "phase": "unknown",
+      "plan_path": null,
+      "current_task": null,
+      "total_tasks": null,
+      "next_action": null,
+      "workspace_mode": "worktree",
+      "worktree_path": "/Users/siunin/Projects/claude-plugins-beta",
+      "branch": "codex/prog-beta-setup",
+      "upstream": null,
+      "reason": "auto_interval"
+    }
+  ]
+}

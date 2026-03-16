@@ -107,6 +107,20 @@ Show plugin command help (namespaced entry for conflict-free discovery).
 
 Launch the Progress UI web server and open in browser. Auto-detects available port (3737-3747). Detects if a server for the current project is already running.
 
+### Low-Learning-Cost Command Layers
+
+Daily commands (default path):
+
+- `/prog` → status + next recommendation
+- `/prog-next` → start/continue the next actionable feature
+- `/prog-done` → acceptance closeout for active feature
+
+Admin commands (only when needed):
+
+- `prog check` / `prog reconcile` for drift diagnostics
+- `prog defer` / `prog resume` for backlog parking and restore
+- `prog next-feature --json` for machine-driven feature selection
+
 ### Progress Manager CLI
 
 Global scope override (recommended in monorepos):
@@ -119,10 +133,14 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py --project-root p
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py init <project_name> [--force]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py status
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py check
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py reconcile [--json]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py next-feature [--json]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-archives [--limit <n>]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py restore-archive <archive_id> [--force]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-current <feature_id>
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py complete <feature_id> --commit <hash>
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py defer (--all-pending|--feature-id <id>) --reason "<reason>" [--defer-group <group>]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py resume (--all|--defer-group <group>)
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state --phase <phase> [--plan-path <path>] [--next-action <action>]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-workflow-task <id> completed
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py clear-workflow-state
@@ -159,6 +177,11 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py batch-upsert --pay
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py register-rejections --payload-json '<array>' --sync-id '<sync_id>'
 ```
 <!-- END:GENERATED:PROG_COMMANDS -->
+
+## Drift Prevention P0 Status
+
+For a clear done/pending matrix across drift-prevention and low-learning-cost plans, see:
+`docs/DRIFT_PREVENTION_P0_STATUS.md`.
 
 ## Architecture
 

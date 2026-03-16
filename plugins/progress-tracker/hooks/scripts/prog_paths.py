@@ -120,21 +120,33 @@ def resolve_target_project_root(
     repo_root = resolve_repo_root(current)
 
     if project_root_arg:
-        candidate = Path(project_root_arg)
-        if not candidate.is_absolute():
-            candidate = (repo_root / candidate).resolve()
+        raw_candidate = Path(project_root_arg)
+        candidate_paths: List[Path] = []
+        if raw_candidate.is_absolute():
+            candidate_paths.append(raw_candidate.resolve())
         else:
-            candidate = candidate.resolve()
+            # Prefer cwd-relative semantics for explicit user input like `--project-root .`,
+            # while preserving repo-root-relative compatibility for older invocations.
+            cwd_candidate = (current / raw_candidate).resolve()
+            repo_candidate = (repo_root / raw_candidate).resolve()
+            candidate_paths.append(cwd_candidate)
+            if repo_candidate != cwd_candidate:
+                candidate_paths.append(repo_candidate)
 
-        if not candidate.exists() or not candidate.is_dir():
-            raise ProjectRootResolutionError(
-                f"--project-root does not exist or is not a directory: {candidate}"
-            )
-        if not _is_relative_to(candidate, repo_root):
-            raise ProjectRootResolutionError(
-                f"--project-root must be inside repository root: {repo_root}"
-            )
-        return candidate, repo_root
+        for candidate in candidate_paths:
+            if not candidate.exists() or not candidate.is_dir():
+                continue
+            if not _is_relative_to(candidate, repo_root):
+                raise ProjectRootResolutionError(
+                    f"--project-root must be inside repository root: {repo_root}"
+                )
+            return candidate, repo_root
+
+        tried = ", ".join(str(path) for path in candidate_paths)
+        raise ProjectRootResolutionError(
+            "--project-root does not exist or is not a directory: "
+            f"{project_root_arg} (tried: {tried})"
+        )
 
     plugin_root = _detect_plugin_root(repo_root, current)
     if plugin_root:
@@ -401,4 +413,3 @@ def ensure_storage_migrated(target_root: Path) -> Dict[str, Any]:
     _append_migration_log(target_root, entry)
 
     return {"migrated": migrated, "operations": operations, "conflicts": conflicts}
-

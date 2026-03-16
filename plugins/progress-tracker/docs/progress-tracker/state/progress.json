@@ -1,0 +1,873 @@
+{
+  "schema_version": "2.0",
+  "project_name": "PROG 全量规范化",
+  "created_at": "2026-03-16T14:28:41.135552Z",
+  "updated_at": "2026-03-16T22:41:17.976506Z",
+  "features": [
+    {
+      "id": 1,
+      "name": "1. 基线与失败测试先行",
+      "test_steps": [
+        "cd plugins/progress-tracker && pytest tests/test_feature_contract_readiness.py -q",
+        "cd plugins/progress-tracker && pytest tests/test_feature_completion_state_transition.py -q",
+        "cd plugins/progress-tracker && pytest tests/test_progress_manager.py -q -k \"readiness or lifecycle or retro or refs or scope\"",
+        "从 monorepo 根目录复现错误作用域的 /prog-next 或等价 CLI 场景，并固化为失败基线",
+        "DoD: 新增与稳定后的红灯测试可重复暴露当前缺口，包括错误 project scope 恢复问题，且不依赖非确定性环境。"
+      ],
+      "completed": true,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "development_stage": "completed",
+      "ai_metrics": {
+        "started_at": "2026-03-16T17:48:23.268105+08:00",
+        "finished_at": "2026-03-16T17:48:23.268105+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-03-16T17:48:23.270620Z",
+      "lifecycle_state": "verified",
+      "requirement_ids": [
+        "REQ-001"
+      ],
+      "change_spec": {
+        "why": "Deliver 1. 基线与失败测试先行 with traceable acceptance coverage.",
+        "in_scope": [
+          "1. 基线与失败测试先行"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: cd plugins/progress-tracker && pytest tests/test_feature_contract_readiness.py -q",
+        "Scenario: cd plugins/progress-tracker && pytest tests/test_feature_completion_state_transition.py -q",
+        "Scenario: cd plugins/progress-tracker && pytest tests/test_progress_manager.py -q -k \"readiness or lifecycle or retro or refs or scope\"",
+        "Scenario: 从 monorepo 根目录复现错误作用域的 /prog-next 或等价 CLI 场景，并固化为失败基线",
+        "Scenario: DoD: 新增与稳定后的红灯测试可重复暴露当前缺口，包括错误 project scope 恢复问题，且不依赖非确定性环境。"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "2. 事务层与并发锁",
+      "test_steps": [
+        "cd plugins/progress-tracker && pytest tests/test_progress_manager.py -q -k \"transaction or atomic or concurrent or lock\"",
+        "cd plugins/progress-tracker && python3 hooks/scripts/progress_manager.py --project-root . add-update --category status --summary \"transaction smoke\" --source manual",
+        "cd plugins/progress-tracker && python3 hooks/scripts/progress_manager.py --project-root . status",
+        "DoD: 并发写不丢数据、不产生损坏 JSON，状态与审计写入保持一致。"
+      ],
+      "completed": true,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "development_stage": "completed",
+      "started_at": "2026-03-16T22:03:46.122999Z",
+      "ai_metrics": {
+        "started_at": "2026-03-16T22:03:58.594301+08:00",
+        "finished_at": "2026-03-16T22:03:58.594301+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-03-16T22:03:58.596443Z",
+      "lifecycle_state": "verified",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "change_spec": {
+        "why": "Deliver 2. 事务层与并发锁 with traceable acceptance coverage.",
+        "in_scope": [
+          "2. 事务层与并发锁"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: cd plugins/progress-tracker && pytest tests/test_progress_manager.py -q -k \"transaction or atomic or concurrent or lock\"",
+        "Scenario: cd plugins/progress-tracker && python3 hooks/scripts/progress_manager.py --project-root . add-update --category status --summary \"transaction smoke\" --source manual",
+        "Scenario: cd plugins/progress-tracker && python3 hooks/scripts/progress_manager.py --project-root . status",
+        "Scenario: DoD: 并发写不丢数据、不产生损坏 JSON，状态与审计写入保持一致。"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "3. schema 2.1 回填与迁移校验",
+      "test_steps": [
+        "cd plugins/progress-tracker && pytest tests/test_feature_contract_readiness.py -q -k \"backfills or lifecycle\"",
+        "cd plugins/progress-tracker && pytest tests/test_progress_manager.py -q -k \"schema or migration or load_progress_json\"",
+        "cd plugins/progress-tracker && python3 hooks/scripts/progress_manager.py --project-root . status",
+        "DoD: v2.0 样本加载后自动补齐 2.1 默认字段，冲突状态可检测并修复。"
+      ],
+      "completed": true,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "development_stage": "developing",
+      "lifecycle_state": "implementing",
+      "requirement_ids": [
+        "REQ-003"
+      ],
+      "change_spec": {
+        "why": "Deliver 3. schema 2.1 回填与迁移校验 with traceable acceptance coverage.",
+        "in_scope": [
+          "3. schema 2.1 回填与迁移校验"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: cd plugins/progress-tracker && pytest tests/test_feature_contract_readiness.py -q -k \"backfills or lifecycle\"",
+        "Scenario: cd plugins/progress-tracker && pytest tests/test_progress_manager.py -q -k \"schema or migration or load_progress_json\"",
+        "Scenario: cd plugins/progress-tracker && python3 hooks/scripts/progress_manager.py --project-root . status",
+        "Scenario: DoD: v2.0 样本加载后自动补齐 2.1 默认字段，冲突状态可检测并修复。"
+      ],
+      "ai_metrics": {
+        "started_at": "2026-03-16T22:09:06.190706+08:00",
+        "finished_at": "2026-03-16T22:09:06.190706+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-03-16T22:09:06.195459Z",
+      "started_at": "2026-03-16T22:09:06.270324Z"
+    },
+    {
+      "id": 4,
+      "name": "4. 脑裂修复与降级开关",
+      "test_steps": [
+        "cd plugins/progress-tracker && pytest tests/test_progress_manager.py -q -k \"reconcile or legacy or disable_v2 or scope\"",
+        "cd plugins/progress-tracker && PROG_DISABLE_V2=1 python3 hooks/scripts/progress_manager.py --project-root . status",
+        "从 monorepo 根目录验证 mutating 命令无 --project-root 时 fail closed",
+        "从 monorepo 根目录验证显式 --project-root plugins/progress-tracker 后可继续工作",
+        "DoD: 开关来回切换后状态可自愈，2.1 字段不会在兼容模式下丢失，且错误作用域写入会被显式阻断。"
+      ],
+      "completed": true,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "change_spec": {
+        "why": "Deliver 4. 脑裂修复与降级开关 with traceable acceptance coverage.",
+        "in_scope": [
+          "4. 脑裂修复与降级开关"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: cd plugins/progress-tracker && pytest tests/test_progress_manager.py -q -k \"reconcile or legacy or disable_v2 or scope\"",
+        "Scenario: cd plugins/progress-tracker && PROG_DISABLE_V2=1 python3 hooks/scripts/progress_manager.py --project-root . status",
+        "Scenario: 从 monorepo 根目录验证 mutating 命令无 --project-root 时 fail closed",
+        "Scenario: 从 monorepo 根目录验证显式 --project-root plugins/progress-tracker 后可继续工作",
+        "Scenario: DoD: 开关来回切换后状态可自愈，2.1 字段不会在兼容模式下丢失，且错误作用域写入会被显式阻断。"
+      ],
+      "development_stage": "completed",
+      "ai_metrics": {
+        "complexity_score": 18,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-03-16T22:25:44.227345Z",
+        "finished_at": "2026-03-16T22:35:47.983872+08:00",
+        "duration_seconds": 0
+      },
+      "started_at": "2026-03-16T22:27:14.395768Z",
+      "completed_at": "2026-03-16T22:35:26.100683Z",
+      "archive_info": {
+        "archived_at": "2026-03-16T22:35:26.124718Z",
+        "files_moved": 0,
+        "files": []
+      }
+    },
+    {
+      "id": 5,
+      "name": "5. 合约自动导入与 Markdown FSM 解析器",
+      "test_steps": [
+        "cd plugins/progress-tracker && pytest tests/test_feature_contract_readiness.py -q -k \"requirement_ids or change_spec or acceptance_scenarios\"",
+        "cd plugins/progress-tracker && pytest tests/test_progress_manager.py -q -k \"markdown or contract or parser or fsm\"",
+        "cd plugins/progress-tracker && python3 -m py_compile hooks/scripts/progress_manager.py",
+        "DoD: JSON 与 Markdown 合约导入可用，Markdown 采用无复杂回溯的 FSM 解析，恶劣输入不会卡死 CLI。"
+      ],
+      "completed": false,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-005"
+      ],
+      "change_spec": {
+        "why": "Deliver 5. 合约自动导入与 Markdown FSM 解析器 with traceable acceptance coverage.",
+        "in_scope": [
+          "5. 合约自动导入与 Markdown FSM 解析器"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: cd plugins/progress-tracker && pytest tests/test_feature_contract_readiness.py -q -k \"requirement_ids or change_spec or acceptance_scenarios\"",
+        "Scenario: cd plugins/progress-tracker && pytest tests/test_progress_manager.py -q -k \"markdown or contract or parser or fsm\"",
+        "Scenario: cd plugins/progress-tracker && python3 -m py_compile hooks/scripts/progress_manager.py",
+        "Scenario: DoD: JSON 与 Markdown 合约导入可用，Markdown 采用无复杂回溯的 FSM 解析，恶劣输入不会卡死 CLI。"
+      ],
+      "development_stage": "planning",
+      "ai_metrics": {
+        "complexity_score": 24,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-03-16T22:40:56.461875Z"
+      }
+    },
+    {
+      "id": 6,
+      "name": "6. readiness 校验器与 /prog-start 串联",
+      "test_steps": [
+        "cd plugins/progress-tracker && pytest tests/test_feature_contract_readiness.py -q -k \"validate_feature_readiness or set_development_stage\"",
+        "cd plugins/progress-tracker && pytest tests/test_prog_start_behavior.py -q",
+        "cd plugins/progress-tracker && pytest tests/test_prog_start_contract.py -q",
+        "DoD: 阻断项会阻止 /prog-start，告警项只提示不阻断，输出原因清晰可操作。"
+      ],
+      "completed": false,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "change_spec": {
+        "why": "Deliver 6. readiness 校验器与 /prog-start 串联 with traceable acceptance coverage.",
+        "in_scope": [
+          "6. readiness 校验器与 /prog-start 串联"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: cd plugins/progress-tracker && pytest tests/test_feature_contract_readiness.py -q -k \"validate_feature_readiness or set_development_stage\"",
+        "Scenario: cd plugins/progress-tracker && pytest tests/test_prog_start_behavior.py -q",
+        "Scenario: cd plugins/progress-tracker && pytest tests/test_prog_start_contract.py -q",
+        "Scenario: DoD: 阻断项会阻止 /prog-start，告警项只提示不阻断，输出原因清晰可操作。"
+      ]
+    },
+    {
+      "id": 7,
+      "name": "7. 生命周期 API 与回退规则",
+      "test_steps": [
+        "cd plugins/progress-tracker && pytest tests/test_feature_contract_readiness.py -q -k \"lifecycle\"",
+        "cd plugins/progress-tracker && pytest tests/test_feature_completion_state_transition.py -q",
+        "cd plugins/progress-tracker && pytest tests/test_progress_manager.py -q -k \"lifecycle or complete_feature or set_development_stage\"",
+        "DoD: 合法流转成功且审计完整，非法流转被拒绝且无副作用，回退会重置验收结果。"
+      ],
+      "completed": false,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "change_spec": {
+        "why": "Deliver 7. 生命周期 API 与回退规则 with traceable acceptance coverage.",
+        "in_scope": [
+          "7. 生命周期 API 与回退规则"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: cd plugins/progress-tracker && pytest tests/test_feature_contract_readiness.py -q -k \"lifecycle\"",
+        "Scenario: cd plugins/progress-tracker && pytest tests/test_feature_completion_state_transition.py -q",
+        "Scenario: cd plugins/progress-tracker && pytest tests/test_progress_manager.py -q -k \"lifecycle or complete_feature or set_development_stage\"",
+        "Scenario: DoD: 合法流转成功且审计完整，非法流转被拒绝且无副作用，回退会重置验收结果。"
+      ]
+    },
+    {
+      "id": 8,
+      "name": "8. /prog-done 收尾门禁",
+      "test_steps": [
+        "cd plugins/progress-tracker && pytest tests/test_feature_completion_state_transition.py -q",
+        "cd plugins/progress-tracker && pytest tests/test_progress_manager.py -q -k \"finish or cleanup or worktree or next\"",
+        "cd plugins/progress-tracker && pytest tests/test_integration.py -q -k \"prog_done or complete\"",
+        "DoD: 每次 /prog-done 都会落到明确收尾结果或 finish_pending，且 /prog-next 会严格阻断未收尾状态。"
+      ],
+      "completed": false,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "change_spec": {
+        "why": "Deliver 8. /prog-done 收尾门禁 with traceable acceptance coverage.",
+        "in_scope": [
+          "8. /prog-done 收尾门禁"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: cd plugins/progress-tracker && pytest tests/test_feature_completion_state_transition.py -q",
+        "Scenario: cd plugins/progress-tracker && pytest tests/test_progress_manager.py -q -k \"finish or cleanup or worktree or next\"",
+        "Scenario: cd plugins/progress-tracker && pytest tests/test_integration.py -q -k \"prog_done or complete\"",
+        "Scenario: DoD: 每次 /prog-done 都会落到明确收尾结果或 finish_pending，且 /prog-next 会严格阻断未收尾状态。"
+      ]
+    },
+    {
+      "id": 9,
+      "name": "9. refs 智能裁剪",
+      "test_steps": [
+        "cd plugins/progress-tracker && pytest tests/test_feature_contract_readiness.py -q -k \"refs\"",
+        "cd plugins/progress-tracker && pytest tests/test_progress_manager.py -q -k \"add_update or refs or updates\"",
+        "cd plugins/progress-tracker && python3 hooks/scripts/progress_manager.py --project-root . list-updates --limit 5",
+        "DoD: 自动 refs 注入、overflow 收纳、手工 refs 保护三者同时成立且不抛异常。"
+      ],
+      "completed": false,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "change_spec": {
+        "why": "Deliver 9. refs 智能裁剪 with traceable acceptance coverage.",
+        "in_scope": [
+          "9. refs 智能裁剪"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: cd plugins/progress-tracker && pytest tests/test_feature_contract_readiness.py -q -k \"refs\"",
+        "Scenario: cd plugins/progress-tracker && pytest tests/test_progress_manager.py -q -k \"add_update or refs or updates\"",
+        "Scenario: cd plugins/progress-tracker && python3 hooks/scripts/progress_manager.py --project-root . list-updates --limit 5",
+        "Scenario: DoD: 自动 refs 注入、overflow 收纳、手工 refs 保护三者同时成立且不抛异常。"
+      ]
+    },
+    {
+      "id": 10,
+      "name": "10. summary 投影与状态展示",
+      "test_steps": [
+        "cd plugins/progress-tracker && pytest tests/test_progress_ui_status.py -q",
+        "cd plugins/progress-tracker && pytest tests/test_progress_ui.py -q",
+        "cd plugins/progress-tracker && pytest tests/test_ui_display_logic.py -q",
+        "DoD: summary 投影可生成并在漂移时自动重建，/prog 与 UI 状态展示保持一致。"
+      ],
+      "completed": false,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "change_spec": {
+        "why": "Deliver 10. summary 投影与状态展示 with traceable acceptance coverage.",
+        "in_scope": [
+          "10. summary 投影与状态展示"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: cd plugins/progress-tracker && pytest tests/test_progress_ui_status.py -q",
+        "Scenario: cd plugins/progress-tracker && pytest tests/test_progress_ui.py -q",
+        "Scenario: cd plugins/progress-tracker && pytest tests/test_ui_display_logic.py -q",
+        "Scenario: DoD: summary 投影可生成并在漂移时自动重建，/prog 与 UI 状态展示保持一致。"
+      ]
+    },
+    {
+      "id": 11,
+      "name": "11. 命令文档与帮助更新（含 Drift Prevention/Codex 兼容）",
+      "test_steps": [
+        "python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check",
+        "验证 docs/DRIFT_PREVENTION_P0_STATUS.md 覆盖已完成与待完成项",
+        "验证 README/readme-zh 均链接到 Drift Prevention 状态文档",
+        "DoD: 日常命令分层清晰、CLI 能力边界清晰、Claude/Codex 共用后端路径清晰"
+      ],
+      "completed": false,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-011"
+      ],
+      "change_spec": {
+        "why": "Deliver 11. 命令文档与帮助更新（含 Drift Prevention/Codex 兼容） with traceable acceptance coverage.",
+        "in_scope": [
+          "11. 命令文档与帮助更新（含 Drift Prevention/Codex 兼容）"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check",
+        "Scenario: 验证 docs/DRIFT_PREVENTION_P0_STATUS.md 覆盖已完成与待完成项",
+        "Scenario: 验证 README/readme-zh 均链接到 Drift Prevention 状态文档",
+        "Scenario: DoD: 日常命令分层清晰、CLI 能力边界清晰、Claude/Codex 共用后端路径清晰"
+      ]
+    },
+    {
+      "id": 12,
+      "name": "12. 全量回归与验收报告",
+      "test_steps": [
+        "cd plugins/progress-tracker && pytest tests -q",
+        "cd plugins/progress-tracker && pytest tests/test_progress_manager.py tests/test_feature_contract_readiness.py tests/test_progress_ui_status.py -q",
+        "增加并运行 monorepo-root scope safety 回归：根目录 mutating 命令 fail closed，显式 child scope 正常工作",
+        "cd plugins/progress-tracker && python3 hooks/scripts/progress_manager.py --project-root . status",
+        "DoD: 全量测试通过，包含 scope safety 回归；输出剩余风险、回滚策略与验收结论，允许进入发布或下一阶段执行。"
+      ],
+      "completed": false,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-012"
+      ],
+      "change_spec": {
+        "why": "Deliver 12. 全量回归与验收报告 with traceable acceptance coverage.",
+        "in_scope": [
+          "12. 全量回归与验收报告"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: cd plugins/progress-tracker && pytest tests -q",
+        "Scenario: cd plugins/progress-tracker && pytest tests/test_progress_manager.py tests/test_feature_contract_readiness.py tests/test_progress_ui_status.py -q",
+        "Scenario: 增加并运行 monorepo-root scope safety 回归：根目录 mutating 命令 fail closed，显式 child scope 正常工作",
+        "Scenario: cd plugins/progress-tracker && python3 hooks/scripts/progress_manager.py --project-root . status",
+        "Scenario: DoD: 全量测试通过，包含 scope safety 回归；输出剩余风险、回滚策略与验收结论，允许进入发布或下一阶段执行。"
+      ]
+    },
+    {
+      "id": 13,
+      "name": "P0 Batch 1: Reconcile engine + check/next/done gates",
+      "test_steps": [
+        "Add backend reconcile engine and diagnostic states",
+        "Wire reconcile checks into status/check and current-feature guards",
+        "Verify defer/resume + next-selection behavior with pytest",
+        "DoD: deferred backlog non-blocking and actionable next feature selectable"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "development_stage": "completed",
+      "started_at": "2026-03-16T16:46:04.908063Z",
+      "ai_metrics": {
+        "started_at": "2026-03-16T16:47:48.961344+08:00",
+        "finished_at": "2026-03-16T16:47:48.961344+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-03-16T16:47:48.966383Z",
+      "lifecycle_state": "verified",
+      "requirement_ids": [
+        "REQ-013"
+      ],
+      "change_spec": {
+        "why": "Deliver P0 Batch 1: Reconcile engine + check/next/done gates with traceable acceptance coverage.",
+        "in_scope": [
+          "P0 Batch 1: Reconcile engine + check/next/done gates"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: Add backend reconcile engine and diagnostic states",
+        "Scenario: Wire reconcile checks into status/check and current-feature guards",
+        "Scenario: Verify defer/resume + next-selection behavior with pytest",
+        "Scenario: DoD: deferred backlog non-blocking and actionable next feature selectable"
+      ]
+    },
+    {
+      "id": 14,
+      "name": "Plan: 低学习成本优先的命令分层（保留能力，隐藏复杂度）",
+      "test_steps": [
+        "更新 PROG_COMMANDS/README/readme-zh 的命令分层（日常 vs 管理）",
+        "补齐 reconcile/next-feature/defer/resume 的稳定 CLI 文档入口",
+        "运行 generate_prog_docs --write/--check 与 pytest 回归验证",
+        "DoD: 日常心智模型保持 /prog /prog-next /prog-done，进阶能力通过 CLI 暴露且文档清晰"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "development_stage": "completed",
+      "ai_metrics": {
+        "started_at": "2026-03-16T17:00:38.926608+08:00",
+        "finished_at": "2026-03-16T17:24:05.901953+08:00",
+        "duration_seconds": 1406
+      },
+      "archive_info": {
+        "archived_at": "2026-03-16T17:24:05.951929Z",
+        "files_moved": 0,
+        "files": []
+      },
+      "started_at": "2026-03-16T17:23:49.677243Z",
+      "completed_at": "2026-03-16T17:24:05.905149Z",
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-014"
+      ],
+      "change_spec": {
+        "why": "Deliver Plan: 低学习成本优先的命令分层（保留能力，隐藏复杂度） with traceable acceptance coverage.",
+        "in_scope": [
+          "Plan: 低学习成本优先的命令分层（保留能力，隐藏复杂度）"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 更新 PROG_COMMANDS/README/readme-zh 的命令分层（日常 vs 管理）",
+        "Scenario: 补齐 reconcile/next-feature/defer/resume 的稳定 CLI 文档入口",
+        "Scenario: 运行 generate_prog_docs --write/--check 与 pytest 回归验证",
+        "Scenario: DoD: 日常心智模型保持 /prog /prog-next /prog-done，进阶能力通过 CLI 暴露且文档清晰"
+      ]
+    }
+  ],
+  "current_feature_id": 5,
+  "updates": [
+    {
+      "id": "UPD-001",
+      "created_at": "2026-03-16T17:37:59.024648Z",
+      "category": "status",
+      "summary": "优化 drift prevention feature 映射与文档入口",
+      "details": "新增 docs/DRIFT_PREVENTION_P0_STATUS.md，并在 README/readme-zh 增加状态文档入口；更新 Feature 11 文档验收步骤。",
+      "feature_id": 11,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "manual",
+      "next_action": "继续执行 feature 1 基线验证",
+      "refs": []
+    },
+    {
+      "id": "UPD-002",
+      "created_at": "2026-03-16T17:46:51.694416Z",
+      "category": "status",
+      "summary": "Feature 1 baseline: monorepo scope red test + recovery regression",
+      "details": "Added failing baseline test for root-scope /prog-next equivalence and passing explicit --project-root recovery test; validated with targeted pytest runs.",
+      "feature_id": 1,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "manual",
+      "next_action": "Keep Feature 1 in-progress until baseline acceptance and downstream fixes are scheduled.",
+      "refs": [
+        "tests/test_progress_manager.py::TestProjectRootDetection::test_scope_baseline_monorepo_root_next_feature_should_work_without_explicit_scope",
+        "tests/test_progress_manager.py::TestProjectRootDetection::test_scope_monorepo_root_next_feature_recovers_with_explicit_project_root",
+        "tests/test_feature_contract_readiness.py"
+      ]
+    },
+    {
+      "id": "UPD-003",
+      "created_at": "2026-03-16T17:47:54.932875Z",
+      "category": "risk",
+      "summary": "Feature 1 blockers: red baseline accepted but scope preset recovery not implemented",
+      "details": "Monorepo root daily next-feature still fails without --project-root (new deterministic red baseline). Broader readiness contract tests remain red (missing lifecycle/readiness/retro/refs APIs).",
+      "feature_id": 1,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "manual",
+      "next_action": "Decide whether to keep red baseline in main suite or gate with xfail, then schedule implementation features 3/6/7/9 and scope preset CLI.",
+      "refs": [
+        "tests/test_progress_manager.py::TestProjectRootDetection::test_scope_baseline_monorepo_root_next_feature_should_work_without_explicit_scope",
+        "tests/test_feature_contract_readiness.py"
+      ]
+    },
+    {
+      "id": "UPD-004",
+      "created_at": "2026-03-16T22:03:00.781578Z",
+      "category": "status",
+      "summary": "transaction smoke",
+      "details": null,
+      "feature_id": null,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "manual",
+      "next_action": null,
+      "refs": []
+    },
+    {
+      "id": "UPD-005",
+      "created_at": "2026-03-16T22:03:46.062432Z",
+      "category": "status",
+      "summary": "Feature 2: transaction lock + atomic writes implemented",
+      "details": "Added cross-process progress transaction lock (progress.lock), atomic file replace writes for progress/checkpoints/history/markdown, and concurrent mutation regression tests to prevent corruption/lost updates.",
+      "feature_id": 2,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "manual",
+      "next_action": "Run complete for feature 2 after smoke verification.",
+      "refs": [
+        "hooks/scripts/progress_manager.py",
+        "tests/test_progress_manager.py::TestTransactionAndLocking::test_transaction_lock_blocks_parallel_mutation_command",
+        "tests/test_progress_manager.py::TestTransactionAndLocking::test_concurrent_add_update_commands_preserve_all_updates"
+      ]
+    },
+    {
+      "id": "UPD-006",
+      "created_at": "2026-03-16T22:08:51.833956Z",
+      "category": "status",
+      "summary": "Feature 3: schema 2.1 contract backfill + lifecycle mapping",
+      "details": "Added feature contract defaults backfill (lifecycle_state/requirement_ids/change_spec/acceptance_scenarios), lifecycle transitions in stage/complete/archive flow, and preserved explicit empty contract fields for later readiness validation.",
+      "feature_id": 3,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "manual",
+      "next_action": "Complete feature 3 after validation.",
+      "refs": [
+        "hooks/scripts/progress_manager.py",
+        "tests/test_feature_contract_readiness.py",
+        "tests/test_progress_manager.py"
+      ]
+    },
+    {
+      "id": "UPD-007",
+      "created_at": "2026-03-16T22:10:56.478472Z",
+      "category": "status",
+      "summary": "scope gate smoke explicit",
+      "details": null,
+      "feature_id": null,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "manual",
+      "next_action": null,
+      "refs": []
+    },
+    {
+      "id": "UPD-008",
+      "created_at": "2026-03-16T22:11:15.692538Z",
+      "category": "risk",
+      "summary": "Feature 4 in-progress: scope gates verified, known red baseline still open",
+      "details": "Verified monorepo root mutating command fails closed without --project-root and succeeds with explicit --project-root. Remaining blocker is intentional root-scope baseline test expecting implicit recovery (still red), plus unresolved --project-root . ambiguity under monorepo root.",
+      "feature_id": 4,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "manual",
+      "next_action": "Decide whether to keep baseline red (documented) or implement scope preset/relative-root ergonomics before completing feature 4.",
+      "refs": [
+        "tests/test_progress_manager.py::TestProjectRootDetection::test_scope_baseline_monorepo_root_next_feature_should_work_without_explicit_scope",
+        "hooks/scripts/progress_manager.py"
+      ]
+    },
+    {
+      "id": "UPD-009",
+      "created_at": "2026-03-16T22:25:53.782100Z",
+      "category": "status",
+      "summary": "Feature 4: scope baseline closed and --project-root dot semantics fixed",
+      "details": "Updated project-root resolution to prefer cwd-relative explicit paths (with repo-root fallback), converted conflicting red baseline scope test to fail-closed contract, added explicit --project-root . plugin-root test, and validated scope acceptance commands + targeted pytest suites.",
+      "feature_id": 4,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "manual",
+      "next_action": "Run /prog done to complete Feature 4",
+      "refs": [
+        "hooks/scripts/prog_paths.py",
+        "tests/test_progress_manager.py"
+      ]
+    },
+    {
+      "id": "UPD-010",
+      "created_at": "2026-03-16T22:36:05.535436Z",
+      "category": "status",
+      "summary": "Feature 4 completed via /prog done",
+      "details": "Plan gate recovered with docs/plans/2026-03-16-feature-4-scope-recovery.md; acceptance checks passed (scope + disable-v2 + monorepo fail-closed semantics).",
+      "feature_id": 4,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "manual",
+      "next_action": "Start feature 5 with /prog next",
+      "refs": [
+        "docs/plans/2026-03-16-feature-4-scope-recovery.md",
+        "hooks/scripts/prog_paths.py",
+        "tests/test_progress_manager.py"
+      ]
+    }
+  ],
+  "runtime_context": {
+    "recorded_at": "2026-03-16T22:41:17.976144Z",
+    "source": "set_workflow_state",
+    "workspace_mode": "worktree",
+    "worktree_path": "/Users/siunin/Projects/claude-plugins-beta",
+    "project_root": "/Users/siunin/Projects/claude-plugins-beta",
+    "cwd": "/Users/siunin/Projects/claude-plugins-beta",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/claude-plugins-beta",
+    "branch": "codex/prog-beta-setup",
+    "upstream": null,
+    "tracker_root": "/Users/siunin/Projects/claude-plugins-beta/plugins/progress-tracker",
+    "current_feature_id": 5,
+    "workflow_phase": "planning",
+    "current_task": null,
+    "total_tasks": null,
+    "next_action": "Resolve git-auto preflight blockers, then produce feature-5 execution plan"
+  },
+  "retrospectives": [],
+  "workflow_state": {
+    "phase": "planning",
+    "next_action": "Resolve git-auto preflight blockers, then produce feature-5 execution plan",
+    "updated_at": "2026-03-16T22:41:17.935452Z",
+    "execution_context": {
+      "recorded_at": "2026-03-16T22:41:17.955765Z",
+      "source": "set_workflow_state",
+      "workspace_mode": "worktree",
+      "worktree_path": "/Users/siunin/Projects/claude-plugins-beta",
+      "project_root": "/Users/siunin/Projects/claude-plugins-beta",
+      "tracker_root": "/Users/siunin/Projects/claude-plugins-beta/plugins/progress-tracker",
+      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/claude-plugins-beta",
+      "branch": "codex/prog-beta-setup",
+      "upstream": null
+    }
+  }
+}

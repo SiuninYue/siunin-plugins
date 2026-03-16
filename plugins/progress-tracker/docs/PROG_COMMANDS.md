@@ -65,6 +65,20 @@ Show plugin command help (namespaced entry for conflict-free discovery).
 
 Launch the Progress UI web server and open in browser. Auto-detects available port (3737-3747). Detects if a server for the current project is already running.
 
+### Low-Learning-Cost Command Layers
+
+Daily commands (default path):
+
+- `/prog` → status + next recommendation
+- `/prog-next` → start/continue the next actionable feature
+- `/prog-done` → acceptance closeout for active feature
+
+Admin commands (only when needed):
+
+- `prog check` / `prog reconcile` for drift diagnostics
+- `prog defer` / `prog resume` for backlog parking and restore
+- `prog next-feature --json` for machine-driven feature selection
+
 ### Progress Manager CLI
 
 Global scope override (recommended in monorepos):
@@ -77,10 +91,14 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py --project-root p
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py init <project_name> [--force]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py status
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py check
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py reconcile [--json]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py next-feature [--json]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-archives [--limit <n>]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py restore-archive <archive_id> [--force]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-current <feature_id>
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py complete <feature_id> --commit <hash>
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py defer (--all-pending|--feature-id <id>) --reason "<reason>" [--defer-group <group>]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py resume (--all|--defer-group <group>)
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state --phase <phase> [--plan-path <path>] [--next-action <action>]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-workflow-task <id> completed
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py clear-workflow-state
@@ -173,6 +191,20 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py register-rejection
 
 启动 Progress UI 网页服务器并在浏览器中打开。自动探测可用端口（3737-3747），检测当前项目是否已有运行中的服务器。
 
+### 低学习成本命令分层
+
+日常命令（默认路径）：
+
+- `/prog`：看状态与下一步建议
+- `/prog-next`：开始/继续下一个可执行功能
+- `/prog-done`：对当前功能做验收收尾
+
+管理命令（仅在需要时）：
+
+- `prog check` / `prog reconcile`：诊断 tracker 漂移
+- `prog defer` / `prog resume`：挂起与恢复 backlog
+- `prog next-feature --json`：给自动化流程做机器可读选项
+
 ### Progress Manager 命令行
 
 Monorepo 中建议显式指定作用域：
@@ -185,10 +217,14 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py --project-root p
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py init <project_name> [--force]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py status
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py check
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py reconcile [--json]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py next-feature [--json]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-archives [--limit <n>]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py restore-archive <archive_id> [--force]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-current <feature_id>
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py complete <feature_id> --commit <hash>
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py defer (--all-pending|--feature-id <id>) --reason "<reason>" [--defer-group <group>]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py resume (--all|--defer-group <group>)
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state --phase <phase> [--plan-path <path>] [--next-action <action>]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-workflow-task <id> completed
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py clear-workflow-state
