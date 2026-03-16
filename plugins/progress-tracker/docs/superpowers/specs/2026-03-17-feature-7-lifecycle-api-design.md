@@ -1,9 +1,12 @@
 # Feature 7: 生命周期 API 与回退规则 - 设计文档
 
 **日期**: 2026-03-17
-**状态**: 设计中
+**状态**: 已批准
 **作者**: Claude
 **相关功能**: REQ-007
+**修订历史**:
+- 2026-03-17 v1: 初始设计
+- 2026-03-17 v2: 修正审计原子性、complete语义、bootstrap一致性等问题
 
 ## 1. 概述
 
@@ -219,12 +222,16 @@ def _execute_transition(
     步骤：
     1. 获取文件锁（保护 progress.json + audit.log）
     2. 读取当前状态并生成 before_snapshot
-    3. 写入审计日志到临时文件
-    4. 更新 progress.json 到临时文件
-    5. 生成 after_snapshot
-    6. fsync 审计日志临时文件，rename
-    7. fsync progress.json 临时文件，rename
-    8. 释放文件锁
+    3. 计算目标状态，生成完整的 after_snapshot（包含所有派生字段）
+    4. 构建审计记录（含 before_snapshot + after_snapshot）
+    5. 两阶段提交：
+       a) 写入审计日志到临时文件，fsync + rename（审计优先落地）
+       b) 写入 progress.json 到临时文件，fsync + rename（状态后落地）
+    6. 释放文件锁
+
+    崩溃恢复规则：
+    - 如果审计记录存在但 progress.json 未更新：下次启动检测差异，自动恢复
+    - 如果 progress.json 已更新但审计记录丢失：通过 bootstrap_audit 补齐
 
     返回：TransitionRecord（含完整快照）
     """
@@ -260,17 +267,40 @@ def start_feature(feature_id: int, reason: str = "") -> TransitionOutcome:
 def complete_feature(
     feature_id: int,
     commit_hash: str = "",
-    reason: str = ""
+    reason: str = "",
+    archive_after_complete: bool = False
 ) -> TransitionOutcome:
-    """完成功能：implementing → verified"""
+    """
+    完成功能：implementing → verified
+
+    参数：
+    - archive_after_complete: 是否在完成后自动归档（默认 False）
+      设为 True 时保持与旧版 complete_feature() 的兼容行为
+
+    兼容说明：
+    - 旧版 complete_feature() 会自动归档到 archived
+    - 新版默认只转换到 verified，显式调用 archive_feature() 归档
+    - 设置 archive_after_complete=True 可保持旧行为
+    """
     ctx = {
         "op": "complete",
         "actor": "system",
-        "reason": reason or "功能完成"
+        "reason": reason or "功能完成",
+        "archive_after_complete": archive_after_complete
     }
     if commit_hash:
         ctx["commit_hash"] = commit_hash
-    return transition(feature_id, "verified", ctx)
+
+    result = transition(feature_id, "verified", ctx)
+
+    # 如果需要自动归档，立即执行归档操作
+    if archive_after_complete and result.changed:
+        archive_result = archive_feature(feature_id, reason=f"自动归档：{reason or '功能完成'}")
+        # 合并验证结果
+        if not archive_result.validation.valid:
+            result.validation.blockers.extend(archive_result.validation.blockers)
+
+    return result
 
 def archive_feature(
     feature_id: int,
@@ -300,18 +330,24 @@ def rollback_feature(feature_id: int, reason: str = "") -> TransitionOutcome:
     """
     基于审计记录回退到前一状态
 
-    步骤：
+    回退语义：
     1. 读取 audit.log，找到该 feature 最近的成功转换记录
     2. 校验一致性：feature.current_state == last_record.to_state
     3. 如果不一致，返回 STATE_DIVERGED 错误
-    4. 恢复到 before_snapshot 的状态（lifecycle_state, development_stage 等）
-    5. 清理派生字段：completed, completed_at, commit_hash, archive_info
-    6. 写入新的审计记录（op=rollback）
+    4. 选择性字段恢复：
+       a) 恢复 before_snapshot 中的核心字段：id, name, lifecycle_state, development_stage
+       b) 清理目标状态相关的派生字段：
+          - 如果回退到 implementing/approved：清理 completed, completed_at, commit_hash
+          - 如果回退到 verified/approved：清理 archive_info
+       c) 保留用户字段不变：test_steps, requirement_ids, change_spec, acceptance_scenarios, owners
+    5. 写入新的审计记录（op=rollback, from=current, to=restored）
 
     边界情况：
-    - archived 状态返回错误（FORBIDDEN_TRANSITION）
-    - approved 状态返回警告（已是初始状态）
-    - 找不到审计记录时返回警告（NO_AUDIT_RECORD）
+    - archived 状态返回错误（FORBIDDEN_TRANSITION，归档终态不支持回退）
+    - approved 状态返回警告（已是初始状态，无需回退）
+    - 找不到审计记录时返回警告（NO_AUDIT_RECORD，需手动处理或 bootstrap）
+    - 只有 bootstrap 记录时返回警告（BOOTSTRAP_ONLY_INACCURATE_ROLLBACK）
+    - before_snapshot 为空时（approved 初始状态）不执行恢复，只返回警告
 
     返回：TransitionOutcome
     """
@@ -353,19 +389,56 @@ def _verify_state_consistency(feature: Dict, audit_record: TransitionRecord) -> 
 ### 6.3 派生字段同步
 
 ```python
-def _sync_derived_fields(feature: Dict, lifecycle_state: str):
+def _sync_derived_fields(feature: Dict, lifecycle_state: str, current_time: str = None):
     """
     根据 lifecycle_state 同步派生字段
+
+    规则：
+    - development_stage: 根据 lifecycle_state 一对一映射
+    - completed: verified/archived 为 True，其他为 False
+    - completed_at: completed=True 时设置为当前时间，False 时删除字段
+    - started_at: implementing 时设置（如果未设置），其他状态保持不变
+    - archive_info: archived 时保留，其他状态删除
+
+    时间戳字段：
+    - current_time 参数用于测试注入，默认使用 _iso_now()
+    - completed_at 在 completed=False 时必须删除（避免影响排序）
     """
+    if current_time is None:
+        current_time = _iso_now()
+
     state_mapping = {
-        "approved": {"development_stage": "planning", "completed": False},
-        "implementing": {"development_stage": "developing", "completed": False},
-        "verified": {"development_stage": "completed", "completed": True},
-        "archived": {"development_stage": "completed", "completed": True},
+        "approved": {
+            "development_stage": "planning",
+            "completed": False,
+            "completed_at": None,  # 删除
+        },
+        "implementing": {
+            "development_stage": "developing",
+            "completed": False,
+            "completed_at": None,  # 删除
+            "started_at": current_time if not feature.get("started_at") else feature.get("started_at"),
+        },
+        "verified": {
+            "development_stage": "completed",
+            "completed": True,
+            "completed_at": current_time,
+            "archive_info": None,  # 删除
+        },
+        "archived": {
+            "development_stage": "completed",
+            "completed": True,
+            # completed_at 保持不变（归档时不修改完成时间）
+            # archive_info 由 archive_feature() 单独设置
+        },
     }
+
     if lifecycle_state in state_mapping:
         for key, value in state_mapping[lifecycle_state].items():
-            feature[key] = value
+            if value is None and key in feature:
+                del feature[key]  # 删除字段
+            elif value is not None:
+                feature[key] = value
 ```
 
 ## 7. 迁移策略
@@ -381,16 +454,48 @@ def bootstrap_audit() -> Dict[str, Any]:
 
     逻辑：
     1. 读取 progress.json 中所有 features
-    2. 对每个 feature，根据当前状态生成一条 "BOOTSTRAP" 记录
-    3. before_snapshot 为空（或派生默认值），after_snapshot 为当前状态
-    4. 写入 audit.log
+    2. 对每个 feature：
+       - 如果 lifecycle_state == "approved": before_snapshot 使用空 dict（标记为初始状态）
+       - 其他状态：before_snapshot 使用 _derive_bootstrap_before_snapshot() 派生一个合理的前置状态
+       - after_snapshot 为当前完整状态
+    3. 生成 "BOOTSTRAP" 记录，op="bootstrap", 标记 record_type="baseline"
+    4. 写入 audit.log（append-only）
+
+    回退语义：
+    - bootstrap 记录的 before_snapshot 不是精确快照，而是"推导的前置状态"
+    - rollback 时如果只有 bootstrap 记录，返回警告 BOOTSTRAP_ONLY_INACCURATE_ROLLBACK
+    - 建议用户在这种情况下手动检查状态而不是依赖自动回退
 
     返回：{
         "total_features": N,
         "bootstrap_records": M,
-        "skipped": []  # 已有审计记录的 features
+        "skipped": [],  # 已有审计记录的 features
+        "warnings": []  # 无法准确推导前置状态的 features
     }
     """
+
+def _derive_bootstrap_before_snapshot(feature: Dict) -> Dict[str, Any]:
+    """
+    为 bootstrap 推导一个合理的 before_snapshot
+
+    规则：
+    - verified → 推导 implementing 状态（假设从 implementing 完成而来）
+    - archived → 推导 verified 状态（假设从 verified 归档而来）
+    - implementing → 推导 approved 状态（假设从 approved 开始）
+    - approved → 返回空 {}（初始状态）
+
+    注意：这是推导的假设，不是真实快照，仅用于支持回退操作的基本可执行性
+    """
+    state = feature.get("lifecycle_state", "approved")
+    if state == "approved":
+        return {}  # 初始状态，无前置
+    elif state == "implementing":
+        return {**feature, "lifecycle_state": "approved", "development_stage": "planning"}
+    elif state == "verified":
+        return {**feature, "lifecycle_state": "implementing", "development_stage": "developing", "completed": False}
+    elif state == "archived":
+        return {**feature, "lifecycle_state": "verified", "archive_info": None}
+    return {}
 ```
 
 ### 7.2 一性性迁移命令
