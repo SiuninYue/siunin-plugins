@@ -3718,6 +3718,23 @@ def add_update(
             print(f"Error: Feature ID {feature_id} not found")
             return False
 
+    # Auto-attach refs from feature if not explicitly provided
+    auto_refs = set(refs or [])
+    if feature_id is not None and not refs:
+        features = data.get("features", [])
+        feature = next((f for f in features if f.get("id") == feature_id), None)
+        if feature:
+            # Auto-attach requirement refs
+            for req_id in feature.get("requirement_ids", []):
+                if isinstance(req_id, str) and req_id.strip():
+                    auto_refs.add(f"req:{req_id}")
+            # Auto-attach change_id if present
+            change_spec = feature.get("change_spec")
+            if isinstance(change_spec, dict):
+                change_id = change_spec.get("change_id")
+                if isinstance(change_id, str) and change_id.strip():
+                    auto_refs.add(f"change:{change_id}")
+
     updates = data.setdefault("updates", [])
     created_at = _iso_now()
     update_item = {
@@ -3736,7 +3753,7 @@ def add_update(
             if isinstance(next_action, str) and next_action.strip()
             else None
         ),
-        "refs": [ref for ref in (refs or []) if isinstance(ref, str) and ref.strip()],
+        "refs": sorted(auto_refs),  # Sort for deterministic output
     }
     updates.append(update_item)
 
@@ -3767,6 +3784,57 @@ def list_updates(limit: int = 10) -> bool:
         if item.get("role") and item.get("owner"):
             line += f" [{item['role']}={item['owner']}]"
         print(line)
+    return True
+
+
+def add_retro(
+    feature_id: int,
+    summary: str,
+    root_cause: str,
+    action_items: Optional[List[str]] = None,
+) -> bool:
+    """Add a retrospective entry for a feature."""
+    data = load_progress_json()
+    if not data:
+        print("No progress tracking found. Use init first.")
+        return False
+
+    features = data.get("features", [])
+    if not any(f.get("id") == feature_id for f in features):
+        print(f"Error: Feature ID {feature_id} not found")
+        return False
+
+    normalized_summary = (summary or "").strip()
+    if not normalized_summary:
+        print("Error: summary cannot be empty")
+        return False
+
+    normalized_root_cause = (root_cause or "").strip()
+    if not normalized_root_cause:
+        print("Error: root_cause cannot be empty")
+        return False
+
+    retrospectives = data.setdefault("retrospectives", [])
+    retro_id = f"RETRO-{feature_id}-{len(retrospectives) + 1:03d}"
+    created_at = _iso_now()
+
+    retro_item = {
+        "id": retro_id,
+        "created_at": created_at,
+        "feature_id": feature_id,
+        "summary": normalized_summary,
+        "root_cause": normalized_root_cause,
+        "action_items": [
+            item.strip() if isinstance(item, str) else item
+            for item in (action_items or [])
+            if isinstance(item, str) and item.strip()
+        ],
+    }
+
+    retrospectives.append(retro_item)
+    save_progress_json(data)
+    save_progress_md(generate_progress_md(data))
+    print(f"Added retrospective {retro_id}: {normalized_summary}")
     return True
 
 
