@@ -16,6 +16,8 @@ Usage:
     python3 progress_manager.py git-sync-check
     python3 progress_manager.py git-auto-preflight [--json]
     python3 progress_manager.py set-current <feature_id>
+    python3 progress_manager.py validate-readiness <feature_id>
+    python3 progress_manager.py fix-readiness <feature_id> [--add-requirement <REQ-ID>] [--set-why <text>] [--add-acceptance <text>]
     python3 progress_manager.py set-development-stage <planning|developing|completed> [--feature-id <id>]
     python3 progress_manager.py complete <feature_id>
     python3 progress_manager.py set-feature-ai-metrics <feature_id> --complexity-score <score> --selected-model <model> --workflow-path <path>
@@ -42,7 +44,7 @@ import time
 from datetime import datetime
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Optional, List, Dict, Any, Tuple, Set
 
 try:
     import fcntl  # POSIX only
@@ -124,6 +126,7 @@ RECONCILE_NEXT_STEPS = (
 MUTATING_COMMANDS = {
     "init",
     "set-current",
+    "fix-readiness",
     "set-development-stage",
     "complete",
     "add-feature",
@@ -691,6 +694,247 @@ def _apply_imported_feature_contract(feature: Dict[str, Any], contract: Dict[str
     feature["change_spec"] = contract["change_spec"]
     feature["acceptance_scenarios"] = contract["acceptance_scenarios"]
     _normalize_feature_contract(feature)
+
+
+def _has_non_empty_list_items(value: Any) -> bool:
+    """Return True when value is a list containing at least one non-empty item."""
+    return isinstance(value, list) and any(str(item).strip() for item in value)
+
+
+def validate_feature_readiness(feature: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Validate feature contract readiness using blocking and warning checks.
+
+    Contract:
+      {
+        "valid": bool,
+        "errors": [str],      # blocking checks
+        "warnings": [str],    # advisory checks
+      }
+    """
+    blockers: List[str] = []
+    warnings: List[str] = []
+
+    if not _has_non_empty_list_items(feature.get("requirement_ids")):
+        blockers.append("requirement_ids cannot be empty")
+
+    change_spec = feature.get("change_spec")
+    if not isinstance(change_spec, dict):
+        change_spec = {}
+
+    why = str(change_spec.get("why") or "").strip()
+    if not why:
+        blockers.append("change_spec.why cannot be empty")
+    elif len(why) <= 10:
+        warnings.append("change_spec.why should be longer than 10 characters")
+
+    if not _has_non_empty_list_items(feature.get("acceptance_scenarios")):
+        blockers.append("acceptance_scenarios cannot be empty")
+
+    if not _has_non_empty_list_items(feature.get("test_steps")):
+        warnings.append("test_steps is empty")
+
+    name = str(feature.get("name") or "").strip()
+    if len(name) < 5:
+        warnings.append("name should be at least 5 characters")
+
+    return {
+        "valid": len(blockers) == 0,
+        "errors": blockers,
+        "warnings": warnings,
+    }
+
+
+def print_readiness_warnings(report: Dict[str, Any]) -> None:
+    """Print non-blocking readiness warnings."""
+    warnings = report.get("warnings", [])
+    if not warnings:
+        return
+
+    print("Warnings (non-blocking):")
+    for warning in warnings:
+        print(f"  - {warning}")
+
+
+def _build_readiness_fix_commands(feature_id: int, errors: List[str]) -> List[str]:
+    """Build deterministic one-line fix commands from blocking errors."""
+    commands: List[str] = []
+    seen: Set[str] = set()
+    default_req = f"REQ-{feature_id:03d}"
+
+    def _add(command: str) -> None:
+        if command in seen:
+            return
+        seen.add(command)
+        commands.append(command)
+
+    for error in errors:
+        if "requirement_ids" in error:
+            _add(
+                f"plugins/progress-tracker/prog fix-readiness {feature_id} --add-requirement {default_req}"
+            )
+        elif "change_spec.why" in error:
+            _add(
+                f"plugins/progress-tracker/prog fix-readiness {feature_id} --set-why \"Detailed explanation...\""
+            )
+        elif "acceptance_scenarios" in error:
+            _add(
+                f"plugins/progress-tracker/prog fix-readiness {feature_id} --add-acceptance \"Scenario: ...\""
+            )
+
+    return commands
+
+
+def print_readiness_error(feature: Dict[str, Any], report: Dict[str, Any]) -> None:
+    """Print readiness blockers and actionable fix commands."""
+    feature_id = feature.get("id", "?")
+    errors = report.get("errors", [])
+    warnings = report.get("warnings", [])
+
+    print(f"Feature #{feature_id} cannot start: readiness check failed")
+    print("")
+    print("Blockers:")
+    for error in errors:
+        print(f"  - {error}")
+
+    if warnings:
+        print("")
+        print_readiness_warnings(report)
+
+    fix_commands = _build_readiness_fix_commands(
+        feature_id if isinstance(feature_id, int) else 0,
+        [str(item) for item in errors],
+    )
+    if fix_commands:
+        print("")
+        print("Suggested fixes:")
+        for command in fix_commands:
+            print(f"  {command}")
+
+    print("")
+    print(f"Retry: plugins/progress-tracker/prog set-current {feature_id}")
+
+
+def validate_readiness_command(feature_id: int) -> int:
+    """Read-only readiness validation. Returns 0 when no blockers, otherwise 1."""
+    data = load_progress_json()
+    if not data:
+        print("No progress tracking found")
+        return 1
+
+    features = data.get("features", [])
+    feature = next((f for f in features if f.get("id") == feature_id), None)
+    if not feature:
+        print(f"Feature ID {feature_id} not found")
+        return 1
+
+    report = validate_feature_readiness(feature)
+    if report["valid"]:
+        print(f"Feature #{feature_id} readiness check passed")
+        if report["warnings"]:
+            print("")
+            print_readiness_warnings(report)
+        return 0
+
+    print_readiness_error(feature, report)
+    return 1
+
+
+def fix_readiness_command(
+    feature_id: int,
+    *,
+    add_requirement: Optional[str] = None,
+    set_why: Optional[str] = None,
+    add_acceptance: Optional[str] = None,
+) -> bool:
+    """
+    Apply structured contract fixes for readiness blockers.
+
+    Returns False for invalid input/feature-not-found; True for successful (including idempotent) runs.
+    """
+    data = load_progress_json()
+    if not data:
+        print("No progress tracking found")
+        return False
+
+    feature = next((f for f in data.get("features", []) if f.get("id") == feature_id), None)
+    if not feature:
+        print(f"Feature ID {feature_id} not found")
+        return False
+
+    operations = [add_requirement, set_why, add_acceptance]
+    if not any(item is not None for item in operations):
+        print(
+            "Error: At least one operation required "
+            "(--add-requirement / --set-why / --add-acceptance)"
+        )
+        return False
+
+    changed = False
+
+    if add_requirement is not None:
+        requirement = str(add_requirement).strip()
+        if not requirement:
+            print("Error: --add-requirement cannot be empty")
+            return False
+        if not requirement.startswith("REQ-"):
+            print(f"Warning: '{requirement}' does not match REQ- format")
+
+        requirement_ids = feature.get("requirement_ids")
+        if not isinstance(requirement_ids, list):
+            requirement_ids = []
+            feature["requirement_ids"] = requirement_ids
+        if requirement not in requirement_ids:
+            requirement_ids.append(requirement)
+            changed = True
+
+    if set_why is not None:
+        why = str(set_why).strip()
+        if not why:
+            print("Error: --set-why cannot be empty")
+            return False
+        change_spec = feature.get("change_spec")
+        if not isinstance(change_spec, dict):
+            change_spec = {}
+            feature["change_spec"] = change_spec
+        if change_spec.get("why") != why:
+            change_spec["why"] = why
+            changed = True
+
+    if add_acceptance is not None:
+        acceptance = str(add_acceptance).strip()
+        if not acceptance:
+            print("Error: --add-acceptance cannot be empty")
+            return False
+        acceptance_scenarios = feature.get("acceptance_scenarios")
+        if not isinstance(acceptance_scenarios, list):
+            acceptance_scenarios = []
+            feature["acceptance_scenarios"] = acceptance_scenarios
+        if acceptance not in acceptance_scenarios:
+            acceptance_scenarios.append(acceptance)
+            changed = True
+
+    if changed:
+        _normalize_feature_contract(feature)
+        save_progress_json(data)
+        save_progress_md(generate_progress_md(data))
+        print(f"Feature #{feature_id} updated")
+    else:
+        print(f"No changes needed for feature #{feature_id}")
+
+    report = validate_feature_readiness(feature)
+    if report["valid"]:
+        print("All blockers resolved. Ready to start.")
+    else:
+        print("Remaining blockers:")
+        for error in report["errors"]:
+            print(f"  - {error}")
+
+    if report["warnings"]:
+        print("")
+        print_readiness_warnings(report)
+
+    return True
 
 
 def import_contract_for_feature(feature_id: int) -> Optional[Dict[str, Any]]:
@@ -2785,13 +3029,26 @@ def set_current(feature_id):
         )
         return False
 
+    if not feature.get("completed", False):
+        readiness_report = validate_feature_readiness(feature)
+        if not readiness_report["valid"]:
+            print_readiness_error(feature, readiness_report)
+            return False
+        if readiness_report["warnings"]:
+            print_readiness_warnings(readiness_report)
+            print("")
+
     previous_current_id = data.get("current_feature_id")
     data["current_feature_id"] = feature_id
 
-    # Selecting a feature for work always starts in planning stage.
-    # /prog-start will explicitly transition planning -> developing.
+    # Selecting a feature for work should immediately enter active development.
+    # This keeps `/prog-next` as a one-step start action instead of requiring
+    # an additional `/prog-start` transition.
     if not feature.get("completed", False):
-        feature["development_stage"] = "planning"
+        feature["development_stage"] = "developing"
+        feature["lifecycle_state"] = "implementing"
+        if not feature.get("started_at"):
+            feature["started_at"] = _iso_now()
 
     if previous_current_id != feature_id:
         data.pop("workflow_state", None)
@@ -2828,6 +3085,15 @@ def set_development_stage(stage: str, feature_id: Optional[int] = None) -> bool:
     if not feature:
         print(f"Feature ID {target_feature_id} not found")
         return False
+
+    if stage == "developing" and not feature.get("completed", False):
+        readiness_report = validate_feature_readiness(feature)
+        if not readiness_report["valid"]:
+            print_readiness_error(feature, readiness_report)
+            return False
+        if readiness_report["warnings"]:
+            print_readiness_warnings(readiness_report)
+            print("")
 
     feature["development_stage"] = stage
     if stage == "developing" and not feature.get("started_at"):
@@ -4685,6 +4951,35 @@ def main():
     current_parser = subparsers.add_parser("set-current", help="Set current feature")
     current_parser.add_argument("feature_id", type=int, help="Feature ID")
 
+    # Validate readiness command (read-only)
+    validate_readiness_parser = subparsers.add_parser(
+        "validate-readiness",
+        help="Validate feature readiness contract for starting work",
+    )
+    validate_readiness_parser.add_argument("feature_id", type=int, help="Feature ID")
+
+    # Fix readiness command (mutating)
+    fix_readiness_parser = subparsers.add_parser(
+        "fix-readiness",
+        help="Apply structured fixes to feature readiness contract fields",
+    )
+    fix_readiness_parser.add_argument("feature_id", type=int, help="Feature ID")
+    fix_readiness_parser.add_argument(
+        "--add-requirement",
+        dest="add_requirement",
+        help="Requirement ID to add (for example REQ-006)",
+    )
+    fix_readiness_parser.add_argument(
+        "--set-why",
+        dest="set_why",
+        help="Set change_spec.why",
+    )
+    fix_readiness_parser.add_argument(
+        "--add-acceptance",
+        dest="add_acceptance",
+        help="Acceptance scenario to append",
+    )
+
     # Set development stage command
     stage_parser = subparsers.add_parser(
         "set-development-stage",
@@ -4917,6 +5212,15 @@ def main():
             return restore_archive(args.archive_id, force=args.force)
         if args.command == "set-current":
             return set_current(args.feature_id)
+        if args.command == "validate-readiness":
+            return validate_readiness_command(args.feature_id)
+        if args.command == "fix-readiness":
+            return fix_readiness_command(
+                args.feature_id,
+                add_requirement=args.add_requirement,
+                set_why=args.set_why,
+                add_acceptance=args.add_acceptance,
+            )
         if args.command == "set-development-stage":
             return set_development_stage(args.stage, feature_id=args.feature_id)
         if args.command == "complete":
