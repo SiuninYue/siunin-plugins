@@ -64,6 +64,7 @@ from prog_paths import (
     get_tracker_docs_root,
     resolve_target_project_root,
 )
+from contract_importer import ContractImporter, ContractImportError
 
 # Import git_validator for secure Git operations
 try:
@@ -682,6 +683,20 @@ def _normalize_feature_contract(feature: Dict[str, Any]) -> None:
     acceptance_scenarios = feature.get("acceptance_scenarios")
     if not isinstance(acceptance_scenarios, list):
         feature["acceptance_scenarios"] = _default_acceptance_scenarios(feature)
+
+
+def _apply_imported_feature_contract(feature: Dict[str, Any], contract: Dict[str, Any]) -> None:
+    """Apply imported contract payload onto a feature record."""
+    feature["requirement_ids"] = contract["requirement_ids"]
+    feature["change_spec"] = contract["change_spec"]
+    feature["acceptance_scenarios"] = contract["acceptance_scenarios"]
+    _normalize_feature_contract(feature)
+
+
+def import_contract_for_feature(feature_id: int) -> Optional[Dict[str, Any]]:
+    """Import feature contract from deterministic docs/progress-tracker/contracts path."""
+    importer = ContractImporter(find_project_root())
+    return importer.import_for_feature(feature_id)
 
 
 def _is_feature_deferred(feature: Dict[str, Any]) -> bool:
@@ -3546,6 +3561,14 @@ def add_feature(name, test_steps):
     }
     _normalize_feature_contract(new_feature)
 
+    try:
+        imported_contract = import_contract_for_feature(new_id)
+    except ContractImportError as exc:
+        print(f"Error: Failed to import contract for feature {new_id}: {exc}")
+        return False
+    if imported_contract:
+        _apply_imported_feature_contract(new_feature, imported_contract)
+
     features.append(new_feature)
     save_progress_json(data)
 
@@ -3579,6 +3602,15 @@ def update_feature(feature_id, name, test_steps=None):
     feature["name"] = normalized_name
     if test_steps:
         feature["test_steps"] = test_steps
+    _normalize_feature_contract(feature)
+
+    try:
+        imported_contract = import_contract_for_feature(feature_id)
+    except ContractImportError as exc:
+        print(f"Error: Failed to import contract for feature {feature_id}: {exc}")
+        return False
+    if imported_contract:
+        _apply_imported_feature_contract(feature, imported_contract)
 
     save_progress_json(data)
 

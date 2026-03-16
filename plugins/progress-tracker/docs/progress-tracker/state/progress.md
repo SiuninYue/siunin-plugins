@@ -30,8 +30,8 @@
 - [ ] 12. 全量回归与验收报告
 
 ## Workflow Context
-- Phase: planning
-- Next action: Resolve git-auto preflight blockers, then produce feature-5 execution plan
+- Phase: execution_complete
+- Next action: Run /prog done to verify and close feature 5
 - Execution context: codex/prog-beta-setup @ claude-plugins-beta [worktree]
 - Current session context: codex/prog-beta-setup @ claude-plugins-beta [worktree]
 

@@ -20,6 +20,7 @@ except ImportError:  # pragma: no cover
 SCRIPT_DIR = Path(__file__).parent.parent / "hooks" / "scripts"
 sys.path.insert(0, str(SCRIPT_DIR))
 import progress_manager
+import contract_importer
 
 
 class TestProjectRootDetection:
@@ -444,6 +445,143 @@ class TestFeatureManagement:
 
         data = progress_manager.load_progress_json()
         assert data["current_feature_id"] is None
+
+
+class TestContractImporterAndFsm:
+    """Test contract auto-import behavior and markdown FSM parser protections."""
+
+    @staticmethod
+    def _valid_contract_markdown() -> str:
+        return (
+            "# Feature: Contract Import\n"
+            "\n"
+            "## Requirements\n"
+            "- REQ-005: import contract\n"
+            "\n"
+            "## Changes\n"
+            "### Why\n"
+            "Avoid manual drift.\n"
+            "### In Scope\n"
+            "- Parse deterministic markdown.\n"
+            "### Out of Scope\n"
+            "- Introduce new public CLI commands.\n"
+            "### Risks\n"
+            "- Parser strictness may reject malformed files.\n"
+            "\n"
+            "## Acceptance Scenarios\n"
+            "- Scenario: parser imports markdown contract.\n"
+        )
+
+    def test_add_feature_contract_import_from_json(self, temp_dir):
+        """add_feature should import canonical fields from feature-<id>.json."""
+        assert progress_manager.init_tracking("Contract JSON", force=True) is True
+        contracts_dir = temp_dir / "docs" / "progress-tracker" / "contracts"
+        contracts_dir.mkdir(parents=True, exist_ok=True)
+        (contracts_dir / "feature-1.json").write_text(
+            json.dumps(
+                {
+                    "requirement_ids": ["REQ-001"],
+                    "change_spec": {
+                        "why": "Deliver deterministic import path.",
+                        "in_scope": ["JSON contract import"],
+                        "out_of_scope": ["Rewrite unrelated workflows"],
+                        "risks": ["Malformed contract payloads"],
+                    },
+                    "acceptance_scenarios": ["Scenario: import contract via add-feature"],
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+
+        assert progress_manager.add_feature("Feature 1", ["Step 1"]) is True
+        data = progress_manager.load_progress_json()
+        feature = data["features"][0]
+        assert feature["requirement_ids"] == ["REQ-001"]
+        assert feature["change_spec"]["why"] == "Deliver deterministic import path."
+        assert feature["acceptance_scenarios"] == ["Scenario: import contract via add-feature"]
+
+    def test_update_feature_contract_import_from_markdown_fsm(self, progress_file):
+        """update_feature should import markdown contract via FSM parser."""
+        contracts_dir = Path("docs/progress-tracker/contracts")
+        contracts_dir.mkdir(parents=True, exist_ok=True)
+        (contracts_dir / "feature-2.md").write_text(
+            self._valid_contract_markdown(),
+            encoding="utf-8",
+        )
+
+        assert progress_manager.update_feature(2, "Feature 2 Updated") is True
+        data = progress_manager.load_progress_json()
+        feature = next(item for item in data["features"] if item["id"] == 2)
+        assert feature["requirement_ids"] == ["REQ-005"]
+        assert feature["change_spec"]["in_scope"] == ["Parse deterministic markdown."]
+        assert feature["change_spec"]["out_of_scope"] == ["Introduce new public CLI commands."]
+        assert feature["acceptance_scenarios"] == [
+            "Scenario: parser imports markdown contract."
+        ]
+
+    def test_add_feature_contract_import_rejects_json_markdown_conflict(
+        self, temp_dir, capsys
+    ):
+        """add_feature should fail when feature-<id>.json and .md both exist."""
+        assert progress_manager.init_tracking("Contract Conflict", force=True) is True
+        contracts_dir = temp_dir / "docs" / "progress-tracker" / "contracts"
+        contracts_dir.mkdir(parents=True, exist_ok=True)
+        (contracts_dir / "feature-1.json").write_text("{}", encoding="utf-8")
+        (contracts_dir / "feature-1.md").write_text(self._valid_contract_markdown(), encoding="utf-8")
+
+        assert progress_manager.add_feature("Feature 1", ["Step 1"]) is False
+        captured = capsys.readouterr()
+        assert "Ambiguous contract file" in captured.out
+
+        data = progress_manager.load_progress_json()
+        assert data["features"] == []
+
+    def test_markdown_fsm_parser_rejects_heading_depth_over_three(self):
+        """markdown fsm parser should reject headings deeper than ###."""
+        parser = contract_importer.MarkdownFSMParser()
+        bad_markdown = "# Feature: Demo\n#### Too Deep\n"
+        with pytest.raises(contract_importer.ContractImportError, match="heading depth"):
+            parser.parse(bad_markdown)
+
+    def test_markdown_fsm_parser_rejects_line_length_over_limit(self):
+        """markdown parser should reject lines exceeding configured max length."""
+        parser = contract_importer.MarkdownFSMParser(max_line_length=10)
+        with pytest.raises(contract_importer.ContractImportError, match="max length"):
+            parser.parse(self._valid_contract_markdown())
+
+    def test_markdown_fsm_parser_enforces_parse_budget(self):
+        """markdown parser should stop once step budget is exceeded."""
+        parser = contract_importer.MarkdownFSMParser(max_steps=5, max_seconds=10)
+        with pytest.raises(contract_importer.ContractImportError, match="budget exceeded"):
+            parser.parse(self._valid_contract_markdown())
+
+    def test_markdown_fsm_parser_enforces_time_budget(self):
+        """markdown parser should stop once time budget is exceeded."""
+        parser = contract_importer.MarkdownFSMParser(max_steps=100000, max_seconds=0.001)
+        clock = {"value": 0.0}
+
+        def _fake_monotonic() -> float:
+            clock["value"] += 0.01
+            return clock["value"]
+
+        with patch("contract_importer.time.monotonic", side_effect=_fake_monotonic):
+            with pytest.raises(contract_importer.ContractImportError, match="time budget"):
+                parser.parse(self._valid_contract_markdown())
+
+    def test_contract_import_markdown_error_includes_source_context(self, temp_dir, capsys):
+        """contract markdown parse errors should include source path and line number."""
+        assert progress_manager.init_tracking("Contract Source Context", force=True) is True
+        contracts_dir = temp_dir / "docs" / "progress-tracker" / "contracts"
+        contracts_dir.mkdir(parents=True, exist_ok=True)
+        (contracts_dir / "feature-1.md").write_text(
+            "# Feature: Demo\n#### Too Deep\n",
+            encoding="utf-8",
+        )
+
+        assert progress_manager.add_feature("Feature 1", ["Step 1"]) is False
+        captured = capsys.readouterr()
+        assert "feature-1.md:2:" in captured.out
 
 
 class TestStatusDisplay:

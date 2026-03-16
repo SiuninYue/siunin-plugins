@@ -54,6 +54,25 @@ def test_load_progress_json_backfills_feature_contract_defaults(temp_dir):
     assert feature["acceptance_scenarios"]
 
 
+def test_requirement_ids_change_spec_acceptance_scenarios_defaults(temp_dir):
+    """Keyword-targeted test for CLI acceptance command filtering."""
+    state_dir = temp_dir / "docs" / "progress-tracker" / "state"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "project_name": "Legacy",
+        "created_at": "2026-03-09T00:00:00Z",
+        "features": [{"id": 11, "name": "Import Contracts", "test_steps": ["step"], "completed": False}],
+        "current_feature_id": 11,
+    }
+    (state_dir / "progress.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    data = progress_manager.load_progress_json()
+    feature = data["features"][0]
+    assert feature["requirement_ids"] == ["REQ-011"]
+    assert feature["change_spec"]["why"]
+    assert feature["acceptance_scenarios"]
+
+
 def test_validate_feature_readiness_detects_missing_contract_fields(temp_dir):
     """Readiness validator should reject incomplete feature contracts."""
     feature = {
