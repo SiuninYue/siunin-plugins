@@ -382,12 +382,8 @@ def _execute_transition(
 
         after_snapshot = copy.deepcopy(feature)
 
-        # 两阶段提交（先写入 progress.json，成功后才写入审计日志）
-        # 1. 先写入 progress.json（核心数据）
-        data["updated_at"] = current_time
-        _atomic_write(progress_path, json.dumps(data, indent=2, ensure_ascii=False))
-
-        # 2. progress.json 写入成功后，构建审计记录并标记为成功
+        # 两阶段提交（先写审计日志，再写 progress.json）
+        # 1. 先构建并写入审计记录
         audit_record = {
             "id": audit_log.generate_audit_id(project_root),
             "tx_id": tx_id,
@@ -401,12 +397,35 @@ def _execute_transition(
             "before_snapshot": before_snapshot,
             "after_snapshot": after_snapshot,
             "timestamp": current_time,
-            "success": True,  # 只有在 progress.json 写入成功后才标记为成功
+            "success": True,  # 乐观标记，如果 progress.json 写失败会追加失败记录
         }
 
-        # 3. 写入审计日志
         audit_path = state_dir / audit_log.AUDIT_LOG_FILENAME
         _atomic_write(audit_path, _read_and_append_audit(audit_path, audit_record))
+
+        # 2. 写入 progress.json
+        try:
+            data["updated_at"] = current_time
+            _atomic_write(progress_path, json.dumps(data, indent=2, ensure_ascii=False))
+        except Exception as e:
+            # progress.json 写失败：追加失败审计记录
+            failure_record = {
+                "id": audit_log.generate_audit_id(project_root),
+                "tx_id": tx_id,
+                "feature_id": feature_id,
+                "op": f"{op}_rollback",
+                "from": target_state,
+                "to": before_snapshot.get("lifecycle_state", ""),
+                "actor": "system",
+                "reason": f"progress.json 写入失败: {str(e)}",
+                "metadata": {"original_error": str(e), "rollback_reason": "progress_json_write_failed"},
+                "before_snapshot": after_snapshot,
+                "after_snapshot": before_snapshot,  # 回滚到原始状态
+                "timestamp": _iso_now(),
+                "success": False,
+            }
+            _atomic_write(audit_path, _read_and_append_audit(audit_path, failure_record))
+            raise  # 重新抛出异常，调用方会收到 EXECUTION_FAILED
 
         # 4. 更新 progress.md（非阻塞）
         try:
