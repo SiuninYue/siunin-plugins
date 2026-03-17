@@ -444,3 +444,102 @@ def transition(
             validation=validation,
             changed=False,
         )
+
+
+# =============================================================================
+# 语义化业务入口 API
+# =============================================================================
+
+def start_feature(feature_id: int, reason: str = "", project_root: Optional[str] = None) -> TransitionOutcome:
+    """开始功能开发：approved → implementing"""
+    return transition(
+        feature_id, "implementing",
+        {
+            "op": "start",
+            "actor": "system",
+            "reason": reason or "开始功能开发",
+            "metadata": {}
+        },
+        dry_run=False,
+        project_root=project_root
+    )
+
+
+def complete_feature(
+    feature_id: int,
+    commit_hash: str = "",
+    reason: str = "",
+    archive_after_complete: bool = False,
+    project_root: Optional[str] = None
+) -> TransitionOutcome:
+    """
+    完成功能：implementing → verified
+
+    参数：
+    - archive_after_complete: 是否在完成后自动归档（默认 False）
+    """
+    ctx = {
+        "op": "complete",
+        "actor": "system",
+        "reason": reason or "功能完成",
+        "metadata": {}
+    }
+    if commit_hash:
+        ctx["commit_hash"] = commit_hash
+    if archive_after_complete:
+        ctx["metadata"]["archive_after_complete"] = True
+
+    result = transition(feature_id, "verified", ctx, dry_run=False, project_root=project_root)
+
+    # 如果需要自动归档
+    if archive_after_complete and result.changed:
+        archive_result = archive_feature(feature_id, reason=f"自动归档：{reason or '功能完成'}", project_root=project_root)
+        if not archive_result.validation.valid:
+            result.validation.blockers.extend(archive_result.validation.blockers)
+
+    return result
+
+
+def archive_feature(feature_id: int, reason: str = "", project_root: Optional[str] = None) -> TransitionOutcome:
+    """归档功能：verified → archived"""
+    return transition(
+        feature_id, "archived",
+        {
+            "op": "archive",
+            "actor": "system",
+            "reason": reason or "功能归档",
+            "metadata": {}
+        },
+        dry_run=False,
+        project_root=project_root
+    )
+
+
+def replan_feature(feature_id: int, reason: str = "", project_root: Optional[str] = None) -> TransitionOutcome:
+    """重新规划：implementing → approved"""
+    return transition(
+        feature_id, "approved",
+        {
+            "op": "replan",
+            "actor": "system",
+            "reason": reason or "重新规划",
+            "metadata": {}
+        },
+        dry_run=False,
+        project_root=project_root
+    )
+
+
+def reopen_feature(feature_id: int, reason: str = "", project_root: Optional[str] = None) -> TransitionOutcome:
+    """重开修复：verified → implementing"""
+    return transition(
+        feature_id, "implementing",
+        {
+            "op": "reopen",
+            "actor": "system",
+            "reason": reason or "重开修复",
+            "metadata": {}
+        },
+        dry_run=False,
+        project_root=project_root
+    )
