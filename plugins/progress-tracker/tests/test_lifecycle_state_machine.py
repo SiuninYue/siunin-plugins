@@ -77,3 +77,55 @@ class TestValidateTransition:
         )
         assert result.valid is False
         assert result.blockers[0].code == "INVALID_TARGET_STATE"
+
+
+class TestSyncDerivedFields:
+    """测试派生字段同步"""
+
+    def test_sync_to_approved_sets_planning(self):
+        """同步到 approved 应设置 planning"""
+        feature = {
+            "id": 1,
+            "name": "Test",
+            "lifecycle_state": "implementing",
+            "development_stage": "developing",
+            "completed": False,
+            "completed_at": "2024-01-01T00:00:00Z",
+        }
+        lifecycle_state_machine._sync_derived_fields(feature, "approved", "2024-03-17T00:00:00Z")
+
+        assert feature["development_stage"] == "planning"
+        assert feature["completed"] is False
+        assert "completed_at" not in feature
+
+    def test_sync_to_implementing_sets_developing(self):
+        """同步到 implementing 应设置 developing"""
+        feature = {"id": 1, "name": "Test"}
+        lifecycle_state_machine._sync_derived_fields(feature, "implementing", "2024-03-17T00:00:00Z")
+
+        assert feature["development_stage"] == "developing"
+        assert feature["completed"] is False
+        assert feature["started_at"] == "2024-03-17T00:00:00Z"
+
+    def test_sync_to_verified_sets_completed(self):
+        """同步到 verified 应设置 completed"""
+        feature = {"id": 1, "name": "Test"}
+        lifecycle_state_machine._sync_derived_fields(feature, "verified", "2024-03-17T00:00:00Z")
+
+        assert feature["development_stage"] == "completed"
+        assert feature["completed"] is True
+        assert feature["completed_at"] == "2024-03-17T00:00:00Z"
+        assert "archive_info" not in feature
+
+    def test_sync_to_archived_preserves_completed_at(self):
+        """同步到 archived 应保留 completed_at"""
+        feature = {
+            "id": 1,
+            "name": "Test",
+            "completed_at": "2024-03-17T10:00:00Z",
+        }
+        lifecycle_state_machine._sync_derived_fields(feature, "archived", "2024-03-17T12:00:00Z")
+
+        assert feature["development_stage"] == "completed"
+        assert feature["completed"] is True
+        assert feature["completed_at"] == "2024-03-17T10:00:00Z"  # 保持不变
