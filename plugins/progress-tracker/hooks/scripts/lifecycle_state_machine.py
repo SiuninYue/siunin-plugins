@@ -10,7 +10,7 @@ import json
 import os
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
@@ -257,7 +257,7 @@ def get_transition_suggestion(current: str, target: str) -> str:
 
 def _iso_now() -> str:
     """获取当前 ISO 格式时间 (UTC)"""
-    return datetime.utcnow().isoformat() + "Z"
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def _sync_derived_fields(feature: Dict[str, Any], lifecycle_state: str, current_time: str = None):
@@ -382,9 +382,14 @@ def _execute_transition(
 
         after_snapshot = copy.deepcopy(feature)
 
-        # 构建审计记录
+        # 两阶段提交（先写入 progress.json，成功后才写入审计日志）
+        # 1. 先写入 progress.json（核心数据）
+        data["updated_at"] = current_time
+        _atomic_write(progress_path, json.dumps(data, indent=2, ensure_ascii=False))
+
+        # 2. progress.json 写入成功后，构建审计记录并标记为成功
         audit_record = {
-            "id": audit_log.generate_audit_id(),
+            "id": audit_log.generate_audit_id(project_root),
             "tx_id": tx_id,
             "feature_id": feature_id,
             "op": op,
@@ -396,19 +401,14 @@ def _execute_transition(
             "before_snapshot": before_snapshot,
             "after_snapshot": after_snapshot,
             "timestamp": current_time,
-            "success": True,
+            "success": True,  # 只有在 progress.json 写入成功后才标记为成功
         }
 
-        # 两阶段提交
-        # 1. 写入审计日志
+        # 3. 写入审计日志
         audit_path = state_dir / audit_log.AUDIT_LOG_FILENAME
         _atomic_write(audit_path, _read_and_append_audit(audit_path, audit_record))
 
-        # 2. 写入 progress.json
-        data["updated_at"] = current_time
-        _atomic_write(progress_path, json.dumps(data, indent=2, ensure_ascii=False))
-
-        # 3. 更新 progress.md（非阻塞）
+        # 4. 更新 progress.md（非阻塞）
         try:
             from progress_manager import generate_progress_md, save_progress_md
             md_content = generate_progress_md(data)

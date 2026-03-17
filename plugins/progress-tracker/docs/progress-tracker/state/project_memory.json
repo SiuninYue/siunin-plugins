@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "created_at": "2026-03-16T14:35:43.874202Z",
-  "updated_at": "2026-03-16T15:48:17.963058Z",
-  "next_capability_seq": 3,
+  "updated_at": "2026-03-16T17:23:06.574629Z",
+  "next_capability_seq": 4,
   "last_synced_commit": null,
   "capabilities": [
     {
@@ -48,6 +48,27 @@
       },
       "created_at": "2026-03-16T15:48:17.947083Z",
       "updated_at": "2026-03-16T15:48:17.947083Z"
+    },
+    {
+      "cap_id": "CAP-003",
+      "fingerprint": "cf7d34fda6713c3e",
+      "title": "Feature 6: readiness 校验器与 /prog-start 串联",
+      "summary": "Implement readiness validator that blocks feature start when contract fields (requirement_ids, change_spec.why, acceptance_scenarios) are empty, with warnings for test_steps/name issues. Added validate-readiness and fix-readiness commands.",
+      "tags": [
+        "progress-tracker",
+        "readiness",
+        "validation",
+        "contracts"
+      ],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 6,
+        "commit_hash": "6c26091",
+        "commit_range": ""
+      },
+      "created_at": "2026-03-16T17:23:06.574554Z",
+      "updated_at": "2026-03-16T17:23:06.574554Z"
     }
   ],
   "rejected_fingerprints": [],

@@ -413,7 +413,7 @@ def test_status_detail_next_panel_all_completed(test_client, working_dir):
 
 
 def test_status_detail_next_panel_active_planning_action(test_client, working_dir):
-    """Planning-stage active feature should suggest /prog-start."""
+    """Planning-stage active feature should route resume action through /prog-next."""
     progress_file = working_dir / "docs" / "progress-tracker" / "state" / "progress.json"
     progress_data = json.loads(progress_file.read_text())
     progress_data["current_feature_id"] = 2
@@ -424,8 +424,8 @@ def test_status_detail_next_panel_active_planning_action(test_client, working_di
     data = response.json()
 
     assert "规划中" in data["summary"]
-    assert data["actions"][0]["label"] == "开始开发"
-    assert data["actions"][0]["command"] == "/prog-start"
+    assert data["actions"][0]["label"] == "继续此功能"
+    assert data["actions"][0]["command"] == "/prog-next"
 
 
 def test_status_detail_next_panel_active_developing_action(test_client, working_dir):

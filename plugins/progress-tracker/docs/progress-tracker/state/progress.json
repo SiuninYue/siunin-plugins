@@ -2,7 +2,7 @@
   "schema_version": "2.0",
   "project_name": "PROG 全量规范化",
   "created_at": "2026-03-16T14:28:41.135552Z",
-  "updated_at": "2026-03-16T23:48:16.694901Z",
+  "updated_at": "2026-03-17T02:37:14.568931Z",
   "features": [
     {
       "id": 1,
@@ -30,8 +30,7 @@
         "finished_at": "2026-03-16T17:48:23.268105+08:00",
         "duration_seconds": 0
       },
-      "completed_at": "2026-03-16T17:48:23.270620Z",
-      "lifecycle_state": "verified",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-001"
       ],
@@ -53,7 +52,10 @@
         "Scenario: cd plugins/progress-tracker && pytest tests/test_progress_manager.py -q -k \"readiness or lifecycle or retro or refs or scope\"",
         "Scenario: 从 monorepo 根目录复现错误作用域的 /prog-next 或等价 CLI 场景，并固化为失败基线",
         "Scenario: DoD: 新增与稳定后的红灯测试可重复暴露当前缺口，包括错误 project scope 恢复问题，且不依赖非确定性环境。"
-      ]
+      ],
+      "started_at": "2026-03-17T02:37:14.522155Z",
+      "completed_at": "2024-03-17T00:00:00Z",
+      "commit_hash": "abc123"
     },
     {
       "id": 2,
@@ -285,7 +287,7 @@
         "cd plugins/progress-tracker && pytest tests/test_prog_start_contract.py -q",
         "DoD: 阻断项会阻止 /prog-start，告警项只提示不阻断，输出原因清晰可操作。"
       ],
-      "completed": false,
+      "completed": true,
       "owners": {
         "architecture": null,
         "coding": null,
@@ -295,7 +297,7 @@
       "defer_reason": null,
       "deferred_at": null,
       "defer_group": null,
-      "lifecycle_state": "approved",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-006"
       ],
@@ -316,7 +318,24 @@
         "Scenario: cd plugins/progress-tracker && pytest tests/test_prog_start_behavior.py -q",
         "Scenario: cd plugins/progress-tracker && pytest tests/test_prog_start_contract.py -q",
         "Scenario: DoD: 阻断项会阻止 /prog-start，告警项只提示不阻断，输出原因清晰可操作。"
-      ]
+      ],
+      "development_stage": "completed",
+      "ai_metrics": {
+        "complexity_score": 21,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-03-17T00:00:27.972980Z",
+        "finished_at": "2026-03-17T01:23:00.715149+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-03-17T01:23:00.717546Z",
+      "commit_hash": "6c26091",
+      "archive_info": {
+        "archived_at": "2026-03-17T01:23:00.753178Z",
+        "files_moved": 0,
+        "files": []
+      }
     },
     {
       "id": 7,
@@ -358,7 +377,16 @@
         "Scenario: cd plugins/progress-tracker && pytest tests/test_feature_completion_state_transition.py -q",
         "Scenario: cd plugins/progress-tracker && pytest tests/test_progress_manager.py -q -k \"lifecycle or complete_feature or set_development_stage\"",
         "Scenario: DoD: 合法流转成功且审计完整，非法流转被拒绝且无副作用，回退会重置验收结果。"
-      ]
+      ],
+      "development_stage": "planning",
+      "started_at": "2026-03-17T01:39:42.583569Z",
+      "ai_metrics": {
+        "complexity_score": 21,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-03-17T01:39:58.506511Z"
+      }
     },
     {
       "id": 8,
@@ -678,7 +706,7 @@
       ]
     }
   ],
-  "current_feature_id": null,
+  "current_feature_id": 7,
   "updates": [
     {
       "id": "UPD-001",
@@ -847,21 +875,38 @@
     }
   ],
   "runtime_context": {
-    "recorded_at": "2026-03-16T23:48:12.014853Z",
-    "source": "complete_feature",
+    "recorded_at": "2026-03-17T07:48:04.879910Z",
+    "source": "set_workflow_state",
     "workspace_mode": "worktree",
     "worktree_path": "/Users/siunin/Projects/claude-plugins-beta",
     "project_root": "/Users/siunin/Projects/claude-plugins-beta",
-    "cwd": "/Users/siunin/Projects/claude-plugins-beta/plugins/progress-tracker",
+    "cwd": "/Users/siunin/Projects/claude-plugins-beta",
     "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/claude-plugins-beta",
     "branch": "codex/prog-beta-setup",
     "upstream": "origin/codex/prog-beta-setup",
     "tracker_root": "/Users/siunin/Projects/claude-plugins-beta/plugins/progress-tracker",
-    "current_feature_id": null,
-    "workflow_phase": "execution_complete",
+    "current_feature_id": 7,
+    "workflow_phase": "execution",
     "current_task": null,
     "total_tasks": null,
-    "next_action": "Run /prog done to verify and close feature 5"
+    "next_action": "使用 subagent-driven-development 执行实现计划"
   },
-  "retrospectives": []
+  "retrospectives": [],
+  "workflow_state": {
+    "phase": "execution",
+    "plan_path": "docs/plans/2026-03-17-feature-7-lifecycle-api.md",
+    "next_action": "使用 subagent-driven-development 执行实现计划",
+    "updated_at": "2026-03-17T07:48:04.830996Z",
+    "execution_context": {
+      "recorded_at": "2026-03-17T07:48:04.857467Z",
+      "source": "set_workflow_state",
+      "workspace_mode": "worktree",
+      "worktree_path": "/Users/siunin/Projects/claude-plugins-beta",
+      "project_root": "/Users/siunin/Projects/claude-plugins-beta",
+      "tracker_root": "/Users/siunin/Projects/claude-plugins-beta/plugins/progress-tracker",
+      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/claude-plugins-beta",
+      "branch": "codex/prog-beta-setup",
+      "upstream": "origin/codex/prog-beta-setup"
+    }
+  }
 }

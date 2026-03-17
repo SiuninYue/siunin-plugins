@@ -128,10 +128,10 @@ def test_client(working_dir):
 
 # ========== RED Tests (Failing Tests for Feature 17) ==========
 
-def test_ui_displays_prog_start_button_when_planning(test_client, working_dir):
+def test_ui_displays_prog_next_button_when_planning(test_client, working_dir):
     """
     FAILING TEST: When feature is in 'planning' stage and is active,
-    the drawer should display "开始开发" button with /prog-start command.
+    the drawer should display "继续此功能" button with /prog-next command.
     """
     # Set Feature 2 as active (planning stage)
     progress_file = working_dir / "docs" / "progress-tracker" / "state" / "progress.json"
@@ -145,13 +145,13 @@ def test_ui_displays_prog_start_button_when_planning(test_client, working_dir):
     assert data["title"] == "当前功能详情", \
         f"Expected title '当前功能详情' for active feature, got '{data.get('title')}'"
 
-    # Verify suggested action contains "开始开发" button
+    # Verify suggested action contains "继续此功能" button
     assert len(data["actions"]) > 0, "Expected actions to be present"
     action = data["actions"][0]
-    assert action["label"] == "开始开发", \
-        f"Expected button label '开始开发', got '{action.get('label')}'"
-    assert action["command"] == "/prog-start", \
-        f"Expected command '/prog-start', got '{action.get('command')}'"
+    assert action["label"] == "继续此功能", \
+        f"Expected button label '继续此功能', got '{action.get('label')}'"
+    assert action["command"] == "/prog-next", \
+        f"Expected command '/prog-next', got '{action.get('command')}'"
 
 
 def test_ui_displays_prog_done_button_when_developing(test_client, working_dir):

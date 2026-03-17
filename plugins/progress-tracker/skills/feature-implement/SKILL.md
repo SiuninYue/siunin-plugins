@@ -99,11 +99,8 @@ plugins/progress-tracker/prog next-feature --json
 plugins/progress-tracker/prog set-current <feature_id>
 ```
 
-- Ensure initial stage is explicitly `planning`:
-
-```bash
-plugins/progress-tracker/prog set-development-stage planning --feature-id <feature_id>
-```
+- `set-current` now auto-transitions the active feature into `developing`.
+- Do not require `/prog-start` as an extra manual transition.
 
 - Display:
   - feature ID and name

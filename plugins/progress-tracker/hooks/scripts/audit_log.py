@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
+import random
 
 
 AUDIT_LOG_FILENAME = "audit.log"
@@ -31,22 +32,26 @@ def get_audit_log_path(project_root: Optional[str] = None) -> Path:
         return Path(state_dir) / AUDIT_LOG_FILENAME
 
     if project_root:
-        base = Path(project_root)
+        # project_root 是项目根目录，审计日志在 state 子目录下
+        base = Path(project_root) / "docs" / "progress-tracker" / "state"
     else:
         # 默认路径相对于当前文件
         base = Path(__file__).parent.parent.parent / "docs" / "progress-tracker" / "state"
     return base / AUDIT_LOG_FILENAME
 
 
-def generate_audit_id() -> str:
+def generate_audit_id(project_root: Optional[str] = None) -> str:
     """生成审计记录 ID
 
     从审计日志中读取最大 ID 并递增。
 
+    Args:
+        project_root: 项目根目录路径（可选，用于隔离项目）
+
     Returns:
         格式为 "AUDIT-XXX" 的唯一 ID（XXX 为 3 位数字，从 001 开始）
     """
-    path = get_audit_log_path()
+    path = get_audit_log_path(project_root)
     if not path.exists():
         return "AUDIT-001"
 
@@ -70,12 +75,14 @@ def generate_audit_id() -> str:
 
 
 def generate_tx_id() -> str:
-    """生成事务 ID
+    """生成事务 ID（带微秒精度避免碰撞）
 
     Returns:
-        格式为 "TX-YYYYMMDD-HHMMSS" 的事务 ID
+        格式为 "TX-YYYYMMDD-HHMMSS-mmmmmm" 的事务 ID（mmmmmm 为微秒）
     """
-    return f"TX-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}"
+    now = datetime.now(timezone.utc)
+    microsecond_suffix = random.randint(1000, 9999)  # 4 位随机数避免碰撞
+    return f"TX-{now.strftime('%Y%m%d-%H%M%S')}-{microsecond_suffix:04d}"
 
 
 def append_audit_record(record: Dict[str, Any], project_root: Optional[str] = None) -> None:

@@ -51,11 +51,11 @@ class TestAuditLogBasic:
         """事务 ID 格式应该正确"""
         tx_id = audit_log.generate_tx_id()
         assert tx_id.startswith("TX-")
-        # TX-YYYYMMDD-HHMMSS format: 3 + 8 + 1 + 6 = 18 characters
-        assert len(tx_id) == 18
-        # Verify it matches the expected pattern
+        # TX-YYYYMMDD-HHMMSS-mmmm format: 3 + 8 + 1 + 6 + 1 + 4 = 23 characters
+        assert len(tx_id) == 23
+        # Verify it matches the expected pattern (with microsecond suffix to avoid collision)
         import re
-        assert re.match(r'^TX-\d{8}-\d{6}$', tx_id)
+        assert re.match(r'^TX-\d{8}-\d{6}-\d{4}$', tx_id)
 
 
 class TestAppendAuditRecord:

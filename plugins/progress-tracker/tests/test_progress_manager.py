@@ -646,7 +646,9 @@ class TestCurrentFeature:
         data = progress_manager.load_progress_json()
         assert data["current_feature_id"] == 2
         feature = [f for f in data["features"] if f["id"] == 2][0]
-        assert feature["development_stage"] == "planning"
+        assert feature["development_stage"] == "developing"
+        assert feature["lifecycle_state"] == "implementing"
+        assert feature.get("started_at")
 
     def test_set_nonexistent_feature(self, progress_file):
         """Should fail when feature ID doesn't exist."""

@@ -6,7 +6,7 @@ inputs:
   - User request to start next feature
 outputs:
   - Selected feature details
-  - Active feature initialized with development_stage=planning
+  - Active feature initialized with development_stage=developing
   - Implementation workflow launched
   - Test steps for the feature
 evidence: optional

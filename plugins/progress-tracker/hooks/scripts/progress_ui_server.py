@@ -1221,8 +1221,8 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
 
             action_map = {
                 "planning": {
-                    "label": "开始开发",
-                    "command": "/prog-start",
+                    "label": "继续此功能",
+                    "command": "/prog-next",
                 },
                 "developing": {
                     "label": "完成此功能",
