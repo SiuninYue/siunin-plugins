@@ -190,8 +190,8 @@ def get_transition_suggestion(current: str, target: str) -> str:
 
 
 def _iso_now() -> str:
-    """获取当前 ISO 格式时间"""
-    return datetime.now().isoformat() + "Z"
+    """获取当前 ISO 格式时间 (UTC)"""
+    return datetime.utcnow().isoformat() + "Z"
 
 
 def _sync_derived_fields(feature: Dict[str, Any], lifecycle_state: str, current_time: str = None):
@@ -213,12 +213,14 @@ def _sync_derived_fields(feature: Dict[str, Any], lifecycle_state: str, current_
             "development_stage": "planning",
             "completed": False,
             "completed_at": None,  # 删除
+            "archive_info": None,  # 删除
         },
         "implementing": {
             "development_stage": "developing",
             "completed": False,
             "completed_at": None,  # 删除
             "started_at": current_time,  # 只在未设置时设置
+            "archive_info": None,  # 删除
         },
         "verified": {
             "development_stage": "completed",
@@ -235,16 +237,16 @@ def _sync_derived_fields(feature: Dict[str, Any], lifecycle_state: str, current_
     }
 
     if lifecycle_state not in state_mapping:
-        return
+        raise ValueError(f"Invalid lifecycle_state: {lifecycle_state}. Valid states: {list(state_mapping.keys())}")
 
     for key, value in state_mapping[lifecycle_state].items():
         if value is None:
             # 删除字段
             if key in feature:
                 del feature[key]
-        elif key == "started_at" and value == current_time:
+        elif key == "started_at":
             # started_at 只在未设置时设置
-            if not feature.get("started_at"):
+            if "started_at" not in feature:
                 feature[key] = value
         else:
             feature[key] = value
