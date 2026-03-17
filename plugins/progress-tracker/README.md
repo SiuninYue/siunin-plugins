@@ -121,7 +121,19 @@ Admin commands (only when needed):
 - `prog defer` / `prog resume` for backlog parking and restore
 - `prog next-feature --json` for machine-driven feature selection
 
+### Runtime Boundary (Claude vs Codex)
+
+- Slash commands (`/prog`, `/prog-next`, `/prog-done`) are the daily UX in Claude Code.
+- CLI commands (`prog check`, `prog reconcile`, `prog defer`, `prog resume`, `prog next-feature --json`) are for diagnostics/admin/automation.
+- Both runtimes share the same backend logic (`hooks/scripts/progress_manager.py`).
+
 ### Progress Manager CLI
+
+Preferred cross-runtime wrapper (Codex/local shell):
+
+```bash
+plugins/progress-tracker/prog --project-root plugins/<name> status
+```
 
 Global scope override (recommended in monorepos):
 

@@ -38,5 +38,7 @@ Use this structure:
 - Prefer namespaced form in docs/examples for deterministic plugin routing.
 - If Claude Code shows a short command (for example `/prog`), it refers to the same plugin command.
 - Do not put a space after `:`. Use `/progress-tracker:prog`, not `/progress-tracker: prog`.
+- Slash commands are daily workflow; CLI commands are diagnostics/admin/automation.
+- In Codex/local shell, use `plugins/progress-tracker/prog --project-root plugins/<name> <command>` for the same backend behavior.
 
 Keep the response concise and practical.

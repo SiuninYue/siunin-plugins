@@ -1,0 +1,35 @@
+{
+  "feature_id": 10,
+  "feature_name": "10. summary 投影与状态展示",
+  "done_attempt_at": "2026-03-17T22:04:15.642311Z",
+  "overall_success": true,
+  "results": [
+    {
+      "step": "pytest tests/test_progress_ui_status.py -q",
+      "command": "pytest tests/test_progress_ui_status.py -q",
+      "success": true,
+      "output_summary": ".........................                                                [100%]\n25 passed in 0.04s",
+      "duration_ms": 152,
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "step": "pytest tests/test_progress_ui.py -q",
+      "command": "pytest tests/test_progress_ui.py -q",
+      "success": true,
+      "output_summary": "..sssss..s...........                                                    [100%]\n15 passed, 6 skipped in 0.02s",
+      "duration_ms": 115,
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "step": "pytest tests/test_ui_display_logic.py -q",
+      "command": "pytest tests/test_ui_display_logic.py -q",
+      "success": true,
+      "output_summary": ".....                                                                    [100%]\n5 passed in 0.01s",
+      "duration_ms": 127,
+      "exit_code": 0,
+      "error": null
+    }
+  ]
+}

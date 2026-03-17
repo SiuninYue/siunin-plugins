@@ -198,3 +198,56 @@ def test_add_update_auto_attaches_requirement_refs(temp_dir):
     assert "req:REQ-001" in refs
     assert "req:REQ-010" in refs
     assert "change:CHG-auth-login" in refs
+
+
+def test_add_update_refs_overflow_is_captured_without_dropping_data(temp_dir):
+    """Auto refs should be compacted with overflow preserved in dedicated fields."""
+    progress_manager.init_tracking("Refs Overflow", force=True)
+    progress_manager.add_feature("Feature F", ["step 1"])
+
+    data = progress_manager.load_progress_json()
+    feature = data["features"][0]
+    feature["requirement_ids"] = [f"REQ-{idx:03d}" for idx in range(1, 21)]
+    feature["change_spec"]["change_id"] = "CHG-bulk-import"
+    progress_manager.save_progress_json(data)
+
+    assert progress_manager.add_update(
+        category="status",
+        summary="Large refs payload",
+        feature_id=1,
+        source="manual",
+    ) is True
+
+    data = progress_manager.load_progress_json()
+    update = data["updates"][-1]
+    assert len(update["refs"]) == progress_manager.UPDATE_REFS_INLINE_LIMIT
+    assert update["refs_overflow_count"] == len(update["refs_overflow"])
+
+    all_refs = update["refs"] + update["refs_overflow"]
+    assert len(all_refs) == 21
+    assert "change:CHG-bulk-import" in all_refs
+
+
+def test_add_update_manual_refs_are_protected_from_auto_injection(temp_dir):
+    """Explicit refs should remain authoritative and not merge auto refs."""
+    progress_manager.init_tracking("Refs Manual", force=True)
+    progress_manager.add_feature("Feature G", ["step 1"])
+
+    data = progress_manager.load_progress_json()
+    feature = data["features"][0]
+    feature["requirement_ids"] = ["REQ-001", "REQ-002"]
+    feature["change_spec"]["change_id"] = "CHG-should-not-appear"
+    progress_manager.save_progress_json(data)
+
+    assert progress_manager.add_update(
+        category="status",
+        summary="Manual refs only",
+        feature_id=1,
+        source="manual",
+        refs=["manual:ticket-123", "req:REQ-manual", "manual:ticket-123", " "],
+    ) is True
+
+    data = progress_manager.load_progress_json()
+    update = data["updates"][-1]
+    assert update["refs"] == ["manual:ticket-123", "req:REQ-manual"]
+    assert "refs_overflow" not in update

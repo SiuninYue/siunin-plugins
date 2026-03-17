@@ -79,7 +79,19 @@ Admin commands (only when needed):
 - `prog defer` / `prog resume` for backlog parking and restore
 - `prog next-feature --json` for machine-driven feature selection
 
+### Runtime Boundary (Claude vs Codex)
+
+- Slash commands (`/prog`, `/prog-next`, `/prog-done`) are the daily UX in Claude Code.
+- CLI commands (`prog check`, `prog reconcile`, `prog defer`, `prog resume`, `prog next-feature --json`) are for diagnostics/admin/automation.
+- Both runtimes share the same backend logic (`hooks/scripts/progress_manager.py`).
+
 ### Progress Manager CLI
+
+Preferred cross-runtime wrapper (Codex/local shell):
+
+```bash
+plugins/progress-tracker/prog --project-root plugins/<name> status
+```
 
 Global scope override (recommended in monorepos):
 
@@ -207,7 +219,19 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py register-rejection
 - `prog defer` / `prog resume`：挂起与恢复 backlog
 - `prog next-feature --json`：给自动化流程做机器可读选项
 
+### 运行时边界（Claude 与 Codex）
+
+- Slash 命令（`/prog`、`/prog-next`、`/prog-done`）是 Claude Code 的日常交互入口。
+- CLI 命令（`prog check`、`prog reconcile`、`prog defer`、`prog resume`、`prog next-feature --json`）用于诊断/管理/自动化场景。
+- 两种运行时共享同一后端逻辑（`hooks/scripts/progress_manager.py`）。
+
 ### Progress Manager 命令行
+
+跨运行时推荐入口（Codex/本地 shell）：
+
+```bash
+plugins/progress-tracker/prog --project-root plugins/<name> status
+```
 
 Monorepo 中建议显式指定作用域：
 
@@ -291,6 +315,12 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py register-rejection
 
 - Command docs in README/readme-zh are generated from this file.
 - Namespaced command format must not include a space after `:` (use `/progress-tracker:prog`, not `/progress-tracker: prog`).
+- Runtime boundary:
+  - Slash commands are for daily workflow.
+  - CLI commands are for diagnostics/admin/automation.
+- Cross-runtime backend path:
+  - Codex/local shell: `plugins/progress-tracker/prog --project-root plugins/<name> <command>`.
+  - Claude plugin internals: `python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py ...`.
 - In monorepo root contexts, pass `--project-root plugins/<name>` to `progress_manager.py`, `project_memory.py`, and `progress_ui_server.py`.
 - Use `generate_prog_docs.py --check` in CI-style validation.
 - Use `generate_prog_docs.py --write` after changing this source.

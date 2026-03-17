@@ -51,10 +51,12 @@ These items are still open against the original drift-prevention P0:
 ## Tracker Mapping (Current)
 
 - Completed:
+  - Feature 1-10: normalization backlog delivery (`baseline -> summary projection`).
   - Feature 13: `P0 Batch 1: Reconcile engine + check/next/done gates`
   - Feature 14: `Plan: 低学习成本优先的命令分层（保留能力，隐藏复杂度）`
-- In progress:
-  - Feature 1 and subsequent legacy backlog items (`1..12`) for normalization work.
+- Pending:
+  - Feature 11: `命令文档与帮助更新（含 Drift Prevention/Codex 兼容）`
+  - Feature 12: `全量回归与验收报告`
 
 ## Usage Notes
 

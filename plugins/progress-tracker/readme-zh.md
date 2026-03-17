@@ -154,7 +154,19 @@ Progress Tracker 插件解决了 AI 辅助开发中的一个关键问题：**如
 - `prog defer` / `prog resume`：挂起与恢复 backlog
 - `prog next-feature --json`：给自动化流程做机器可读选项
 
+### 运行时边界（Claude 与 Codex）
+
+- Slash 命令（`/prog`、`/prog-next`、`/prog-done`）是 Claude Code 的日常交互入口。
+- CLI 命令（`prog check`、`prog reconcile`、`prog defer`、`prog resume`、`prog next-feature --json`）用于诊断/管理/自动化场景。
+- 两种运行时共享同一后端逻辑（`hooks/scripts/progress_manager.py`）。
+
 ### Progress Manager 命令行
+
+跨运行时推荐入口（Codex/本地 shell）：
+
+```bash
+plugins/progress-tracker/prog --project-root plugins/<name> status
+```
 
 Monorepo 中建议显式指定作用域：
 

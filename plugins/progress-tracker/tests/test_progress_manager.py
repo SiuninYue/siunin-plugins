@@ -9,6 +9,7 @@ import sys
 import time
 from pathlib import Path
 from unittest.mock import patch, MagicMock
+from typing import List, Optional
 import pytest
 
 try:
@@ -633,6 +634,59 @@ class TestStatusDisplay:
         assert "UPD-001" in captured.out
         assert "Kickoff complete" in captured.out
         assert "Owners: architecture=lisa, coding=alice" in captured.out
+
+    def test_status_creates_status_summary_projection(self, progress_file, capsys):
+        """status() should load and persist the shared summary projection."""
+        assert progress_manager.status() is True
+        capsys.readouterr()
+
+        state_dir = Path(progress_file).parent
+        projection_path = state_dir / "status_summary.v1.json"
+        assert projection_path.exists()
+
+        payload = json.loads(projection_path.read_text(encoding="utf-8"))
+        assert payload.get("schema_version") == "status_summary.v1"
+        assert "recent_snapshot" in payload
+
+    def test_load_status_summary_projection_migrates_legacy_file(self, temp_dir):
+        """Legacy status_summary.json should migrate to status_summary.v1.json."""
+        state_dir = temp_dir / "docs" / "progress-tracker" / "state"
+        state_dir.mkdir(parents=True, exist_ok=True)
+        (state_dir / "progress.json").write_text(
+            json.dumps(
+                {
+                    "project_name": "Legacy Projection",
+                    "created_at": "2026-03-17T00:00:00Z",
+                    "features": [],
+                    "current_feature_id": None,
+                    "schema_version": "2.0",
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        (state_dir / "status_summary.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": "legacy",
+                    "progress": {},
+                    "next_action": {},
+                    "plan_health": {},
+                    "risk_blocker": {},
+                    "recent_snapshot": {},
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+
+        summary = progress_manager.load_status_summary_projection(project_root=str(temp_dir))
+
+        projection_path = state_dir / "status_summary.v1.json"
+        assert projection_path.exists()
+        assert summary["schema_version"] == "status_summary.v1"
+        assert summary.get("migration", {}).get("from_schema_version") == "legacy"
 
 
 class TestCurrentFeature:
@@ -1670,6 +1724,37 @@ class TestMainFunction:
         assert update["summary"] == "Kickoff completed"
         assert update["source"] == "manual"
 
+    def test_main_list_updates_includes_refs_overflow_hint(self, progress_file, capsys):
+        """list-updates should display overflow hint when refs are compacted."""
+        data = progress_manager.load_progress_json()
+        feature = next(f for f in data["features"] if f["id"] == 2)
+        feature["requirement_ids"] = [f"REQ-{idx:03d}" for idx in range(1, 21)]
+        feature.setdefault("change_spec", {})["change_id"] = "CHG-update-overflow"
+        progress_manager.save_progress_json(data)
+
+        with patch(
+            "sys.argv",
+            [
+                "progress_manager.py",
+                "add-update",
+                "--category",
+                "status",
+                "--summary",
+                "Refs-heavy update",
+                "--feature-id",
+                "2",
+                "--source",
+                "manual",
+            ],
+        ):
+            assert progress_manager.main() is True
+
+        with patch("sys.argv", ["progress_manager.py", "list-updates", "--limit", "5"]):
+            assert progress_manager.main() is True
+
+        output = capsys.readouterr().out
+        assert "refs overflow" in output
+
     def test_main_set_feature_owner_updates_role_owner(self, progress_file):
         """Should handle set-feature-owner command for architecture/coding/testing roles."""
         with patch(
@@ -1740,6 +1825,174 @@ class TestMainFunction:
         ):
             result = progress_manager.main()
             assert result is True
+
+
+class TestDoneCommand:
+    """Test `/prog done` deterministic gate behavior."""
+
+    @staticmethod
+    def _write_done_state(
+        temp_dir: Path,
+        *,
+        test_steps: List[str],
+        phase: Optional[str],
+        current_feature_id: Optional[int],
+        feature_completed: bool = False,
+    ) -> Path:
+        state_dir = temp_dir / "docs" / "progress-tracker" / "state"
+        state_dir.mkdir(parents=True, exist_ok=True)
+        data = {
+            "project_name": "Done Test",
+            "created_at": "2026-03-17T00:00:00Z",
+            "features": [
+                {
+                    "id": 1,
+                    "name": "Feature 1",
+                    "test_steps": test_steps,
+                    "completed": feature_completed,
+                    "development_stage": "developing",
+                    "lifecycle_state": "implementing",
+                }
+            ],
+            "current_feature_id": current_feature_id,
+            "schema_version": "2.0",
+        }
+        if phase is not None:
+            data["workflow_state"] = {"phase": phase, "next_action": "run done"}
+        (state_dir / "progress.json").write_text(
+            json.dumps(data, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        return state_dir
+
+    @staticmethod
+    def _run_done(temp_dir: Path, *args: str) -> subprocess.CompletedProcess:
+        script_path = Path(progress_manager.__file__).resolve()
+        return subprocess.run(
+            [sys.executable, str(script_path), "done", *args],
+            capture_output=True,
+            text=True,
+            cwd=temp_dir,
+        )
+
+    def test_done_command_no_active_feature(self, temp_dir):
+        """done should fail with exit code 1 when no current feature exists."""
+        self._write_done_state(
+            temp_dir,
+            test_steps=["echo 'unreachable'"],
+            phase="execution_complete",
+            current_feature_id=None,
+        )
+
+        result = self._run_done(temp_dir)
+
+        assert result.returncode == 1
+        assert "No active feature" in result.stdout
+
+    def test_done_command_wrong_workflow_phase(self, temp_dir):
+        """done should fail with exit code 2 when phase != execution_complete."""
+        self._write_done_state(
+            temp_dir,
+            test_steps=["echo 'unreachable'"],
+            phase="execution",
+            current_feature_id=1,
+        )
+
+        result = self._run_done(temp_dir)
+
+        assert result.returncode == 2
+        assert "workflow phase" in result.stdout
+        assert "execution_complete" in result.stdout
+
+    def test_done_command_runs_acceptance_tests(self, temp_dir):
+        """done should execute command test_steps and skip manual DoD lines."""
+        self._write_done_state(
+            temp_dir,
+            test_steps=[
+                "echo done-step-1",
+                "echo done-step-2",
+                "DoD: manual verification",
+            ],
+            phase="execution_complete",
+            current_feature_id=1,
+        )
+
+        result = self._run_done(temp_dir, "--run-all", "--skip-archive")
+
+        assert result.returncode == 0
+        assert "done-step-1" in result.stdout
+        assert "done-step-2" in result.stdout
+
+    def test_done_command_saves_test_report(self, temp_dir):
+        """done should persist a report in docs/progress-tracker/state/test_reports."""
+        state_dir = self._write_done_state(
+            temp_dir,
+            test_steps=["echo done-report"],
+            phase="execution_complete",
+            current_feature_id=1,
+        )
+
+        result = self._run_done(temp_dir, "--skip-archive")
+        assert result.returncode == 0
+
+        report_dir = state_dir / "test_reports"
+        report_files = sorted(report_dir.glob("feature-1-done-attempt-*.json"))
+        assert report_files
+        report = json.loads(report_files[-1].read_text(encoding="utf-8"))
+        assert report["feature_id"] == 1
+        assert report["overall_success"] is True
+        assert report["results"]
+
+    def test_done_command_completes_feature(self, temp_dir):
+        """done should mark feature complete and clear current_feature_id on success."""
+        state_dir = self._write_done_state(
+            temp_dir,
+            test_steps=["true"],
+            phase="execution_complete",
+            current_feature_id=1,
+        )
+
+        result = self._run_done(temp_dir, "--skip-archive")
+
+        assert result.returncode == 0
+        assert "Feature 1 completed" in result.stdout
+
+        data = json.loads((state_dir / "progress.json").read_text(encoding="utf-8"))
+        feature = data["features"][0]
+        assert feature["completed"] is True
+        assert feature["development_stage"] == "completed"
+        assert data["current_feature_id"] is None
+
+    def test_done_command_sets_finish_pending_and_next_stays_blocked(self, temp_dir):
+        """On failed acceptance, done should mark finish_pending fields and keep next blocked."""
+        state_dir = self._write_done_state(
+            temp_dir,
+            test_steps=["false"],
+            phase="execution_complete",
+            current_feature_id=1,
+        )
+
+        result = self._run_done(temp_dir, "--run-all")
+        assert result.returncode == 3
+        assert "Acceptance failed" in result.stdout
+
+        data = json.loads((state_dir / "progress.json").read_text(encoding="utf-8"))
+        feature = data["features"][0]
+        assert feature["completed"] is False
+        assert feature.get("finish_pending_reason")
+        assert feature.get("last_done_attempt_at")
+
+        script_path = Path(progress_manager.__file__).resolve()
+        next_result = subprocess.run(
+            [sys.executable, str(script_path), "next-feature", "--json"],
+            capture_output=True,
+            text=True,
+            cwd=temp_dir,
+        )
+        assert next_result.returncode == 1
+        payload = json.loads(next_result.stdout.strip().splitlines()[-1])
+        assert payload["status"] == "blocked"
+        assert payload["reason"] == "implementation_ahead_of_tracker"
 
 
 class TestAiMetricsAndCheckpoints:

@@ -533,6 +533,149 @@ def test_status_detail_snapshot_panel_shows_latest_first_with_context(test_clien
     assert "feature/new" in snapshot_list[0]
 
 
+# ========== Feature 10 Projection Tests ==========
+
+def test_status_summary_projection_core_consistency_across_cli_api_and_file(
+    test_client, working_dir
+):
+    """CLI loader, API endpoint, and projection file should share identical core fields."""
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).parent.parent / "hooks" / "scripts"))
+    import progress_manager
+
+    cli_summary = progress_manager.load_status_summary_projection(
+        project_root=str(working_dir)
+    )
+    response = test_client.get("/api/status-summary")
+    assert response.status_code == 200
+    api_summary = response.json()
+
+    projection_path = (
+        working_dir
+        / "docs"
+        / "progress-tracker"
+        / "state"
+        / "status_summary.v1.json"
+    )
+    assert projection_path.exists()
+    projection = json.loads(projection_path.read_text(encoding="utf-8"))
+    assert projection.get("schema_version") == "status_summary.v1"
+
+    core_fields = (
+        "progress",
+        "next_action",
+        "plan_health",
+        "risk_blocker",
+        "recent_snapshot",
+    )
+    for field in core_fields:
+        assert cli_summary[field] == api_summary[field] == projection[field]
+
+
+def test_status_summary_projection_rebuilds_when_progress_source_changes(
+    test_client, working_dir
+):
+    """Changing progress.json should trigger projection drift rebuild on next read."""
+    first_response = test_client.get("/api/status-summary")
+    assert first_response.status_code == 200
+
+    projection_path = (
+        working_dir
+        / "docs"
+        / "progress-tracker"
+        / "state"
+        / "status_summary.v1.json"
+    )
+    first_projection = json.loads(projection_path.read_text(encoding="utf-8"))
+
+    progress_path = (
+        working_dir
+        / "docs"
+        / "progress-tracker"
+        / "state"
+        / "progress.json"
+    )
+    progress_data = json.loads(progress_path.read_text(encoding="utf-8"))
+    progress_data["features"][1]["completed"] = True
+    progress_data["features"][1]["completed_at"] = "2026-02-12T09:00:00.000000Z"
+    progress_path.write_text(
+        json.dumps(progress_data, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+    second_response = test_client.get("/api/status-summary")
+    assert second_response.status_code == 200
+    second_data = second_response.json()
+    assert second_data["progress"]["completed"] == 2
+
+    second_projection = json.loads(projection_path.read_text(encoding="utf-8"))
+    assert second_projection["progress"]["completed"] == 2
+    assert (
+        second_projection["inputs"]["progress"]["mtime_ns"]
+        != first_projection["inputs"]["progress"]["mtime_ns"]
+    )
+
+
+def test_status_summary_projection_migrates_legacy_projection_file(
+    test_client, working_dir
+):
+    """Legacy status_summary.json should be migrated to v1 projection with migration trace."""
+    state_dir = working_dir / "docs" / "progress-tracker" / "state"
+    legacy_path = state_dir / "status_summary.json"
+    projection_path = state_dir / "status_summary.v1.json"
+
+    if projection_path.exists():
+        projection_path.unlink()
+
+    legacy_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "legacy",
+                "progress": {},
+                "next_action": {},
+                "plan_health": {},
+                "risk_blocker": {},
+                "recent_snapshot": {},
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    response = test_client.get("/api/status-summary")
+    assert response.status_code == 200
+    assert projection_path.exists()
+
+    migrated = json.loads(projection_path.read_text(encoding="utf-8"))
+    assert migrated.get("schema_version") == "status_summary.v1"
+    migration = migrated.get("migration", {})
+    assert migration.get("from_schema_version") == "legacy"
+
+
+def test_status_summary_projection_recovers_from_corrupted_file(
+    test_client, working_dir
+):
+    """Corrupted projection file should self-heal on next summary read."""
+    projection_path = (
+        working_dir
+        / "docs"
+        / "progress-tracker"
+        / "state"
+        / "status_summary.v1.json"
+    )
+    projection_path.write_text("{this is not valid json", encoding="utf-8")
+
+    response = test_client.get("/api/status-summary")
+    assert response.status_code == 200
+    data = response.json()
+    assert "progress" in data
+    assert "next_action" in data
+
+    repaired = json.loads(projection_path.read_text(encoding="utf-8"))
+    assert repaired.get("schema_version") == "status_summary.v1"
+
+
 # ========== Performance Tests ==========
 
 def test_cache_mechanism(test_client, working_dir):

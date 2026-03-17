@@ -20,6 +20,7 @@ Usage:
     python3 progress_manager.py fix-readiness <feature_id> [--add-requirement <REQ-ID>] [--set-why <text>] [--add-acceptance <text>]
     python3 progress_manager.py set-development-stage <planning|developing|completed> [--feature-id <id>]
     python3 progress_manager.py complete <feature_id>
+    python3 progress_manager.py done [--commit <hash>] [--run-all] [--skip-archive]
     python3 progress_manager.py set-feature-ai-metrics <feature_id> --complexity-score <score> --selected-model <model> --workflow-path <path>
     python3 progress_manager.py complete-feature-ai-metrics <feature_id>
     python3 progress_manager.py auto-checkpoint
@@ -41,7 +42,8 @@ import shutil
 import logging
 import tempfile
 import time
-from datetime import datetime
+from dataclasses import dataclass
+from datetime import datetime, timezone
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Optional, List, Dict, Any, Tuple, Set
@@ -64,6 +66,7 @@ from prog_paths import (
     get_progress_md_path,
     get_state_dir,
     get_tracker_docs_root,
+    rel_progress_path,
     resolve_target_project_root,
 )
 from contract_importer import ContractImporter, ContractImportError
@@ -99,6 +102,16 @@ PROGRESS_ARCHIVE_MAX_ENTRIES = 200
 PROGRESS_LOCK_FILE = "progress.lock"
 PROGRESS_LOCK_TIMEOUT_SECONDS = 10.0
 PROGRESS_LOCK_POLL_INTERVAL_SECONDS = 0.05
+STATUS_SUMMARY_FILE = "status_summary.v1.json"
+STATUS_SUMMARY_LEGACY_FILE = "status_summary.json"
+STATUS_SUMMARY_SCHEMA_VERSION = "status_summary.v1"
+STATUS_SUMMARY_CORE_FIELDS = (
+    "progress",
+    "next_action",
+    "plan_health",
+    "risk_blocker",
+    "recent_snapshot",
+)
 
 # Schema version - increment when breaking changes occur
 CURRENT_SCHEMA_VERSION = "2.0"
@@ -107,6 +120,7 @@ LIFECYCLE_STATES = ("approved", "implementing", "verified", "archived")
 OWNER_ROLES = ("architecture", "coding", "testing")
 UPDATE_CATEGORIES = ("status", "decision", "risk", "handoff", "assignment", "meeting")
 UPDATE_SOURCES = ("prog_update", "spm_meeting", "spm_assign", "manual")
+UPDATE_REFS_INLINE_LIMIT = 12
 RECONCILE_DIAGNOSES = (
     "in_sync",
     "implementation_ahead_of_tracker",
@@ -129,6 +143,7 @@ MUTATING_COMMANDS = {
     "fix-readiness",
     "set-development-stage",
     "complete",
+    "done",
     "add-feature",
     "update-feature",
     "defer",
@@ -425,7 +440,9 @@ def _atomic_write_text(path: Path, content: str) -> None:
 
 
 def validate_plan_path(
-    plan_path: Optional[str], require_exists: bool = False
+    plan_path: Optional[str],
+    require_exists: bool = False,
+    target_root: Optional[Path] = None,
 ) -> Dict[str, Optional[str]]:
     """
     Validate workflow plan path shape and optional existence.
@@ -470,7 +487,8 @@ def validate_plan_path(
         }
 
     if require_exists:
-        absolute_path = find_project_root() / normalized
+        base_root = target_root or find_project_root()
+        absolute_path = base_root / normalized
         if not absolute_path.exists():
             return {
                 "valid": False,
@@ -481,7 +499,7 @@ def validate_plan_path(
     return {"valid": True, "normalized_path": normalized, "error": None}
 
 
-def validate_plan_document(plan_path: str) -> Dict[str, Any]:
+def validate_plan_document(plan_path: str, target_root: Optional[Path] = None) -> Dict[str, Any]:
     """
     Validate minimum plan structure for feature execution.
 
@@ -499,7 +517,9 @@ def validate_plan_document(plan_path: str) -> Dict[str, Any]:
 
     In format (2), missing strict sections are treated as warnings.
     """
-    path_validation = validate_plan_path(plan_path, require_exists=True)
+    path_validation = validate_plan_path(
+        plan_path, require_exists=True, target_root=target_root
+    )
     if not path_validation["valid"]:
         return {
             "valid": False,
@@ -509,7 +529,8 @@ def validate_plan_document(plan_path: str) -> Dict[str, Any]:
             "profile": "invalid",
         }
 
-    absolute_path = find_project_root() / path_validation["normalized_path"]
+    base_root = target_root or find_project_root()
+    absolute_path = base_root / path_validation["normalized_path"]
     try:
         content = absolute_path.read_text(encoding="utf-8")
     except OSError as exc:
@@ -1971,6 +1992,416 @@ def save_checkpoints(data: Dict[str, Any], path: Optional[Path] = None) -> None:
         _atomic_write_text(checkpoints_path, payload)
 
 
+def _read_json_dict(path: Path) -> Optional[Dict[str, Any]]:
+    """Read JSON object from disk and return None on parse/shape errors."""
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _status_source_snapshot(path: Path, rel_path: str) -> Dict[str, Any]:
+    """Return lightweight source-file fingerprint for drift detection."""
+    if not path.exists():
+        return {
+            "path": rel_path,
+            "exists": False,
+            "mtime_ns": None,
+            "size": None,
+        }
+    stat = path.stat()
+    return {
+        "path": rel_path,
+        "exists": True,
+        "mtime_ns": int(stat.st_mtime_ns),
+        "size": int(stat.st_size),
+    }
+
+
+def _status_summary_source_fingerprint(target_root: Path) -> Dict[str, Any]:
+    """Collect input fingerprints for progress/checkpoints source files."""
+    progress_path = get_progress_json_path(target_root)
+    checkpoints_path = get_checkpoints_path(target_root)
+    return {
+        "progress": _status_source_snapshot(
+            progress_path, rel_progress_path(PROGRESS_JSON)
+        ),
+        "checkpoints": _status_source_snapshot(
+            checkpoints_path, rel_progress_path(CHECKPOINTS_JSON)
+        ),
+    }
+
+
+def _load_progress_data_for_summary(progress_path: Path) -> Dict[str, Any]:
+    """Load progress payload for summary projection with graceful fallback."""
+    payload = _read_json_dict(progress_path)
+    if payload is None:
+        return {"features": [], "current_feature_id": None, "bugs": []}
+    _apply_schema_defaults(payload)
+    return payload
+
+
+def _format_relative_time_for_summary(iso_timestamp: Optional[str]) -> str:
+    """Format ISO timestamp into compact relative text for status summary."""
+    if not iso_timestamp:
+        return "暂无快照"
+    try:
+        timestamp = datetime.fromisoformat(iso_timestamp.replace("Z", "+00:00"))
+        now = datetime.now(timezone.utc)
+        delta = now - timestamp
+        if delta.days > 0:
+            return f"{delta.days} 天前"
+        if delta.seconds >= 3600:
+            return f"{delta.seconds // 3600} 小时前"
+        if delta.seconds >= 60:
+            return f"{delta.seconds // 60} 分钟前"
+        return "刚刚"
+    except Exception:
+        return iso_timestamp
+
+
+def _normalize_feature_stage_for_summary(feature: Dict[str, Any]) -> str:
+    """Normalize development_stage for summary rendering."""
+    if feature.get("completed", False):
+        return "completed"
+    stage = feature.get("development_stage")
+    if stage in {"planning", "developing", "completed"}:
+        return stage
+    return "developing"
+
+
+def _stage_label_for_summary(stage: Optional[str]) -> Optional[str]:
+    """Localize status stage labels used by summary payload."""
+    if stage is None:
+        return None
+    return {
+        "planning": "规划中",
+        "developing": "开发中",
+        "completed": "已完成",
+        "pending": "待开始",
+    }.get(stage, "未知")
+
+
+def _determine_next_action_for_summary(
+    features: List[Dict[str, Any]], progress_data: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Build next_action summary field from active/pending feature state."""
+    current_id = progress_data.get("current_feature_id")
+    if current_id is not None:
+        feature = next(
+            (
+                f
+                for f in features
+                if isinstance(f, dict) and f.get("id") == current_id
+            ),
+            None,
+        )
+        if feature:
+            stage = _normalize_feature_stage_for_summary(feature)
+            return {
+                "type": "feature",
+                "feature_id": current_id,
+                "feature_name": feature.get("name", "Unknown"),
+                "development_stage": stage,
+                "stage_label": _stage_label_for_summary(stage),
+            }
+
+    pending = [
+        f for f in features if isinstance(f, dict) and not f.get("completed", False)
+    ]
+    if pending:
+        next_feature = min(pending, key=lambda item: item.get("id", float("inf")))
+        return {
+            "type": "feature",
+            "feature_id": next_feature.get("id"),
+            "feature_name": next_feature.get("name", "Unknown"),
+            "development_stage": "pending",
+            "stage_label": _stage_label_for_summary("pending"),
+        }
+
+    return {
+        "type": "none",
+        "feature_id": None,
+        "feature_name": "无待办功能",
+        "development_stage": None,
+        "stage_label": None,
+    }
+
+
+def _check_plan_health_for_summary(
+    progress_data: Dict[str, Any], target_root: Path
+) -> Dict[str, Any]:
+    """Validate active plan path/document health for summary projection."""
+    workflow_state = progress_data.get("workflow_state")
+    if not isinstance(workflow_state, dict) or not workflow_state.get("plan_path"):
+        return {"status": "N/A", "plan_path": None, "message": "无活跃计划"}
+
+    plan_path = str(workflow_state.get("plan_path"))
+    try:
+        path_result = validate_plan_path(
+            plan_path, require_exists=True, target_root=target_root
+        )
+        if not path_result["valid"]:
+            return {
+                "status": "WARN",
+                "plan_path": plan_path,
+                "message": path_result["error"],
+            }
+
+        doc_result = validate_plan_document(plan_path, target_root=target_root)
+        if not doc_result["valid"]:
+            missing = ", ".join(doc_result.get("missing_sections", []))
+            return {
+                "status": "INVALID",
+                "plan_path": plan_path,
+                "message": f"缺少必需章节: {missing}" if missing else "计划文档验证失败",
+            }
+
+        return {
+            "status": "OK",
+            "plan_path": plan_path,
+            "message": "计划文件完整且符合规范",
+        }
+    except Exception as exc:
+        return {
+            "status": "WARN",
+            "plan_path": plan_path,
+            "message": f"验证失败: {exc}",
+        }
+
+
+def _check_risk_blocker_for_summary(progress_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Evaluate high-priority/blocked bug signals for status summary."""
+    bugs = progress_data.get("bugs", [])
+    if not isinstance(bugs, list):
+        bugs = []
+
+    high_priority = [
+        bug
+        for bug in bugs
+        if isinstance(bug, dict)
+        and bug.get("priority") == "high"
+        and bug.get("status") != "fixed"
+    ]
+    blocked = [
+        bug for bug in bugs if isinstance(bug, dict) and bug.get("status") == "blocked"
+    ]
+
+    if high_priority or blocked:
+        return {
+            "has_risk": True,
+            "high_priority_bugs": len(high_priority),
+            "blocked_count": len(blocked),
+            "message": f"{len(high_priority)} 个高优先级 bug",
+        }
+
+    return {
+        "has_risk": False,
+        "high_priority_bugs": 0,
+        "blocked_count": 0,
+        "message": "正常",
+    }
+
+
+def _load_recent_snapshot_for_summary(
+    checkpoints_data: Optional[Dict[str, Any]]
+) -> Dict[str, Any]:
+    """Build recent_snapshot field from checkpoints payload."""
+    if not isinstance(checkpoints_data, dict):
+        return {"exists": False, "timestamp": None, "relative_time": "暂无快照"}
+
+    last_time = checkpoints_data.get("last_checkpoint_at")
+    if not last_time:
+        return {"exists": False, "timestamp": None, "relative_time": "暂无快照"}
+
+    return {
+        "exists": True,
+        "timestamp": last_time,
+        "relative_time": _format_relative_time_for_summary(last_time),
+    }
+
+
+def _build_status_summary_core(
+    progress_data: Dict[str, Any],
+    checkpoints_data: Dict[str, Any],
+    target_root: Path,
+) -> Dict[str, Any]:
+    """Compute the shared status summary core fields."""
+    features_raw = progress_data.get("features", [])
+    features = [item for item in features_raw if isinstance(item, dict)]
+    completed = sum(1 for feature in features if feature.get("completed", False))
+    total = len(features)
+    percentage = int((completed / total) * 100) if total > 0 else 0
+
+    return {
+        "progress": {
+            "completed": completed,
+            "total": total,
+            "percentage": percentage,
+        },
+        "next_action": _determine_next_action_for_summary(features, progress_data),
+        "plan_health": _check_plan_health_for_summary(progress_data, target_root),
+        "risk_blocker": _check_risk_blocker_for_summary(progress_data),
+        "recent_snapshot": _load_recent_snapshot_for_summary(checkpoints_data),
+    }
+
+
+def _extract_projection_source_fingerprint(
+    projection: Dict[str, Any]
+) -> Optional[Dict[str, Any]]:
+    """Extract persisted inputs fingerprint from projection payload."""
+    inputs = projection.get("inputs")
+    return inputs if isinstance(inputs, dict) else None
+
+
+def _projection_has_required_core_fields(projection: Dict[str, Any]) -> bool:
+    """Check whether projection carries all required summary fields."""
+    return all(field in projection for field in STATUS_SUMMARY_CORE_FIELDS)
+
+
+def _projection_needs_rebuild(
+    projection: Optional[Dict[str, Any]],
+    current_inputs: Dict[str, Any],
+) -> bool:
+    """Determine whether cached projection is stale or malformed."""
+    if not isinstance(projection, dict):
+        return True
+    if projection.get("schema_version") != STATUS_SUMMARY_SCHEMA_VERSION:
+        return True
+    if not _projection_has_required_core_fields(projection):
+        return True
+    persisted_inputs = _extract_projection_source_fingerprint(projection)
+    if persisted_inputs != current_inputs:
+        return True
+    return False
+
+
+def _legacy_summary_migration_info(legacy_path: Path) -> Optional[Dict[str, Any]]:
+    """Read legacy summary metadata for migration traceability."""
+    legacy_payload = _read_json_dict(legacy_path)
+    if legacy_payload is None:
+        return None
+    from_version = legacy_payload.get("schema_version")
+    if not isinstance(from_version, str) or not from_version.strip():
+        from_version = "unknown"
+    return {
+        "from_schema_version": from_version,
+        "from_path": rel_progress_path(STATUS_SUMMARY_LEGACY_FILE),
+        "migrated_at": _iso_now(),
+    }
+
+
+def _resolve_status_summary_target_root(project_root: Optional[str]) -> Path:
+    """Resolve summary projection target root from optional explicit path."""
+    if project_root is None:
+        return find_project_root()
+    root = Path(project_root).expanduser()
+    if not root.is_absolute():
+        root = (Path.cwd() / root).resolve()
+    return root.resolve()
+
+
+def get_status_summary_projection_path(project_root: Optional[str] = None) -> Path:
+    """Return status summary projection path for the resolved target root."""
+    target_root = _resolve_status_summary_target_root(project_root)
+    return get_state_dir(target_root) / STATUS_SUMMARY_FILE
+
+
+def _build_status_summary_projection(
+    target_root: Path,
+    current_inputs: Dict[str, Any],
+    migration_info: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Recompute and persist status summary projection for a target root."""
+    progress_path = get_progress_json_path(target_root)
+    checkpoints_path = get_checkpoints_path(target_root)
+    projection_path = get_status_summary_projection_path(str(target_root))
+
+    progress_data = _load_progress_data_for_summary(progress_path)
+    checkpoints_data = load_checkpoints(path=checkpoints_path)
+    core = _build_status_summary_core(progress_data, checkpoints_data, target_root)
+
+    projection: Dict[str, Any] = {
+        "schema_version": STATUS_SUMMARY_SCHEMA_VERSION,
+        "projection_path": rel_progress_path(STATUS_SUMMARY_FILE),
+        "updated_at": _iso_now(),
+        "source": {
+            "generator": "progress_manager.load_status_summary_projection",
+            "progress_path": rel_progress_path(PROGRESS_JSON),
+            "checkpoints_path": rel_progress_path(CHECKPOINTS_JSON),
+        },
+        "inputs": current_inputs,
+        **core,
+    }
+    if migration_info:
+        projection["migration"] = migration_info
+
+    _atomic_write_text(
+        projection_path,
+        json.dumps(projection, indent=2, ensure_ascii=False),
+    )
+    return projection
+
+
+def load_status_summary_projection(
+    project_root: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Load shared status summary projection with drift detection and self-healing.
+
+    The projection is persisted at docs/progress-tracker/state/status_summary.v1.json
+    and rebuilt automatically when source files drift, projection is missing/corrupt,
+    or schema/core fields mismatch.
+    """
+    target_root = _resolve_status_summary_target_root(project_root)
+    ensure_tracker_layout(target_root)
+    ensure_storage_migrated(target_root)
+
+    projection_path = get_status_summary_projection_path(str(target_root))
+    legacy_path = get_state_dir(target_root) / STATUS_SUMMARY_LEGACY_FILE
+    current_inputs = _status_summary_source_fingerprint(target_root)
+    projection = _read_json_dict(projection_path)
+
+    migration_info: Optional[Dict[str, Any]] = None
+    if projection is None and legacy_path.exists():
+        migration_info = _legacy_summary_migration_info(legacy_path)
+
+    if _projection_needs_rebuild(projection, current_inputs):
+        try:
+            return _build_status_summary_projection(
+                target_root=target_root,
+                current_inputs=current_inputs,
+                migration_info=migration_info,
+            )
+        except Exception as exc:
+            logger.warning(f"Failed to persist status summary projection: {exc}")
+            progress_data = _load_progress_data_for_summary(get_progress_json_path(target_root))
+            checkpoints_data = load_checkpoints(path=get_checkpoints_path(target_root))
+            core = _build_status_summary_core(progress_data, checkpoints_data, target_root)
+            return {
+                "schema_version": STATUS_SUMMARY_SCHEMA_VERSION,
+                "projection_path": rel_progress_path(STATUS_SUMMARY_FILE),
+                "updated_at": _iso_now(),
+                "source": {
+                    "generator": "progress_manager.load_status_summary_projection",
+                    "progress_path": rel_progress_path(PROGRESS_JSON),
+                    "checkpoints_path": rel_progress_path(CHECKPOINTS_JSON),
+                },
+                "inputs": current_inputs,
+                "repair": {
+                    "status": "degraded",
+                    "reason": str(exc),
+                },
+                **core,
+            }
+
+    # projection is guaranteed dict and schema-valid by _projection_needs_rebuild.
+    return projection  # type: ignore[return-value]
+
+
 def auto_checkpoint() -> bool:
     """Create a lightweight checkpoint snapshot every 30 minutes of active work."""
     data = load_progress_json()
@@ -2097,10 +2528,25 @@ def status():
     if not isinstance(workflow_state, dict):
         workflow_state = {}
     runtime_context = data.get("runtime_context")
+    summary = load_status_summary_projection()
+    summary_progress = summary.get("progress", {})
+    summary_next_action = summary.get("next_action", {})
+    summary_plan_health = summary.get("plan_health", {})
+    summary_risk = summary.get("risk_blocker", {})
+    summary_snapshot = summary.get("recent_snapshot", {})
 
     # Calculate statistics
-    total = len(features)
-    completed = sum(1 for f in features if isinstance(f, dict) and f.get("completed", False))
+    total = summary_progress.get("total")
+    completed = summary_progress.get("completed")
+    percentage = summary_progress.get("percentage")
+    if not isinstance(total, int):
+        total = len(features)
+    if not isinstance(completed, int):
+        completed = sum(
+            1 for f in features if isinstance(f, dict) and f.get("completed", False)
+        )
+    if not isinstance(percentage, int):
+        percentage = completed * 100 // total if total > 0 else 0
     in_progress = current_id is not None
     deferred_count = sum(
         1
@@ -2112,7 +2558,21 @@ def status():
     )
 
     print(f"\n## Project: {project_name}")
-    print(f"**Status**: {completed}/{total} completed ({completed * 100 // total if total > 0 else 0}%)")
+    print(f"**Status**: {completed}/{total} completed ({percentage}%)")
+    plan_status = summary_plan_health.get("status", "N/A")
+    plan_message = summary_plan_health.get("message", "无活跃计划")
+    risk_message = summary_risk.get("message", "正常")
+    snapshot_text = summary_snapshot.get("relative_time", "暂无快照")
+    print(f"**Plan Health**: {plan_status} ({plan_message})")
+    print(f"**Risk/Blocker**: {risk_message}")
+    print(f"**Recent Snapshot**: {snapshot_text}")
+    if isinstance(summary_next_action, dict) and summary_next_action.get("type") == "feature":
+        next_name = summary_next_action.get("feature_name", "Unknown")
+        next_stage = summary_next_action.get("stage_label")
+        if next_stage:
+            print(f"**Summary Next**: {next_name} ({next_stage})")
+        else:
+            print(f"**Summary Next**: {next_name}")
     if deferred_count > 0:
         print(f"**Deferred Pending**: {deferred_count}")
 
@@ -3437,6 +3897,321 @@ def save_archive_record(feature_id: int, archive_result: Dict[str, Any]) -> None
         logger.error(f"Failed to save archive record: {e}")
 
 
+@dataclass
+class AcceptanceTestResult:
+    """Per-step execution result for `/prog done` acceptance checks."""
+
+    step: str
+    command: str
+    success: bool
+    output: str
+    duration_ms: int
+    error: Optional[str] = None
+    exit_code: Optional[int] = None
+
+
+def _clear_feature_finish_pending(feature: Dict[str, Any]) -> None:
+    """Clear transient finish-pending metadata on a feature object."""
+    feature.pop("finish_pending_reason", None)
+    feature.pop("last_done_attempt_at", None)
+
+
+def _is_executable_test_step(step: str) -> bool:
+    """Return whether a test step should be executed as a shell command."""
+    normalized = step.strip()
+    if not normalized:
+        return False
+    if normalized.startswith("DoD:"):
+        return False
+    if normalized.startswith("#") or normalized.startswith("//"):
+        return False
+    return True
+
+
+def _run_acceptance_tests(
+    feature: Dict[str, Any],
+    run_all: bool = False,
+) -> Tuple[bool, List[AcceptanceTestResult]]:
+    """Execute command-like acceptance steps from the target feature."""
+    steps = feature.get("test_steps", [])
+    if not isinstance(steps, list):
+        steps = []
+
+    project_root = find_project_root()
+    all_passed = True
+    results: List[AcceptanceTestResult] = []
+
+    for raw_step in steps:
+        if not isinstance(raw_step, str):
+            continue
+        if not _is_executable_test_step(raw_step):
+            continue
+
+        command = raw_step.strip()
+        print(f"[DONE][RUN] {command}")
+        started_at = time.monotonic()
+
+        success = False
+        error: Optional[str] = None
+        output = ""
+        exit_code: Optional[int] = None
+
+        try:
+            completed = subprocess.run(
+                command,
+                shell=True,
+                capture_output=True,
+                text=True,
+                cwd=str(project_root),
+                timeout=300,
+                check=False,
+            )
+            exit_code = completed.returncode
+            stdout = (completed.stdout or "").strip()
+            stderr = (completed.stderr or "").strip()
+            if stdout:
+                print(stdout)
+            if stderr:
+                print(stderr)
+
+            output = "\n".join(part for part in (stdout, stderr) if part).strip()
+            success = completed.returncode == 0
+            if not success:
+                error = stderr or f"command exited with code {completed.returncode}"
+        except subprocess.TimeoutExpired as exc:
+            timeout_message = "timeout after 300 seconds"
+            stdout = exc.stdout.decode("utf-8", "ignore") if isinstance(exc.stdout, bytes) else (exc.stdout or "")
+            stderr = exc.stderr.decode("utf-8", "ignore") if isinstance(exc.stderr, bytes) else (exc.stderr or "")
+            output = "\n".join(part.strip() for part in (stdout, stderr) if part).strip()
+            error = timeout_message
+            print(f"[DONE][ERROR] {timeout_message}")
+        except Exception as exc:  # pragma: no cover - defensive branch
+            error = str(exc)
+            print(f"[DONE][ERROR] {error}")
+
+        duration_ms = int((time.monotonic() - started_at) * 1000)
+        results.append(
+            AcceptanceTestResult(
+                step=raw_step,
+                command=command,
+                success=success,
+                output=output,
+                duration_ms=duration_ms,
+                error=error,
+                exit_code=exit_code,
+            )
+        )
+
+        if not success:
+            all_passed = False
+            if not run_all:
+                break
+
+    if not results:
+        print("[DONE] No executable acceptance commands found; treating as pass.")
+
+    return all_passed, results
+
+
+def _cleanup_old_done_reports(report_dir: Path, feature_id: int, keep_latest: int = 5) -> None:
+    """Keep only a bounded number of `/prog done` reports per feature."""
+    pattern = f"feature-{feature_id}-done-attempt-*.json"
+    reports = sorted(report_dir.glob(pattern), key=lambda candidate: candidate.name, reverse=True)
+    for old_report in reports[keep_latest:]:
+        try:
+            old_report.unlink()
+        except OSError:
+            logger.warning(f"Failed to remove old done report: {old_report}")
+
+
+def _save_done_test_report(
+    feature_id: int,
+    feature_name: str,
+    results: List[AcceptanceTestResult],
+    success: bool,
+) -> Optional[Path]:
+    """Persist acceptance execution report for `/prog done` attempts."""
+    try:
+        state_dir = get_state_dir(find_project_root())
+        report_dir = state_dir / "test_reports"
+        report_dir.mkdir(parents=True, exist_ok=True)
+
+        timestamp = datetime.now().strftime("%Y%m%dT%H%M%S%f")
+        report_path = report_dir / f"feature-{feature_id}-done-attempt-{timestamp}.json"
+        payload = {
+            "feature_id": feature_id,
+            "feature_name": feature_name,
+            "done_attempt_at": _iso_now(),
+            "overall_success": success,
+            "results": [
+                {
+                    "step": result.step,
+                    "command": result.command,
+                    "success": result.success,
+                    "output_summary": result.output[:500],
+                    "duration_ms": result.duration_ms,
+                    "exit_code": result.exit_code,
+                    "error": result.error[:500] if result.error else None,
+                }
+                for result in results
+            ],
+        }
+        report_path.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        _cleanup_old_done_reports(report_dir, feature_id)
+        return report_path
+    except Exception as exc:  # pragma: no cover - defensive branch
+        logger.warning(f"Failed to save done report for feature {feature_id}: {exc}")
+        return None
+
+
+def _format_failure_reason(results: List[AcceptanceTestResult]) -> str:
+    """Build compact finish-pending reason from failed acceptance checks."""
+    failed = [result for result in results if not result.success]
+    if not failed:
+        return "acceptance verification failed"
+
+    reasons: List[str] = []
+    for result in failed[:3]:
+        reason = result.command
+        if result.error:
+            reason += f" -> {result.error[:120]}"
+        reasons.append(reason)
+    if len(failed) > 3:
+        reasons.append(f"+{len(failed) - 3} more failures")
+    return "; ".join(reasons)
+
+
+def _validate_done_preconditions(
+    data: Dict[str, Any],
+) -> Tuple[bool, str, int, Optional[Dict[str, Any]]]:
+    """Validate deterministic gate checks before `/prog done` execution."""
+    current_id = data.get("current_feature_id")
+    if current_id is None:
+        return False, "No active feature. Run /prog next first.", 1, None
+
+    features = data.get("features", [])
+    feature = next((item for item in features if item.get("id") == current_id), None)
+    if not feature:
+        return False, f"Feature {current_id} not found.", 4, None
+
+    if feature.get("completed", False):
+        return False, f"Feature {current_id} is already completed.", 5, feature
+
+    workflow_state = data.get("workflow_state", {})
+    phase = workflow_state.get("phase") if isinstance(workflow_state, dict) else None
+    if phase != "execution_complete":
+        return (
+            False,
+            f"Current workflow phase is '{phase}'. Required phase is 'execution_complete'.",
+            2,
+            feature,
+        )
+
+    return True, "", 0, feature
+
+
+def _get_head_commit() -> Optional[str]:
+    """Resolve current HEAD commit hash, if available."""
+    try:
+        if GIT_VALIDATOR_AVAILABLE:
+            head = get_current_commit_hash()
+            if isinstance(head, str) and head.strip():
+                return head.strip()
+    except Exception:
+        pass
+
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--verify", "HEAD"],
+            capture_output=True,
+            text=True,
+            cwd=str(find_project_root()),
+            timeout=10,
+            check=False,
+        )
+        if result.returncode == 0:
+            head = result.stdout.strip()
+            if head:
+                return head
+    except Exception:
+        pass
+    return None
+
+
+def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False) -> int:
+    """Close current feature through deterministic acceptance gatekeeping."""
+    data = load_progress_json()
+    if not data:
+        print("[DONE] No progress tracking found")
+        return 4
+
+    valid, reason, code, feature = _validate_done_preconditions(data)
+    if not valid:
+        print(f"[DONE] BLOCKED: {reason}")
+        return code
+
+    assert feature is not None  # preconditions guarantee feature presence
+    feature_id = int(feature.get("id"))
+    feature_name = feature.get("name", f"Feature {feature_id}")
+    print(f"[DONE] Running acceptance tests for Feature {feature_id}: {feature_name}")
+
+    all_passed, results = _run_acceptance_tests(feature, run_all=run_all)
+    report_path = _save_done_test_report(
+        feature_id=feature_id,
+        feature_name=feature_name,
+        results=results,
+        success=all_passed,
+    )
+
+    if not all_passed:
+        refreshed = load_progress_json()
+        if refreshed:
+            current_feature = next(
+                (item for item in refreshed.get("features", []) if item.get("id") == feature_id),
+                None,
+            )
+            if current_feature:
+                current_feature["finish_pending_reason"] = _format_failure_reason(results)
+                current_feature["last_done_attempt_at"] = _iso_now()
+                save_progress_json(refreshed)
+
+        passed_count = sum(1 for result in results if result.success)
+        total_count = len(results)
+        print(f"[DONE] Acceptance failed ({passed_count}/{total_count} passed)")
+        if report_path:
+            try:
+                relative_report = report_path.relative_to(find_project_root())
+            except ValueError:
+                relative_report = report_path
+            print(f"[DONE] Report: {relative_report}")
+        return 3
+
+    print("[DONE] Acceptance passed")
+    resolved_commit = commit_hash or _get_head_commit()
+    success = complete_feature(
+        feature_id=feature_id,
+        commit_hash=resolved_commit,
+        skip_archive=skip_archive,
+    )
+    if not success:
+        print("[DONE] Failed to complete feature after acceptance checks")
+        return 4
+
+    print(f"[DONE] Feature {feature_id} completed")
+    if resolved_commit:
+        print(f"[DONE] Commit: {resolved_commit}")
+    if report_path:
+        try:
+            relative_report = report_path.relative_to(find_project_root())
+        except ValueError:
+            relative_report = report_path
+        print(f"[DONE] Report: {relative_report}")
+    return 0
+
+
 def complete_feature(feature_id, commit_hash=None, skip_archive=False):
     """Mark a feature as completed."""
     data = load_progress_json()
@@ -3488,6 +4263,7 @@ def complete_feature(feature_id, commit_hash=None, skip_archive=False):
     feature["lifecycle_state"] = "verified"
     feature["completed_at"] = _iso_now()
     _clear_feature_defer_state(feature)
+    _clear_feature_finish_pending(feature)
     if commit_hash:
         feature["commit_hash"] = commit_hash
 
@@ -3661,6 +4437,46 @@ def _format_feature_owners(feature: Dict[str, Any]) -> Optional[str]:
     return ", ".join(populated)
 
 
+def _normalize_ref_tokens(refs: Optional[List[str]]) -> List[str]:
+    """Normalize and deduplicate ref tokens while preserving encounter order."""
+    normalized: List[str] = []
+    seen: Set[str] = set()
+    for raw in refs or []:
+        if not isinstance(raw, str):
+            continue
+        token = raw.strip()
+        if not token or token in seen:
+            continue
+        seen.add(token)
+        normalized.append(token)
+    return normalized
+
+
+def _collect_auto_update_refs(feature: Dict[str, Any]) -> List[str]:
+    """Collect deterministic auto refs from a feature contract payload."""
+    refs: List[str] = []
+    for req_id in feature.get("requirement_ids", []):
+        if isinstance(req_id, str) and req_id.strip():
+            refs.append(f"req:{req_id.strip()}")
+
+    change_spec = feature.get("change_spec")
+    if isinstance(change_spec, dict):
+        change_id = change_spec.get("change_id")
+        if isinstance(change_id, str) and change_id.strip():
+            refs.append(f"change:{change_id.strip()}")
+
+    normalized = _normalize_ref_tokens(refs)
+    normalized.sort()
+    return normalized
+
+
+def _compact_update_refs(refs: List[str]) -> Tuple[List[str], List[str]]:
+    """Split refs into inline and overflow buckets without dropping data."""
+    if len(refs) <= UPDATE_REFS_INLINE_LIMIT:
+        return refs, []
+    return refs[:UPDATE_REFS_INLINE_LIMIT], refs[UPDATE_REFS_INLINE_LIMIT:]
+
+
 def add_update(
     category: str,
     summary: str,
@@ -3712,28 +4528,21 @@ def add_update(
         )
         return False
 
+    target_feature: Optional[Dict[str, Any]] = None
     if feature_id is not None:
         features = data.get("features", [])
-        if not any(f.get("id") == feature_id for f in features):
+        target_feature = next((f for f in features if f.get("id") == feature_id), None)
+        if target_feature is None:
             print(f"Error: Feature ID {feature_id} not found")
             return False
 
-    # Auto-attach refs from feature if not explicitly provided
-    auto_refs = set(refs or [])
-    if feature_id is not None and not refs:
-        features = data.get("features", [])
-        feature = next((f for f in features if f.get("id") == feature_id), None)
-        if feature:
-            # Auto-attach requirement refs
-            for req_id in feature.get("requirement_ids", []):
-                if isinstance(req_id, str) and req_id.strip():
-                    auto_refs.add(f"req:{req_id}")
-            # Auto-attach change_id if present
-            change_spec = feature.get("change_spec")
-            if isinstance(change_spec, dict):
-                change_id = change_spec.get("change_id")
-                if isinstance(change_id, str) and change_id.strip():
-                    auto_refs.add(f"change:{change_id}")
+    # Manual refs are authoritative when explicitly provided.
+    normalized_manual_refs = _normalize_ref_tokens(refs)
+    selected_refs = normalized_manual_refs
+    if feature_id is not None and not normalized_manual_refs and target_feature is not None:
+        selected_refs = _collect_auto_update_refs(target_feature)
+
+    refs_inline, refs_overflow = _compact_update_refs(selected_refs)
 
     updates = data.setdefault("updates", [])
     created_at = _iso_now()
@@ -3753,8 +4562,11 @@ def add_update(
             if isinstance(next_action, str) and next_action.strip()
             else None
         ),
-        "refs": sorted(auto_refs),  # Sort for deterministic output
+        "refs": refs_inline,
     }
+    if refs_overflow:
+        update_item["refs_overflow"] = refs_overflow
+        update_item["refs_overflow_count"] = len(refs_overflow)
     updates.append(update_item)
 
     save_progress_json(data)
@@ -3783,6 +4595,21 @@ def list_updates(limit: int = 10) -> bool:
             line += f" (feature:{item['feature_id']})"
         if item.get("role") and item.get("owner"):
             line += f" [{item['role']}={item['owner']}]"
+        overflow_count = item.get("refs_overflow_count")
+        if not isinstance(overflow_count, int) or overflow_count < 0:
+            overflow_refs = item.get("refs_overflow")
+            if isinstance(overflow_refs, list):
+                overflow_count = len(
+                    [
+                        ref
+                        for ref in overflow_refs
+                        if isinstance(ref, str) and ref.strip()
+                    ]
+                )
+            else:
+                overflow_count = 0
+        if overflow_count > 0:
+            line += f" [+{overflow_count} refs overflow]"
         print(line)
     return True
 
@@ -5063,6 +5890,22 @@ def main():
     complete_parser.add_argument("--skip-archive", action="store_true",
                                help="Skip document archiving")
 
+    done_parser = subparsers.add_parser(
+        "done",
+        help="Complete current feature with acceptance test gatekeeping",
+    )
+    done_parser.add_argument("--commit", help="Git commit hash (default: HEAD)")
+    done_parser.add_argument(
+        "--run-all",
+        action="store_true",
+        help="Run all acceptance tests even if one fails",
+    )
+    done_parser.add_argument(
+        "--skip-archive",
+        action="store_true",
+        help="Skip document archiving",
+    )
+
     # Add feature command
     add_parser = subparsers.add_parser("add-feature", help="Add a new feature")
     add_parser.add_argument("name", help="Feature name")
@@ -5296,6 +6139,12 @@ def main():
                 args.feature_id,
                 commit_hash=args.commit,
                 skip_archive=args.skip_archive
+            )
+        if args.command == "done":
+            return cmd_done(
+                commit_hash=args.commit,
+                run_all=args.run_all,
+                skip_archive=args.skip_archive,
             )
         if args.command == "add-feature":
             return add_feature(args.name, args.test_steps)

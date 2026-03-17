@@ -2,7 +2,7 @@
   "schema_version": "2.0",
   "project_name": "PROG 全量规范化",
   "created_at": "2026-03-16T14:28:41.135552Z",
-  "updated_at": "2026-03-17T14:19:56.903555Z",
+  "updated_at": "2026-03-17T22:33:22.970041Z",
   "features": [
     {
       "id": 1,
@@ -401,12 +401,12 @@
       "id": 8,
       "name": "8. /prog-done 收尾门禁",
       "test_steps": [
-        "cd plugins/progress-tracker && pytest tests/test_feature_completion_state_transition.py -q",
-        "cd plugins/progress-tracker && pytest tests/test_progress_manager.py -q -k \"finish or cleanup or worktree or next\"",
-        "cd plugins/progress-tracker && pytest tests/test_integration.py -q -k \"prog_done or complete\"",
+        "pytest tests/test_feature_completion_state_transition.py -q",
+        "pytest tests/test_progress_manager.py -q -k \"finish or cleanup or worktree or next\"",
+        "pytest tests/test_integration.py -q -k \"prog_done or complete\"",
         "DoD: 每次 /prog-done 都会落到明确收尾结果或 finish_pending，且 /prog-next 会严格阻断未收尾状态。"
       ],
-      "completed": false,
+      "completed": true,
       "owners": {
         "architecture": null,
         "coding": null,
@@ -416,7 +416,7 @@
       "defer_reason": null,
       "deferred_at": null,
       "defer_group": null,
-      "lifecycle_state": "approved",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-008"
       ],
@@ -433,31 +433,40 @@
         ]
       },
       "acceptance_scenarios": [
-        "Scenario: cd plugins/progress-tracker && pytest tests/test_feature_completion_state_transition.py -q",
-        "Scenario: cd plugins/progress-tracker && pytest tests/test_progress_manager.py -q -k \"finish or cleanup or worktree or next\"",
-        "Scenario: cd plugins/progress-tracker && pytest tests/test_integration.py -q -k \"prog_done or complete\"",
+        "Scenario: pytest tests/test_feature_completion_state_transition.py -q",
+        "Scenario: pytest tests/test_progress_manager.py -q -k \"finish or cleanup or worktree or next\"",
+        "Scenario: pytest tests/test_integration.py -q -k \"prog_done or complete\"",
         "Scenario: DoD: 每次 /prog-done 都会落到明确收尾结果或 finish_pending，且 /prog-next 会严格阻断未收尾状态。"
       ],
-      "development_stage": "planning",
+      "development_stage": "completed",
       "started_at": "2026-03-17T14:17:20.501597Z",
       "ai_metrics": {
         "complexity_score": 19,
         "complexity_bucket": "standard",
         "selected_model": "sonnet",
         "workflow_path": "plan_execute",
-        "started_at": "2026-03-17T14:18:50.061630Z"
+        "started_at": "2026-03-17T14:18:50.061630Z",
+        "finished_at": "2026-03-17T20:05:16.187136+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-03-17T20:05:16.192683Z",
+      "commit_hash": "bc24289fef88eb04281116db726d31ac1374a935",
+      "archive_info": {
+        "archived_at": "2026-03-17T20:05:16.235735Z",
+        "files_moved": 0,
+        "files": []
       }
     },
     {
       "id": 9,
       "name": "9. refs 智能裁剪",
       "test_steps": [
-        "cd plugins/progress-tracker && pytest tests/test_feature_contract_readiness.py -q -k \"refs\"",
-        "cd plugins/progress-tracker && pytest tests/test_progress_manager.py -q -k \"add_update or refs or updates\"",
-        "cd plugins/progress-tracker && python3 hooks/scripts/progress_manager.py --project-root . list-updates --limit 5",
+        "pytest tests/test_feature_contract_readiness.py -q -k \"refs\"",
+        "pytest tests/test_progress_manager.py -q -k \"add_update or refs or updates\"",
+        "python3 hooks/scripts/progress_manager.py --project-root . list-updates --limit 5",
         "DoD: 自动 refs 注入、overflow 收纳、手工 refs 保护三者同时成立且不抛异常。"
       ],
-      "completed": false,
+      "completed": true,
       "owners": {
         "architecture": null,
         "coding": null,
@@ -467,7 +476,7 @@
       "defer_reason": null,
       "deferred_at": null,
       "defer_group": null,
-      "lifecycle_state": "approved",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-009"
       ],
@@ -488,18 +497,36 @@
         "Scenario: cd plugins/progress-tracker && pytest tests/test_progress_manager.py -q -k \"add_update or refs or updates\"",
         "Scenario: cd plugins/progress-tracker && python3 hooks/scripts/progress_manager.py --project-root . list-updates --limit 5",
         "Scenario: DoD: 自动 refs 注入、overflow 收纳、手工 refs 保护三者同时成立且不抛异常。"
-      ]
+      ],
+      "development_stage": "completed",
+      "started_at": "2026-03-17T20:08:02.213971Z",
+      "ai_metrics": {
+        "complexity_score": 18,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-03-17T20:08:52.605949Z",
+        "finished_at": "2026-03-17T20:59:09.389093+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-03-17T20:59:09.392734Z",
+      "commit_hash": "bc24289fef88eb04281116db726d31ac1374a935",
+      "archive_info": {
+        "archived_at": "2026-03-17T20:59:09.436047Z",
+        "files_moved": 0,
+        "files": []
+      }
     },
     {
       "id": 10,
       "name": "10. summary 投影与状态展示",
       "test_steps": [
-        "cd plugins/progress-tracker && pytest tests/test_progress_ui_status.py -q",
-        "cd plugins/progress-tracker && pytest tests/test_progress_ui.py -q",
-        "cd plugins/progress-tracker && pytest tests/test_ui_display_logic.py -q",
+        "pytest tests/test_progress_ui_status.py -q",
+        "pytest tests/test_progress_ui.py -q",
+        "pytest tests/test_ui_display_logic.py -q",
         "DoD: summary 投影可生成并在漂移时自动重建，/prog 与 UI 状态展示保持一致。"
       ],
-      "completed": false,
+      "completed": true,
       "owners": {
         "architecture": null,
         "coding": null,
@@ -509,7 +536,7 @@
       "defer_reason": null,
       "deferred_at": null,
       "defer_group": null,
-      "lifecycle_state": "approved",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-010"
       ],
@@ -530,18 +557,36 @@
         "Scenario: cd plugins/progress-tracker && pytest tests/test_progress_ui.py -q",
         "Scenario: cd plugins/progress-tracker && pytest tests/test_ui_display_logic.py -q",
         "Scenario: DoD: summary 投影可生成并在漂移时自动重建，/prog 与 UI 状态展示保持一致。"
-      ]
+      ],
+      "development_stage": "completed",
+      "started_at": "2026-03-17T21:02:24.100156Z",
+      "ai_metrics": {
+        "complexity_score": 21,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-03-17T21:02:44.332145Z",
+        "finished_at": "2026-03-17T22:04:15.676133+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-03-17T22:04:15.677716Z",
+      "commit_hash": "bc24289fef88eb04281116db726d31ac1374a935",
+      "archive_info": {
+        "archived_at": "2026-03-17T22:04:15.695989Z",
+        "files_moved": 0,
+        "files": []
+      }
     },
     {
       "id": 11,
       "name": "11. 命令文档与帮助更新（含 Drift Prevention/Codex 兼容）",
       "test_steps": [
-        "python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check",
-        "验证 docs/DRIFT_PREVENTION_P0_STATUS.md 覆盖已完成与待完成项",
-        "验证 README/readme-zh 均链接到 Drift Prevention 状态文档",
-        "DoD: 日常命令分层清晰、CLI 能力边界清晰、Claude/Codex 共用后端路径清晰"
+        "python3 hooks/scripts/generate_prog_docs.py --check",
+        "rg -q '## Completed' docs/DRIFT_PREVENTION_P0_STATUS.md && rg -q '## Pending \\(Not Yet Implemented\\)' docs/DRIFT_PREVENTION_P0_STATUS.md && rg -q 'Feature 11: .*Drift Prevention/Codex' docs/DRIFT_PREVENTION_P0_STATUS.md && rg -q 'Feature 12: .*全量回归与验收报告' docs/DRIFT_PREVENTION_P0_STATUS.md",
+        "rg -q 'docs/DRIFT_PREVENTION_P0_STATUS.md' README.md && rg -q 'docs/DRIFT_PREVENTION_P0_STATUS.md' readme-zh.md",
+        "rg -q 'Low-Learning-Cost Command Layers' README.md && rg -q '运行时边界（Claude 与 Codex）' readme-zh.md && rg -q 'Cross-runtime backend path' docs/PROG_HELP.md"
       ],
-      "completed": false,
+      "completed": true,
       "owners": {
         "architecture": null,
         "coding": null,
@@ -551,7 +596,7 @@
       "defer_reason": null,
       "deferred_at": null,
       "defer_group": null,
-      "lifecycle_state": "approved",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-011"
       ],
@@ -572,19 +617,37 @@
         "Scenario: 验证 docs/DRIFT_PREVENTION_P0_STATUS.md 覆盖已完成与待完成项",
         "Scenario: 验证 README/readme-zh 均链接到 Drift Prevention 状态文档",
         "Scenario: DoD: 日常命令分层清晰、CLI 能力边界清晰、Claude/Codex 共用后端路径清晰"
-      ]
+      ],
+      "development_stage": "completed",
+      "started_at": "2026-03-17T22:11:15.499191Z",
+      "ai_metrics": {
+        "complexity_score": 15,
+        "complexity_bucket": "simple",
+        "selected_model": "haiku",
+        "workflow_path": "direct_tdd",
+        "started_at": "2026-03-17T22:11:32.080906Z",
+        "finished_at": "2026-03-17T22:17:32.715960+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-03-17T22:17:32.740543Z",
+      "commit_hash": "bc24289fef88eb04281116db726d31ac1374a935",
+      "archive_info": {
+        "archived_at": "2026-03-17T22:17:32.791658Z",
+        "files_moved": 0,
+        "files": []
+      }
     },
     {
       "id": 12,
       "name": "12. 全量回归与验收报告",
       "test_steps": [
-        "cd plugins/progress-tracker && pytest tests -q",
-        "cd plugins/progress-tracker && pytest tests/test_progress_manager.py tests/test_feature_contract_readiness.py tests/test_progress_ui_status.py -q",
-        "增加并运行 monorepo-root scope safety 回归：根目录 mutating 命令 fail closed，显式 child scope 正常工作",
-        "cd plugins/progress-tracker && python3 hooks/scripts/progress_manager.py --project-root . status",
-        "DoD: 全量测试通过，包含 scope safety 回归；输出剩余风险、回滚策略与验收结论，允许进入发布或下一阶段执行。"
+        "pytest tests -q",
+        "pytest tests/test_progress_manager.py tests/test_feature_contract_readiness.py tests/test_progress_ui_status.py -q",
+        "pytest tests/test_progress_manager.py::TestProjectRootDetection::test_scope_baseline_monorepo_root_next_feature_requires_explicit_scope tests/test_progress_manager.py::TestProjectRootDetection::test_scope_monorepo_root_next_feature_recovers_with_explicit_project_root -q",
+        "python3 hooks/scripts/progress_manager.py --project-root . status",
+        "pytest tests -q && pytest tests/test_progress_manager.py tests/test_feature_contract_readiness.py tests/test_progress_ui_status.py -q && pytest tests/test_progress_manager.py::TestProjectRootDetection::test_scope_baseline_monorepo_root_next_feature_requires_explicit_scope tests/test_progress_manager.py::TestProjectRootDetection::test_scope_monorepo_root_next_feature_recovers_with_explicit_project_root -q"
       ],
-      "completed": false,
+      "completed": true,
       "owners": {
         "architecture": null,
         "coding": null,
@@ -594,7 +657,7 @@
       "defer_reason": null,
       "deferred_at": null,
       "defer_group": null,
-      "lifecycle_state": "approved",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-012"
       ],
@@ -616,7 +679,21 @@
         "Scenario: 增加并运行 monorepo-root scope safety 回归：根目录 mutating 命令 fail closed，显式 child scope 正常工作",
         "Scenario: cd plugins/progress-tracker && python3 hooks/scripts/progress_manager.py --project-root . status",
         "Scenario: DoD: 全量测试通过，包含 scope safety 回归；输出剩余风险、回滚策略与验收结论，允许进入发布或下一阶段执行。"
-      ]
+      ],
+      "development_stage": "completed",
+      "started_at": "2026-03-17T22:21:04.598860Z",
+      "ai_metrics": {
+        "started_at": "2026-03-17T22:33:15.235945+08:00",
+        "finished_at": "2026-03-17T22:33:15.235945+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-03-17T22:33:15.268950Z",
+      "commit_hash": "bc24289fef88eb04281116db726d31ac1374a935",
+      "archive_info": {
+        "archived_at": "2026-03-17T22:33:15.336960Z",
+        "files_moved": 0,
+        "files": []
+      }
     },
     {
       "id": 13,
@@ -724,7 +801,7 @@
       ]
     }
   ],
-  "current_feature_id": 8,
+  "current_feature_id": null,
   "updates": [
     {
       "id": "UPD-001",
@@ -890,11 +967,43 @@
         "hooks/scripts/prog_paths.py",
         "tests/test_progress_manager.py"
       ]
+    },
+    {
+      "id": "UPD-011",
+      "created_at": "2026-03-17T17:47:26.630495Z",
+      "category": "status",
+      "summary": "Feature 8: implemented deterministic /prog done gate",
+      "details": "Added done parser/dispatcher, precondition validation, acceptance execution, test report persistence, finish_pending tracking, and completion integration.",
+      "feature_id": 8,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "manual",
+      "next_action": "Run /prog done for final closure",
+      "refs": [
+        "req:REQ-008"
+      ]
+    },
+    {
+      "id": "UPD-012",
+      "created_at": "2026-03-17T20:13:07.895736Z",
+      "category": "status",
+      "summary": "Feature 9: refs compaction and overflow capture implemented",
+      "details": "Added deterministic refs normalization, inline cap with refs_overflow persistence, and manual refs protection; covered with refs-focused readiness + progress_manager tests.",
+      "feature_id": 9,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "manual",
+      "next_action": "Run /prog done to execute acceptance gate and close feature 9",
+      "refs": [
+        "req:REQ-009"
+      ]
     }
   ],
   "runtime_context": {
-    "recorded_at": "2026-03-17T14:19:56.883552Z",
-    "source": "set_workflow_state",
+    "recorded_at": "2026-03-17T22:33:15.299334Z",
+    "source": "complete_feature",
     "workspace_mode": "worktree",
     "worktree_path": "/Users/siunin/Projects/claude-plugins-beta",
     "project_root": "/Users/siunin/Projects/claude-plugins-beta",
@@ -903,27 +1012,11 @@
     "branch": "codex/prog-beta-setup",
     "upstream": "origin/codex/prog-beta-setup",
     "tracker_root": "/Users/siunin/Projects/claude-plugins-beta/plugins/progress-tracker",
-    "current_feature_id": 8,
-    "workflow_phase": "execution",
+    "current_feature_id": null,
+    "workflow_phase": "execution_complete",
     "current_task": null,
     "total_tasks": null,
-    "next_action": "实现 /prog done 命令及 finish_pending 状态机制"
+    "next_action": "Finalize Feature 12 via /prog done"
   },
-  "retrospectives": [],
-  "workflow_state": {
-    "phase": "execution",
-    "next_action": "实现 /prog done 命令及 finish_pending 状态机制",
-    "updated_at": "2026-03-17T14:19:56.752655Z",
-    "execution_context": {
-      "recorded_at": "2026-03-17T14:19:56.818006Z",
-      "source": "set_workflow_state",
-      "workspace_mode": "worktree",
-      "worktree_path": "/Users/siunin/Projects/claude-plugins-beta",
-      "project_root": "/Users/siunin/Projects/claude-plugins-beta",
-      "tracker_root": "/Users/siunin/Projects/claude-plugins-beta/plugins/progress-tracker",
-      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/claude-plugins-beta",
-      "branch": "codex/prog-beta-setup",
-      "upstream": "origin/codex/prog-beta-setup"
-    }
-  }
+  "retrospectives": []
 }

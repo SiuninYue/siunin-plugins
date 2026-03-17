@@ -454,6 +454,23 @@ curl -s "http://127.0.0.1:3737/api/status-detail?panel=plan" | jq '.'
 3. **通知系统**：高优先级 bug 弹出通知
 4. **导出报告**：生成 PDF/Markdown 进度报告
 
+## Feature 10: Summary Projection 说明
+
+- 统一投影文件：`docs/progress-tracker/state/status_summary.v1.json`
+- 统一入口函数：`progress_manager.load_status_summary_projection()`
+- CLI `status` 与 API `/api/status-summary` 均复用该入口，避免双实现口径漂移。
+- 漂移判定基于 `progress.json` / `checkpoints.json` 的输入指纹（存在性、mtime、size）；命中漂移时自动重建。
+- 兼容迁移：若仅存在旧文件 `status_summary.json`，首次读取会迁移到 `status_summary.v1.json`，并写入 `migration.from_schema_version`。
+
+### 最小诊断命令
+
+```bash
+cd plugins/progress-tracker
+python3 hooks/scripts/progress_manager.py --project-root . status
+test -f docs/progress-tracker/state/status_summary.v1.json
+jq -e '.schema_version == "status_summary.v1" and has("recent_snapshot")' docs/progress-tracker/state/status_summary.v1.json >/dev/null
+```
+
 ## 时间投入
 
 - Phase 1（后端 API）：~3 小时

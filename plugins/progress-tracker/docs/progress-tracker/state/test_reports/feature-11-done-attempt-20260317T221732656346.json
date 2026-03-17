@@ -1,0 +1,44 @@
+{
+  "feature_id": 11,
+  "feature_name": "11. 命令文档与帮助更新（含 Drift Prevention/Codex 兼容）",
+  "done_attempt_at": "2026-03-17T22:17:32.656552Z",
+  "overall_success": true,
+  "results": [
+    {
+      "step": "python3 hooks/scripts/generate_prog_docs.py --check",
+      "command": "python3 hooks/scripts/generate_prog_docs.py --check",
+      "success": true,
+      "output_summary": "Generated docs are up to date.",
+      "duration_ms": 29,
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "step": "rg -q '## Completed' docs/DRIFT_PREVENTION_P0_STATUS.md && rg -q '## Pending \\(Not Yet Implemented\\)' docs/DRIFT_PREVENTION_P0_STATUS.md && rg -q 'Feature 11: .*Drift Prevention/Codex' docs/DRIFT_PREVENTION_P0_STATUS.md && rg -q 'Feature 12: .*全量回归与验收报告' docs/DRIFT_PREVENTION_P0_STATUS.md",
+      "command": "rg -q '## Completed' docs/DRIFT_PREVENTION_P0_STATUS.md && rg -q '## Pending \\(Not Yet Implemented\\)' docs/DRIFT_PREVENTION_P0_STATUS.md && rg -q 'Feature 11: .*Drift Prevention/Codex' docs/DRIFT_PREVENTION_P0_STATUS.md && rg -q 'Feature 12: .*全量回归与验收报告' docs/DRIFT_PREVENTION_P0_STATUS.md",
+      "success": true,
+      "output_summary": "",
+      "duration_ms": 14,
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "step": "rg -q 'docs/DRIFT_PREVENTION_P0_STATUS.md' README.md && rg -q 'docs/DRIFT_PREVENTION_P0_STATUS.md' readme-zh.md",
+      "command": "rg -q 'docs/DRIFT_PREVENTION_P0_STATUS.md' README.md && rg -q 'docs/DRIFT_PREVENTION_P0_STATUS.md' readme-zh.md",
+      "success": true,
+      "output_summary": "",
+      "duration_ms": 8,
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "step": "rg -q 'Low-Learning-Cost Command Layers' README.md && rg -q '运行时边界（Claude 与 Codex）' readme-zh.md && rg -q 'Cross-runtime backend path' docs/PROG_HELP.md",
+      "command": "rg -q 'Low-Learning-Cost Command Layers' README.md && rg -q '运行时边界（Claude 与 Codex）' readme-zh.md && rg -q 'Cross-runtime backend path' docs/PROG_HELP.md",
+      "success": true,
+      "output_summary": "",
+      "duration_ms": 9,
+      "exit_code": 0,
+      "error": null
+    }
+  ]
+}

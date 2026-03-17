@@ -10,8 +10,11 @@ from pathlib import Path
 
 import pytest
 
-SERVER_SCRIPT = Path("plugins/progress-tracker/hooks/scripts/progress_ui_server.py")
-SCRIPTS_PATH = "plugins/progress-tracker/hooks/scripts"
+PLUGIN_ROOT = Path(__file__).resolve().parent.parent
+SERVER_SCRIPT = PLUGIN_ROOT / "hooks" / "scripts" / "progress_ui_server.py"
+SCRIPTS_PATH = str(PLUGIN_ROOT / "hooks" / "scripts")
+STATIC_DIR = PLUGIN_ROOT / "hooks" / "scripts" / "static"
+STATIC_INDEX = STATIC_DIR / "index.html"
 
 
 def load_server_module():
@@ -208,15 +211,13 @@ def test_origin_header_validation_blocks_cross_origin(server_module):
 
 def test_static_directory_exists():
     """Test static directory exists for future UI files"""
-    static_dir = Path("plugins/progress-tracker/hooks/scripts/static")
-    assert static_dir.exists(), "Static directory must exist"
-    assert static_dir.is_dir(), "Static must be a directory"
+    assert STATIC_DIR.exists(), "Static directory must exist"
+    assert STATIC_DIR.is_dir(), "Static must be a directory"
 
 
 def test_status_drawer_actions_use_event_delegation():
     """Drawer actions should bind via delegated click handler, not inline onclick."""
-    html_path = Path("plugins/progress-tracker/hooks/scripts/static/index.html")
-    html = html_path.read_text(encoding="utf-8")
+    html = STATIC_INDEX.read_text(encoding="utf-8")
 
     assert 'document.getElementById("drawer-content").addEventListener("click"' in html
     assert 'data-action-type="copy"' in html
@@ -225,8 +226,7 @@ def test_status_drawer_actions_use_event_delegation():
 
 def test_status_bar_has_explicit_fallback_rendering():
     """Status bar should clear stale values when summary API fails."""
-    html_path = Path("plugins/progress-tracker/hooks/scripts/static/index.html")
-    html = html_path.read_text(encoding="utf-8")
+    html = STATIC_INDEX.read_text(encoding="utf-8")
 
     assert "function renderStatusBarFallback()" in html
     assert 'progressValue.textContent = "-/-";' in html
@@ -234,8 +234,7 @@ def test_status_bar_has_explicit_fallback_rendering():
 
 def test_checkbox_ui_defines_six_status_meta():
     """Frontend should define six checkbox states with keyboard shortcuts."""
-    html_path = Path("plugins/progress-tracker/hooks/scripts/static/index.html")
-    html = html_path.read_text(encoding="utf-8")
+    html = STATIC_INDEX.read_text(encoding="utf-8")
 
     assert "const checkboxStateMeta = [" in html
     assert '{ char: " ", icon: "☐"' in html
@@ -250,8 +249,7 @@ def test_checkbox_ui_defines_six_status_meta():
 
 def test_checkbox_ui_uses_patch_endpoint_and_primary_cycle():
     """Checkbox click should cycle primary states and patch through /api/checkbox."""
-    html_path = Path("plugins/progress-tracker/hooks/scripts/static/index.html")
-    html = html_path.read_text(encoding="utf-8")
+    html = STATIC_INDEX.read_text(encoding="utf-8")
 
     assert "function getNextPrimaryStatus(currentStatus)" in html
     assert 'if (currentStatus === " ") {' in html
@@ -264,8 +262,7 @@ def test_checkbox_ui_uses_patch_endpoint_and_primary_cycle():
 
 def test_checkbox_ui_renders_context_menu_and_shortcuts():
     """UI should expose context menu actions and key bindings for checkbox states."""
-    html_path = Path("plugins/progress-tracker/hooks/scripts/static/index.html")
-    html = html_path.read_text(encoding="utf-8")
+    html = STATIC_INDEX.read_text(encoding="utf-8")
 
     assert 'id="checkbox-menu"' in html
     assert "function buildCheckboxMenu()" in html
@@ -276,8 +273,7 @@ def test_checkbox_ui_renders_context_menu_and_shortcuts():
 
 def test_frontend_has_document_list_refresh_and_switch_hooks():
     """Document list should support click-to-switch and manual refresh shortcuts."""
-    html_path = Path("plugins/progress-tracker/hooks/scripts/static/index.html")
-    html = html_path.read_text(encoding="utf-8")
+    html = STATIC_INDEX.read_text(encoding="utf-8")
 
     assert 'id="doc-list"' in html
     assert 'id="refresh-files-btn"' in html
@@ -292,8 +288,7 @@ def test_frontend_has_document_list_refresh_and_switch_hooks():
 
 def test_frontend_uses_chinese_save_status_messages():
     """Checkbox save feedback should expose Chinese saving/saved labels."""
-    html_path = Path("plugins/progress-tracker/hooks/scripts/static/index.html")
-    html = html_path.read_text(encoding="utf-8")
+    html = STATIC_INDEX.read_text(encoding="utf-8")
 
     assert 'setStatus("保存中...", "info");' in html
     assert 'setStatus("已保存", "success");' in html
@@ -301,8 +296,7 @@ def test_frontend_uses_chinese_save_status_messages():
 
 def test_frontend_shows_checkbox_editability_hint_and_supported_patterns():
     """Editor should explain editable scope and support common checkbox syntaxes."""
-    html_path = Path("plugins/progress-tracker/hooks/scripts/static/index.html")
-    html = html_path.read_text(encoding="utf-8")
+    html = STATIC_INDEX.read_text(encoding="utf-8")
 
     assert 'id="editor-hint"' in html
     assert "当前文档有 ${checkboxCount} 个可切换 checkbox" in html

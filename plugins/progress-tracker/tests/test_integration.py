@@ -103,6 +103,55 @@ class TestFullWorkflow:
         assert features[0]['completed'] is True, "Feature should be completed"
         assert features[0]['id'] == 1, "Feature ID should be 1"
 
+    def test_prog_done_completes_current_feature(self):
+        """`done` command should run acceptance and complete the active feature."""
+        result = subprocess.run(
+            ['python3', self.progress_manager, 'init', 'DoneFlow', '--force'],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, f"Init failed: {result.stderr}"
+
+        result = subprocess.run(
+            ['python3', self.progress_manager, 'add-feature', 'FeatureDone', 'true'],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, f"Add feature failed: {result.stderr}"
+
+        result = subprocess.run(
+            ['python3', self.progress_manager, 'set-current', '1'],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, f"Set current failed: {result.stderr}"
+
+        result = subprocess.run(
+            ['python3', self.progress_manager, 'set-workflow-state', '--phase', 'execution_complete'],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, f"Set workflow state failed: {result.stderr}"
+
+        result = subprocess.run(
+            ['python3', self.progress_manager, 'done', '--skip-archive'],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, f"Done failed: {result.stdout}\n{result.stderr}"
+
+        progress_file = Path('docs/progress-tracker/state/progress.json')
+        with open(progress_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        feature = data['features'][0]
+        assert feature['completed'] is True
+        assert feature['development_stage'] == 'completed'
+        assert data['current_feature_id'] is None
+
+        report_dir = Path('docs/progress-tracker/state/test_reports')
+        assert any(report_dir.glob('feature-1-done-attempt-*.json'))
+
     def test_add_multiple_features(self):
         """Test adding and tracking multiple features."""
         # Initialize
