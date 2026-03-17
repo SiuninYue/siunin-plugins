@@ -3,12 +3,45 @@
 提供统一的状态转换验证、执行和审计功能。
 """
 
+import contextlib
+import fcntl
 import json
 import os
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List, Optional
+
+import audit_log
+
+
+LOCK_FILENAME = "progress.lock"
+LOCK_TIMEOUT_SECONDS = 10.0
+
+
+@contextmanager
+def acquire_lock(lock_path: Path, timeout: float = LOCK_TIMEOUT_SECONDS):
+    """获取文件锁（上下文管理器）"""
+    lock_file = None
+    try:
+        lock_file = open(lock_path, 'w')
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        yield lock_file
+    finally:
+        if lock_file:
+            fcntl.fcntl(lock_file.fileno(), fcntl.LOCK_UN)
+            lock_file.close()
+
+
+def _atomic_write(filepath: Path, content: str):
+    """原子写入：临时文件 + fsync + rename"""
+    temp_path = filepath.with_suffix(".tmp")
+    with open(temp_path, 'w') as f:
+        f.write(content)
+        f.flush()
+        os.fsync(f.fileno())
+    os.rename(temp_path, filepath)
 
 
 @dataclass
@@ -250,3 +283,163 @@ def _sync_derived_fields(feature: Dict[str, Any], lifecycle_state: str, current_
                 feature[key] = value
         else:
             feature[key] = value
+
+
+def _read_and_append_audit(audit_path: Path, record: Dict[str, Any]) -> str:
+    """读取现有审计日志并追加新记录"""
+    existing_content = ""
+    if audit_path.exists():
+        with open(audit_path, 'r') as f:
+            existing_content = f.read()
+            if existing_content and not existing_content.endswith('\n'):
+                existing_content += '\n'
+
+    return existing_content + json.dumps(record, ensure_ascii=False) + '\n'
+
+
+def _execute_transition(
+    feature_id: int,
+    target_state: str,
+    ctx: Dict[str, Any],
+    validation: ValidationResult,
+    project_root: Optional[str] = None
+) -> TransitionRecord:
+    """
+    执行状态转换（私有，原子操作）
+
+    步骤：
+    1. 获取文件锁
+    2. 读取当前状态并生成 before_snapshot
+    3. 计算目标状态，生成完整的 after_snapshot
+    4. 构建审计记录
+    5. 两阶段提交：审计日志 → progress.json
+    6. 释放锁
+    """
+    if project_root:
+        state_dir = Path(project_root) / "docs" / "progress-tracker" / "state"
+    else:
+        state_dir = Path(__file__).parent.parent.parent / "docs" / "progress-tracker" / "state"
+
+    lock_path = state_dir / LOCK_FILENAME
+    progress_path = state_dir / "progress.json"
+
+    tx_id = audit_log.generate_tx_id()
+    current_time = _iso_now()
+
+    with acquire_lock(lock_path):
+        # 读取当前状态
+        data = load_progress_json(project_root)
+        features = data.get("features", [])
+        feature_idx = next((i for i, f in enumerate(features) if f.get("id") == feature_id), -1)
+
+        if feature_idx == -1:
+            raise ValueError(f"Feature {feature_id} not found")
+
+        feature = features[feature_idx]
+        before_snapshot = {**feature}  # 深拷贝
+
+        # 计算目标状态
+        feature["lifecycle_state"] = target_state
+        _sync_derived_fields(feature, target_state, current_time)
+
+        # 处理特定操作的额外逻辑
+        op = ctx.get("op", "transition")
+        if op == "complete" and ctx.get("commit_hash"):
+            feature["commit_hash"] = ctx["commit_hash"]
+
+        after_snapshot = {**feature}
+
+        # 构建审计记录
+        audit_record = {
+            "id": audit_log.generate_audit_id(),
+            "tx_id": tx_id,
+            "feature_id": feature_id,
+            "op": op,
+            "from": before_snapshot.get("lifecycle_state", ""),
+            "to": target_state,
+            "actor": ctx.get("actor", "system"),
+            "reason": ctx.get("reason", ""),
+            "metadata": ctx.get("metadata", {}),
+            "before_snapshot": before_snapshot,
+            "after_snapshot": after_snapshot,
+            "timestamp": current_time,
+            "success": True,
+        }
+
+        # 两阶段提交
+        # 1. 写入审计日志
+        audit_path = state_dir / audit_log.AUDIT_LOG_FILENAME
+        _atomic_write(audit_path, _read_and_append_audit(audit_path, audit_record))
+
+        # 2. 写入 progress.json
+        data["updated_at"] = current_time
+        _atomic_write(progress_path, json.dumps(data, indent=2, ensure_ascii=False))
+
+        # 3. 更新 progress.md（非阻塞）
+        try:
+            from progress_manager import generate_progress_md, save_progress_md
+            md_content = generate_progress_md(data)
+            save_progress_md(md_content)
+        except Exception:
+            pass  # markdown 更新失败不影响核心功能
+
+        return TransitionRecord(
+            feature_id=feature_id,
+            op=op,
+            from_state=before_snapshot.get("lifecycle_state", ""),
+            to_state=target_state,
+            actor=ctx.get("actor", "system"),
+            reason=ctx.get("reason", ""),
+            metadata=ctx.get("metadata", {}),
+            tx_id=tx_id,
+            before_snapshot=before_snapshot,
+            after_snapshot=after_snapshot,
+            timestamp=current_time,
+            success=True,
+        )
+
+
+def transition(
+    feature_id: int,
+    target_state: str,
+    ctx: Dict[str, Any],
+    dry_run: bool = False,
+    project_root: Optional[str] = None
+) -> TransitionOutcome:
+    """
+    组合验证和执行
+
+    流程：
+    1. 验证
+    2. 如果 dry_run 或验证失败，返回结果
+    3. 否则执行并返回完整结果
+    """
+    # 验证
+    validation = validate_transition(feature_id, target_state, ctx, project_root)
+
+    if not validation.valid or dry_run:
+        return TransitionOutcome(
+            validation=validation,
+            changed=False,
+        )
+
+    # 执行
+    try:
+        record = _execute_transition(feature_id, target_state, ctx, validation, project_root)
+        return TransitionOutcome(
+            validation=validation,
+            record=record,
+            changed=True,
+        )
+    except Exception as e:
+        # 执行失败
+        validation.valid = False
+        validation.blockers.append(ValidationError(
+            code="EXECUTION_FAILED",
+            message=f"执行失败: {str(e)}",
+            suggestion="请检查文件权限和磁盘空间"
+        ))
+        return TransitionOutcome(
+            validation=validation,
+            changed=False,
+        )
