@@ -187,3 +187,64 @@ def get_transition_suggestion(current: str, target: str) -> str:
         ("verified", "approved"): "verified 状态只能回退到 implementing 或归档到 archived",
     }
     return suggestions.get((current, target), "请检查状态转换规则")
+
+
+def _iso_now() -> str:
+    """获取当前 ISO 格式时间"""
+    return datetime.now().isoformat() + "Z"
+
+
+def _sync_derived_fields(feature: Dict[str, Any], lifecycle_state: str, current_time: str = None):
+    """
+    根据 lifecycle_state 同步派生字段
+
+    规则：
+    - development_stage: 根据 lifecycle_state 一对一映射
+    - completed: verified/archived 为 True，其他为 False
+    - completed_at: completed=True 时设置，False 时删除
+    - started_at: implementing 时设置（如果未设置）
+    - archive_info: archived 时保留，其他状态删除
+    """
+    if current_time is None:
+        current_time = _iso_now()
+
+    state_mapping = {
+        "approved": {
+            "development_stage": "planning",
+            "completed": False,
+            "completed_at": None,  # 删除
+        },
+        "implementing": {
+            "development_stage": "developing",
+            "completed": False,
+            "completed_at": None,  # 删除
+            "started_at": current_time,  # 只在未设置时设置
+        },
+        "verified": {
+            "development_stage": "completed",
+            "completed": True,
+            "completed_at": current_time,
+            "archive_info": None,  # 删除
+        },
+        "archived": {
+            "development_stage": "completed",
+            "completed": True,
+            # completed_at 保持不变
+            # archive_info 由 archive_feature() 设置
+        },
+    }
+
+    if lifecycle_state not in state_mapping:
+        return
+
+    for key, value in state_mapping[lifecycle_state].items():
+        if value is None:
+            # 删除字段
+            if key in feature:
+                del feature[key]
+        elif key == "started_at" and value == current_time:
+            # started_at 只在未设置时设置
+            if not feature.get("started_at"):
+                feature[key] = value
+        else:
+            feature[key] = value
