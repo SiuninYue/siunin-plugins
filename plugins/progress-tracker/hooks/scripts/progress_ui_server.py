@@ -803,7 +803,9 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
 
         try:
             # Path validation
-            path_result = validate_plan_path(plan_path, require_exists=True)
+            path_result = validate_plan_path(
+                plan_path, require_exists=True, target_root=self.working_dir
+            )
             if not path_result["valid"]:
                 return {
                     "status": "WARN",
@@ -812,7 +814,7 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
                 }
 
             # Document structure validation
-            doc_result = validate_plan_document(plan_path)
+            doc_result = validate_plan_document(plan_path, target_root=self.working_dir)
             if not doc_result["valid"]:
                 missing = ", ".join(doc_result["missing_sections"])
                 return {
@@ -948,6 +950,21 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
         Returns:
             Dictionary with progress, next_action, plan_health, risk_blocker, recent_snapshot
         """
+        if PROGRESS_MANAGER_AVAILABLE and progress_manager_module is not None:
+            projection_loader = getattr(
+                progress_manager_module,
+                "load_status_summary_projection",
+                None,
+            )
+            if callable(projection_loader):
+                try:
+                    return projection_loader(project_root=str(self.working_dir))
+                except Exception as exc:
+                    print(
+                        f"Warning: shared status projection unavailable, falling back to inline summary ({exc})",
+                        file=sys.stderr,
+                    )
+
         progress_data = load_json_with_cache(
             get_progress_json_path(self.working_dir), "progress_json"
         )
@@ -1070,8 +1087,14 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
             }
 
         try:
-            path_result = validate_plan_path(plan_path, require_exists=True)
-            doc_result = validate_plan_document(plan_path) if path_result["valid"] else None
+            path_result = validate_plan_path(
+                plan_path, require_exists=True, target_root=self.working_dir
+            )
+            doc_result = (
+                validate_plan_document(plan_path, target_root=self.working_dir)
+                if path_result["valid"]
+                else None
+            )
         except Exception as e:
             return {
                 "panel": "plan",
@@ -1221,8 +1244,8 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
 
             action_map = {
                 "planning": {
-                    "label": "开始开发",
-                    "command": "/prog-start",
+                    "label": "继续此功能",
+                    "command": "/prog-next",
                 },
                 "developing": {
                     "label": "完成此功能",
@@ -1431,10 +1454,14 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
             }, 200
 
         try:
-            path_result = validate_plan_path(plan_path, require_exists=False)
+            path_result = validate_plan_path(
+                plan_path, require_exists=False, target_root=self.working_dir
+            )
             doc_result = None
             if path_result["valid"]:
-                doc_result = validate_plan_document(plan_path)
+                doc_result = validate_plan_document(
+                    plan_path, target_root=self.working_dir
+                )
 
             if not path_result["valid"]:
                 overall_status = "WARN"

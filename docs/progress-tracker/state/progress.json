@@ -2,7 +2,7 @@
   "schema_version": "2.0",
   "project_name": "Note Organizer Plugin",
   "created_at": "2026-02-25T23:15:37.840964Z",
-  "updated_at": "2026-03-03T18:22:31.695895Z",
+  "updated_at": "2026-03-16T21:54:16.835928Z",
   "features": [
     {
       "id": 1,
@@ -30,7 +30,16 @@
         "archived_at": "2026-03-01T08:10:34.798472Z",
         "files_moved": 0,
         "files": []
-      }
+      },
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null
     },
     {
       "id": 2,
@@ -58,7 +67,16 @@
         "archived_at": "2026-03-02T07:13:11.686019Z",
         "files_moved": 0,
         "files": []
-      }
+      },
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null
     },
     {
       "id": 3,
@@ -86,7 +104,16 @@
         "archived_at": "2026-03-02T07:49:58.719560Z",
         "files_moved": 0,
         "files": []
-      }
+      },
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null
     },
     {
       "id": 4,
@@ -114,7 +141,16 @@
         "archived_at": "2026-03-03T07:44:48.750679Z",
         "files_moved": 0,
         "files": []
-      }
+      },
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null
     },
     {
       "id": 5,
@@ -134,7 +170,16 @@
         "workflow_path": "plan_execute",
         "started_at": "2026-03-03T07:46:55.219506Z"
       },
-      "started_at": "2026-03-03T16:20:03.710654Z"
+      "started_at": "2026-03-03T16:20:03.710654Z",
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "deferred": true,
+      "defer_reason": "Deferred for Drift Prevention P0",
+      "deferred_at": "2026-03-16T16:13:21.249528Z",
+      "defer_group": "note-organizer-2026q1"
     },
     {
       "id": 6,
@@ -145,7 +190,16 @@
         "检查模板变量: grep '{note_type}' plugins/note-organizer/templates/obsidian-template.md",
         "检查元数据格式: grep 'cssclass:' plugins/note-organizer/templates/obsidian-template.md"
       ],
-      "completed": false
+      "completed": false,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "deferred": true,
+      "defer_reason": "Deferred for Drift Prevention P0",
+      "deferred_at": "2026-03-16T16:13:21.249528Z",
+      "defer_group": "note-organizer-2026q1"
     },
     {
       "id": 7,
@@ -156,7 +210,16 @@
         "检查 skill 引用: grep 'organize-note' plugins/note-organizer/commands/note-process.md",
         "验证处理步骤: grep '第一步\\|第二步\\|第三步\\|第四步' plugins/note-organizer/commands/note-process.md"
       ],
-      "completed": false
+      "completed": false,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "deferred": true,
+      "defer_reason": "Deferred for Drift Prevention P0",
+      "deferred_at": "2026-03-16T16:13:21.249528Z",
+      "defer_group": "note-organizer-2026q1"
     },
     {
       "id": 8,
@@ -167,7 +230,16 @@
         "检查路径约定: grep 'CLAUDE_PLUGIN_ROOT' plugins/note-organizer/commands/note-batch.md",
         "验证批量步骤: grep '扫描文件\\|逐个处理\\|生成报告' plugins/note-organizer/commands/note-batch.md"
       ],
-      "completed": false
+      "completed": false,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "deferred": true,
+      "defer_reason": "Deferred for Drift Prevention P0",
+      "deferred_at": "2026-03-16T16:13:21.249528Z",
+      "defer_group": "note-organizer-2026q1"
     },
     {
       "id": 9,
@@ -178,7 +250,16 @@
         "检查版本号: grep '1.0.0' .claude-plugin/marketplace.json",
         "验证插件位置: grep 'plugins/note-organizer' .claude-plugin/marketplace.json"
       ],
-      "completed": false
+      "completed": false,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "deferred": true,
+      "defer_reason": "Deferred for Drift Prevention P0",
+      "deferred_at": "2026-03-16T16:13:21.249528Z",
+      "defer_group": "note-organizer-2026q1"
     },
     {
       "id": 10,
@@ -189,31 +270,34 @@
         "验证 NotebookLM 结构测试: grep 'test_notebooklm_output_structure' plugins/note-organizer/tests/test_e2e_structure.py",
         "验证时间戳测试: grep 'test_timestamps_removed' plugins/note-organizer/tests/test_e2e_structure.py"
       ],
-      "completed": false
+      "completed": false,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "deferred": true,
+      "defer_reason": "Deferred for Drift Prevention P0",
+      "deferred_at": "2026-03-16T16:13:21.249528Z",
+      "defer_group": "note-organizer-2026q1"
     }
   ],
-  "current_feature_id": 5,
-  "workflow_state": {
-    "phase": "planning_complete",
-    "plan_path": "docs/plans/2026-03-03-notebooklm-template-implementation.md",
-    "next_action": "Execute implementation plan",
-    "updated_at": "2026-03-03T16:07:02.003633Z"
-  },
+  "current_feature_id": null,
   "runtime_context": {
-    "recorded_at": "2026-03-03T16:20:03.749164Z",
-    "source": "set_development_stage",
-    "workspace_mode": "in_place",
-    "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
-    "project_root": "/Users/siunin/Projects/Claude-Plugins",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins",
-    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
-    "branch": "main",
-    "upstream": "origin/main",
-    "current_feature_id": 5,
-    "workflow_phase": "planning_complete",
+    "recorded_at": "2026-03-16T16:13:21.300221Z",
+    "source": "defer",
+    "workspace_mode": "worktree",
+    "worktree_path": "/Users/siunin/Projects/claude-plugins-beta",
+    "project_root": "/Users/siunin/Projects/claude-plugins-beta",
+    "cwd": "/Users/siunin/Projects/claude-plugins-beta",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/claude-plugins-beta",
+    "branch": "codex/prog-beta-setup",
+    "upstream": null,
+    "current_feature_id": null,
+    "workflow_phase": null,
     "current_task": null,
     "total_tasks": null,
-    "next_action": "Execute implementation plan"
+    "next_action": null
   },
   "bugs": [
     {
@@ -268,5 +352,21 @@
       "fixed_at": "2026-03-03T18:22:31.685332Z"
     }
   ],
-  "current_bug_id": null
+  "current_bug_id": null,
+  "updates": [
+    {
+      "id": "UPD-001",
+      "created_at": "2026-03-16T21:54:16.835758Z",
+      "category": "status",
+      "summary": "transaction smoke",
+      "details": null,
+      "feature_id": null,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "manual",
+      "next_action": null,
+      "refs": []
+    }
+  ]
 }

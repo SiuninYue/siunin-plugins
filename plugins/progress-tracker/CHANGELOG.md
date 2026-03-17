@@ -6,7 +6,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-
 ## [1.6.13] - 2026-03-10
 
 ### Fixed
@@ -14,6 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fixed issue where command references in parentheses like (`/prog`, `/prog next`) were being misinterpreted by AI as executable commands
   - Updated `feature-complete`, `feature-implement`, `superpowers-integration`, and `testing-standards` skills to use descriptive text format instead
   - Root cause: Parenthetical command references triggered AI command execution during skill processing
+
+### Added
+- Structured progress update stream in `progress.json`:
+  - new top-level `updates[]` collection
+  - new CLI commands: `add-update`, `list-updates`
+- Role owner support for features:
+  - `features[].owners` with fixed roles `architecture|coding|testing`
+  - new CLI command: `set-feature-owner`
+- New `/prog-update` command + `progress-update` skill contract for recording structured updates from command layer.
+
+### Changed
+- `load_progress_json`/`save_progress_json` now backfill schema defaults for legacy files (owners + updates) without breaking existing state.
+- `/prog` status and generated `progress.md` now include role owner summary and latest updates section.
 
 ## [1.6.12] - 2026-03-05
 

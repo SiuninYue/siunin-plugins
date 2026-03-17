@@ -104,6 +104,10 @@ Progress Tracker 插件解决了 AI 辅助开发中的一个关键问题：**如
 
 从增量 Git 历史同步项目能力记忆，并进行批量确认写入。
 
+### `/progress-tracker:prog-update` (别名：`/prog-update`)
+
+记录结构化进度更新，并可选同步角色负责人。
+
 ### `/progress-tracker:prog-next` (别名：`/prog-next`)
 
 按复杂度路由启动下一个待完成功能。
@@ -136,7 +140,33 @@ Progress Tracker 插件解决了 AI 辅助开发中的一个关键问题：**如
 
 启动 Progress UI 网页服务器并在浏览器中打开。自动探测可用端口（3737-3747），检测当前项目是否已有运行中的服务器。
 
+### 低学习成本命令分层
+
+日常命令（默认路径）：
+
+- `/prog`：看状态与下一步建议
+- `/prog-next`：开始/继续下一个可执行功能
+- `/prog-done`：对当前功能做验收收尾
+
+管理命令（仅在需要时）：
+
+- `prog check` / `prog reconcile`：诊断 tracker 漂移
+- `prog defer` / `prog resume`：挂起与恢复 backlog
+- `prog next-feature --json`：给自动化流程做机器可读选项
+
+### 运行时边界（Claude 与 Codex）
+
+- Slash 命令（`/prog`、`/prog-next`、`/prog-done`）是 Claude Code 的日常交互入口。
+- CLI 命令（`prog check`、`prog reconcile`、`prog defer`、`prog resume`、`prog next-feature --json`）用于诊断/管理/自动化场景。
+- 两种运行时共享同一后端逻辑（`hooks/scripts/progress_manager.py`）。
+
 ### Progress Manager 命令行
+
+跨运行时推荐入口（Codex/本地 shell）：
+
+```bash
+plugins/progress-tracker/prog --project-root plugins/<name> status
+```
 
 Monorepo 中建议显式指定作用域：
 
@@ -148,10 +178,16 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py --project-root p
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py init <project_name> [--force]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py status
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py check
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py reconcile [--json]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py next-feature [--json]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-archives [--limit <n>]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py restore-archive <archive_id> [--force]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-current <feature_id>
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-readiness <feature_id>
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py fix-readiness <feature_id> [--add-requirement <req-id>] [--set-why "<why>"] [--add-acceptance "<scenario>"]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py complete <feature_id> --commit <hash>
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py defer (--all-pending|--feature-id <id>) --reason "<reason>" [--defer-group <group>]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py resume (--all|--defer-group <group>)
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state --phase <phase> [--plan-path <path>] [--next-action <action>]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-workflow-task <id> completed
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py clear-workflow-state
@@ -164,6 +200,9 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-plan [-
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-feature <name> <test_steps...>
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py undo
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py reset [--force]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-update --category <category> --summary "<summary>" [--details "<details>"] [--feature-id <id>] [--bug-id <BUG-ID>] [--role <role>] [--owner "<owner>"] [--source <source>] [--next-action "<next>"] [--ref <token> ...]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-updates [--limit <n>]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-feature-owner <feature_id> <architecture|coding|testing> "<owner|none>"
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-bug --description "<desc>" [--status <status>] [--priority <high|medium|low>] [--category <bug|technical_debt>]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug --bug-id "BUG-XXX" [--status <status>] [--root-cause "<cause>"] [--fix-summary "<summary>"]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-bugs
@@ -185,6 +224,11 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py batch-upsert --pay
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py register-rejections --payload-json '<array>' --sync-id '<sync_id>'
 ```
 <!-- END:GENERATED:PROG_COMMANDS -->
+
+## Drift Prevention P0 状态说明
+
+若要快速确认「已完成 / 未完成」边界（含漂移防护与低学习成本命令分层），请查看：
+`docs/DRIFT_PREVENTION_P0_STATUS.md`。
 
 ## 架构
 

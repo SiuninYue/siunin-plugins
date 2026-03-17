@@ -9,19 +9,26 @@ Usage:
     python3 progress_manager.py init [--force] <project_name>
     python3 progress_manager.py status
     python3 progress_manager.py check
+    python3 progress_manager.py reconcile [--json]
+    python3 progress_manager.py next-feature [--json]
     python3 progress_manager.py list-archives [--limit <n>]
     python3 progress_manager.py restore-archive <archive_id> [--force]
     python3 progress_manager.py git-sync-check
     python3 progress_manager.py git-auto-preflight [--json]
     python3 progress_manager.py set-current <feature_id>
+    python3 progress_manager.py validate-readiness <feature_id>
+    python3 progress_manager.py fix-readiness <feature_id> [--add-requirement <REQ-ID>] [--set-why <text>] [--add-acceptance <text>]
     python3 progress_manager.py set-development-stage <planning|developing|completed> [--feature-id <id>]
     python3 progress_manager.py complete <feature_id>
+    python3 progress_manager.py done [--commit <hash>] [--run-all] [--skip-archive]
     python3 progress_manager.py set-feature-ai-metrics <feature_id> --complexity-score <score> --selected-model <model> --workflow-path <path>
     python3 progress_manager.py complete-feature-ai-metrics <feature_id>
     python3 progress_manager.py auto-checkpoint
     python3 progress_manager.py validate-plan [--plan-path <path>]
     python3 progress_manager.py add-feature <name> <test_steps...>
     python3 progress_manager.py update-feature <feature_id> <name> [test_steps...]
+    python3 progress_manager.py defer (--all-pending|--feature-id <id>) --reason <text> [--defer-group <id>]
+    python3 progress_manager.py resume (--all|--defer-group <id>)
     python3 progress_manager.py reset
 """
 
@@ -33,9 +40,18 @@ import sys
 import subprocess
 import shutil
 import logging
-from datetime import datetime
+import tempfile
+import time
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Optional, List, Dict, Any, Tuple, Set
+
+try:
+    import fcntl  # POSIX only
+except ImportError:  # pragma: no cover - non-POSIX
+    fcntl = None
 
 from prog_paths import (
     PROGRESS_ARCHIVE_DIR,
@@ -50,8 +66,10 @@ from prog_paths import (
     get_progress_md_path,
     get_state_dir,
     get_tracker_docs_root,
+    rel_progress_path,
     resolve_target_project_root,
 )
+from contract_importer import ContractImporter, ContractImportError
 
 # Import git_validator for secure Git operations
 try:
@@ -81,10 +99,71 @@ PLAN_PATH_PREFIX_LEGACY = "docs/progress-tracker/plans/"
 # and docs/progress-tracker/plans/ (legacy format for backward compatibility)
 VALID_PLAN_PREFIXES = (PLAN_PATH_PREFIX, PLAN_PATH_PREFIX_LEGACY)
 PROGRESS_ARCHIVE_MAX_ENTRIES = 200
+PROGRESS_LOCK_FILE = "progress.lock"
+PROGRESS_LOCK_TIMEOUT_SECONDS = 10.0
+PROGRESS_LOCK_POLL_INTERVAL_SECONDS = 0.05
+STATUS_SUMMARY_FILE = "status_summary.v1.json"
+STATUS_SUMMARY_LEGACY_FILE = "status_summary.json"
+STATUS_SUMMARY_SCHEMA_VERSION = "status_summary.v1"
+STATUS_SUMMARY_CORE_FIELDS = (
+    "progress",
+    "next_action",
+    "plan_health",
+    "risk_blocker",
+    "recent_snapshot",
+)
 
 # Schema version - increment when breaking changes occur
 CURRENT_SCHEMA_VERSION = "2.0"
 DEVELOPMENT_STAGES = ("planning", "developing", "completed")
+LIFECYCLE_STATES = ("approved", "implementing", "verified", "archived")
+OWNER_ROLES = ("architecture", "coding", "testing")
+UPDATE_CATEGORIES = ("status", "decision", "risk", "handoff", "assignment", "meeting")
+UPDATE_SOURCES = ("prog_update", "spm_meeting", "spm_assign", "manual")
+UPDATE_REFS_INLINE_LIMIT = 12
+RECONCILE_DIAGNOSES = (
+    "in_sync",
+    "implementation_ahead_of_tracker",
+    "tracker_ahead_of_implementation",
+    "scope_mismatch",
+    "context_mismatch",
+    "needs_manual_review",
+)
+RECONCILE_NEXT_STEPS = (
+    "/prog done",
+    "/prog next",
+    "resume implementation",
+    "switch to recorded context",
+    "repair workflow_state",
+    "clear invalid current_feature_id",
+)
+MUTATING_COMMANDS = {
+    "init",
+    "set-current",
+    "fix-readiness",
+    "set-development-stage",
+    "complete",
+    "done",
+    "add-feature",
+    "update-feature",
+    "defer",
+    "resume",
+    "add-update",
+    "set-feature-owner",
+    "undo",
+    "reset",
+    "set-workflow-state",
+    "update-workflow-task",
+    "clear-workflow-state",
+    "set-feature-ai-metrics",
+    "complete-feature-ai-metrics",
+    "auto-checkpoint",
+    "sync-runtime-context",
+    "restore-archive",
+    "add-bug",
+    "update-bug",
+    "remove-bug",
+}
 
 # Bug field standards (for consistency)
 BUG_REQUIRED_FIELDS = ["id", "description", "status", "priority", "created_at"]
@@ -106,6 +185,8 @@ logger = logging.getLogger(__name__)
 _PROJECT_ROOT_OVERRIDE: Optional[Path] = None
 _REPO_ROOT: Optional[Path] = None
 _STORAGE_READY_ROOT: Optional[Path] = None
+_PROGRESS_LOCK_HANDLE: Optional[Any] = None
+_PROGRESS_LOCK_DEPTH = 0
 
 
 def get_plugin_root():
@@ -259,8 +340,109 @@ def get_progress_dir() -> Path:
     return get_state_dir(find_project_root())
 
 
+def _progress_lock_path() -> Path:
+    """Return the per-project progress lock file path."""
+    progress_dir = get_progress_dir()
+    progress_dir.mkdir(parents=True, exist_ok=True)
+    return progress_dir / PROGRESS_LOCK_FILE
+
+
+def _acquire_progress_lock(timeout_seconds: float = PROGRESS_LOCK_TIMEOUT_SECONDS) -> None:
+    """Acquire a re-entrant cross-process lock for progress state mutations."""
+    global _PROGRESS_LOCK_HANDLE, _PROGRESS_LOCK_DEPTH
+    if fcntl is None:
+        return
+
+    if _PROGRESS_LOCK_DEPTH > 0 and _PROGRESS_LOCK_HANDLE is not None:
+        _PROGRESS_LOCK_DEPTH += 1
+        return
+
+    lock_path = _progress_lock_path()
+    handle = open(lock_path, "a+", encoding="utf-8")
+    start = time.monotonic()
+
+    while True:
+        try:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            _PROGRESS_LOCK_HANDLE = handle
+            _PROGRESS_LOCK_DEPTH = 1
+            return
+        except BlockingIOError:
+            if time.monotonic() - start >= timeout_seconds:
+                handle.close()
+                raise TimeoutError(
+                    f"Timed out acquiring progress lock after {timeout_seconds:.1f}s: {lock_path}"
+                )
+            time.sleep(PROGRESS_LOCK_POLL_INTERVAL_SECONDS)
+        except Exception:
+            handle.close()
+            raise
+
+
+def _release_progress_lock() -> None:
+    """Release the re-entrant progress lock."""
+    global _PROGRESS_LOCK_HANDLE, _PROGRESS_LOCK_DEPTH
+    if fcntl is None:
+        return
+    if _PROGRESS_LOCK_DEPTH <= 0:
+        return
+
+    _PROGRESS_LOCK_DEPTH -= 1
+    if _PROGRESS_LOCK_DEPTH > 0:
+        return
+
+    handle = _PROGRESS_LOCK_HANDLE
+    _PROGRESS_LOCK_HANDLE = None
+    if handle is None:
+        return
+
+    try:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+    finally:
+        handle.close()
+
+
+@contextmanager
+def progress_transaction(timeout_seconds: float = PROGRESS_LOCK_TIMEOUT_SECONDS):
+    """Transactional guard for mutating progress state."""
+    _acquire_progress_lock(timeout_seconds=timeout_seconds)
+    try:
+        yield
+    finally:
+        _release_progress_lock()
+
+
+def _atomic_write_text(path: Path, content: str) -> None:
+    """Atomically replace a text file via temp file + rename."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path: Optional[Path] = None
+
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=str(path.parent),
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            temp_path = Path(handle.name)
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_path, path)
+    finally:
+        if temp_path is not None and temp_path.exists():
+            try:
+                temp_path.unlink()
+            except OSError:
+                pass
+
+
 def validate_plan_path(
-    plan_path: Optional[str], require_exists: bool = False
+    plan_path: Optional[str],
+    require_exists: bool = False,
+    target_root: Optional[Path] = None,
 ) -> Dict[str, Optional[str]]:
     """
     Validate workflow plan path shape and optional existence.
@@ -305,7 +487,8 @@ def validate_plan_path(
         }
 
     if require_exists:
-        absolute_path = find_project_root() / normalized
+        base_root = target_root or find_project_root()
+        absolute_path = base_root / normalized
         if not absolute_path.exists():
             return {
                 "valid": False,
@@ -316,7 +499,7 @@ def validate_plan_path(
     return {"valid": True, "normalized_path": normalized, "error": None}
 
 
-def validate_plan_document(plan_path: str) -> Dict[str, Any]:
+def validate_plan_document(plan_path: str, target_root: Optional[Path] = None) -> Dict[str, Any]:
     """
     Validate minimum plan structure for feature execution.
 
@@ -334,7 +517,9 @@ def validate_plan_document(plan_path: str) -> Dict[str, Any]:
 
     In format (2), missing strict sections are treated as warnings.
     """
-    path_validation = validate_plan_path(plan_path, require_exists=True)
+    path_validation = validate_plan_path(
+        plan_path, require_exists=True, target_root=target_root
+    )
     if not path_validation["valid"]:
         return {
             "valid": False,
@@ -344,7 +529,8 @@ def validate_plan_document(plan_path: str) -> Dict[str, Any]:
             "profile": "invalid",
         }
 
-    absolute_path = find_project_root() / path_validation["normalized_path"]
+    base_root = target_root or find_project_root()
+    absolute_path = base_root / path_validation["normalized_path"]
     try:
         content = absolute_path.read_text(encoding="utf-8")
     except OSError as exc:
@@ -420,6 +606,710 @@ def validate_plan_document(plan_path: str) -> Dict[str, Any]:
     }
 
 
+def _default_owners() -> Dict[str, Optional[str]]:
+    """Build default feature owners payload for known roles."""
+    return {role: None for role in OWNER_ROLES}
+
+
+def _normalize_feature_owners(feature: Dict[str, Any]) -> None:
+    """Ensure feature owners map exists with known role keys."""
+    owners = feature.get("owners")
+    if not isinstance(owners, dict):
+        owners = {}
+    for role in OWNER_ROLES:
+        owners.setdefault(role, None)
+    feature["owners"] = owners
+
+
+def _normalize_feature_defer_state(feature: Dict[str, Any]) -> None:
+    """Ensure feature defer metadata is present and type-safe."""
+    feature["deferred"] = bool(feature.get("deferred", False))
+    feature["defer_reason"] = _normalize_optional_string(feature.get("defer_reason"))
+    feature["deferred_at"] = _normalize_optional_string(feature.get("deferred_at"))
+    feature["defer_group"] = _normalize_optional_string(feature.get("defer_group"))
+
+
+def _clear_feature_defer_state(feature: Dict[str, Any]) -> None:
+    """Clear defer metadata while keeping schema-compatible fields."""
+    feature["deferred"] = False
+    feature["defer_reason"] = None
+    feature["deferred_at"] = None
+    feature["defer_group"] = None
+
+
+def _default_requirement_ids(feature: Dict[str, Any]) -> List[str]:
+    """Build deterministic fallback requirement IDs for legacy features."""
+    feature_id = feature.get("id")
+    if isinstance(feature_id, int) and feature_id >= 0:
+        return [f"REQ-{feature_id:03d}"]
+    return ["REQ-000"]
+
+
+def _default_change_spec(feature: Dict[str, Any]) -> Dict[str, Any]:
+    """Build baseline change_spec for schema backfill."""
+    feature_name = str(feature.get("name") or "Unnamed feature").strip()
+    return {
+        "why": f"Deliver {feature_name} with traceable acceptance coverage.",
+        "in_scope": [feature_name],
+        "out_of_scope": ["Unrelated refactors and behavior changes outside this feature."],
+        "risks": ["Potential regression in adjacent workflows; verify with listed test_steps."],
+    }
+
+
+def _default_acceptance_scenarios(feature: Dict[str, Any]) -> List[str]:
+    """Build fallback acceptance scenarios from test steps."""
+    test_steps = feature.get("test_steps")
+    if isinstance(test_steps, list):
+        scenarios = [str(step).strip() for step in test_steps if str(step).strip()]
+        if scenarios:
+            return [f"Scenario: {step}" for step in scenarios]
+
+    feature_name = str(feature.get("name") or "feature").strip()
+    return [f"Scenario: {feature_name} baseline behavior works as expected."]
+
+
+def _derive_lifecycle_state(feature: Dict[str, Any]) -> str:
+    """Derive lifecycle state from legacy completion/development fields."""
+    if feature.get("archive_info"):
+        return "archived"
+
+    if bool(feature.get("completed", False)):
+        return "verified"
+
+    stage = feature.get("development_stage")
+    if stage == "developing":
+        return "implementing"
+    if stage == "completed":
+        return "verified"
+
+    return "approved"
+
+
+def _normalize_feature_contract(feature: Dict[str, Any]) -> None:
+    """Backfill schema 2.1 feature contract fields while preserving explicit values."""
+    lifecycle_state = feature.get("lifecycle_state")
+    if lifecycle_state not in LIFECYCLE_STATES:
+        feature["lifecycle_state"] = _derive_lifecycle_state(feature)
+
+    requirement_ids = feature.get("requirement_ids")
+    if not isinstance(requirement_ids, list):
+        feature["requirement_ids"] = _default_requirement_ids(feature)
+
+    change_spec = feature.get("change_spec")
+    defaults = _default_change_spec(feature)
+    if not isinstance(change_spec, dict):
+        feature["change_spec"] = defaults
+    else:
+        for key, value in defaults.items():
+            change_spec.setdefault(key, value)
+        feature["change_spec"] = change_spec
+
+    acceptance_scenarios = feature.get("acceptance_scenarios")
+    if not isinstance(acceptance_scenarios, list):
+        feature["acceptance_scenarios"] = _default_acceptance_scenarios(feature)
+
+
+def _apply_imported_feature_contract(feature: Dict[str, Any], contract: Dict[str, Any]) -> None:
+    """Apply imported contract payload onto a feature record."""
+    feature["requirement_ids"] = contract["requirement_ids"]
+    feature["change_spec"] = contract["change_spec"]
+    feature["acceptance_scenarios"] = contract["acceptance_scenarios"]
+    _normalize_feature_contract(feature)
+
+
+def _has_non_empty_list_items(value: Any) -> bool:
+    """Return True when value is a list containing at least one non-empty item."""
+    return isinstance(value, list) and any(str(item).strip() for item in value)
+
+
+def validate_feature_readiness(feature: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Validate feature contract readiness using blocking and warning checks.
+
+    Contract:
+      {
+        "valid": bool,
+        "errors": [str],      # blocking checks
+        "warnings": [str],    # advisory checks
+      }
+    """
+    blockers: List[str] = []
+    warnings: List[str] = []
+
+    if not _has_non_empty_list_items(feature.get("requirement_ids")):
+        blockers.append("requirement_ids cannot be empty")
+
+    change_spec = feature.get("change_spec")
+    if not isinstance(change_spec, dict):
+        change_spec = {}
+
+    why = str(change_spec.get("why") or "").strip()
+    if not why:
+        blockers.append("change_spec.why cannot be empty")
+    elif len(why) <= 10:
+        warnings.append("change_spec.why should be longer than 10 characters")
+
+    if not _has_non_empty_list_items(feature.get("acceptance_scenarios")):
+        blockers.append("acceptance_scenarios cannot be empty")
+
+    if not _has_non_empty_list_items(feature.get("test_steps")):
+        warnings.append("test_steps is empty")
+
+    name = str(feature.get("name") or "").strip()
+    if len(name) < 5:
+        warnings.append("name should be at least 5 characters")
+
+    return {
+        "valid": len(blockers) == 0,
+        "errors": blockers,
+        "warnings": warnings,
+    }
+
+
+def print_readiness_warnings(report: Dict[str, Any]) -> None:
+    """Print non-blocking readiness warnings."""
+    warnings = report.get("warnings", [])
+    if not warnings:
+        return
+
+    print("Warnings (non-blocking):")
+    for warning in warnings:
+        print(f"  - {warning}")
+
+
+def _build_readiness_fix_commands(feature_id: int, errors: List[str]) -> List[str]:
+    """Build deterministic one-line fix commands from blocking errors."""
+    commands: List[str] = []
+    seen: Set[str] = set()
+    default_req = f"REQ-{feature_id:03d}"
+
+    def _add(command: str) -> None:
+        if command in seen:
+            return
+        seen.add(command)
+        commands.append(command)
+
+    for error in errors:
+        if "requirement_ids" in error:
+            _add(
+                f"plugins/progress-tracker/prog fix-readiness {feature_id} --add-requirement {default_req}"
+            )
+        elif "change_spec.why" in error:
+            _add(
+                f"plugins/progress-tracker/prog fix-readiness {feature_id} --set-why \"Detailed explanation...\""
+            )
+        elif "acceptance_scenarios" in error:
+            _add(
+                f"plugins/progress-tracker/prog fix-readiness {feature_id} --add-acceptance \"Scenario: ...\""
+            )
+
+    return commands
+
+
+def print_readiness_error(feature: Dict[str, Any], report: Dict[str, Any]) -> None:
+    """Print readiness blockers and actionable fix commands."""
+    feature_id = feature.get("id", "?")
+    errors = report.get("errors", [])
+    warnings = report.get("warnings", [])
+
+    print(f"Feature #{feature_id} cannot start: readiness check failed")
+    print("")
+    print("Blockers:")
+    for error in errors:
+        print(f"  - {error}")
+
+    if warnings:
+        print("")
+        print_readiness_warnings(report)
+
+    fix_commands = _build_readiness_fix_commands(
+        feature_id if isinstance(feature_id, int) else 0,
+        [str(item) for item in errors],
+    )
+    if fix_commands:
+        print("")
+        print("Suggested fixes:")
+        for command in fix_commands:
+            print(f"  {command}")
+
+    print("")
+    print(f"Retry: plugins/progress-tracker/prog set-current {feature_id}")
+
+
+def validate_readiness_command(feature_id: int) -> int:
+    """Read-only readiness validation. Returns 0 when no blockers, otherwise 1."""
+    data = load_progress_json()
+    if not data:
+        print("No progress tracking found")
+        return 1
+
+    features = data.get("features", [])
+    feature = next((f for f in features if f.get("id") == feature_id), None)
+    if not feature:
+        print(f"Feature ID {feature_id} not found")
+        return 1
+
+    report = validate_feature_readiness(feature)
+    if report["valid"]:
+        print(f"Feature #{feature_id} readiness check passed")
+        if report["warnings"]:
+            print("")
+            print_readiness_warnings(report)
+        return 0
+
+    print_readiness_error(feature, report)
+    return 1
+
+
+def fix_readiness_command(
+    feature_id: int,
+    *,
+    add_requirement: Optional[str] = None,
+    set_why: Optional[str] = None,
+    add_acceptance: Optional[str] = None,
+) -> bool:
+    """
+    Apply structured contract fixes for readiness blockers.
+
+    Returns False for invalid input/feature-not-found; True for successful (including idempotent) runs.
+    """
+    data = load_progress_json()
+    if not data:
+        print("No progress tracking found")
+        return False
+
+    feature = next((f for f in data.get("features", []) if f.get("id") == feature_id), None)
+    if not feature:
+        print(f"Feature ID {feature_id} not found")
+        return False
+
+    operations = [add_requirement, set_why, add_acceptance]
+    if not any(item is not None for item in operations):
+        print(
+            "Error: At least one operation required "
+            "(--add-requirement / --set-why / --add-acceptance)"
+        )
+        return False
+
+    changed = False
+
+    if add_requirement is not None:
+        requirement = str(add_requirement).strip()
+        if not requirement:
+            print("Error: --add-requirement cannot be empty")
+            return False
+        if not requirement.startswith("REQ-"):
+            print(f"Warning: '{requirement}' does not match REQ- format")
+
+        requirement_ids = feature.get("requirement_ids")
+        if not isinstance(requirement_ids, list):
+            requirement_ids = []
+            feature["requirement_ids"] = requirement_ids
+        if requirement not in requirement_ids:
+            requirement_ids.append(requirement)
+            changed = True
+
+    if set_why is not None:
+        why = str(set_why).strip()
+        if not why:
+            print("Error: --set-why cannot be empty")
+            return False
+        change_spec = feature.get("change_spec")
+        if not isinstance(change_spec, dict):
+            change_spec = {}
+            feature["change_spec"] = change_spec
+        if change_spec.get("why") != why:
+            change_spec["why"] = why
+            changed = True
+
+    if add_acceptance is not None:
+        acceptance = str(add_acceptance).strip()
+        if not acceptance:
+            print("Error: --add-acceptance cannot be empty")
+            return False
+        acceptance_scenarios = feature.get("acceptance_scenarios")
+        if not isinstance(acceptance_scenarios, list):
+            acceptance_scenarios = []
+            feature["acceptance_scenarios"] = acceptance_scenarios
+        if acceptance not in acceptance_scenarios:
+            acceptance_scenarios.append(acceptance)
+            changed = True
+
+    if changed:
+        _normalize_feature_contract(feature)
+        save_progress_json(data)
+        save_progress_md(generate_progress_md(data))
+        print(f"Feature #{feature_id} updated")
+    else:
+        print(f"No changes needed for feature #{feature_id}")
+
+    report = validate_feature_readiness(feature)
+    if report["valid"]:
+        print("All blockers resolved. Ready to start.")
+    else:
+        print("Remaining blockers:")
+        for error in report["errors"]:
+            print(f"  - {error}")
+
+    if report["warnings"]:
+        print("")
+        print_readiness_warnings(report)
+
+    return True
+
+
+def import_contract_for_feature(feature_id: int) -> Optional[Dict[str, Any]]:
+    """Import feature contract from deterministic docs/progress-tracker/contracts path."""
+    importer = ContractImporter(find_project_root())
+    return importer.import_for_feature(feature_id)
+
+
+def _is_feature_deferred(feature: Dict[str, Any]) -> bool:
+    """Return whether a feature is currently deferred."""
+    return bool(feature.get("deferred", False))
+
+
+def _collect_feature_artifact_evidence(
+    feature_id: Optional[int], workflow_state: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Collect lightweight file-based evidence for reconcile diagnostics."""
+    if feature_id is None:
+        return {
+            "plan_path": None,
+            "plan_exists": False,
+            "testing_artifact_count": 0,
+            "archive_artifact_count": 0,
+            "artifacts_present": False,
+        }
+
+    project_root = find_project_root()
+    docs_root = get_tracker_docs_root(project_root)
+
+    plan_path_raw = workflow_state.get("plan_path")
+    plan_path = plan_path_raw if isinstance(plan_path_raw, str) else None
+    plan_exists = bool(plan_path and (project_root / plan_path).exists())
+
+    testing_matches: set[str] = set()
+    testing_dir = docs_root / "testing"
+    if testing_dir.exists():
+        patterns = (
+            f"feature-{feature_id}-*.md",
+            f"feature-{feature_id}_*.md",
+            f"*feature-{feature_id}*.md",
+        )
+        for pattern in patterns:
+            for path in testing_dir.glob(pattern):
+                if path.is_file():
+                    testing_matches.add(str(path))
+
+    archive_matches: set[str] = set()
+    archive_feature_dir = docs_root / "archive" / "features"
+    if archive_feature_dir.exists():
+        patterns = (
+            f"feature-{feature_id}-*.md",
+            f"feature-{feature_id}_*.md",
+            f"*feature-{feature_id}*.md",
+        )
+        for pattern in patterns:
+            for path in archive_feature_dir.glob(pattern):
+                if path.is_file():
+                    archive_matches.add(str(path))
+
+    return {
+        "plan_path": plan_path,
+        "plan_exists": plan_exists,
+        "testing_artifact_count": len(testing_matches),
+        "archive_artifact_count": len(archive_matches),
+        "artifacts_present": bool(plan_exists or testing_matches or archive_matches),
+    }
+
+
+def _collect_git_change_evidence(project_root: Path) -> Dict[str, Any]:
+    """Collect lightweight working-tree evidence for reconcile diagnostics."""
+    exit_code, stdout, _ = _run_git(
+        ["status", "--porcelain"],
+        cwd=str(project_root),
+        timeout=5,
+    )
+    if exit_code != 0:
+        return {
+            "git_changes_detected": None,
+            "git_changed_files": None,
+        }
+
+    changed_lines = [line for line in stdout.splitlines() if line.strip()]
+    return {
+        "git_changes_detected": bool(changed_lines),
+        "git_changed_files": len(changed_lines),
+    }
+
+
+def _normalize_reconcile_step(step: str) -> str:
+    """Guarantee reconcile recommendations stay in the allowed stable set."""
+    return step if step in RECONCILE_NEXT_STEPS else "repair workflow_state"
+
+
+def analyze_reconcile_state(data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Analyze tracker drift vs implementation evidence and return stable diagnostics."""
+    if data is None:
+        data = load_progress_json()
+
+    if not isinstance(data, dict):
+        return {
+            "active_feature": None,
+            "tracker_state": {},
+            "evidence": {},
+            "diagnosis": "needs_manual_review",
+            "recommended_next_step": "repair workflow_state",
+            "reason": "Progress tracking data is missing or invalid.",
+        }
+
+    features = data.get("features", [])
+    if not isinstance(features, list):
+        features = []
+    current_id = data.get("current_feature_id")
+    workflow_state = data.get("workflow_state", {})
+    if not isinstance(workflow_state, dict):
+        workflow_state = {}
+    runtime_context = data.get("runtime_context", {})
+    if not isinstance(runtime_context, dict):
+        runtime_context = {}
+
+    active_feature = None
+    if isinstance(current_id, int):
+        active_feature = next(
+            (feature for feature in features if isinstance(feature, dict) and feature.get("id") == current_id),
+            None,
+        )
+
+    execution_context = workflow_state.get("execution_context", {})
+    if not isinstance(execution_context, dict):
+        execution_context = {}
+    expected_context = execution_context
+    if not (expected_context.get("branch") or expected_context.get("worktree_path")):
+        latest_feature_checkpoint = _latest_checkpoint_entry_for_feature(
+            load_checkpoints(), current_id if isinstance(current_id, int) else None
+        )
+        expected_context = _build_checkpoint_context(latest_feature_checkpoint) or {}
+
+    current_context = build_runtime_context(data, source="manual")
+    context_hint = compare_contexts(expected_context, current_context)
+
+    project_root = find_project_root()
+    normalized_project_root = _normalize_context_path(str(project_root))
+    execution_project_root = _normalize_context_path(execution_context.get("project_root"))
+    runtime_project_root = _normalize_context_path(runtime_context.get("project_root"))
+    execution_tracker_root = _normalize_context_path(execution_context.get("tracker_root"))
+    runtime_tracker_root = _normalize_context_path(runtime_context.get("tracker_root"))
+
+    feature_artifacts = _collect_feature_artifact_evidence(
+        feature_id=current_id if isinstance(current_id, int) else None,
+        workflow_state=workflow_state,
+    )
+    git_evidence = _collect_git_change_evidence(project_root)
+
+    total_features = len([feature for feature in features if isinstance(feature, dict)])
+    completed_features = sum(
+        1
+        for feature in features
+        if isinstance(feature, dict) and feature.get("completed", False)
+    )
+    incomplete_features = [
+        feature
+        for feature in features
+        if isinstance(feature, dict) and not feature.get("completed", False)
+    ]
+    actionable_incomplete = [
+        feature for feature in incomplete_features if not _is_feature_deferred(feature)
+    ]
+
+    tracker_state = {
+        "project_name": data.get("project_name", "Unknown"),
+        "current_feature_id": current_id,
+        "feature_count": total_features,
+        "completed_count": completed_features,
+        "incomplete_count": len(incomplete_features),
+        "actionable_incomplete_count": len(actionable_incomplete),
+        "workflow_phase": workflow_state.get("phase"),
+        "workflow_plan_path": workflow_state.get("plan_path"),
+        "workflow_has_execution_context": bool(execution_context),
+        "runtime_context_recorded": bool(runtime_context),
+    }
+
+    active_feature_summary: Optional[Dict[str, Any]] = None
+    if isinstance(active_feature, dict):
+        active_feature_summary = {
+            "id": active_feature.get("id"),
+            "name": active_feature.get("name"),
+            "completed": bool(active_feature.get("completed", False)),
+            "development_stage": active_feature.get("development_stage"),
+            "deferred": _is_feature_deferred(active_feature),
+        }
+
+    evidence: Dict[str, Any] = {
+        "current_branch": current_context.get("branch"),
+        "current_worktree_path": current_context.get("worktree_path"),
+        "context_status": context_hint.get("status"),
+        "execution_project_root": execution_project_root,
+        "runtime_project_root": runtime_project_root,
+        "execution_tracker_root": execution_tracker_root,
+        "runtime_tracker_root": runtime_tracker_root,
+        **feature_artifacts,
+        **git_evidence,
+    }
+
+    diagnosis = "in_sync"
+    recommended_next_step = "/prog next" if not current_id else "resume implementation"
+    reason = "Tracker and implementation context are aligned."
+
+    if current_id is not None and active_feature is None:
+        diagnosis = "needs_manual_review"
+        recommended_next_step = "clear invalid current_feature_id"
+        reason = "current_feature_id does not point to an existing feature."
+    elif (
+        execution_tracker_root
+        and normalized_project_root
+        and execution_tracker_root != normalized_project_root
+    ):
+        diagnosis = "scope_mismatch"
+        recommended_next_step = "switch to recorded context"
+        reason = "Recorded project scope differs from the current command scope."
+    elif context_hint.get("status") in {"mismatch", "path_mismatch", "branch_mismatch"}:
+        diagnosis = "context_mismatch"
+        recommended_next_step = "switch to recorded context"
+        reason = context_hint.get("message") or "Execution context does not match the current session."
+    elif current_id is None and workflow_state:
+        diagnosis = "needs_manual_review"
+        recommended_next_step = "repair workflow_state"
+        reason = "workflow_state exists without an active current_feature_id."
+    elif isinstance(active_feature, dict):
+        feature_completed = bool(active_feature.get("completed", False))
+        feature_deferred = _is_feature_deferred(active_feature)
+        phase = workflow_state.get("phase")
+        development_stage = active_feature.get("development_stage")
+
+        if feature_deferred:
+            diagnosis = "needs_manual_review"
+            recommended_next_step = "clear invalid current_feature_id"
+            reason = "Active feature is marked deferred; tracker state is inconsistent."
+        elif feature_completed:
+            diagnosis = "tracker_ahead_of_implementation"
+            recommended_next_step = "clear invalid current_feature_id"
+            reason = "Active feature is already marked completed but still selected as current."
+        elif phase == "execution_complete" or development_stage == "completed":
+            diagnosis = "implementation_ahead_of_tracker"
+            recommended_next_step = "/prog done"
+            reason = "Implementation reached execution_complete/completed stage but feature is not closed."
+        elif feature_artifacts.get("artifacts_present") and git_evidence.get("git_changes_detected"):
+            diagnosis = "implementation_ahead_of_tracker"
+            recommended_next_step = "/prog done"
+            reason = "Implementation artifacts and local changes suggest tracker closure may be pending."
+        else:
+            diagnosis = "in_sync"
+            recommended_next_step = "resume implementation"
+            reason = "Active feature is in-progress and tracker reflects that state."
+    elif actionable_incomplete:
+        diagnosis = "in_sync"
+        recommended_next_step = "/prog next"
+        reason = "No active feature is set; tracker is ready to start the next actionable feature."
+    else:
+        diagnosis = "in_sync"
+        recommended_next_step = "/prog next"
+        reason = "No actionable pending features remain in the current scope."
+
+    return {
+        "active_feature": active_feature_summary,
+        "tracker_state": tracker_state,
+        "evidence": evidence,
+        "diagnosis": (
+            diagnosis if diagnosis in RECONCILE_DIAGNOSES else "needs_manual_review"
+        ),
+        "recommended_next_step": _normalize_reconcile_step(recommended_next_step),
+        "reason": reason,
+    }
+
+
+def reconcile(output_json: bool = False) -> bool:
+    """Print reconcile diagnostics and suggested next step."""
+    data = load_progress_json()
+    if not data:
+        if output_json:
+            print(
+                json.dumps(
+                    {
+                        "status": "missing_tracking",
+                        "diagnosis": "needs_manual_review",
+                        "recommended_next_step": "/prog next",
+                        "message": "No progress tracking found. Use '/prog init' first.",
+                    }
+                )
+            )
+        else:
+            print("No progress tracking found. Use '/prog init' first.")
+        return False
+
+    report = analyze_reconcile_state(data)
+    if output_json:
+        print(json.dumps(report, ensure_ascii=False))
+        return True
+
+    print("## Reconcile")
+    active_feature = report.get("active_feature")
+    if active_feature:
+        print(
+            f"Active feature: [{active_feature.get('id')}] "
+            f"{active_feature.get('name', 'Unknown')}"
+        )
+    else:
+        print("Active feature: none")
+
+    tracker_state = report.get("tracker_state", {})
+    evidence = report.get("evidence", {})
+    print(
+        "Tracker summary: "
+        f"phase={tracker_state.get('workflow_phase') or 'none'}, "
+        f"current_feature_id={tracker_state.get('current_feature_id')}, "
+        f"completed={tracker_state.get('completed_count')}/{tracker_state.get('feature_count')}"
+    )
+    print(
+        "Evidence: "
+        f"context={evidence.get('context_status') or 'unknown'}, "
+        f"plan_exists={evidence.get('plan_exists')}, "
+        f"artifacts_present={evidence.get('artifacts_present')}, "
+        f"git_changes={evidence.get('git_changes_detected')}"
+    )
+    print(f"Diagnosis: {report.get('diagnosis')}")
+    print(f"Recommended next step: {report.get('recommended_next_step')}")
+    print(f"Reason: {report.get('reason')}")
+    return True
+
+
+def _apply_schema_defaults(data: Dict[str, Any]) -> None:
+    """Backfill backward-compatible defaults for evolving schema fields."""
+    if "schema_version" not in data:
+        data["schema_version"] = CURRENT_SCHEMA_VERSION
+
+    features = data.get("features")
+    if not isinstance(features, list):
+        features = []
+    data["features"] = features
+    for feature in features:
+        if isinstance(feature, dict):
+            _normalize_feature_owners(feature)
+            _normalize_feature_defer_state(feature)
+            _normalize_feature_contract(feature)
+
+    updates = data.get("updates")
+    if not isinstance(updates, list):
+        updates = []
+    data["updates"] = [item for item in updates if isinstance(item, dict)]
+
+    retrospectives = data.get("retrospectives")
+    if not isinstance(retrospectives, list):
+        retrospectives = []
+    data["retrospectives"] = [item for item in retrospectives if isinstance(item, dict)]
+
+
 def load_progress_json():
     """Load the progress.json file."""
     progress_dir = get_progress_dir()
@@ -430,7 +1320,12 @@ def load_progress_json():
 
     try:
         with open(json_path, "r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+            if not isinstance(data, dict):
+                print(f"Error: {json_path} is not a valid JSON object.")
+                return None
+            _apply_schema_defaults(data)
+            return data
     except json.JSONDecodeError:
         print(f"Error: {json_path} is corrupted.")
         return None
@@ -443,23 +1338,21 @@ def _iso_now() -> str:
 
 def save_progress_json(data, touch_updated_at: bool = True):
     """Save data to progress.json file with optional updated_at touch and migration."""
-    progress_dir = get_progress_dir()
-    json_path = progress_dir / PROGRESS_JSON
+    with progress_transaction():
+        progress_dir = get_progress_dir()
+        json_path = progress_dir / PROGRESS_JSON
 
-    # Ensure state directory exists
-    progress_dir.mkdir(parents=True, exist_ok=True)
+        # Ensure state directory exists
+        progress_dir.mkdir(parents=True, exist_ok=True)
 
-    # Auto-update updated_at timestamp
-    if touch_updated_at:
-        data["updated_at"] = _iso_now()
+        _apply_schema_defaults(data)
 
-    # Ensure schema_version exists (migrate old files)
-    if "schema_version" not in data:
-        data["schema_version"] = CURRENT_SCHEMA_VERSION
-        logger.info(f"Migrated to schema version {CURRENT_SCHEMA_VERSION}")
+        # Auto-update updated_at timestamp
+        if touch_updated_at:
+            data["updated_at"] = _iso_now()
 
-    with open(json_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+        payload = json.dumps(data, indent=2, ensure_ascii=False)
+        _atomic_write_text(json_path, payload)
 
 
 def load_progress_md():
@@ -476,14 +1369,13 @@ def load_progress_md():
 
 def save_progress_md(content):
     """Save content to progress.md file."""
-    progress_dir = get_progress_dir()
-    md_path = progress_dir / PROGRESS_MD
+    with progress_transaction():
+        progress_dir = get_progress_dir()
+        md_path = progress_dir / PROGRESS_MD
 
-    # Ensure state directory exists
-    progress_dir.mkdir(parents=True, exist_ok=True)
-
-    with open(md_path, "w", encoding="utf-8") as f:
-        f.write(content)
+        # Ensure state directory exists
+        progress_dir.mkdir(parents=True, exist_ok=True)
+        _atomic_write_text(md_path, content)
 
 
 def _slugify(text: Optional[str], fallback: str = "project") -> str:
@@ -511,11 +1403,14 @@ def _load_progress_history() -> List[Dict[str, Any]]:
 
 def _save_progress_history(entries: List[Dict[str, Any]]) -> None:
     """Persist archived progress metadata."""
-    progress_dir = get_progress_dir()
-    progress_dir.mkdir(parents=True, exist_ok=True)
-    history_path = progress_dir / PROGRESS_HISTORY_JSON
-    with open(history_path, "w", encoding="utf-8") as f:
-        json.dump(entries[-PROGRESS_ARCHIVE_MAX_ENTRIES :], f, indent=2, ensure_ascii=False)
+    with progress_transaction():
+        progress_dir = get_progress_dir()
+        progress_dir.mkdir(parents=True, exist_ok=True)
+        history_path = progress_dir / PROGRESS_HISTORY_JSON
+        payload = json.dumps(
+            entries[-PROGRESS_ARCHIVE_MAX_ENTRIES :], indent=2, ensure_ascii=False
+        )
+        _atomic_write_text(history_path, payload)
 
 
 def _make_archive_id(project_name: str) -> str:
@@ -790,6 +1685,7 @@ def collect_git_context() -> Dict[str, Any]:
 def build_runtime_context(data: Dict[str, Any], source: str) -> Dict[str, Any]:
     """Build top-level runtime_context snapshot from current repository + progress state."""
     git_context = collect_git_context()
+    tracker_root = str(find_project_root().resolve())
     workflow_state = data.get("workflow_state", {})
     if not isinstance(workflow_state, dict):
         workflow_state = {}
@@ -798,6 +1694,7 @@ def build_runtime_context(data: Dict[str, Any], source: str) -> Dict[str, Any]:
         "recorded_at": _iso_now(),
         "source": source,
         **git_context,
+        "tracker_root": tracker_root,
         "current_feature_id": data.get("current_feature_id"),
         "workflow_phase": workflow_state.get("phase"),
         "current_task": workflow_state.get("current_task"),
@@ -810,12 +1707,14 @@ def build_runtime_context(data: Dict[str, Any], source: str) -> Dict[str, Any]:
 def build_execution_context(source: str) -> Dict[str, Any]:
     """Build workflow_state.execution_context snapshot for workflow semantic transitions."""
     git_context = collect_git_context()
+    tracker_root = str(find_project_root().resolve())
     return {
         "recorded_at": _iso_now(),
         "source": source,
         "workspace_mode": git_context.get("workspace_mode"),
         "worktree_path": git_context.get("worktree_path"),
         "project_root": git_context.get("project_root"),
+        "tracker_root": tracker_root,
         "git_dir": git_context.get("git_dir"),
         "branch": git_context.get("branch"),
         "upstream": git_context.get("upstream"),
@@ -1085,11 +1984,422 @@ def load_checkpoints(path: Optional[Path] = None) -> Dict[str, Any]:
 
 def save_checkpoints(data: Dict[str, Any], path: Optional[Path] = None) -> None:
     """Save checkpoints to docs/progress-tracker/state/checkpoints.json."""
-    progress_dir = get_progress_dir()
-    progress_dir.mkdir(parents=True, exist_ok=True)
-    checkpoints_path = path or (progress_dir / CHECKPOINTS_JSON)
-    with open(checkpoints_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+    with progress_transaction():
+        progress_dir = get_progress_dir()
+        progress_dir.mkdir(parents=True, exist_ok=True)
+        checkpoints_path = path or (progress_dir / CHECKPOINTS_JSON)
+        payload = json.dumps(data, indent=2, ensure_ascii=False)
+        _atomic_write_text(checkpoints_path, payload)
+
+
+def _read_json_dict(path: Path) -> Optional[Dict[str, Any]]:
+    """Read JSON object from disk and return None on parse/shape errors."""
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _status_source_snapshot(path: Path, rel_path: str) -> Dict[str, Any]:
+    """Return lightweight source-file fingerprint for drift detection."""
+    if not path.exists():
+        return {
+            "path": rel_path,
+            "exists": False,
+            "mtime_ns": None,
+            "size": None,
+        }
+    stat = path.stat()
+    return {
+        "path": rel_path,
+        "exists": True,
+        "mtime_ns": int(stat.st_mtime_ns),
+        "size": int(stat.st_size),
+    }
+
+
+def _status_summary_source_fingerprint(target_root: Path) -> Dict[str, Any]:
+    """Collect input fingerprints for progress/checkpoints source files."""
+    progress_path = get_progress_json_path(target_root)
+    checkpoints_path = get_checkpoints_path(target_root)
+    return {
+        "progress": _status_source_snapshot(
+            progress_path, rel_progress_path(PROGRESS_JSON)
+        ),
+        "checkpoints": _status_source_snapshot(
+            checkpoints_path, rel_progress_path(CHECKPOINTS_JSON)
+        ),
+    }
+
+
+def _load_progress_data_for_summary(progress_path: Path) -> Dict[str, Any]:
+    """Load progress payload for summary projection with graceful fallback."""
+    payload = _read_json_dict(progress_path)
+    if payload is None:
+        return {"features": [], "current_feature_id": None, "bugs": []}
+    _apply_schema_defaults(payload)
+    return payload
+
+
+def _format_relative_time_for_summary(iso_timestamp: Optional[str]) -> str:
+    """Format ISO timestamp into compact relative text for status summary."""
+    if not iso_timestamp:
+        return "暂无快照"
+    try:
+        timestamp = datetime.fromisoformat(iso_timestamp.replace("Z", "+00:00"))
+        now = datetime.now(timezone.utc)
+        delta = now - timestamp
+        if delta.days > 0:
+            return f"{delta.days} 天前"
+        if delta.seconds >= 3600:
+            return f"{delta.seconds // 3600} 小时前"
+        if delta.seconds >= 60:
+            return f"{delta.seconds // 60} 分钟前"
+        return "刚刚"
+    except Exception:
+        return iso_timestamp
+
+
+def _normalize_feature_stage_for_summary(feature: Dict[str, Any]) -> str:
+    """Normalize development_stage for summary rendering."""
+    if feature.get("completed", False):
+        return "completed"
+    stage = feature.get("development_stage")
+    if stage in {"planning", "developing", "completed"}:
+        return stage
+    return "developing"
+
+
+def _stage_label_for_summary(stage: Optional[str]) -> Optional[str]:
+    """Localize status stage labels used by summary payload."""
+    if stage is None:
+        return None
+    return {
+        "planning": "规划中",
+        "developing": "开发中",
+        "completed": "已完成",
+        "pending": "待开始",
+    }.get(stage, "未知")
+
+
+def _determine_next_action_for_summary(
+    features: List[Dict[str, Any]], progress_data: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Build next_action summary field from active/pending feature state."""
+    current_id = progress_data.get("current_feature_id")
+    if current_id is not None:
+        feature = next(
+            (
+                f
+                for f in features
+                if isinstance(f, dict) and f.get("id") == current_id
+            ),
+            None,
+        )
+        if feature:
+            stage = _normalize_feature_stage_for_summary(feature)
+            return {
+                "type": "feature",
+                "feature_id": current_id,
+                "feature_name": feature.get("name", "Unknown"),
+                "development_stage": stage,
+                "stage_label": _stage_label_for_summary(stage),
+            }
+
+    pending = [
+        f for f in features if isinstance(f, dict) and not f.get("completed", False)
+    ]
+    if pending:
+        next_feature = min(pending, key=lambda item: item.get("id", float("inf")))
+        return {
+            "type": "feature",
+            "feature_id": next_feature.get("id"),
+            "feature_name": next_feature.get("name", "Unknown"),
+            "development_stage": "pending",
+            "stage_label": _stage_label_for_summary("pending"),
+        }
+
+    return {
+        "type": "none",
+        "feature_id": None,
+        "feature_name": "无待办功能",
+        "development_stage": None,
+        "stage_label": None,
+    }
+
+
+def _check_plan_health_for_summary(
+    progress_data: Dict[str, Any], target_root: Path
+) -> Dict[str, Any]:
+    """Validate active plan path/document health for summary projection."""
+    workflow_state = progress_data.get("workflow_state")
+    if not isinstance(workflow_state, dict) or not workflow_state.get("plan_path"):
+        return {"status": "N/A", "plan_path": None, "message": "无活跃计划"}
+
+    plan_path = str(workflow_state.get("plan_path"))
+    try:
+        path_result = validate_plan_path(
+            plan_path, require_exists=True, target_root=target_root
+        )
+        if not path_result["valid"]:
+            return {
+                "status": "WARN",
+                "plan_path": plan_path,
+                "message": path_result["error"],
+            }
+
+        doc_result = validate_plan_document(plan_path, target_root=target_root)
+        if not doc_result["valid"]:
+            missing = ", ".join(doc_result.get("missing_sections", []))
+            return {
+                "status": "INVALID",
+                "plan_path": plan_path,
+                "message": f"缺少必需章节: {missing}" if missing else "计划文档验证失败",
+            }
+
+        return {
+            "status": "OK",
+            "plan_path": plan_path,
+            "message": "计划文件完整且符合规范",
+        }
+    except Exception as exc:
+        return {
+            "status": "WARN",
+            "plan_path": plan_path,
+            "message": f"验证失败: {exc}",
+        }
+
+
+def _check_risk_blocker_for_summary(progress_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Evaluate high-priority/blocked bug signals for status summary."""
+    bugs = progress_data.get("bugs", [])
+    if not isinstance(bugs, list):
+        bugs = []
+
+    high_priority = [
+        bug
+        for bug in bugs
+        if isinstance(bug, dict)
+        and bug.get("priority") == "high"
+        and bug.get("status") != "fixed"
+    ]
+    blocked = [
+        bug for bug in bugs if isinstance(bug, dict) and bug.get("status") == "blocked"
+    ]
+
+    if high_priority or blocked:
+        return {
+            "has_risk": True,
+            "high_priority_bugs": len(high_priority),
+            "blocked_count": len(blocked),
+            "message": f"{len(high_priority)} 个高优先级 bug",
+        }
+
+    return {
+        "has_risk": False,
+        "high_priority_bugs": 0,
+        "blocked_count": 0,
+        "message": "正常",
+    }
+
+
+def _load_recent_snapshot_for_summary(
+    checkpoints_data: Optional[Dict[str, Any]]
+) -> Dict[str, Any]:
+    """Build recent_snapshot field from checkpoints payload."""
+    if not isinstance(checkpoints_data, dict):
+        return {"exists": False, "timestamp": None, "relative_time": "暂无快照"}
+
+    last_time = checkpoints_data.get("last_checkpoint_at")
+    if not last_time:
+        return {"exists": False, "timestamp": None, "relative_time": "暂无快照"}
+
+    return {
+        "exists": True,
+        "timestamp": last_time,
+        "relative_time": _format_relative_time_for_summary(last_time),
+    }
+
+
+def _build_status_summary_core(
+    progress_data: Dict[str, Any],
+    checkpoints_data: Dict[str, Any],
+    target_root: Path,
+) -> Dict[str, Any]:
+    """Compute the shared status summary core fields."""
+    features_raw = progress_data.get("features", [])
+    features = [item for item in features_raw if isinstance(item, dict)]
+    completed = sum(1 for feature in features if feature.get("completed", False))
+    total = len(features)
+    percentage = int((completed / total) * 100) if total > 0 else 0
+
+    return {
+        "progress": {
+            "completed": completed,
+            "total": total,
+            "percentage": percentage,
+        },
+        "next_action": _determine_next_action_for_summary(features, progress_data),
+        "plan_health": _check_plan_health_for_summary(progress_data, target_root),
+        "risk_blocker": _check_risk_blocker_for_summary(progress_data),
+        "recent_snapshot": _load_recent_snapshot_for_summary(checkpoints_data),
+    }
+
+
+def _extract_projection_source_fingerprint(
+    projection: Dict[str, Any]
+) -> Optional[Dict[str, Any]]:
+    """Extract persisted inputs fingerprint from projection payload."""
+    inputs = projection.get("inputs")
+    return inputs if isinstance(inputs, dict) else None
+
+
+def _projection_has_required_core_fields(projection: Dict[str, Any]) -> bool:
+    """Check whether projection carries all required summary fields."""
+    return all(field in projection for field in STATUS_SUMMARY_CORE_FIELDS)
+
+
+def _projection_needs_rebuild(
+    projection: Optional[Dict[str, Any]],
+    current_inputs: Dict[str, Any],
+) -> bool:
+    """Determine whether cached projection is stale or malformed."""
+    if not isinstance(projection, dict):
+        return True
+    if projection.get("schema_version") != STATUS_SUMMARY_SCHEMA_VERSION:
+        return True
+    if not _projection_has_required_core_fields(projection):
+        return True
+    persisted_inputs = _extract_projection_source_fingerprint(projection)
+    if persisted_inputs != current_inputs:
+        return True
+    return False
+
+
+def _legacy_summary_migration_info(legacy_path: Path) -> Optional[Dict[str, Any]]:
+    """Read legacy summary metadata for migration traceability."""
+    legacy_payload = _read_json_dict(legacy_path)
+    if legacy_payload is None:
+        return None
+    from_version = legacy_payload.get("schema_version")
+    if not isinstance(from_version, str) or not from_version.strip():
+        from_version = "unknown"
+    return {
+        "from_schema_version": from_version,
+        "from_path": rel_progress_path(STATUS_SUMMARY_LEGACY_FILE),
+        "migrated_at": _iso_now(),
+    }
+
+
+def _resolve_status_summary_target_root(project_root: Optional[str]) -> Path:
+    """Resolve summary projection target root from optional explicit path."""
+    if project_root is None:
+        return find_project_root()
+    root = Path(project_root).expanduser()
+    if not root.is_absolute():
+        root = (Path.cwd() / root).resolve()
+    return root.resolve()
+
+
+def get_status_summary_projection_path(project_root: Optional[str] = None) -> Path:
+    """Return status summary projection path for the resolved target root."""
+    target_root = _resolve_status_summary_target_root(project_root)
+    return get_state_dir(target_root) / STATUS_SUMMARY_FILE
+
+
+def _build_status_summary_projection(
+    target_root: Path,
+    current_inputs: Dict[str, Any],
+    migration_info: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Recompute and persist status summary projection for a target root."""
+    progress_path = get_progress_json_path(target_root)
+    checkpoints_path = get_checkpoints_path(target_root)
+    projection_path = get_status_summary_projection_path(str(target_root))
+
+    progress_data = _load_progress_data_for_summary(progress_path)
+    checkpoints_data = load_checkpoints(path=checkpoints_path)
+    core = _build_status_summary_core(progress_data, checkpoints_data, target_root)
+
+    projection: Dict[str, Any] = {
+        "schema_version": STATUS_SUMMARY_SCHEMA_VERSION,
+        "projection_path": rel_progress_path(STATUS_SUMMARY_FILE),
+        "updated_at": _iso_now(),
+        "source": {
+            "generator": "progress_manager.load_status_summary_projection",
+            "progress_path": rel_progress_path(PROGRESS_JSON),
+            "checkpoints_path": rel_progress_path(CHECKPOINTS_JSON),
+        },
+        "inputs": current_inputs,
+        **core,
+    }
+    if migration_info:
+        projection["migration"] = migration_info
+
+    _atomic_write_text(
+        projection_path,
+        json.dumps(projection, indent=2, ensure_ascii=False),
+    )
+    return projection
+
+
+def load_status_summary_projection(
+    project_root: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Load shared status summary projection with drift detection and self-healing.
+
+    The projection is persisted at docs/progress-tracker/state/status_summary.v1.json
+    and rebuilt automatically when source files drift, projection is missing/corrupt,
+    or schema/core fields mismatch.
+    """
+    target_root = _resolve_status_summary_target_root(project_root)
+    ensure_tracker_layout(target_root)
+    ensure_storage_migrated(target_root)
+
+    projection_path = get_status_summary_projection_path(str(target_root))
+    legacy_path = get_state_dir(target_root) / STATUS_SUMMARY_LEGACY_FILE
+    current_inputs = _status_summary_source_fingerprint(target_root)
+    projection = _read_json_dict(projection_path)
+
+    migration_info: Optional[Dict[str, Any]] = None
+    if projection is None and legacy_path.exists():
+        migration_info = _legacy_summary_migration_info(legacy_path)
+
+    if _projection_needs_rebuild(projection, current_inputs):
+        try:
+            return _build_status_summary_projection(
+                target_root=target_root,
+                current_inputs=current_inputs,
+                migration_info=migration_info,
+            )
+        except Exception as exc:
+            logger.warning(f"Failed to persist status summary projection: {exc}")
+            progress_data = _load_progress_data_for_summary(get_progress_json_path(target_root))
+            checkpoints_data = load_checkpoints(path=get_checkpoints_path(target_root))
+            core = _build_status_summary_core(progress_data, checkpoints_data, target_root)
+            return {
+                "schema_version": STATUS_SUMMARY_SCHEMA_VERSION,
+                "projection_path": rel_progress_path(STATUS_SUMMARY_FILE),
+                "updated_at": _iso_now(),
+                "source": {
+                    "generator": "progress_manager.load_status_summary_projection",
+                    "progress_path": rel_progress_path(PROGRESS_JSON),
+                    "checkpoints_path": rel_progress_path(CHECKPOINTS_JSON),
+                },
+                "inputs": current_inputs,
+                "repair": {
+                    "status": "degraded",
+                    "reason": str(exc),
+                },
+                **core,
+            }
+
+    # projection is guaranteed dict and schema-valid by _projection_needs_rebuild.
+    return projection  # type: ignore[return-value]
 
 
 def auto_checkpoint() -> bool:
@@ -1218,16 +2528,53 @@ def status():
     if not isinstance(workflow_state, dict):
         workflow_state = {}
     runtime_context = data.get("runtime_context")
+    summary = load_status_summary_projection()
+    summary_progress = summary.get("progress", {})
+    summary_next_action = summary.get("next_action", {})
+    summary_plan_health = summary.get("plan_health", {})
+    summary_risk = summary.get("risk_blocker", {})
+    summary_snapshot = summary.get("recent_snapshot", {})
 
     # Calculate statistics
-    total = len(features)
-    completed = sum(1 for f in features if f.get("completed", False))
+    total = summary_progress.get("total")
+    completed = summary_progress.get("completed")
+    percentage = summary_progress.get("percentage")
+    if not isinstance(total, int):
+        total = len(features)
+    if not isinstance(completed, int):
+        completed = sum(
+            1 for f in features if isinstance(f, dict) and f.get("completed", False)
+        )
+    if not isinstance(percentage, int):
+        percentage = completed * 100 // total if total > 0 else 0
     in_progress = current_id is not None
+    deferred_count = sum(
+        1
+        for f in features
+        if isinstance(f, dict)
+        and not f.get("completed", False)
+        and f.get("id") != current_id
+        and _is_feature_deferred(f)
+    )
 
     print(f"\n## Project: {project_name}")
-    print(
-        f"**Status**: {completed}/{total} completed ({completed * 100 // total if total > 0 else 0}%)"
-    )
+    print(f"**Status**: {completed}/{total} completed ({percentage}%)")
+    plan_status = summary_plan_health.get("status", "N/A")
+    plan_message = summary_plan_health.get("message", "无活跃计划")
+    risk_message = summary_risk.get("message", "正常")
+    snapshot_text = summary_snapshot.get("relative_time", "暂无快照")
+    print(f"**Plan Health**: {plan_status} ({plan_message})")
+    print(f"**Risk/Blocker**: {risk_message}")
+    print(f"**Recent Snapshot**: {snapshot_text}")
+    if isinstance(summary_next_action, dict) and summary_next_action.get("type") == "feature":
+        next_name = summary_next_action.get("feature_name", "Unknown")
+        next_stage = summary_next_action.get("stage_label")
+        if next_stage:
+            print(f"**Summary Next**: {next_name} ({next_stage})")
+        else:
+            print(f"**Summary Next**: {next_name}")
+    if deferred_count > 0:
+        print(f"**Deferred Pending**: {deferred_count}")
 
     if current_id:
         current_feature = next((f for f in features if f.get("id") == current_id), None)
@@ -1268,33 +2615,88 @@ def status():
                         f"{context_hint.get('expected_worktree_path') or '?'})"
                     )
 
+    reconcile_report = analyze_reconcile_state(data)
+    if reconcile_report.get("diagnosis") != "in_sync":
+        print(
+            f"**Reality Check**: {reconcile_report.get('diagnosis')} "
+            f"→ {reconcile_report.get('recommended_next_step')}"
+        )
+        print(f"**Reality Note**: {reconcile_report.get('reason')}")
+
     # Display features
     if completed > 0:
         print("\n### Completed:")
         for f in features:
             if f.get("completed", False):
                 print(f"  [x] {f.get('name', 'Unknown')}")
+                owner_summary = _format_feature_owners(f)
+                if owner_summary:
+                    print(f"     Owners: {owner_summary}")
 
     if in_progress:
         print("\n### In Progress:")
         for f in features:
             if f.get("id") == current_id:
                 print(f"  [*] {f.get('name', 'Unknown')}")
+                owner_summary = _format_feature_owners(f)
+                if owner_summary:
+                    print(f"     Owners: {owner_summary}")
                 test_steps = f.get("test_steps", [])
                 if test_steps:
                     print("     Test steps:")
                     for step in test_steps:
                         print(f"       - {step}")
 
+    deferred = [
+        f
+        for f in features
+        if isinstance(f, dict)
+        and not f.get("completed", False)
+        and f.get("id") != current_id
+        and _is_feature_deferred(f)
+    ]
     remaining = [
         f
         for f in features
-        if not f.get("completed", False) and f.get("id") != current_id
+        if isinstance(f, dict)
+        and not f.get("completed", False)
+        and f.get("id") != current_id
+        and not _is_feature_deferred(f)
     ]
     if remaining:
         print("\n### Pending:")
         for f in remaining:
             print(f"  [ ] {f.get('name', 'Unknown')}")
+            owner_summary = _format_feature_owners(f)
+            if owner_summary:
+                print(f"     Owners: {owner_summary}")
+
+    if deferred:
+        print("\n### Deferred:")
+        for f in deferred:
+            defer_reason = f.get("defer_reason") or "No reason provided"
+            defer_group = f.get("defer_group")
+            defer_line = f"  [~] {f.get('name', 'Unknown')} — {defer_reason}"
+            if defer_group:
+                defer_line += f" (group: {defer_group})"
+            print(defer_line)
+
+    updates = data.get("updates", [])
+    if updates:
+        print("\n### Recent Updates:")
+        for update in updates[-5:]:
+            line = (
+                f"  [{update.get('id', 'UPD-???')}] "
+                f"{update.get('category', 'status')}: {update.get('summary', '')}"
+            )
+            if update.get("feature_id") is not None:
+                line += f" (feature:{update['feature_id']})"
+            if update.get("role") and update.get("owner"):
+                line += f" [{update['role']}={update['owner']}]"
+            print(line)
+
+    if deferred and not remaining and not in_progress:
+        print("\nUse `prog resume --all` or `prog resume --defer-group <group>` to continue deferred features.")
 
     return True
 
@@ -1806,14 +3208,21 @@ def _check_other_worktrees_for_incomplete_work(current_worktree: str) -> List[Di
                 data = json.load(f)
 
             features = data.get("features", [])
-            incomplete = [f for f in features if not f.get("completed", False)]
+            incomplete = [
+                f
+                for f in features
+                if isinstance(f, dict) and not f.get("completed", False)
+            ]
+            actionable = [f for f in incomplete if not _is_feature_deferred(f)]
+            deferred = [f for f in incomplete if _is_feature_deferred(f)]
 
-            if incomplete:
+            if actionable:
                 other_worktrees.append({
                     "worktree_path": wt_path,
                     "project_name": data.get("project_name", "Unknown"),
                     "current_feature_id": data.get("current_feature_id"),
-                    "incomplete_count": len(incomplete),
+                    "incomplete_count": len(actionable),
+                    "deferred_count": len(deferred),
                     "total_features": len(features),
                 })
         except (json.JSONDecodeError, IOError):
@@ -1840,16 +3249,52 @@ def check():
     if not data:
         return 0  # No tracking = nothing to recover
 
+    reconcile_report = analyze_reconcile_state(data)
     features = data.get("features", [])
-    incomplete = [f for f in features if not f.get("completed", False)]
+    incomplete = [
+        f
+        for f in features
+        if isinstance(f, dict) and not f.get("completed", False)
+    ]
+    actionable_incomplete = [f for f in incomplete if not _is_feature_deferred(f)]
+    deferred_incomplete = [f for f in incomplete if _is_feature_deferred(f)]
 
     if incomplete:
+        current_id = data.get("current_feature_id")
+
+        if not actionable_incomplete and not current_id:
+            print(
+                json.dumps(
+                    {
+                        "status": "deferred_only",
+                        "project_name": data.get("project_name", "Unknown"),
+                        "deferred_count": len(deferred_incomplete),
+                        "total_features": len(features),
+                        "recommendation": "resume_deferred_features",
+                        "drift_diagnosis": reconcile_report.get("diagnosis"),
+                        "drift_recommended_next_step": reconcile_report.get(
+                            "recommended_next_step"
+                        ),
+                        "message": (
+                            "All pending features are deferred. "
+                            "Use `prog resume --all` or `prog resume --defer-group <group>` "
+                            "when you want to continue."
+                        ),
+                    }
+                )
+            )
+            return 0
+
         # First, show info about other worktrees with incomplete work (if any)
         # This is informational only - doesn't block current worktree recovery
         if other_worktrees_with_work:
             wt_list = []
             for wt in other_worktrees_with_work[:3]:  # Show at most 3 worktrees
-                wt_info = f"{wt['worktree_path']} ({wt['project_name']}: {wt['total_features'] - wt['incomplete_count']}/{wt['total_features']} 完成)"
+                wt_info = (
+                    f"{wt['worktree_path']} "
+                    f"({wt['project_name']}: actionable={wt['incomplete_count']}, "
+                    f"deferred={wt.get('deferred_count', 0)})"
+                )
                 wt_list.append(wt_info)
 
             info_msg = f"[Progress Tracker] ℹ️ 注意：其他 worktree 中也有未完成的工作\n"
@@ -1860,19 +3305,40 @@ def check():
                 "status": "info_other_worktrees",
                 "message": info_msg,
                 "other_worktrees": other_worktrees_with_work[:3],
+                "drift_diagnosis": reconcile_report.get("diagnosis"),
+                "drift_recommended_next_step": reconcile_report.get(
+                    "recommended_next_step"
+                ),
             }))
 
         # Then proceed with current worktree recovery
         project_name = data.get("project_name", "Unknown")
         total = len(features)
-        completed = total - len(incomplete)
-        current_id = data.get("current_feature_id")
+        completed = sum(1 for f in features if isinstance(f, dict) and f.get("completed", False))
         workflow_state = data.get("workflow_state", {})
 
         # If there's a feature in progress, provide detailed recovery info
         if current_id:
             feature = next((f for f in features if f.get("id") == current_id), None)
             if feature:
+                if _is_feature_deferred(feature):
+                    print(
+                        json.dumps(
+                            {
+                                "status": "needs_manual_review",
+                                "feature_id": current_id,
+                                "feature_name": feature.get("name", "Unknown"),
+                                "reason": "current_feature_deferred",
+                                "recommendation": "clear_or_resume_current_feature",
+                                "message": (
+                                    "Current feature is marked deferred. "
+                                    "Run `prog resume --all` (or by group), or clear current feature state."
+                                ),
+                            }
+                        )
+                    )
+                    return 1
+
                 phase = workflow_state.get("phase", "unknown")
                 plan_path = workflow_state.get("plan_path", "")
                 completed_tasks = workflow_state.get("completed_tasks", [])
@@ -1937,6 +3403,7 @@ def check():
                     "total_tasks": total_tasks,
                     "recommendation": recommendation,
                     "context_hint": context_hint,
+                    "drift": reconcile_report,
                     "recovery_message": recovery_message,
                     "last_checkpoint_hint": (
                         {
@@ -1961,8 +3428,18 @@ def check():
         # General incomplete status (no specific feature in progress)
         print(f"[Progress Tracker] Unfinished project detected: {project_name}")
         print(f"Progress: {completed}/{total} completed")
-        print(f"Use '/prog' to view status or '/prog-next' to continue")
-        return 1
+        if reconcile_report.get("diagnosis") != "in_sync":
+            print(
+                "[Progress Tracker] Reality check: "
+                f"{reconcile_report.get('diagnosis')} -> "
+                f"{reconcile_report.get('recommended_next_step')}"
+            )
+        if actionable_incomplete:
+            print("Use '/prog' to view status or '/prog-next' to continue")
+            return 1
+
+        print("Only deferred pending features remain. Use `prog resume --all` to continue.")
+        return 0
 
     return 0
 
@@ -2004,12 +3481,38 @@ def set_current(feature_id):
         print(f"Feature ID {feature_id} not found")
         return False
 
+    if _is_feature_deferred(feature):
+        defer_reason = feature.get("defer_reason") or "Deferred feature"
+        print(
+            f"Feature ID {feature_id} is deferred and cannot be set as current: {defer_reason}. "
+            "Run `prog resume` first."
+        )
+        return False
+
+    if not feature.get("completed", False):
+        readiness_report = validate_feature_readiness(feature)
+        if not readiness_report["valid"]:
+            print_readiness_error(feature, readiness_report)
+            return False
+        if readiness_report["warnings"]:
+            print_readiness_warnings(readiness_report)
+            print("")
+
+    previous_current_id = data.get("current_feature_id")
     data["current_feature_id"] = feature_id
 
-    # Selecting a feature for work always starts in planning stage.
-    # /prog-start will explicitly transition planning -> developing.
+    # Selecting a feature for work should immediately enter active development.
+    # This keeps `/prog-next` as a one-step start action instead of requiring
+    # an additional `/prog-start` transition.
     if not feature.get("completed", False):
-        feature["development_stage"] = "planning"
+        feature["development_stage"] = "developing"
+        feature["lifecycle_state"] = "implementing"
+        if not feature.get("started_at"):
+            feature["started_at"] = _iso_now()
+
+    if previous_current_id != feature_id:
+        data.pop("workflow_state", None)
+
     _update_runtime_context(data, source="set_current")
     save_progress_json(data)
 
@@ -2043,9 +3546,24 @@ def set_development_stage(stage: str, feature_id: Optional[int] = None) -> bool:
         print(f"Feature ID {target_feature_id} not found")
         return False
 
+    if stage == "developing" and not feature.get("completed", False):
+        readiness_report = validate_feature_readiness(feature)
+        if not readiness_report["valid"]:
+            print_readiness_error(feature, readiness_report)
+            return False
+        if readiness_report["warnings"]:
+            print_readiness_warnings(readiness_report)
+            print("")
+
     feature["development_stage"] = stage
     if stage == "developing" and not feature.get("started_at"):
         feature["started_at"] = _iso_now()
+    if stage == "developing":
+        feature["lifecycle_state"] = "implementing"
+    elif stage == "planning" and not feature.get("completed", False):
+        feature["lifecycle_state"] = "approved"
+    elif stage == "completed":
+        feature["lifecycle_state"] = "verified"
 
     _update_runtime_context(data, source="set_development_stage")
     save_progress_json(data)
@@ -2069,10 +3587,70 @@ def get_next_feature():
 
     features = data.get("features", [])
     for feature in features:
-        if not feature.get("completed", False):
+        if not feature.get("completed", False) and not _is_feature_deferred(feature):
             return feature
 
     return None
+
+
+def next_feature(output_json: bool = False) -> bool:
+    """Print the next actionable feature (skipping completed/deferred)."""
+    data = load_progress_json()
+    if data:
+        reconcile_report = analyze_reconcile_state(data)
+        diagnosis = reconcile_report.get("diagnosis")
+        if diagnosis == "implementation_ahead_of_tracker":
+            payload = {
+                "status": "blocked",
+                "reason": diagnosis,
+                "recommended_next_step": reconcile_report.get("recommended_next_step"),
+                "message": (
+                    "Active feature appears implementation-ahead-of-tracker. "
+                    "Run `prog reconcile` and `/prog done` before selecting another feature."
+                ),
+            }
+            if output_json:
+                print(json.dumps(payload, ensure_ascii=False))
+            else:
+                print(payload["message"])
+            return False
+        if diagnosis in {"scope_mismatch", "context_mismatch"}:
+            payload = {
+                "status": "blocked",
+                "reason": diagnosis,
+                "recommended_next_step": reconcile_report.get("recommended_next_step"),
+                "message": (
+                    "Feature selection is blocked due to scope/context mismatch. "
+                    "Run `prog reconcile` and follow the suggested correction first."
+                ),
+            }
+            if output_json:
+                print(json.dumps(payload, ensure_ascii=False))
+            else:
+                print(payload["message"])
+            return False
+
+    feature = get_next_feature()
+    if not feature:
+        if output_json:
+            print(json.dumps({"status": "none", "message": "No actionable feature found"}))
+        else:
+            print("No actionable feature found.")
+        return False
+
+    payload = {
+        "status": "ok",
+        "feature_id": feature.get("id"),
+        "name": feature.get("name"),
+        "test_steps": feature.get("test_steps", []),
+        "deferred": bool(feature.get("deferred", False)),
+    }
+
+    if output_json:
+        print(json.dumps(payload, ensure_ascii=False))
+    else:
+        print(f"Next actionable feature: [{payload['feature_id']}] {payload['name']}")
+    return True
 
 
 def set_feature_ai_metrics(feature_id: int, complexity_score: int,
@@ -2309,12 +3887,329 @@ def save_archive_record(feature_id: int, archive_result: Dict[str, Any]) -> None
             "files_moved": len(archive_result.get("archived_files", [])),
             "files": archive_result.get("archived_files", [])
         }
+        if archive_result.get("success", False):
+            feature["lifecycle_state"] = "archived"
 
         save_progress_json(data)
         logger.info(f"Archive record saved for feature {feature_id}")
 
     except Exception as e:
         logger.error(f"Failed to save archive record: {e}")
+
+
+@dataclass
+class AcceptanceTestResult:
+    """Per-step execution result for `/prog done` acceptance checks."""
+
+    step: str
+    command: str
+    success: bool
+    output: str
+    duration_ms: int
+    error: Optional[str] = None
+    exit_code: Optional[int] = None
+
+
+def _clear_feature_finish_pending(feature: Dict[str, Any]) -> None:
+    """Clear transient finish-pending metadata on a feature object."""
+    feature.pop("finish_pending_reason", None)
+    feature.pop("last_done_attempt_at", None)
+
+
+def _is_executable_test_step(step: str) -> bool:
+    """Return whether a test step should be executed as a shell command."""
+    normalized = step.strip()
+    if not normalized:
+        return False
+    if normalized.startswith("DoD:"):
+        return False
+    if normalized.startswith("#") or normalized.startswith("//"):
+        return False
+    return True
+
+
+def _run_acceptance_tests(
+    feature: Dict[str, Any],
+    run_all: bool = False,
+) -> Tuple[bool, List[AcceptanceTestResult]]:
+    """Execute command-like acceptance steps from the target feature."""
+    steps = feature.get("test_steps", [])
+    if not isinstance(steps, list):
+        steps = []
+
+    project_root = find_project_root()
+    all_passed = True
+    results: List[AcceptanceTestResult] = []
+
+    for raw_step in steps:
+        if not isinstance(raw_step, str):
+            continue
+        if not _is_executable_test_step(raw_step):
+            continue
+
+        command = raw_step.strip()
+        print(f"[DONE][RUN] {command}")
+        started_at = time.monotonic()
+
+        success = False
+        error: Optional[str] = None
+        output = ""
+        exit_code: Optional[int] = None
+
+        try:
+            completed = subprocess.run(
+                command,
+                shell=True,
+                capture_output=True,
+                text=True,
+                cwd=str(project_root),
+                timeout=300,
+                check=False,
+            )
+            exit_code = completed.returncode
+            stdout = (completed.stdout or "").strip()
+            stderr = (completed.stderr or "").strip()
+            if stdout:
+                print(stdout)
+            if stderr:
+                print(stderr)
+
+            output = "\n".join(part for part in (stdout, stderr) if part).strip()
+            success = completed.returncode == 0
+            if not success:
+                error = stderr or f"command exited with code {completed.returncode}"
+        except subprocess.TimeoutExpired as exc:
+            timeout_message = "timeout after 300 seconds"
+            stdout = exc.stdout.decode("utf-8", "ignore") if isinstance(exc.stdout, bytes) else (exc.stdout or "")
+            stderr = exc.stderr.decode("utf-8", "ignore") if isinstance(exc.stderr, bytes) else (exc.stderr or "")
+            output = "\n".join(part.strip() for part in (stdout, stderr) if part).strip()
+            error = timeout_message
+            print(f"[DONE][ERROR] {timeout_message}")
+        except Exception as exc:  # pragma: no cover - defensive branch
+            error = str(exc)
+            print(f"[DONE][ERROR] {error}")
+
+        duration_ms = int((time.monotonic() - started_at) * 1000)
+        results.append(
+            AcceptanceTestResult(
+                step=raw_step,
+                command=command,
+                success=success,
+                output=output,
+                duration_ms=duration_ms,
+                error=error,
+                exit_code=exit_code,
+            )
+        )
+
+        if not success:
+            all_passed = False
+            if not run_all:
+                break
+
+    if not results:
+        print("[DONE] No executable acceptance commands found; treating as pass.")
+
+    return all_passed, results
+
+
+def _cleanup_old_done_reports(report_dir: Path, feature_id: int, keep_latest: int = 5) -> None:
+    """Keep only a bounded number of `/prog done` reports per feature."""
+    pattern = f"feature-{feature_id}-done-attempt-*.json"
+    reports = sorted(report_dir.glob(pattern), key=lambda candidate: candidate.name, reverse=True)
+    for old_report in reports[keep_latest:]:
+        try:
+            old_report.unlink()
+        except OSError:
+            logger.warning(f"Failed to remove old done report: {old_report}")
+
+
+def _save_done_test_report(
+    feature_id: int,
+    feature_name: str,
+    results: List[AcceptanceTestResult],
+    success: bool,
+) -> Optional[Path]:
+    """Persist acceptance execution report for `/prog done` attempts."""
+    try:
+        state_dir = get_state_dir(find_project_root())
+        report_dir = state_dir / "test_reports"
+        report_dir.mkdir(parents=True, exist_ok=True)
+
+        timestamp = datetime.now().strftime("%Y%m%dT%H%M%S%f")
+        report_path = report_dir / f"feature-{feature_id}-done-attempt-{timestamp}.json"
+        payload = {
+            "feature_id": feature_id,
+            "feature_name": feature_name,
+            "done_attempt_at": _iso_now(),
+            "overall_success": success,
+            "results": [
+                {
+                    "step": result.step,
+                    "command": result.command,
+                    "success": result.success,
+                    "output_summary": result.output[:500],
+                    "duration_ms": result.duration_ms,
+                    "exit_code": result.exit_code,
+                    "error": result.error[:500] if result.error else None,
+                }
+                for result in results
+            ],
+        }
+        report_path.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        _cleanup_old_done_reports(report_dir, feature_id)
+        return report_path
+    except Exception as exc:  # pragma: no cover - defensive branch
+        logger.warning(f"Failed to save done report for feature {feature_id}: {exc}")
+        return None
+
+
+def _format_failure_reason(results: List[AcceptanceTestResult]) -> str:
+    """Build compact finish-pending reason from failed acceptance checks."""
+    failed = [result for result in results if not result.success]
+    if not failed:
+        return "acceptance verification failed"
+
+    reasons: List[str] = []
+    for result in failed[:3]:
+        reason = result.command
+        if result.error:
+            reason += f" -> {result.error[:120]}"
+        reasons.append(reason)
+    if len(failed) > 3:
+        reasons.append(f"+{len(failed) - 3} more failures")
+    return "; ".join(reasons)
+
+
+def _validate_done_preconditions(
+    data: Dict[str, Any],
+) -> Tuple[bool, str, int, Optional[Dict[str, Any]]]:
+    """Validate deterministic gate checks before `/prog done` execution."""
+    current_id = data.get("current_feature_id")
+    if current_id is None:
+        return False, "No active feature. Run /prog next first.", 1, None
+
+    features = data.get("features", [])
+    feature = next((item for item in features if item.get("id") == current_id), None)
+    if not feature:
+        return False, f"Feature {current_id} not found.", 4, None
+
+    if feature.get("completed", False):
+        return False, f"Feature {current_id} is already completed.", 5, feature
+
+    workflow_state = data.get("workflow_state", {})
+    phase = workflow_state.get("phase") if isinstance(workflow_state, dict) else None
+    if phase != "execution_complete":
+        return (
+            False,
+            f"Current workflow phase is '{phase}'. Required phase is 'execution_complete'.",
+            2,
+            feature,
+        )
+
+    return True, "", 0, feature
+
+
+def _get_head_commit() -> Optional[str]:
+    """Resolve current HEAD commit hash, if available."""
+    try:
+        if GIT_VALIDATOR_AVAILABLE:
+            head = get_current_commit_hash()
+            if isinstance(head, str) and head.strip():
+                return head.strip()
+    except Exception:
+        pass
+
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--verify", "HEAD"],
+            capture_output=True,
+            text=True,
+            cwd=str(find_project_root()),
+            timeout=10,
+            check=False,
+        )
+        if result.returncode == 0:
+            head = result.stdout.strip()
+            if head:
+                return head
+    except Exception:
+        pass
+    return None
+
+
+def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False) -> int:
+    """Close current feature through deterministic acceptance gatekeeping."""
+    data = load_progress_json()
+    if not data:
+        print("[DONE] No progress tracking found")
+        return 4
+
+    valid, reason, code, feature = _validate_done_preconditions(data)
+    if not valid:
+        print(f"[DONE] BLOCKED: {reason}")
+        return code
+
+    assert feature is not None  # preconditions guarantee feature presence
+    feature_id = int(feature.get("id"))
+    feature_name = feature.get("name", f"Feature {feature_id}")
+    print(f"[DONE] Running acceptance tests for Feature {feature_id}: {feature_name}")
+
+    all_passed, results = _run_acceptance_tests(feature, run_all=run_all)
+    report_path = _save_done_test_report(
+        feature_id=feature_id,
+        feature_name=feature_name,
+        results=results,
+        success=all_passed,
+    )
+
+    if not all_passed:
+        refreshed = load_progress_json()
+        if refreshed:
+            current_feature = next(
+                (item for item in refreshed.get("features", []) if item.get("id") == feature_id),
+                None,
+            )
+            if current_feature:
+                current_feature["finish_pending_reason"] = _format_failure_reason(results)
+                current_feature["last_done_attempt_at"] = _iso_now()
+                save_progress_json(refreshed)
+
+        passed_count = sum(1 for result in results if result.success)
+        total_count = len(results)
+        print(f"[DONE] Acceptance failed ({passed_count}/{total_count} passed)")
+        if report_path:
+            try:
+                relative_report = report_path.relative_to(find_project_root())
+            except ValueError:
+                relative_report = report_path
+            print(f"[DONE] Report: {relative_report}")
+        return 3
+
+    print("[DONE] Acceptance passed")
+    resolved_commit = commit_hash or _get_head_commit()
+    success = complete_feature(
+        feature_id=feature_id,
+        commit_hash=resolved_commit,
+        skip_archive=skip_archive,
+    )
+    if not success:
+        print("[DONE] Failed to complete feature after acceptance checks")
+        return 4
+
+    print(f"[DONE] Feature {feature_id} completed")
+    if resolved_commit:
+        print(f"[DONE] Commit: {resolved_commit}")
+    if report_path:
+        try:
+            relative_report = report_path.relative_to(find_project_root())
+        except ValueError:
+            relative_report = report_path
+        print(f"[DONE] Report: {relative_report}")
+    return 0
 
 
 def complete_feature(feature_id, commit_hash=None, skip_archive=False):
@@ -2331,6 +4226,26 @@ def complete_feature(feature_id, commit_hash=None, skip_archive=False):
         print(f"Feature ID {feature_id} not found")
         return False
 
+    reconcile_report = analyze_reconcile_state(data)
+    diagnosis = reconcile_report.get("diagnosis")
+    if diagnosis in {"scope_mismatch", "context_mismatch"}:
+        print(
+            "Cannot complete feature due to reconcile gate: "
+            f"{diagnosis}. Suggested next step: {reconcile_report.get('recommended_next_step')}"
+        )
+        return False
+
+    if diagnosis == "needs_manual_review":
+        current_id = data.get("current_feature_id")
+        if current_id == feature_id:
+            suggested = reconcile_report.get("recommended_next_step")
+            if suggested in {"repair workflow_state", "clear invalid current_feature_id"}:
+                print(
+                    "Cannot complete feature until tracker state is repaired. "
+                    f"Suggested next step: {suggested}"
+                )
+                return False
+
     # Finalize AI metrics before marking feature complete.
     complete_feature_ai_metrics(feature_id)
     data = load_progress_json()
@@ -2345,7 +4260,10 @@ def complete_feature(feature_id, commit_hash=None, skip_archive=False):
 
     feature["completed"] = True
     feature["development_stage"] = "completed"
+    feature["lifecycle_state"] = "verified"
     feature["completed_at"] = _iso_now()
+    _clear_feature_defer_state(feature)
+    _clear_feature_finish_pending(feature)
     if commit_hash:
         feature["commit_hash"] = commit_hash
 
@@ -2493,6 +4411,291 @@ def undo_last_feature():
     return True
 
 
+def _next_update_id(updates: List[Dict[str, Any]]) -> str:
+    """Generate the next UPD-XXX identifier."""
+    max_num = 0
+    for item in updates:
+        update_id = str(item.get("id", ""))
+        match = re.match(r"^UPD-(\d+)$", update_id)
+        if match:
+            max_num = max(max_num, int(match.group(1)))
+    return f"UPD-{max_num + 1:03d}"
+
+
+def _format_feature_owners(feature: Dict[str, Any]) -> Optional[str]:
+    """Format non-empty feature owners as a compact status string."""
+    owners = feature.get("owners")
+    if not isinstance(owners, dict):
+        return None
+    populated = []
+    for role in OWNER_ROLES:
+        value = owners.get(role)
+        if isinstance(value, str) and value.strip():
+            populated.append(f"{role}={value.strip()}")
+    if not populated:
+        return None
+    return ", ".join(populated)
+
+
+def _normalize_ref_tokens(refs: Optional[List[str]]) -> List[str]:
+    """Normalize and deduplicate ref tokens while preserving encounter order."""
+    normalized: List[str] = []
+    seen: Set[str] = set()
+    for raw in refs or []:
+        if not isinstance(raw, str):
+            continue
+        token = raw.strip()
+        if not token or token in seen:
+            continue
+        seen.add(token)
+        normalized.append(token)
+    return normalized
+
+
+def _collect_auto_update_refs(feature: Dict[str, Any]) -> List[str]:
+    """Collect deterministic auto refs from a feature contract payload."""
+    refs: List[str] = []
+    for req_id in feature.get("requirement_ids", []):
+        if isinstance(req_id, str) and req_id.strip():
+            refs.append(f"req:{req_id.strip()}")
+
+    change_spec = feature.get("change_spec")
+    if isinstance(change_spec, dict):
+        change_id = change_spec.get("change_id")
+        if isinstance(change_id, str) and change_id.strip():
+            refs.append(f"change:{change_id.strip()}")
+
+    normalized = _normalize_ref_tokens(refs)
+    normalized.sort()
+    return normalized
+
+
+def _compact_update_refs(refs: List[str]) -> Tuple[List[str], List[str]]:
+    """Split refs into inline and overflow buckets without dropping data."""
+    if len(refs) <= UPDATE_REFS_INLINE_LIMIT:
+        return refs, []
+    return refs[:UPDATE_REFS_INLINE_LIMIT], refs[UPDATE_REFS_INLINE_LIMIT:]
+
+
+def add_update(
+    category: str,
+    summary: str,
+    details: Optional[str] = None,
+    feature_id: Optional[int] = None,
+    bug_id: Optional[str] = None,
+    role: Optional[str] = None,
+    owner: Optional[str] = None,
+    source: str = "prog_update",
+    next_action: Optional[str] = None,
+    refs: Optional[List[str]] = None,
+) -> bool:
+    """Append a structured update entry into progress.json."""
+    data = load_progress_json()
+    if not data:
+        print("No progress tracking found. Use init first.")
+        return False
+
+    normalized_category = (category or "").strip().lower()
+    if normalized_category not in UPDATE_CATEGORIES:
+        print(
+            "Error: Invalid category "
+            f"'{category}'. Allowed: {', '.join(UPDATE_CATEGORIES)}"
+        )
+        return False
+
+    normalized_summary = (summary or "").strip()
+    if not normalized_summary:
+        print("Error: summary cannot be empty")
+        return False
+
+    normalized_role = None
+    if role:
+        normalized_role = role.strip().lower()
+        if normalized_role not in OWNER_ROLES:
+            print(f"Error: Invalid role '{role}'. Allowed: {', '.join(OWNER_ROLES)}")
+            return False
+
+    normalized_owner = owner.strip() if isinstance(owner, str) else owner
+    if normalized_owner and not normalized_role:
+        print("Error: owner requires role")
+        return False
+
+    normalized_source = (source or "").strip().lower()
+    if normalized_source not in UPDATE_SOURCES:
+        print(
+            "Error: Invalid source "
+            f"'{source}'. Allowed: {', '.join(UPDATE_SOURCES)}"
+        )
+        return False
+
+    target_feature: Optional[Dict[str, Any]] = None
+    if feature_id is not None:
+        features = data.get("features", [])
+        target_feature = next((f for f in features if f.get("id") == feature_id), None)
+        if target_feature is None:
+            print(f"Error: Feature ID {feature_id} not found")
+            return False
+
+    # Manual refs are authoritative when explicitly provided.
+    normalized_manual_refs = _normalize_ref_tokens(refs)
+    selected_refs = normalized_manual_refs
+    if feature_id is not None and not normalized_manual_refs and target_feature is not None:
+        selected_refs = _collect_auto_update_refs(target_feature)
+
+    refs_inline, refs_overflow = _compact_update_refs(selected_refs)
+
+    updates = data.setdefault("updates", [])
+    created_at = _iso_now()
+    update_item = {
+        "id": _next_update_id(updates),
+        "created_at": created_at,
+        "category": normalized_category,
+        "summary": normalized_summary,
+        "details": details.strip() if isinstance(details, str) and details.strip() else None,
+        "feature_id": feature_id,
+        "bug_id": bug_id.strip() if isinstance(bug_id, str) and bug_id.strip() else None,
+        "role": normalized_role,
+        "owner": normalized_owner if normalized_owner else None,
+        "source": normalized_source,
+        "next_action": (
+            next_action.strip()
+            if isinstance(next_action, str) and next_action.strip()
+            else None
+        ),
+        "refs": refs_inline,
+    }
+    if refs_overflow:
+        update_item["refs_overflow"] = refs_overflow
+        update_item["refs_overflow_count"] = len(refs_overflow)
+    updates.append(update_item)
+
+    save_progress_json(data)
+    save_progress_md(generate_progress_md(data))
+    print(f"Added update {update_item['id']}: {update_item['category']} - {update_item['summary']}")
+    return True
+
+
+def list_updates(limit: int = 10) -> bool:
+    """List the latest structured updates."""
+    data = load_progress_json()
+    if not data:
+        print("No progress tracking found")
+        return False
+
+    updates = data.get("updates", [])
+    if not updates:
+        print("No updates recorded.")
+        return True
+
+    safe_limit = max(1, limit)
+    print(f"Showing latest {min(safe_limit, len(updates))} update(s):")
+    for item in updates[-safe_limit:]:
+        line = f"- [{item.get('id', 'UPD-???')}] {item.get('category', 'status')}: {item.get('summary', '')}"
+        if item.get("feature_id") is not None:
+            line += f" (feature:{item['feature_id']})"
+        if item.get("role") and item.get("owner"):
+            line += f" [{item['role']}={item['owner']}]"
+        overflow_count = item.get("refs_overflow_count")
+        if not isinstance(overflow_count, int) or overflow_count < 0:
+            overflow_refs = item.get("refs_overflow")
+            if isinstance(overflow_refs, list):
+                overflow_count = len(
+                    [
+                        ref
+                        for ref in overflow_refs
+                        if isinstance(ref, str) and ref.strip()
+                    ]
+                )
+            else:
+                overflow_count = 0
+        if overflow_count > 0:
+            line += f" [+{overflow_count} refs overflow]"
+        print(line)
+    return True
+
+
+def add_retro(
+    feature_id: int,
+    summary: str,
+    root_cause: str,
+    action_items: Optional[List[str]] = None,
+) -> bool:
+    """Add a retrospective entry for a feature."""
+    data = load_progress_json()
+    if not data:
+        print("No progress tracking found. Use init first.")
+        return False
+
+    features = data.get("features", [])
+    if not any(f.get("id") == feature_id for f in features):
+        print(f"Error: Feature ID {feature_id} not found")
+        return False
+
+    normalized_summary = (summary or "").strip()
+    if not normalized_summary:
+        print("Error: summary cannot be empty")
+        return False
+
+    normalized_root_cause = (root_cause or "").strip()
+    if not normalized_root_cause:
+        print("Error: root_cause cannot be empty")
+        return False
+
+    retrospectives = data.setdefault("retrospectives", [])
+    retro_id = f"RETRO-{feature_id}-{len(retrospectives) + 1:03d}"
+    created_at = _iso_now()
+
+    retro_item = {
+        "id": retro_id,
+        "created_at": created_at,
+        "feature_id": feature_id,
+        "summary": normalized_summary,
+        "root_cause": normalized_root_cause,
+        "action_items": [
+            item.strip() if isinstance(item, str) else item
+            for item in (action_items or [])
+            if isinstance(item, str) and item.strip()
+        ],
+    }
+
+    retrospectives.append(retro_item)
+    save_progress_json(data)
+    save_progress_md(generate_progress_md(data))
+    print(f"Added retrospective {retro_id}: {normalized_summary}")
+    return True
+
+
+def set_feature_owner(feature_id: int, role: str, owner: str) -> bool:
+    """Set feature owner for a specific role."""
+    data = load_progress_json()
+    if not data:
+        print("No progress tracking found. Use init first.")
+        return False
+
+    normalized_role = (role or "").strip().lower()
+    if normalized_role not in OWNER_ROLES:
+        print(f"Error: Invalid role '{role}'. Allowed: {', '.join(OWNER_ROLES)}")
+        return False
+
+    normalized_owner = (owner or "").strip()
+    owner_value = None if normalized_owner.lower() in {"", "-", "none", "null"} else normalized_owner
+
+    features = data.get("features", [])
+    feature = next((f for f in features if f.get("id") == feature_id), None)
+    if not feature:
+        print(f"Feature ID {feature_id} not found")
+        return False
+
+    _normalize_feature_owners(feature)
+    feature["owners"][normalized_role] = owner_value
+
+    save_progress_json(data)
+    save_progress_md(generate_progress_md(data))
+    assigned = owner_value if owner_value is not None else "None"
+    print(f"Set owner: feature {feature_id} {normalized_role} -> {assigned}")
+    return True
+
+
 def add_feature(name, test_steps):
     """Add a new feature to the tracking."""
     data = load_progress_json()
@@ -2511,7 +4714,21 @@ def add_feature(name, test_steps):
         "name": name,
         "test_steps": test_steps,
         "completed": False,
+        "deferred": False,
+        "defer_reason": None,
+        "deferred_at": None,
+        "defer_group": None,
+        "owners": _default_owners(),
     }
+    _normalize_feature_contract(new_feature)
+
+    try:
+        imported_contract = import_contract_for_feature(new_id)
+    except ContractImportError as exc:
+        print(f"Error: Failed to import contract for feature {new_id}: {exc}")
+        return False
+    if imported_contract:
+        _apply_imported_feature_contract(new_feature, imported_contract)
 
     features.append(new_feature)
     save_progress_json(data)
@@ -2546,6 +4763,15 @@ def update_feature(feature_id, name, test_steps=None):
     feature["name"] = normalized_name
     if test_steps:
         feature["test_steps"] = test_steps
+    _normalize_feature_contract(feature)
+
+    try:
+        imported_contract = import_contract_for_feature(feature_id)
+    except ContractImportError as exc:
+        print(f"Error: Failed to import contract for feature {feature_id}: {exc}")
+        return False
+    if imported_contract:
+        _apply_imported_feature_contract(feature, imported_contract)
 
     save_progress_json(data)
 
@@ -2556,6 +4782,119 @@ def update_feature(feature_id, name, test_steps=None):
     print(f"Updated feature {feature_id}: {normalized_name}")
     if test_steps:
         print(f"Updated test steps ({len(test_steps)} step(s))")
+    return True
+
+
+def defer_features(
+    feature_id: Optional[int],
+    all_pending: bool,
+    reason: str,
+    defer_group: Optional[str] = None,
+) -> bool:
+    """Defer one feature or all pending features without losing tracker state."""
+    data = load_progress_json()
+    if not data:
+        print("No progress tracking found. Use init first.")
+        return False
+
+    normalized_reason = _normalize_optional_string(reason)
+    if not normalized_reason:
+        print("Error: --reason is required and cannot be empty.")
+        return False
+
+    normalized_group = _normalize_optional_string(defer_group)
+    features = data.get("features", [])
+    targets: List[Dict[str, Any]] = []
+
+    if all_pending:
+        targets = [
+            f
+            for f in features
+            if isinstance(f, dict) and not f.get("completed", False)
+        ]
+        if not targets:
+            print("No pending features to defer.")
+            return False
+    else:
+        if feature_id is None:
+            print("Error: --feature-id is required when --all-pending is not set.")
+            return False
+        feature = next((f for f in features if f.get("id") == feature_id), None)
+        if not feature:
+            print(f"Feature ID {feature_id} not found")
+            return False
+        if feature.get("completed", False):
+            print(f"Feature ID {feature_id} is already completed and cannot be deferred.")
+            return False
+        targets = [feature]
+
+    now = _iso_now()
+    target_ids = {f.get("id") for f in targets}
+    for feature in targets:
+        feature["deferred"] = True
+        feature["defer_reason"] = normalized_reason
+        feature["deferred_at"] = now
+        feature["defer_group"] = normalized_group
+
+    cleared_active = False
+    if data.get("current_feature_id") in target_ids:
+        data["current_feature_id"] = None
+        if "workflow_state" in data:
+            del data["workflow_state"]
+        cleared_active = True
+
+    _update_runtime_context(data, source="defer")
+    save_progress_json(data)
+    save_progress_md(generate_progress_md(data))
+
+    print(f"Deferred {len(targets)} feature(s).")
+    print(f"Reason: {normalized_reason}")
+    if normalized_group:
+        print(f"Group: {normalized_group}")
+    if cleared_active:
+        print("Cleared active feature and workflow_state because the active feature was deferred.")
+    return True
+
+
+def resume_deferred_features(defer_group: Optional[str], resume_all: bool) -> bool:
+    """Resume deferred features by group or resume all deferred features."""
+    data = load_progress_json()
+    if not data:
+        print("No progress tracking found. Use init first.")
+        return False
+
+    normalized_group = _normalize_optional_string(defer_group)
+    features = data.get("features", [])
+    targets: List[Dict[str, Any]] = []
+
+    for feature in features:
+        if not isinstance(feature, dict):
+            continue
+        if feature.get("completed", False):
+            continue
+        if not _is_feature_deferred(feature):
+            continue
+        if not resume_all and feature.get("defer_group") != normalized_group:
+            continue
+        targets.append(feature)
+
+    if not targets:
+        if resume_all:
+            print("No deferred pending features to resume.")
+        else:
+            print(f"No deferred pending features found for group: {normalized_group}")
+        return False
+
+    for feature in targets:
+        _clear_feature_defer_state(feature)
+
+    _update_runtime_context(data, source="resume")
+    save_progress_json(data)
+    save_progress_md(generate_progress_md(data))
+
+    print(f"Resumed {len(targets)} deferred feature(s).")
+    if not resume_all:
+        print(f"Group: {normalized_group}")
     return True
 
 
@@ -3252,10 +5591,18 @@ def generate_progress_md(data):
 
     completed = [f for f in features if f.get("completed", False)]
     in_progress = [f for f in features if f.get("id") == current_id]
+    deferred = [
+        f
+        for f in features
+        if not f.get("completed", False)
+        and f.get("id") != current_id
+        and _is_feature_deferred(f)
+    ]
     pending = [
         f
         for f in features
         if not f.get("completed", False) and f.get("id") != current_id
+        and not _is_feature_deferred(f)
     ]
 
     total = len(features)
@@ -3268,12 +5615,18 @@ def generate_progress_md(data):
         md_lines.append("## Completed")
         for f in completed:
             md_lines.append(f"- [x] {f.get('name', 'Unknown')}")
+            owner_summary = _format_feature_owners(f)
+            if owner_summary:
+                md_lines.append(f"  Owners: {owner_summary}")
         md_lines.append("")
 
     if in_progress:
         md_lines.append("## In Progress")
         for f in in_progress:
             md_lines.append(f"- [ ] {f.get('name', 'Unknown')}")
+            owner_summary = _format_feature_owners(f)
+            if owner_summary:
+                md_lines.append(f"  Owners: {owner_summary}")
             test_steps = f.get("test_steps", [])
             if test_steps:
                 md_lines.append("  **Test steps**:")
@@ -3285,6 +5638,23 @@ def generate_progress_md(data):
         md_lines.append("## Pending")
         for f in pending:
             md_lines.append(f"- [ ] {f.get('name', 'Unknown')}")
+            owner_summary = _format_feature_owners(f)
+            if owner_summary:
+                md_lines.append(f"  Owners: {owner_summary}")
+        md_lines.append("")
+
+    if deferred:
+        md_lines.append("## Deferred")
+        for f in deferred:
+            reason = f.get("defer_reason") or "No reason provided"
+            group = f.get("defer_group")
+            line = f"- [~] {f.get('name', 'Unknown')} — {reason}"
+            if group:
+                line += f" (group: {group})"
+            md_lines.append(line)
+            owner_summary = _format_feature_owners(f)
+            if owner_summary:
+                md_lines.append(f"  Owners: {owner_summary}")
         md_lines.append("")
 
     if current_id and workflow_state:
@@ -3319,6 +5689,23 @@ def generate_progress_md(data):
                 f"(expected {context_hint.get('expected_branch') or '?'} @ "
                 f"{context_hint.get('expected_worktree_path') or '?'})"
             )
+        md_lines.append("")
+
+    updates = data.get("updates", [])
+    if updates:
+        md_lines.append("## Recent Updates")
+        for update in updates[-5:]:
+            line = (
+                f"- [{update.get('id', 'UPD-???')}] "
+                f"{update.get('category', 'status')}: {update.get('summary', '')}"
+            )
+            if update.get("feature_id") is not None:
+                line += f" (feature:{update['feature_id']})"
+            if update.get("role") and update.get("owner"):
+                line += f" [{update['role']}={update['owner']}]"
+            md_lines.append(line)
+            if update.get("next_action"):
+                md_lines.append(f"  Next: {update['next_action']}")
         md_lines.append("")
 
     # Add bugs section if any exist
@@ -3421,6 +5808,24 @@ def main():
 
     # Check command
     subparsers.add_parser("check", help="Check for incomplete progress")
+    reconcile_parser = subparsers.add_parser(
+        "reconcile", help="Diagnose tracker drift and suggest the next safe action"
+    )
+    reconcile_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="output_json",
+        help="Emit machine-readable JSON output",
+    )
+    next_feature_parser = subparsers.add_parser(
+        "next-feature", help="Show next actionable feature (skips deferred features)"
+    )
+    next_feature_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="output_json",
+        help="Emit machine-readable JSON output",
+    )
 
     # Archive history commands
     archives_parser = subparsers.add_parser(
@@ -3441,6 +5846,35 @@ def main():
     current_parser = subparsers.add_parser("set-current", help="Set current feature")
     current_parser.add_argument("feature_id", type=int, help="Feature ID")
 
+    # Validate readiness command (read-only)
+    validate_readiness_parser = subparsers.add_parser(
+        "validate-readiness",
+        help="Validate feature readiness contract for starting work",
+    )
+    validate_readiness_parser.add_argument("feature_id", type=int, help="Feature ID")
+
+    # Fix readiness command (mutating)
+    fix_readiness_parser = subparsers.add_parser(
+        "fix-readiness",
+        help="Apply structured fixes to feature readiness contract fields",
+    )
+    fix_readiness_parser.add_argument("feature_id", type=int, help="Feature ID")
+    fix_readiness_parser.add_argument(
+        "--add-requirement",
+        dest="add_requirement",
+        help="Requirement ID to add (for example REQ-006)",
+    )
+    fix_readiness_parser.add_argument(
+        "--set-why",
+        dest="set_why",
+        help="Set change_spec.why",
+    )
+    fix_readiness_parser.add_argument(
+        "--add-acceptance",
+        dest="add_acceptance",
+        help="Acceptance scenario to append",
+    )
+
     # Set development stage command
     stage_parser = subparsers.add_parser(
         "set-development-stage",
@@ -3456,6 +5890,22 @@ def main():
     complete_parser.add_argument("--skip-archive", action="store_true",
                                help="Skip document archiving")
 
+    done_parser = subparsers.add_parser(
+        "done",
+        help="Complete current feature with acceptance test gatekeeping",
+    )
+    done_parser.add_argument("--commit", help="Git commit hash (default: HEAD)")
+    done_parser.add_argument(
+        "--run-all",
+        action="store_true",
+        help="Run all acceptance tests even if one fails",
+    )
+    done_parser.add_argument(
+        "--skip-archive",
+        action="store_true",
+        help="Skip document archiving",
+    )
+
     # Add feature command
     add_parser = subparsers.add_parser("add-feature", help="Add a new feature")
     add_parser.add_argument("name", help="Feature name")
@@ -3468,6 +5918,63 @@ def main():
     update_parser.add_argument(
         "test_steps", nargs="*", help="Updated test steps (optional)"
     )
+
+    # Defer command
+    defer_parser = subparsers.add_parser(
+        "defer", help="Defer one feature or all pending features"
+    )
+    defer_target_group = defer_parser.add_mutually_exclusive_group(required=True)
+    defer_target_group.add_argument(
+        "--all-pending", action="store_true", help="Defer all pending (not completed) features"
+    )
+    defer_target_group.add_argument("--feature-id", type=int, help="Feature ID to defer")
+    defer_parser.add_argument("--reason", required=True, help="Reason for deferring")
+    defer_parser.add_argument(
+        "--defer-group", help="Optional defer group identifier for later resume"
+    )
+
+    # Resume command
+    resume_parser = subparsers.add_parser(
+        "resume", help="Resume deferred features (all or by defer group)"
+    )
+    resume_target_group = resume_parser.add_mutually_exclusive_group(required=True)
+    resume_target_group.add_argument("--all", action="store_true", help="Resume all deferred features")
+    resume_target_group.add_argument("--defer-group", help="Resume deferred features in this group")
+
+    # Structured updates commands
+    add_update_parser = subparsers.add_parser(
+        "add-update", help="Append a structured progress update entry"
+    )
+    add_update_parser.add_argument("--category", required=True, help="Update category")
+    add_update_parser.add_argument("--summary", required=True, help="Short summary")
+    add_update_parser.add_argument("--details", help="Additional details")
+    add_update_parser.add_argument("--feature-id", type=int, help="Related feature ID")
+    add_update_parser.add_argument("--bug-id", help="Related bug ID")
+    add_update_parser.add_argument("--role", help="Role: architecture|coding|testing")
+    add_update_parser.add_argument("--owner", help="Owner for the role")
+    add_update_parser.add_argument(
+        "--source",
+        default="prog_update",
+        help="Source: prog_update|spm_meeting|spm_assign|manual",
+    )
+    add_update_parser.add_argument("--next-action", help="Suggested next action")
+    add_update_parser.add_argument(
+        "--ref",
+        action="append",
+        dest="refs",
+        default=[],
+        help="Reference token (repeatable)",
+    )
+
+    list_updates_parser = subparsers.add_parser("list-updates", help="List recent updates")
+    list_updates_parser.add_argument("--limit", type=int, default=10, help="Max updates to show")
+
+    set_owner_parser = subparsers.add_parser(
+        "set-feature-owner", help="Assign feature owner for a role"
+    )
+    set_owner_parser.add_argument("feature_id", type=int, help="Feature ID")
+    set_owner_parser.add_argument("role", help="Role: architecture|coding|testing")
+    set_owner_parser.add_argument("owner", help="Owner name (use 'none' to clear)")
 
     # Undo command
     subparsers.add_parser("undo", help="Undo last completed feature")
@@ -3599,96 +6106,154 @@ def main():
     if not configure_project_scope(args.project_root):
         return False
 
-    if args.command == "init":
-        return init_tracking(args.project_name, force=args.force)
-    elif args.command == "status":
-        return status()
-    elif args.command == "check":
-        return check()
-    elif args.command == "list-archives":
-        return list_archives(limit=args.limit)
-    elif args.command == "restore-archive":
-        return restore_archive(args.archive_id, force=args.force)
-    elif args.command == "set-current":
-        return set_current(args.feature_id)
-    elif args.command == "set-development-stage":
-        return set_development_stage(args.stage, feature_id=args.feature_id)
-    elif args.command == "complete":
-        return complete_feature(
-            args.feature_id,
-            commit_hash=args.commit,
-            skip_archive=args.skip_archive
-        )
-    elif args.command == "add-feature":
-        return add_feature(args.name, args.test_steps)
-    elif args.command == "update-feature":
-        return update_feature(
-            args.feature_id, args.name, args.test_steps if args.test_steps else None
-        )
-    elif args.command == "undo":
-        return undo_last_feature()
-    elif args.command == "reset":
-        return reset_tracking(force=args.force)
-    elif args.command == "set-workflow-state":
-        return set_workflow_state(
-            phase=args.phase, plan_path=args.plan_path, next_action=args.next_action
-        )
-    elif args.command == "update-workflow-task":
-        return update_workflow_task(args.task_id, args.status)
-    elif args.command == "clear-workflow-state":
-        return clear_workflow_state()
-    elif args.command == "health":
-        return health_check()
-    elif args.command == "git-sync-check":
-        return git_sync_check()
-    elif args.command == "git-auto-preflight":
-        return git_auto_preflight(output_json=args.output_json)
-    elif args.command == "set-feature-ai-metrics":
-        return set_feature_ai_metrics(
-            args.feature_id,
-            args.complexity_score,
-            args.selected_model,
-            args.workflow_path,
-        )
-    elif args.command == "complete-feature-ai-metrics":
-        return complete_feature_ai_metrics(args.feature_id)
-    elif args.command == "auto-checkpoint":
-        return auto_checkpoint()
-    elif args.command == "sync-runtime-context":
-        return sync_runtime_context(source=args.source, quiet=args.quiet, force=args.force)
-    elif args.command == "validate-plan":
-        return validate_plan(plan_path=args.plan_path)
-    elif args.command == "add-bug":
-        try:
-            return add_bug(
-                description=args.description,
-                status=args.status,
-                priority=args.priority,
-                category=args.category,
-                scheduled_position=args.scheduled_position,
-                verification_results=args.verification_results
+    def _dispatch_command() -> Any:
+        if args.command == "init":
+            return init_tracking(args.project_name, force=args.force)
+        if args.command == "status":
+            return status()
+        if args.command == "check":
+            return check()
+        if args.command == "reconcile":
+            return reconcile(output_json=args.output_json)
+        if args.command == "next-feature":
+            return next_feature(output_json=args.output_json)
+        if args.command == "list-archives":
+            return list_archives(limit=args.limit)
+        if args.command == "restore-archive":
+            return restore_archive(args.archive_id, force=args.force)
+        if args.command == "set-current":
+            return set_current(args.feature_id)
+        if args.command == "validate-readiness":
+            return validate_readiness_command(args.feature_id)
+        if args.command == "fix-readiness":
+            return fix_readiness_command(
+                args.feature_id,
+                add_requirement=args.add_requirement,
+                set_why=args.set_why,
+                add_acceptance=args.add_acceptance,
             )
-        except ValueError as e:
-            print(f"Error: {e}")
-            return False
-        except Exception as e:
-            logger.error(f"Unexpected error adding bug: {e}")
-            print(f"Error: Failed to add bug - {e}")
-            return False
-    elif args.command == "update-bug":
-        return update_bug(
-            bug_id=args.bug_id,
-            status=args.status,
-            root_cause=args.root_cause,
-            fix_summary=args.fix_summary
-        )
-    elif args.command == "list-bugs":
-        return list_bugs()
-    elif args.command == "remove-bug":
-        return remove_bug(args.bug_id)
-    else:
+        if args.command == "set-development-stage":
+            return set_development_stage(args.stage, feature_id=args.feature_id)
+        if args.command == "complete":
+            return complete_feature(
+                args.feature_id,
+                commit_hash=args.commit,
+                skip_archive=args.skip_archive
+            )
+        if args.command == "done":
+            return cmd_done(
+                commit_hash=args.commit,
+                run_all=args.run_all,
+                skip_archive=args.skip_archive,
+            )
+        if args.command == "add-feature":
+            return add_feature(args.name, args.test_steps)
+        if args.command == "update-feature":
+            return update_feature(
+                args.feature_id, args.name, args.test_steps if args.test_steps else None
+            )
+        if args.command == "defer":
+            return defer_features(
+                feature_id=args.feature_id,
+                all_pending=args.all_pending,
+                reason=args.reason,
+                defer_group=args.defer_group,
+            )
+        if args.command == "resume":
+            return resume_deferred_features(
+                defer_group=args.defer_group,
+                resume_all=args.all,
+            )
+        if args.command == "add-update":
+            return add_update(
+                category=args.category,
+                summary=args.summary,
+                details=args.details,
+                feature_id=args.feature_id,
+                bug_id=args.bug_id,
+                role=args.role,
+                owner=args.owner,
+                source=args.source,
+                next_action=args.next_action,
+                refs=args.refs,
+            )
+        if args.command == "list-updates":
+            return list_updates(limit=args.limit)
+        if args.command == "set-feature-owner":
+            return set_feature_owner(args.feature_id, args.role, args.owner)
+        if args.command == "undo":
+            return undo_last_feature()
+        if args.command == "reset":
+            return reset_tracking(force=args.force)
+        if args.command == "set-workflow-state":
+            return set_workflow_state(
+                phase=args.phase, plan_path=args.plan_path, next_action=args.next_action
+            )
+        if args.command == "update-workflow-task":
+            return update_workflow_task(args.task_id, args.status)
+        if args.command == "clear-workflow-state":
+            return clear_workflow_state()
+        if args.command == "health":
+            return health_check()
+        if args.command == "git-sync-check":
+            return git_sync_check()
+        if args.command == "git-auto-preflight":
+            return git_auto_preflight(output_json=args.output_json)
+        if args.command == "set-feature-ai-metrics":
+            return set_feature_ai_metrics(
+                args.feature_id,
+                args.complexity_score,
+                args.selected_model,
+                args.workflow_path,
+            )
+        if args.command == "complete-feature-ai-metrics":
+            return complete_feature_ai_metrics(args.feature_id)
+        if args.command == "auto-checkpoint":
+            return auto_checkpoint()
+        if args.command == "sync-runtime-context":
+            return sync_runtime_context(source=args.source, quiet=args.quiet, force=args.force)
+        if args.command == "validate-plan":
+            return validate_plan(plan_path=args.plan_path)
+        if args.command == "add-bug":
+            try:
+                return add_bug(
+                    description=args.description,
+                    status=args.status,
+                    priority=args.priority,
+                    category=args.category,
+                    scheduled_position=args.scheduled_position,
+                    verification_results=args.verification_results
+                )
+            except ValueError as e:
+                print(f"Error: {e}")
+                return False
+            except Exception as e:
+                logger.error(f"Unexpected error adding bug: {e}")
+                print(f"Error: Failed to add bug - {e}")
+                return False
+        if args.command == "update-bug":
+            return update_bug(
+                bug_id=args.bug_id,
+                status=args.status,
+                root_cause=args.root_cause,
+                fix_summary=args.fix_summary
+            )
+        if args.command == "list-bugs":
+            return list_bugs()
+        if args.command == "remove-bug":
+            return remove_bug(args.bug_id)
         parser.print_help()
         return 1
+
+    if args.command in MUTATING_COMMANDS:
+        try:
+            with progress_transaction():
+                return _dispatch_command()
+        except TimeoutError as exc:
+            print(f"Error: {exc}")
+            return False
+
+    return _dispatch_command()
 
 
 if __name__ == "__main__":

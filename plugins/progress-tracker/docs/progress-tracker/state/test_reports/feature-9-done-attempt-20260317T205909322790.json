@@ -1,0 +1,35 @@
+{
+  "feature_id": 9,
+  "feature_name": "9. refs 智能裁剪",
+  "done_attempt_at": "2026-03-17T20:59:09.323229Z",
+  "overall_success": true,
+  "results": [
+    {
+      "step": "pytest tests/test_feature_contract_readiness.py -q -k \"refs\"",
+      "command": "pytest tests/test_feature_contract_readiness.py -q -k \"refs\"",
+      "success": true,
+      "output_summary": "...                                                                      [100%]\n3 passed, 7 deselected in 1.21s",
+      "duration_ms": 1501,
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "step": "pytest tests/test_progress_manager.py -q -k \"add_update or refs or updates\"",
+      "command": "pytest tests/test_progress_manager.py -q -k \"add_update or refs or updates\"",
+      "success": true,
+      "output_summary": "........                                                                 [100%]\n8 passed, 138 deselected in 1.32s",
+      "duration_ms": 1562,
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "step": "python3 hooks/scripts/progress_manager.py --project-root . list-updates --limit 5",
+      "command": "python3 hooks/scripts/progress_manager.py --project-root . list-updates --limit 5",
+      "success": true,
+      "output_summary": "Showing latest 5 update(s):\n- [UPD-008] risk: Feature 4 in-progress: scope gates verified, known red baseline still open (feature:4)\n- [UPD-009] status: Feature 4: scope baseline closed and --project-root dot semantics fixed (feature:4)\n- [UPD-010] status: Feature 4 completed via /prog done (feature:4)\n- [UPD-011] status: Feature 8: implemented deterministic /prog done gate (feature:8)\n- [UPD-012] status: Feature 9: refs compaction and overflow capture implemented (feature:9)",
+      "duration_ms": 118,
+      "exit_code": 0,
+      "error": null
+    }
+  ]
+}

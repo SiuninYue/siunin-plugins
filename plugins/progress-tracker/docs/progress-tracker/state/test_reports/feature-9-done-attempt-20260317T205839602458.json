@@ -1,0 +1,17 @@
+{
+  "feature_id": 9,
+  "feature_name": "9. refs 智能裁剪",
+  "done_attempt_at": "2026-03-17T20:58:39.603097Z",
+  "overall_success": false,
+  "results": [
+    {
+      "step": "cd plugins/progress-tracker && pytest tests/test_feature_contract_readiness.py -q -k \"refs\"",
+      "command": "cd plugins/progress-tracker && pytest tests/test_feature_contract_readiness.py -q -k \"refs\"",
+      "success": false,
+      "output_summary": "/bin/sh: line 0: cd: plugins/progress-tracker: No such file or directory",
+      "duration_ms": 7,
+      "exit_code": 1,
+      "error": "/bin/sh: line 0: cd: plugins/progress-tracker: No such file or directory"
+    }
+  ]
+}

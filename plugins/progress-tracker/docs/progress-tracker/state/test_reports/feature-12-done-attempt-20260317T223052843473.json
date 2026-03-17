@@ -1,0 +1,17 @@
+{
+  "feature_id": 12,
+  "feature_name": "12. 全量回归与验收报告",
+  "done_attempt_at": "2026-03-17T22:30:52.843713Z",
+  "overall_success": false,
+  "results": [
+    {
+      "step": "cd plugins/progress-tracker && pytest tests -q",
+      "command": "cd plugins/progress-tracker && pytest tests -q",
+      "success": false,
+      "output_summary": "/bin/sh: line 0: cd: plugins/progress-tracker: No such file or directory",
+      "duration_ms": 3,
+      "exit_code": 1,
+      "error": "/bin/sh: line 0: cd: plugins/progress-tracker: No such file or directory"
+    }
+  ]
+}

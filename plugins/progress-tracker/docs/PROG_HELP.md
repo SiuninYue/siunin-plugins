@@ -8,6 +8,7 @@
 - `/progress-tracker:prog-init <goal description>` (alias: `/prog-init`): initialize tracking and feature decomposition.
 - `/progress-tracker:prog` (alias: `/prog`): show progress status and recommendations.
 - `/progress-tracker:prog-sync` (alias: `/prog-sync`): sync capability memory from incremental Git history.
+- `/progress-tracker:prog-update` (alias: `/prog-update`): append structured updates and optional owner assignments.
 - `/progress-tracker:prog-next` (alias: `/prog-next`): begin next feature using deterministic routing.
 - `/progress-tracker:prog-start` (alias: `/prog-start`): transition the active feature from planning to developing.
 - `/progress-tracker:prog-done` (alias: `/prog-done`): run acceptance checks and complete the current feature.
@@ -21,6 +22,12 @@
 
 - Command docs in README/readme-zh are generated from this file.
 - Namespaced command format must not include a space after `:` (use `/progress-tracker:prog`, not `/progress-tracker: prog`).
+- Runtime boundary:
+  - Slash commands are for daily workflow.
+  - CLI commands are for diagnostics/admin/automation.
+- Cross-runtime backend path:
+  - Codex/local shell: `plugins/progress-tracker/prog --project-root plugins/<name> <command>`.
+  - Claude plugin internals: `python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py ...`.
 - In monorepo root contexts, pass `--project-root plugins/<name>` to `progress_manager.py`, `project_memory.py`, and `progress_ui_server.py`.
 - Use `generate_prog_docs.py --check` in CI-style validation.
 - Use `generate_prog_docs.py --write` after changing this source.

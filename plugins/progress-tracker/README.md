@@ -26,6 +26,8 @@ The Progress Tracker plugin solves a critical problem in AI-assisted development
 - **Deterministic Model Routing** - Explicitly routes simple/standard/complex work to haiku/sonnet/opus paths
 - **Lightweight AI Metrics** - Tracks complexity bucket, selected model, and duration (no token/cost estimation)
 - **Technical Debt Unification** - Records debt items in existing bug system via `category=technical_debt`
+- **Structured Update Stream** - Captures `status|decision|risk|handoff|assignment|meeting` updates in `updates[]`
+- **Role Ownership Tracking** - Stores `architecture|coding|testing` owners per feature for cross-team handoff clarity
 - **Lightweight Checkpoints** - Auto-saves workflow snapshots to `docs/progress-tracker/state/checkpoints.json` (no git history pollution)
 - **Worktree-Aware Recovery** - Records branch/worktree context so `/prog` and `/prog done` can warn when you resume in the wrong workspace
 - **Unified Git Preflight** - `prog git-auto-preflight --json` is the single workspace/Git risk probe used by `git-auto`, `/prog next`, and `/prog-start`
@@ -69,6 +71,10 @@ Show current project status and recommended next action.
 
 Sync project capability memory from incremental Git history with batch confirmation.
 
+### `/progress-tracker:prog-update` (alias: `/prog-update`)
+
+Record a structured progress update entry and optional role owner assignment.
+
 ### `/progress-tracker:prog-next` (alias: `/prog-next`)
 
 Start the next pending feature with deterministic complexity routing.
@@ -101,7 +107,33 @@ Show plugin command help (namespaced entry for conflict-free discovery).
 
 Launch the Progress UI web server and open in browser. Auto-detects available port (3737-3747). Detects if a server for the current project is already running.
 
+### Low-Learning-Cost Command Layers
+
+Daily commands (default path):
+
+- `/prog` → status + next recommendation
+- `/prog-next` → start/continue the next actionable feature
+- `/prog-done` → acceptance closeout for active feature
+
+Admin commands (only when needed):
+
+- `prog check` / `prog reconcile` for drift diagnostics
+- `prog defer` / `prog resume` for backlog parking and restore
+- `prog next-feature --json` for machine-driven feature selection
+
+### Runtime Boundary (Claude vs Codex)
+
+- Slash commands (`/prog`, `/prog-next`, `/prog-done`) are the daily UX in Claude Code.
+- CLI commands (`prog check`, `prog reconcile`, `prog defer`, `prog resume`, `prog next-feature --json`) are for diagnostics/admin/automation.
+- Both runtimes share the same backend logic (`hooks/scripts/progress_manager.py`).
+
 ### Progress Manager CLI
+
+Preferred cross-runtime wrapper (Codex/local shell):
+
+```bash
+plugins/progress-tracker/prog --project-root plugins/<name> status
+```
 
 Global scope override (recommended in monorepos):
 
@@ -113,10 +145,16 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py --project-root p
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py init <project_name> [--force]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py status
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py check
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py reconcile [--json]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py next-feature [--json]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-archives [--limit <n>]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py restore-archive <archive_id> [--force]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-current <feature_id>
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-readiness <feature_id>
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py fix-readiness <feature_id> [--add-requirement <req-id>] [--set-why "<why>"] [--add-acceptance "<scenario>"]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py complete <feature_id> --commit <hash>
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py defer (--all-pending|--feature-id <id>) --reason "<reason>" [--defer-group <group>]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py resume (--all|--defer-group <group>)
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-workflow-state --phase <phase> [--plan-path <path>] [--next-action <action>]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-workflow-task <id> completed
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py clear-workflow-state
@@ -129,6 +167,9 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-plan [-
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-feature <name> <test_steps...>
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py undo
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py reset [--force]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-update --category <category> --summary "<summary>" [--details "<details>"] [--feature-id <id>] [--bug-id <BUG-ID>] [--role <role>] [--owner "<owner>"] [--source <source>] [--next-action "<next>"] [--ref <token> ...]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-updates [--limit <n>]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-feature-owner <feature_id> <architecture|coding|testing> "<owner|none>"
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-bug --description "<desc>" [--status <status>] [--priority <high|medium|low>] [--category <bug|technical_debt>]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug --bug-id "BUG-XXX" [--status <status>] [--root-cause "<cause>"] [--fix-summary "<summary>"]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-bugs
@@ -150,6 +191,11 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py batch-upsert --pay
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py register-rejections --payload-json '<array>' --sync-id '<sync_id>'
 ```
 <!-- END:GENERATED:PROG_COMMANDS -->
+
+## Drift Prevention P0 Status
+
+For a clear done/pending matrix across drift-prevention and low-learning-cost plans, see:
+`docs/DRIFT_PREVENTION_P0_STATUS.md`.
 
 ## Architecture
 

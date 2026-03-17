@@ -10,25 +10,16 @@
 - [x] Batch scanner module with CLI
 - [x] Skill and reference documents
 
-## In Progress
-- [ ] NotebookLM template and renderer
-  **Test steps**:
-  - 验证模板: ls plugins/note-organizer/templates/notebooklm-template.md
-  - 验证渲染器: ls plugins/note-organizer/scripts/template_renderer.py
-  - 运行测试: cd plugins/note-organizer && pytest tests/test_template_renderer.py -v
-  - 测试标签格式化: python3 -c 'from scripts.template_renderer import format_tags_list; print(format_tags_list(["tech/ai", "tutorial"]))'
+## Deferred
+- [~] NotebookLM template and renderer — Deferred for Drift Prevention P0 (group: note-organizer-2026q1)
+- [~] Obsidian template — Deferred for Drift Prevention P0 (group: note-organizer-2026q1)
+- [~] Note-process command — Deferred for Drift Prevention P0 (group: note-organizer-2026q1)
+- [~] Note-batch command — Deferred for Drift Prevention P0 (group: note-organizer-2026q1)
+- [~] Marketplace and README updates — Deferred for Drift Prevention P0 (group: note-organizer-2026q1)
+- [~] E2E structure tests — Deferred for Drift Prevention P0 (group: note-organizer-2026q1)
 
-## Pending
-- [ ] Obsidian template
-- [ ] Note-process command
-- [ ] Note-batch command
-- [ ] Marketplace and README updates
-- [ ] E2E structure tests
-
-## Workflow Context
-- Phase: planning_complete
-- Next action: Execute implementation plan
-- Current session context: main @ Claude-Plugins [in_place]
+## Recent Updates
+- [UPD-001] status: transaction smoke
 
 ### Fixed (✅)
 - [x] [BUG-001] [note-organizer] 测试跨目录执行失败与等价路径未去重（1f84d9b）

@@ -60,7 +60,7 @@ The `prog` tool uses relative paths and requires being in the correct project di
 
 1. Read `docs/progress-tracker/state/progress.json` and identify:
    - `current_feature_id`
-   - next incomplete feature
+   - next actionable feature (skip `deferred=true`)
    - `workflow_state` (if present)
 2. If `docs/progress-tracker/architecture/architecture.md` exists, read constraints and apply them.
 3. Before any delegation, create lightweight checkpoint:
@@ -87,18 +87,20 @@ plugins/progress-tracker/prog git-sync-check
 
 ### Step 2: Select and Lock Feature
 
-- Pick first feature where `completed == false`.
+- Resolve next actionable feature via CLI (skip deferred features):
+
+```bash
+plugins/progress-tracker/prog next-feature --json
+```
+
 - Persist as active feature:
 
 ```bash
 plugins/progress-tracker/prog set-current <feature_id>
 ```
 
-- Ensure initial stage is explicitly `planning`:
-
-```bash
-plugins/progress-tracker/prog set-development-stage planning --feature-id <feature_id>
-```
+- `set-current` now auto-transitions the active feature into `developing`.
+- Do not require `/prog-start` as an extra manual transition.
 
 - Display:
   - feature ID and name
@@ -272,7 +274,7 @@ Return completion summary and suggest:
 
 ### Invalid Feature Lock
 
-If `current_feature_id` points to missing feature, clear invalid state via recovery workflow, then recalculate next incomplete feature.
+If `current_feature_id` points to missing feature, clear invalid state via recovery workflow, then recalculate the next actionable (non-deferred) feature.
 
 ## Required Output Shape
 
