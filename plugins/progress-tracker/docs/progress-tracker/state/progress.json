@@ -2,7 +2,7 @@
   "schema_version": "2.0",
   "project_name": "PROG 全量规范化",
   "created_at": "2026-03-16T14:28:41.135552Z",
-  "updated_at": "2026-03-17T14:17:24.270684Z",
+  "updated_at": "2026-03-17T14:19:56.903555Z",
   "features": [
     {
       "id": 1,
@@ -439,7 +439,14 @@
         "Scenario: DoD: 每次 /prog-done 都会落到明确收尾结果或 finish_pending，且 /prog-next 会严格阻断未收尾状态。"
       ],
       "development_stage": "planning",
-      "started_at": "2026-03-17T14:17:20.501597Z"
+      "started_at": "2026-03-17T14:17:20.501597Z",
+      "ai_metrics": {
+        "complexity_score": 19,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-03-17T14:18:50.061630Z"
+      }
     },
     {
       "id": 9,
@@ -886,8 +893,8 @@
     }
   ],
   "runtime_context": {
-    "recorded_at": "2026-03-17T14:17:20.559595Z",
-    "source": "set_current",
+    "recorded_at": "2026-03-17T14:19:56.883552Z",
+    "source": "set_workflow_state",
     "workspace_mode": "worktree",
     "worktree_path": "/Users/siunin/Projects/claude-plugins-beta",
     "project_root": "/Users/siunin/Projects/claude-plugins-beta",
@@ -897,10 +904,26 @@
     "upstream": "origin/codex/prog-beta-setup",
     "tracker_root": "/Users/siunin/Projects/claude-plugins-beta/plugins/progress-tracker",
     "current_feature_id": 8,
-    "workflow_phase": null,
+    "workflow_phase": "execution",
     "current_task": null,
     "total_tasks": null,
-    "next_action": null
+    "next_action": "实现 /prog done 命令及 finish_pending 状态机制"
   },
-  "retrospectives": []
+  "retrospectives": [],
+  "workflow_state": {
+    "phase": "execution",
+    "next_action": "实现 /prog done 命令及 finish_pending 状态机制",
+    "updated_at": "2026-03-17T14:19:56.752655Z",
+    "execution_context": {
+      "recorded_at": "2026-03-17T14:19:56.818006Z",
+      "source": "set_workflow_state",
+      "workspace_mode": "worktree",
+      "worktree_path": "/Users/siunin/Projects/claude-plugins-beta",
+      "project_root": "/Users/siunin/Projects/claude-plugins-beta",
+      "tracker_root": "/Users/siunin/Projects/claude-plugins-beta/plugins/progress-tracker",
+      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/claude-plugins-beta",
+      "branch": "codex/prog-beta-setup",
+      "upstream": "origin/codex/prog-beta-setup"
+    }
+  }
 }

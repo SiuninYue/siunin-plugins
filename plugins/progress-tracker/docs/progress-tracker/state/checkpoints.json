@@ -1,5 +1,5 @@
 {
-  "last_checkpoint_at": "2026-03-17T13:56:24.007753+08:00",
+  "last_checkpoint_at": "2026-03-17T16:59:07.128950+08:00",
   "max_entries": 50,
   "entries": [
     {
@@ -86,6 +86,51 @@
       "current_task": null,
       "total_tasks": null,
       "next_action": "使用 subagent-driven-development 执行实现计划",
+      "workspace_mode": "worktree",
+      "worktree_path": "/Users/siunin/Projects/claude-plugins-beta",
+      "branch": "codex/prog-beta-setup",
+      "upstream": "origin/codex/prog-beta-setup",
+      "reason": "auto_interval"
+    },
+    {
+      "timestamp": "2026-03-17T14:28:48.937578+08:00",
+      "feature_id": 8,
+      "feature_name": "8. /prog-done 收尾门禁",
+      "phase": "execution",
+      "plan_path": null,
+      "current_task": null,
+      "total_tasks": null,
+      "next_action": "实现 /prog done 命令及 finish_pending 状态机制",
+      "workspace_mode": "worktree",
+      "worktree_path": "/Users/siunin/Projects/claude-plugins-beta",
+      "branch": "codex/prog-beta-setup",
+      "upstream": "origin/codex/prog-beta-setup",
+      "reason": "auto_interval"
+    },
+    {
+      "timestamp": "2026-03-17T15:15:44.451945+08:00",
+      "feature_id": 8,
+      "feature_name": "8. /prog-done 收尾门禁",
+      "phase": "execution",
+      "plan_path": null,
+      "current_task": null,
+      "total_tasks": null,
+      "next_action": "实现 /prog done 命令及 finish_pending 状态机制",
+      "workspace_mode": "worktree",
+      "worktree_path": "/Users/siunin/Projects/claude-plugins-beta",
+      "branch": "codex/prog-beta-setup",
+      "upstream": "origin/codex/prog-beta-setup",
+      "reason": "auto_interval"
+    },
+    {
+      "timestamp": "2026-03-17T16:59:07.128950+08:00",
+      "feature_id": 8,
+      "feature_name": "8. /prog-done 收尾门禁",
+      "phase": "execution",
+      "plan_path": null,
+      "current_task": null,
+      "total_tasks": null,
+      "next_action": "实现 /prog done 命令及 finish_pending 状态机制",
       "workspace_mode": "worktree",
       "worktree_path": "/Users/siunin/Projects/claude-plugins-beta",
       "branch": "codex/prog-beta-setup",

@@ -29,6 +29,12 @@
 - [ ] 11. 命令文档与帮助更新（含 Drift Prevention/Codex 兼容）
 - [ ] 12. 全量回归与验收报告
 
+## Workflow Context
+- Phase: execution
+- Next action: 实现 /prog done 命令及 finish_pending 状态机制
+- Execution context: codex/prog-beta-setup @ claude-plugins-beta [worktree]
+- Current session context: codex/prog-beta-setup @ claude-plugins-beta [worktree]
+
 ## Recent Updates
 - [UPD-006] status: Feature 3: schema 2.1 contract backfill + lifecycle mapping (feature:3)
   Next: Complete feature 3 after validation.
