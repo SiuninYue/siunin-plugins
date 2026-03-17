@@ -4,6 +4,7 @@
 """
 
 import contextlib
+import copy
 import fcntl
 import json
 import os
@@ -336,7 +337,7 @@ def _execute_transition(
             raise ValueError(f"Feature {feature_id} not found")
 
         feature = features[feature_idx]
-        before_snapshot = {**feature}  # 深拷贝
+        before_snapshot = copy.deepcopy(feature)  # 深拷贝
 
         # 计算目标状态
         feature["lifecycle_state"] = target_state
@@ -347,7 +348,7 @@ def _execute_transition(
         if op == "complete" and ctx.get("commit_hash"):
             feature["commit_hash"] = ctx["commit_hash"]
 
-        after_snapshot = {**feature}
+        after_snapshot = copy.deepcopy(feature)
 
         # 构建审计记录
         audit_record = {
