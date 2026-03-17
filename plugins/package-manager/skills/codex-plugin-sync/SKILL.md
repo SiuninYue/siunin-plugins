@@ -1,6 +1,6 @@
 ---
 name: codex-plugin-sync
-description: This skill should be used when the user asks to "sync codex skills", "migrate Claude plugin resources to Codex", "refresh migrated skills/commands/agents", "fix Codex compatibility for migrated plugins", or mentions `${CLAUDE_PLUGIN_ROOT}` compatibility in migrated resources.
+description: Use when syncing Claude plugins to Codex, migrating plugin resources, refreshing migrated skills/commands/agents, or fixing ${CLAUDE_PLUGIN_ROOT} compatibility.
 version: 0.1.0
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: rules-reviewer
-description: This skill should be used when the user asks to "review rules", "check prompt quality", "validate instructions", "audit system prompts", or mentions reviewing, validating, or checking Claude Code rules, prompts, or instructions. Provides guidance for reviewing rule quality, identifying issues, and suggesting improvements.
+description: Use when reviewing, validating, or checking Claude Code rules/prompts/instructions. Covers: reviewing rules, checking prompt quality, validating instructions, auditing system prompts.
 version: 0.1.0
 ---
 

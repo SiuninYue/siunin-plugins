@@ -1,6 +1,6 @@
 ---
 name: package-manager
-description: This skill should be used when the user asks to "install a package", "add a dependency", "set up a project", "configure package manager", "initialize scaffolding", or mentions package installation, dependency management, or project setup. Provides comprehensive guidance for using mise, uv, pnpm, bun, and other modern package managers with latest stable version strategy.
+description: Use for ANY package installation (mise/brew/npm/pip/cargo/etc), dependency management, or project setup. Covers: installing packages, adding dependencies, setting up projects, configuring package managers, initializing scaffolding.
 version: 0.3.0
 ---
 
@@ -245,20 +245,45 @@ export MISE_CARGO_HOME="$HOME/.mise/cargo"
 
 ## One-Command Updates
 
-### 更新所有工具
+### 🚀 完整一键更新（macOS）
 
 ```bash
-# 更新所有 mise 管理的工具
-mise upgrade
+# 更新所有工具（推荐按顺序执行）
+mise upgrade && brew upgrade && brew cleanup && rustup update && npm update -g && pnpm add -g pnpm && uv self update
+```
 
-# 更新所有 Homebrew 包
-brew upgrade
+### 🐧 完整一键更新（Linux）
 
-# 更新 Rust 工具链
-rustup update
+```bash
+# 更新所有工具（推荐按顺序执行）
+mise upgrade && sudo apt update && sudo apt upgrade && rustup update && npm update -g && pnpm add -g pnpm && uv self update
+```
 
-# 完整更新流程
-mise upgrade && brew upgrade && rustup update
+### 分项更新说明
+
+```bash
+# ===== 版本管理器 =====
+mise upgrade              # 更新所有 mise 管理的工具
+
+# ===== 系统包管理器 =====
+brew upgrade              # macOS: 更新所有 Homebrew 包
+brew cleanup              # macOS: 清理旧版本缓存
+sudo apt update && sudo apt upgrade  # Linux: 更新所有 apt 包
+sudo softwareupdate -i -a  # macOS: 更新系统
+
+# ===== 语言运行时/工具链 =====
+rustup update             # Rust: 更新所有已安装的工具链
+
+# ===== 全局包管理器 =====
+npm update -g             # Node.js: 更新全局 npm 包
+pnpm add -g pnpm          # 更新 pnpm 自身
+bun upgrade               # 更新 bun 自身
+uv self update            # Python: 更新 uv 自身
+gem update --system       # Ruby: 更新 gem 自身
+go install golang.org/x/tools/gopls@latest  # Go: 示例更新工具
+
+# ===== Docker 清理 =====
+docker system prune -af --volumes  # 清理未使用的镜像、容器、卷
 ```
 
 ### 检查哪些需要更新
@@ -272,6 +297,12 @@ brew outdated
 
 # 检查 Rust
 rustup check
+
+# 检查 npm 全局包（需 npm-check-updates）
+npm -g outdated
+
+# 检查 apt（Linux）
+apt list --upgradable
 ```
 
 ### 选择性更新
