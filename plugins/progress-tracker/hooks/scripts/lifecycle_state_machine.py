@@ -496,6 +496,9 @@ def complete_feature(
         archive_result = archive_feature(feature_id, reason=f"自动归档：{reason or '功能完成'}", project_root=project_root)
         if not archive_result.validation.valid:
             result.validation.blockers.extend(archive_result.validation.blockers)
+            # Mark partial failure in metadata
+            result.validation.metadata["partial_failure"] = "archive_failed"
+            result.validation.metadata["archive_succeeded"] = False
 
     return result
 
