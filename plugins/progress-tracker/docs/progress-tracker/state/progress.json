@@ -2,7 +2,7 @@
   "schema_version": "2.0",
   "project_name": "PROG 全量规范化",
   "created_at": "2026-03-16T14:28:41.135552Z",
-  "updated_at": "2026-03-17T06:10:32.410752Z",
+  "updated_at": "2026-03-17T14:17:24.270684Z",
   "features": [
     {
       "id": 1,
@@ -346,7 +346,7 @@
         "cd plugins/progress-tracker && pytest tests/test_progress_manager.py -q -k \"lifecycle or complete_feature or set_development_stage\"",
         "DoD: 合法流转成功且审计完整，非法流转被拒绝且无副作用，回退会重置验收结果。"
       ],
-      "completed": false,
+      "completed": true,
       "owners": {
         "architecture": null,
         "coding": null,
@@ -356,7 +356,7 @@
       "defer_reason": null,
       "deferred_at": null,
       "defer_group": null,
-      "lifecycle_state": "implementing",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-007"
       ],
@@ -378,14 +378,23 @@
         "Scenario: cd plugins/progress-tracker && pytest tests/test_progress_manager.py -q -k \"lifecycle or complete_feature or set_development_stage\"",
         "Scenario: DoD: 合法流转成功且审计完整，非法流转被拒绝且无副作用，回退会重置验收结果。"
       ],
-      "development_stage": "developing",
+      "development_stage": "completed",
       "started_at": "2026-03-17T01:39:42.583569Z",
       "ai_metrics": {
         "complexity_score": 21,
         "complexity_bucket": "standard",
         "selected_model": "sonnet",
         "workflow_path": "plan_execute",
-        "started_at": "2026-03-17T01:39:58.506511Z"
+        "started_at": "2026-03-17T01:39:58.506511Z",
+        "finished_at": "2026-03-17T14:13:26.910187+08:00",
+        "duration_seconds": 16408
+      },
+      "completed_at": "2026-03-17T14:12:13.239984Z",
+      "commit_hash": "538e59352f830e8f6e4b12e695ef8455a6cb4877",
+      "archive_info": {
+        "archived_at": "2026-03-17T14:12:13.439617Z",
+        "files_moved": 0,
+        "files": []
       }
     },
     {
@@ -428,7 +437,9 @@
         "Scenario: cd plugins/progress-tracker && pytest tests/test_progress_manager.py -q -k \"finish or cleanup or worktree or next\"",
         "Scenario: cd plugins/progress-tracker && pytest tests/test_integration.py -q -k \"prog_done or complete\"",
         "Scenario: DoD: 每次 /prog-done 都会落到明确收尾结果或 finish_pending，且 /prog-next 会严格阻断未收尾状态。"
-      ]
+      ],
+      "development_stage": "planning",
+      "started_at": "2026-03-17T14:17:20.501597Z"
     },
     {
       "id": 9,
@@ -706,7 +717,7 @@
       ]
     }
   ],
-  "current_feature_id": 7,
+  "current_feature_id": 8,
   "updates": [
     {
       "id": "UPD-001",
@@ -875,8 +886,8 @@
     }
   ],
   "runtime_context": {
-    "recorded_at": "2026-03-17T14:08:14.810666Z",
-    "source": "set_workflow_state",
+    "recorded_at": "2026-03-17T14:17:20.559595Z",
+    "source": "set_current",
     "workspace_mode": "worktree",
     "worktree_path": "/Users/siunin/Projects/claude-plugins-beta",
     "project_root": "/Users/siunin/Projects/claude-plugins-beta",
@@ -885,28 +896,11 @@
     "branch": "codex/prog-beta-setup",
     "upstream": "origin/codex/prog-beta-setup",
     "tracker_root": "/Users/siunin/Projects/claude-plugins-beta/plugins/progress-tracker",
-    "current_feature_id": 7,
-    "workflow_phase": "execution_complete",
+    "current_feature_id": 8,
+    "workflow_phase": null,
     "current_task": null,
     "total_tasks": null,
-    "next_action": "等待验收与完成"
+    "next_action": null
   },
-  "retrospectives": [],
-  "workflow_state": {
-    "phase": "execution_complete",
-    "plan_path": "docs/plans/2026-03-17-feature-7-lifecycle-api.md",
-    "next_action": "等待验收与完成",
-    "updated_at": "2026-03-17T14:08:14.685099Z",
-    "execution_context": {
-      "recorded_at": "2026-03-17T14:08:14.747397Z",
-      "source": "set_workflow_state",
-      "workspace_mode": "worktree",
-      "worktree_path": "/Users/siunin/Projects/claude-plugins-beta",
-      "project_root": "/Users/siunin/Projects/claude-plugins-beta",
-      "tracker_root": "/Users/siunin/Projects/claude-plugins-beta/plugins/progress-tracker",
-      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/claude-plugins-beta",
-      "branch": "codex/prog-beta-setup",
-      "upstream": "origin/codex/prog-beta-setup"
-    }
-  }
+  "retrospectives": []
 }
