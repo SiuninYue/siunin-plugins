@@ -15,12 +15,12 @@ def test_run_checks_reports_missing_structure(tmp_path: Path) -> None:
     assert any("Missing bug-fix directory" in item for item in errors)
 
 
-def test_check_prog_start_contract_accepts_launcher_binding(tmp_path: Path) -> None:
+def test_check_prog_start_contract_accepts_deprecation_notice(tmp_path: Path) -> None:
     command_path = tmp_path / "commands" / "prog-start.md"
     launcher_skill = tmp_path / "skills" / "prog-launcher" / "SKILL.md"
     command_path.parent.mkdir(parents=True, exist_ok=True)
     launcher_skill.parent.mkdir(parents=True, exist_ok=True)
-    command_path.write_text('skill: "progress-tracker:prog-launcher"\n', encoding="utf-8")
+    command_path.write_text("Deprecated — use /prog-next instead.\n", encoding="utf-8")
     launcher_skill.write_text("---\nname: prog-launcher\n---\n", encoding="utf-8")
 
     errors: list[str] = []
@@ -41,7 +41,6 @@ def test_check_prog_start_contract_rejects_alias_regression(tmp_path: Path) -> N
 
     errors: list[str] = []
     quick_validate.check_prog_start_contract(tmp_path, errors)
-    assert any("prog-launcher" in item for item in errors)
     assert any("deprecated 'progress-tracker:prog-start'" in item for item in errors)
     assert any("Deprecated alias directory exists" in item for item in errors)
 

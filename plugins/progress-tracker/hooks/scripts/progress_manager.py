@@ -3372,7 +3372,10 @@ def check():
                 )
                 plan_validation = validate_plan_path(
                     plan_path,
-                    require_exists=phase in ["planning_complete", "execution", "execution_complete"],
+                    require_exists=phase in [
+                        "planning:draft", "planning:approved",
+                        "planning_complete", "execution", "execution_complete",
+                    ],
                 )
 
                 # Build a user-friendly recovery message
@@ -3448,7 +3451,8 @@ def determine_recovery_action(
     phase, feature, completed_tasks, total_tasks, plan_path: Optional[str] = None
 ):
     """Determine the recommended recovery action based on workflow state."""
-    if phase in ["planning_complete", "execution", "execution_complete"]:
+    if phase in ["planning:draft", "planning:approved",
+                 "planning_complete", "execution", "execution_complete"]:
         plan_validation = validate_plan_path(plan_path, require_exists=True)
         if not plan_validation["valid"]:
             return "recreate_plan"
@@ -3461,6 +3465,12 @@ def determine_recovery_action(
             return "auto_resume"
         else:
             return "manual_resume"
+    elif phase == "planning:approved":
+        return "execute_approved_plan"
+    elif phase == "planning:draft":
+        return "resume_planning_draft"
+    elif phase == "planning:clarifying":
+        return "restart_from_planning"
     elif phase in ["planning", "design_complete", "design"]:
         return "restart_from_planning"
     else:
@@ -5377,6 +5387,8 @@ def set_workflow_state(phase=None, plan_path=None, next_action=None):
         plan_path if plan_path is not None else workflow_state.get("plan_path")
     )
     require_existing_plan = effective_phase in [
+        "planning:draft",
+        "planning:approved",
         "planning_complete",
         "execution",
         "execution_complete",

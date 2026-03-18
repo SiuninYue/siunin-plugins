@@ -34,3 +34,25 @@ Examples:
 - completed task IDs exceed total tasks
 
 Recommendation: repair metadata before delegating new work.
+
+## Scenario 6: Planning Clarifying Phase
+
+- Signal: `phase=planning:clarifying`
+- Read `Questions` field from persisted workflow state (or inline context).
+- Re-ask questions to user.
+- After user answers, proceed to `planning:draft` (do not re-run brainstorming).
+
+## Scenario 7: Planning Draft Phase
+
+- Signal: `phase=planning:draft`, valid plan exists
+- Display `PlanSummary` from workflow state.
+- Wait for user to confirm (approved) or request changes.
+- Do NOT re-run brainstorming — plan already exists.
+- If plan file missing: use `PlanSummary` to reconstruct without brainstorming.
+
+## Scenario 8: Planning Approved Phase
+
+- Signal: `phase=planning:approved`
+- Read persisted `feature.ai_metrics.complexity_bucket`.
+- Route directly to implementation path by bucket (no clarifying questions, no plan writing).
+- If bucket unavailable: default to `standard`, output warning.

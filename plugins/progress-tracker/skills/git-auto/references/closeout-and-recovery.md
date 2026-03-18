@@ -27,6 +27,20 @@ For `Execution Intent=commit_push_pr_merge` only:
 - Existing draft PR: update instead of creating duplicate.
 - Pending/failing checks: stop and return blocker summary.
 
+## Closeout Result Block
+
+After closeout completes (commit + push + PR), output the Execution Result Block in the same format as `git-auto/SKILL.md`:
+
+```
+=== Git Auto Result ===
+CommitHash: <full_40_char_sha>
+PR: <url|draft_url|none>
+Status: <ok|blocked>
+=== End Result ===
+```
+
+`BlockReason: <reason>` is appended when `Status: blocked`.
+
 ## Merge Gates
 
 - `soft`: sync clean.

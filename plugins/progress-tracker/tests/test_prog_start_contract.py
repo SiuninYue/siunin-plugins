@@ -20,13 +20,13 @@ def test_prog_start_skill_has_valid_frontmatter():
     assert re.search(r"^description:\s*This skill should be used", content, re.MULTILINE)
 
 
-def test_prog_start_command_invokes_prog_start_skill():
-    """prog-start command should invoke the prog-launcher skill explicitly."""
+def test_prog_start_command_is_deprecated():
+    """prog-start command should contain deprecation notice and not invoke prog-launcher."""
     command_path = PLUGIN_ROOT / "commands" / "prog-start.md"
     content = command_path.read_text(encoding="utf-8")
 
-    assert "<CRITICAL>" in content
-    assert 'skill: "progress-tracker:prog-launcher"' in content
+    assert "deprecated" in content.lower()
+    assert 'skill: "progress-tracker:prog-launcher"' not in content
 
 
 def test_plugin_json_relies_on_auto_discovery_for_commands():

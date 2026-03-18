@@ -205,6 +205,29 @@ Optional lines when PR maintenance is active:
 - Autorun/closeout/recovery: `references/closeout-and-recovery.md`
 - PR maintenance lane: `references/pr-maintenance.md`
 
+## Execution Result Block
+
+After completing all git operations, output the following result block verbatim. This block is machine-parsed by `/prog done`.
+
+```
+=== Git Auto Result ===
+CommitHash: <full_40_char_sha>
+PR: <url|draft_url|none>
+Status: <ok|blocked>
+BlockReason: <reason>
+=== End Result ===
+```
+
+Rules:
+- `Status: ok` → `CommitHash` MUST be the real 40-character SHA (never `none` or a placeholder).
+- `Status: blocked` → `CommitHash` MAY be `none`; `BlockReason` MUST describe why.
+- `BlockReason` line is **only** output when `Status: blocked`.
+- `PR` is `none` when no PR was created/updated.
+- `/prog done` only parses content between `=== Git Auto Result ===` and `=== End Result ===`.
+- GH006 fallback (branch + PR) is handled internally; still outputs `Status: ok` + real `CommitHash`.
+
+The Plan Template (pre-execution output) remains unchanged and does NOT include `CommitHash`, `PR`, or `Status` fields. Those appear only in the Execution Result Block.
+
 ## Compatibility Guarantees
 
 - Stable command interface remains unchanged.
