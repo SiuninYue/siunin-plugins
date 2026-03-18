@@ -28,6 +28,59 @@ references:
 
 Coordinate `/prog next` execution by selecting the next feature, routing to the correct implementation path, and keeping workflow state resumable.
 
+## Inline Context Fast Path
+
+**Check this FIRST before any other step.**
+
+If the invocation includes inline context lines (`Feature:`, `Phase:`, `Plan:`, `Branch:`, `Worktree:`, `Next:`), treat them as pre-loaded state and do the following:
+
+1. Parse inline context:
+   - `Feature` → `feature_id` and `feature_name`
+   - `Phase` → `workflow_state.phase`
+   - `Plan` → `workflow_state.plan_path`
+   - `PlanSummary` → single-line plan summary (semicolon-separated)
+   - `Tasks` → completed/total counts
+   - `Next` → next task to execute
+   - `Branch` / `Worktree` → `execution_context`
+   - `Bucket` → complexity bucket (`simple|standard|complex`)
+   - `Questions` → clarifying questions (pipe-separated)
+   - `ProjectRoot` → absolute project root path (used for all `prog` commands)
+
+2. If `Worktree` is present: **immediately switch to it before anything else**:
+   ```bash
+   cd <worktree_path>
+   ```
+   If `cd` fails, warn the user and stop — do not proceed in the wrong directory.
+
+3. If `Branch` is present: verify current branch matches. If not, switch:
+   ```bash
+   git checkout <branch>
+   ```
+
+4. **Skip entirely** (do not run): Steps 1 full re-read, Step 2.4 memory overlap check, Step 2.5 git preflight, complexity re-scoring.
+
+5. Route directly by `Phase`:
+   - `execution_complete` → output the `prog-done` handoff block and stop (do not re-implement)
+   - `execution` → jump to Step 4 route with existing plan, resume from `Next` task
+   - `planning_complete` → jump to Step 4B subagent execution with existing plan
+   - `planning` → jump to Step 3 complexity scoring
+   - `planning:approved` → cd Worktree (if present) → read inline `Bucket:` field and route execution directly:
+     - Skip: Steps 2.4, 2.5, brainstorming, writing-plans
+     - Bucket routing (priority: inline `Bucket:` > persisted `feature.ai_metrics.complexity_bucket` > standard fallback):
+       - `simple` → delegate to `feature-implement-simple`
+       - `standard` → Step 4B coordinator
+       - `complex` → delegate to `feature-implement-complex`
+     - If `Bucket` missing or invalid: read persisted `feature.ai_metrics.complexity_bucket` once (fallback only); if still unavailable → default to `standard` and output warning: "Bucket unknown, defaulting to standard" — do NOT stop execution
+   - `planning:draft` → display `PlanSummary`, wait for user approval/changes; do NOT re-run brainstorming
+   - `planning:clarifying` → read `Questions` field, re-ask questions, proceed to draft after answers received
+
+6. `ProjectRoot` present → use `ProjectRoot` as working directory for all `prog` commands.
+   Branch/worktree mismatch validation still applies (ProjectRoot only determines command directory, does not bypass checks).
+
+**The inline context is the source of truth.** Do not re-read `progress.json` to "verify" it — that defeats the purpose.
+
+---
+
 ## Core Responsibilities
 
 1. Select the next actionable feature from `docs/progress-tracker/state/progress.json`.
@@ -81,9 +134,11 @@ plugins/progress-tracker/prog git-sync-check
 - If no progress file exists: instruct user to run `/prog init <goal>`.
 - If all features are complete: show completion message and stop.
 - If `current_feature_id` is already set and not complete:
-  - treat as resume path
-  - point user to `/prog` or `progress-tracker:progress-recovery`
-  - do not overwrite active feature without explicit user confirmation.
+  - Check `workflow_state.phase`:
+    - `execution_complete` → tell user to run `/prog done`, stop here.
+    - `execution` or `planning_complete` → resume from next unfinished task (skip to Step 2.5, use existing plan_path).
+    - `planning` or missing → continue normally from Step 2.
+  - Do not overwrite active feature or re-run git preflight if `workflow_state.execution_context` already matches current branch/worktree.
 
 ### Step 2: Select and Lock Feature
 
@@ -107,30 +162,21 @@ plugins/progress-tracker/prog set-current <feature_id>
   - acceptance test steps
   - architecture constraints (if any)
 
-### Step 2.4: Project Memory Overlap Warning (Read-Only)
+### Step 2.4: Project Memory Overlap Warning (Read-Only, Silent)
 
-After selecting the feature and before implementation:
+**Only run this step if `workflow_state.phase` is not already set** (i.e., this is a fresh feature start, not a resume).
 
-1. Read project memory:
-
-```bash
-plugins/progress-tracker/prog memory read
-```
-
-Legacy CLI equivalent: `project_memory.py read`.
-
-2. Compare selected feature (`name`, `test_steps`, constraints) against memory capabilities using Claude reasoning.
-3. Return JSON object shape:
-   - `has_overlap` (boolean)
-   - `warnings` (array of `{cap_id, level, reason}`)
-   - `advice` (string)
-4. If overlap exists, show a warning block with capability references.
-5. Never block `/prog next`; warning is advisory only.
-6. If JSON parsing fails, silently degrade to "no overlap warning" and continue.
+1. Run: `plugins/progress-tracker/prog memory read`
+2. If memory is empty or returns error → skip, continue silently.
+3. If memory has entries, do a lightweight keyword match (feature name vs capability IDs) — no deep Claude reasoning.
+4. Only surface a warning if there is a clear name/keyword collision. Otherwise, stay silent.
+5. Never block `/prog next`.
 
 ### Step 2.5: Unified Git Auto Preflight
 
-Use the single workspace/Git preflight source:
+**Skip this step if resuming** (phase was `execution` or `planning_complete`) **and `workflow_state.execution_context` matches the current branch/worktree.** Just continue from the saved plan.
+
+Otherwise, run preflight:
 
 ```bash
 plugins/progress-tracker/prog git-auto-preflight --json
@@ -138,41 +184,57 @@ plugins/progress-tracker/prog git-auto-preflight --json
 
 Parse JSON result and branch by `decision`:
 
-1. `ALLOW_IN_PLACE`
-   - Continue `/prog next` flow without workspace changes.
-2. `REQUIRE_WORKTREE`
-   - Isolate work before implementation:
-   ```text
-   Skill("using-git-worktrees", args="Set up isolated workspace for feature-<id>")
-   ```
-3. `DELEGATE_GIT_AUTO`
-   - Delegate Git handling:
-   ```text
-   Skill("progress-tracker:git-auto", args="Resolve workspace/git preflight blockers before feature implementation")
-   ```
+1. `ALLOW_IN_PLACE` → continue without workspace changes.
+2. `REQUIRE_WORKTREE` → `Skill("using-git-worktrees", args="Set up isolated workspace for feature-<id>")`
+3. `DELEGATE_GIT_AUTO` → `Skill("progress-tracker:git-auto", args="Resolve workspace/git preflight blockers")`
 
 Rules:
 - Never block `/prog next` permanently; if delegation fails, return actionable recovery guidance.
 - Surface `reason_codes` and top `issues` in a short warning summary.
-- Resume scenarios still remain advisory: if execution context differs, explain mismatch but continue once preflight is satisfied.
 
-### Step 3: Score Complexity
+### Step 3: Planning Sub-Phase Flow
 
-Use `references/complexity-assessment.md` to calculate:
+Before complexity scoring, initiate the planning sub-phase to clarify requirements.
 
-- `complexity_score`
-- `complexity_bucket`
-- `selected_model`
-- `workflow_path`
+#### Sub-phase A: Clarifying
 
-Persist AI metrics immediately:
+0. **[Pre-step]** Complete complexity scoring using `references/complexity-assessment.md`, persist AI metrics:
+   ```bash
+   plugins/progress-tracker/prog set-feature-ai-metrics <feature_id> \
+     --complexity-score <score> \
+     --selected-model <haiku|sonnet|opus> \
+     --workflow-path <direct_tdd|plan_execute|full_design_plan_execute>
+   ```
+1. Analyze feature, identify 2-4 design decision questions (skip obvious ones).
+2. Set workflow state:
+   ```bash
+   plugins/progress-tracker/prog set-workflow-state --phase "planning:clarifying"
+   ```
+3. Output `planning:clarifying` handoff block (see `progress-recovery/references/communication-templates.md`).
+4. Ask questions directly to user. **STOP.**
 
-```bash
-plugins/progress-tracker/prog set-feature-ai-metrics <feature_id> \
-  --complexity-score <score> \
-  --selected-model <haiku|sonnet|opus> \
-  --workflow-path <direct_tdd|plan_execute|full_design_plan_execute>
-```
+#### Sub-phase B: Draft
+
+1. Use `writing-plans` skill (incorporating user answers) to generate plan.
+2. Generate `PlanSummary` — single line, semicolon-separated, 3-5 key points.
+3. Set workflow state:
+   ```bash
+   plugins/progress-tracker/prog set-workflow-state --phase "planning:draft" --plan-path <path>
+   ```
+4. Display complete plan.
+5. Output `planning:draft` handoff block. **STOP.**
+
+#### Sub-phase C: Approved
+
+1. Set workflow state:
+   ```bash
+   plugins/progress-tracker/prog set-workflow-state --phase "planning:approved" --plan-path <path>
+   ```
+2. Output `planning:approved` handoff block.
+3. Immediately route by persisted `complexity_bucket` and begin execution (same session — do NOT STOP).
+
+**Valid `--phase` values:** `planning`, `planning:clarifying`, `planning:draft`, `planning:approved`, `planning_complete`, `execution`, `execution_complete`
+(`planning_complete` retained for backward compatibility)
 
 ### Step 4: Route by Bucket
 
@@ -235,12 +297,20 @@ Context note:
 
 When implementation is done:
 
-- summarize what was implemented
+- summarize what was implemented (2-3 bullet points)
 - confirm expected acceptance steps
 - confirm review + verification gates were executed
-- instruct user to run `/prog done` for verification + completion
+- output a Context Handoff Block (see template below)
 
 Do not mark the feature complete in this skill.
+
+Use the Context Handoff Block templates from `progress-recovery/references/communication-templates.md`:
+- `execution_complete` → use the `prog-done` block template
+- `execution` / `planning_complete` → use the `prog-next` block template
+- `planning` → use the planning block template
+- `planning:clarifying` → use the `planning:clarifying` block template
+- `planning:draft` → use the `planning:draft` block template
+- `planning:approved` → use the `planning:approved` block template
 
 ## Recovery Rules
 
@@ -283,7 +353,8 @@ When this skill starts a feature, always include:
 1. Active feature (`id + name`)
 2. Complexity result (`score + bucket + selected_model`)
 3. Workflow path chosen
-4. Immediate next command (`/prog done` when implementation completes)
+4. Current phase status — show `/prog done` instruction **only** when `phase=execution_complete`; during planning/execution show current phase and expected next step instead
+5. Context Handoff Block at the end of every response — generated from `references/communication-templates.md` → "Context Handoff Block"
 
 ## Additional Resources
 

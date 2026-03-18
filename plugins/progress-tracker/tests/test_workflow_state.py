@@ -189,6 +189,27 @@ class TestRecoveryActionDetermination:
         )
         assert recommendation == "manual_review"
 
+    def test_recovery_for_planning_approved(self):
+        """Should recommend execute_approved_plan for planning:approved phase."""
+        recommendation = progress_manager.determine_recovery_action(
+            "planning:approved", None, [], 0
+        )
+        assert recommendation == "execute_approved_plan"
+
+    def test_recovery_for_planning_draft(self):
+        """Should recommend resume_planning_draft for planning:draft phase."""
+        recommendation = progress_manager.determine_recovery_action(
+            "planning:draft", None, [], 0
+        )
+        assert recommendation == "resume_planning_draft"
+
+    def test_recovery_for_planning_clarifying(self):
+        """Should recommend restart_from_planning for planning:clarifying phase."""
+        recommendation = progress_manager.determine_recovery_action(
+            "planning:clarifying", None, [], 0
+        )
+        assert recommendation == "restart_from_planning"
+
 
 class TestCheckCommandWithWorkflowState:
     """Test check command with various workflow states."""

@@ -1,26 +1,12 @@
 ---
-description: Start active feature development from planning stage
-version: "1.0.0"
+description: Deprecated - use /prog-next instead. prog-next now handles planning-to-developing transition automatically.
+version: "1.1.0"
 scope: command
-inputs:
-  - User request to start current feature implementation
-outputs:
-  - Active feature moved to developing stage
-  - started_at timestamp persisted
-  - Next-step reminder to use /prog-done
-evidence: optional
-references: []
 model: haiku
 ---
 
-<CRITICAL>
-DO NOT just describe or mention the skill. You MUST invoke it using the Skill tool.
+`/prog-start` is no longer needed.
 
-NOW invoke the skill:
+`/prog-next` now automatically transitions features from planning to developing and continues implementation. Just keep running `/prog-next` until you're ready to run `/prog-done`.
 
-Use the Skill tool with these exact parameters:
-  - skill: "progress-tracker:prog-launcher"
-  - args: ""
-
-WAIT for the skill to complete.
-</CRITICAL>
+Run `/prog-next` to continue.

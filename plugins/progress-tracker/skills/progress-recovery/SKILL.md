@@ -88,6 +88,28 @@ Use `git status --porcelain` to detect uncommitted changes.
 - Resume from planning/execution boundary.
 - Confirm user wants to continue same feature before state changes.
 
+### Case D-1: Active Feature + `planning:approved` (`execute_approved_plan`)
+
+- Read persisted `feature.ai_metrics.complexity_bucket` from progress state.
+- Route directly to implementation path based on bucket:
+  - `simple` → `feature-implement-simple`
+  - `standard` → standard coordinator (Step 4B)
+  - `complex` → `feature-implement-complex`
+- If bucket unavailable: default to `standard` + warn "Bucket unknown, defaulting to standard".
+
+### Case D-2: Active Feature + `planning:draft` (`resume_planning_draft`)
+
+- Display `PlanSummary` from persisted workflow state.
+- Wait for user approval or change requests.
+- Do NOT re-run brainstorming.
+- If plan file missing: reconstruct from `PlanSummary` instead of re-running brainstorming.
+
+### Case D-3: Active Feature + `planning:clarifying` (`restart_from_planning`)
+
+- Read `Questions` from persisted workflow state.
+- Re-ask questions to user.
+- Proceed to `planning:draft` after user provides answers.
+
 ### Case D: No Active Feature + Pending Features
 
 - Recommended action: `/prog next`.
@@ -130,6 +152,7 @@ Recovery responses must include:
 3. Workflow phase and plan validity
 4. Context alignment summary (execution context vs current session context)
 5. Ranked next actions (1-3 options)
+6. Context Handoff Block — always append at the end so user can continue in a new session without re-reading state files (see `references/communication-templates.md` → "Context Handoff Block")
 
 Keep message concise by default; expand only when user asks for details.
 

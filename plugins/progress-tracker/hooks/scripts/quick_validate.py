@@ -125,9 +125,13 @@ def check_prog_start_contract(root: Path, errors: list[str]) -> None:
         errors.append(f"Missing command file: {command_path}")
     else:
         command_content = read_text(command_path)
-        if 'skill: "progress-tracker:prog-launcher"' not in command_content:
+        if 'skill: "progress-tracker:prog-launcher"' in command_content:
             errors.append(
-                "prog-start command must invoke 'progress-tracker:prog-launcher'"
+                "prog-start.md should not invoke prog-launcher — it is deprecated"
+            )
+        if "deprecated" not in command_content.lower():
+            errors.append(
+                "prog-start.md must contain deprecation notice"
             )
         if 'skill: "progress-tracker:prog-start"' in command_content:
             errors.append(

@@ -24,6 +24,34 @@ references:
 
 Finalize the active feature only after verification passes, then update tracking state and Git metadata.
 
+## Inline Context Fast Path
+
+**Check this FIRST before any other step.**
+
+If the invocation includes inline context lines (`Feature:`, `Phase:`, `Plan:`, `Branch:`, `Worktree:`, `ProjectRoot:`), treat them as pre-loaded state:
+
+1. Parse inline context: `feature_id`, `feature_name`, `plan_path`, `branch`, `worktree_path`, `project_root`.
+   - If `ProjectRoot` is present: use it as the working directory for all `prog` commands.
+
+2. If `Worktree` is present: **switch to it immediately**:
+   ```bash
+   cd <worktree_path>
+   ```
+   If `cd` fails, warn and stop.
+
+3. If `Branch` is present: verify and switch if needed:
+   ```bash
+   git checkout <branch>
+   ```
+
+4. **Skip** Step 1 (load active feature from file) and Step 2 (validate workflow state from file) — trust the inline `Phase: execution_complete`.
+
+5. Proceed directly to Step 3 (validate plan contract) using the inline `Plan` path.
+
+**The inline context is the source of truth.**
+
+---
+
 ## Core Responsibilities
 
 1. Validate that workflow execution actually completed.
@@ -104,11 +132,22 @@ Skill("superpowers:requesting-code-review", args="Final review before marking fe
 ```
 
 3. Ensure no unresolved Critical/Important review findings remain.
-4. Ensure code is committed (either existing commit hash or create commit).
-5. Mark feature complete:
+4. Automatically run git closeout (no user confirmation needed):
+
+```text
+Skill("progress-tracker:git-auto",
+      args="git auto done — feature <feature_id> closeout, autorun authorized, intent: commit_push_pr")
+```
+
+   Parse the Execution Result Block (`=== Git Auto Result ===` … `=== End Result ===`):
+   - `Status: ok` → extract `CommitHash`, continue to step 5
+   - `Status: blocked` → display `BlockReason`, STOP — wait for user to resolve, then re-run `/prog done`
+   - GH006 fallback is handled internally by git-auto; still yields `Status: ok` + real `CommitHash`
+
+5. Mark feature complete using the `CommitHash` extracted in step 4:
 
 ```bash
-plugins/progress-tracker/prog complete <feature_id> --commit <commit_hash>
+plugins/progress-tracker/prog complete <feature_id> --commit <CommitHash_from_step4>
 ```
 
 This step will automatically:
@@ -151,9 +190,22 @@ plugins/progress-tracker/prog complete-feature-ai-metrics <feature_id>
 plugins/progress-tracker/prog clear-workflow-state
 ```
 
-9. Show next step:
-- `/prog next` when pending features remain
-- project complete summary when all features are done
+9. Show next step and output a Context Handoff Block:
+
+If pending features remain, output:
+```
+---
+**Paste into a new session to start the next feature:**
+
+/progress-tracker:prog-next
+
+Project: <done>/<total> features done | F<feature_id> "<feature_name>" ✓ just completed
+ProjectRoot: <abs_project_root>
+→ Context pre-loaded. Auto-selects and starts next pending feature.
+---
+```
+
+If all features are complete: output project completion summary instead (no handoff block needed).
 
 10. If all features are complete, first detect whether current branch already has a PR:
 
@@ -167,7 +219,10 @@ EXISTING_PR_URL=$(gh pr list --head "$CURRENT_BRANCH" --json url --jq '.[0].url'
 - If `EXISTING_PR_URL` is non-empty and not `null`:
   - report existing PR URL
   - skip branch finishing flow automatically (avoid duplicate PR/cleanup actions)
-- If no existing PR and user wants immediate integration/cleanup, invoke:
+- Only invoke `finishing-a-development-branch` when **both** conditions are true:
+  1. No existing PR found
+  2. The handoff block that triggered this run explicitly contains `Intent: commit_push_pr_merge`
+- For normal `/prog done` runs (standard `commit_push_pr` intent from git-auto), do NOT invoke `finishing-a-development-branch` — git-auto's commit + push + PR is sufficient.
 
 ```text
 Skill("superpowers:finishing-a-development-branch", args="Complete branch integration after progress-tracker project completion")
@@ -210,6 +265,13 @@ plugins/progress-tracker/prog add-bug \
 - Message: completion requires a commit hash.
 - Next action: commit fix, rerun completion.
 
+### Git Auto Closeout Blocked
+
+- Trigger: `Status: blocked` in Execution Result Block from `git-auto`.
+- Message: display `BlockReason` from result block; do not mark feature complete.
+- Next action: user resolves blocker (e.g., merge conflict, auth error), then re-runs `/prog done`.
+- Feature remains open until `Status: ok` is received.
+
 ### PR Detection Unavailable
 
 - Message: unable to detect PR status (e.g. `gh` unavailable or unauthenticated).
@@ -226,6 +288,6 @@ Always include:
 1. Feature ID and name
 2. Verification summary (pass/fail per test step)
 3. Progress update result
-4. Next command recommendation
+4. Context Handoff Block (see Step 9 template above)
 
 For full examples of pass/fail conversations, read `references/session-examples.md`.
