@@ -405,8 +405,8 @@ class TestWorkflowStateValidation:
         assert result is False
 
     def test_set_workflow_state_rejects_invalid_plan_path(self, in_progress_file):
-        """Should reject plan paths outside docs/progress-tracker/plans."""
-        result = progress_manager.set_workflow_state(plan_path="docs/plans/plan.md")
+        """Should reject plan paths outside docs/plans/ (Superpowers standard)."""
+        result = progress_manager.set_workflow_state(plan_path="docs/notes/plan.md")
         assert result is False
 
     def test_recovery_recommends_recreate_when_plan_missing(self, in_progress_file):

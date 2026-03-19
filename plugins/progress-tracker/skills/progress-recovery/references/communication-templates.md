@@ -173,3 +173,98 @@ ProjectRoot: <abs_project_root>
 
 **Why this saves tokens in new sessions:**
 The receiving skill checks for this inline context and skips `progress.json` reading, memory overlap check, git preflight, and plan re-validation for resume scenarios.
+
+---
+
+## Command Completion Handoff Blocks
+
+### After `/prog init` (feature-breakdown complete) → use `prog-next`
+
+```
+---
+**Paste into a new session to start first feature:**
+
+/progress-tracker:prog-next
+
+Project: <project_name> | 0/<total_features> done
+ProjectRoot: <abs_project_root>
+→ Context pre-loaded. Auto-selects and starts first pending feature.
+---
+```
+
+### After `/prog plan` (architectural-planning complete) → use `prog-init`
+
+```
+---
+**Paste into a new session to generate features:**
+
+/prog init
+
+ProjectRoot: <abs_project_root>
+TechStack: <backend>+<database>+<cache>+<frontend>
+→ Context pre-loaded. Generate feature breakdown based on architecture.
+---
+```
+
+---
+
+## Status Display Handoff Blocks
+
+### `/prog` when no active feature (ready to start) → use `prog-next`
+
+```
+---
+**Paste into a new session to start next feature:**
+
+/progress-tracker:prog-next
+
+Project: <done>/<total> features done
+ProjectRoot: <abs_project_root>
+→ Context pre-loaded. Auto-selects and starts next pending feature.
+---
+```
+
+### `/prog` when feature in progress (phase = execution/planning:approved/planning_complete) → use `prog-next`
+
+```
+---
+**Paste into a new session to continue:**
+
+/progress-tracker:prog-next
+
+Feature: <feature_id> "<feature_name>" | Phase: <phase>
+Plan: <plan_path> | Tasks: <completed>/<total> done
+Next: <next_task_id> — <next_task_title>
+Branch: <branch>[ | Worktree: <worktree_path>]
+ProjectRoot: <abs_project_root>
+→ Context pre-loaded. Resume from next task.
+---
+```
+
+### `/prog` when execution_complete (ready to finish) → use `prog-done`
+
+```
+---
+**Paste into a new session to complete feature:**
+
+/progress-tracker:prog-done
+
+Feature: <feature_id> "<feature_name>" | Phase: execution_complete
+Plan: <plan_path> | Tasks: <total>/<total> done
+Branch: <branch>[ | Worktree: <worktree_path>]
+ProjectRoot: <abs_project_root>
+→ Context pre-loaded. Run verification and commit.
+---
+```
+
+### `/prog` when all features complete → no handoff needed
+
+Output project completion summary instead. No handoff block required.
+
+**Status Handoff Rules:**
+- Always include `ProjectRoot`
+- Show current `Phase` when feature is in progress
+- Show `Tasks` progress when available
+- Show `Next` task for execution/planning_complete phases
+- Include `Branch`/`Worktree` when set
+- Keep block ≤ 8 lines of content

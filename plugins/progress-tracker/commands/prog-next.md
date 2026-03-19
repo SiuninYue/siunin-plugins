@@ -1,6 +1,6 @@
 ---
 description: Start implementing the next pending feature
-version: "1.0.0"
+version: "3.2.0"
 scope: command
 inputs:
   - User request to start next feature

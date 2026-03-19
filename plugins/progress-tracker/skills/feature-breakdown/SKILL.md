@@ -296,7 +296,26 @@ I've broken this down into N features:
 
 ...
 
-Initialized progress tracking. Use `/prog next` to start implementing.
+Initialized progress tracking.
+```
+
+**At the end, ALWAYS output the Context Handoff Block:**
+
+```markdown
+---
+**Paste into a new session to start first feature:**
+
+/progress-tracker:prog-next
+
+Project: <project_name> | 0/<total_features> done
+ProjectRoot: <abs_project_root>
+→ Context pre-loaded. Auto-selects and starts first pending feature.
+---
+```
+
+Get the `ProjectRoot` by running:
+```bash
+pwd -P
 ```
 
 ## Common Patterns

@@ -27,19 +27,15 @@ Show current project status and recommended next action.
 
 ### `/progress-tracker:prog-sync` (alias: `/prog-sync`)
 
-Sync project capability memory from incremental Git history with batch confirmation.
+Sync project capability memory from git history with batch confirmation.
 
 ### `/progress-tracker:prog-update` (alias: `/prog-update`)
 
-Record a structured progress update entry and optional role owner assignment.
+Record a structured progress update (status/decision/risk/handoff/assignment/meeting).
 
 ### `/progress-tracker:prog-next` (alias: `/prog-next`)
 
 Start the next pending feature with deterministic complexity routing.
-
-### `/progress-tracker:prog-start` (alias: `/prog-start`)
-
-Transition the active feature from planning to developing.
 
 ### `/progress-tracker:prog-done` (alias: `/prog-done`)
 
@@ -51,7 +47,7 @@ Report, list, investigate, and fix bugs with systematic debugging and TDD.
 
 ### `/progress-tracker:prog-undo` (alias: `/prog-undo`)
 
-Revert the most recently completed feature safely via `git revert`.
+Undo the last completed feature and revert its code changes.
 
 ### `/progress-tracker:prog-reset` (alias: `/prog-reset`)
 
@@ -177,10 +173,6 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py register-rejection
 
 按复杂度路由启动下一个待完成功能。
 
-### `/progress-tracker:prog-start` (别名：`/prog-start`)
-
-将当前活跃功能从规划阶段切换到开发阶段。
-
 ### `/progress-tracker:prog-done` (别名：`/prog-done`)
 
 执行验收验证并完成当前功能。
@@ -303,7 +295,6 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py register-rejection
 - `/progress-tracker:prog-sync` (alias: `/prog-sync`): sync capability memory from incremental Git history.
 - `/progress-tracker:prog-update` (alias: `/prog-update`): append structured updates and optional owner assignments.
 - `/progress-tracker:prog-next` (alias: `/prog-next`): begin next feature using deterministic routing.
-- `/progress-tracker:prog-start` (alias: `/prog-start`): transition the active feature from planning to developing.
 - `/progress-tracker:prog-done` (alias: `/prog-done`): run acceptance checks and complete the current feature.
 - `/progress-tracker:prog-fix [description|BUG-ID]` (alias: `/prog-fix`): report/list/fix bugs.
 - `/progress-tracker:prog-undo` (alias: `/prog-undo`): revert the most recently completed feature.

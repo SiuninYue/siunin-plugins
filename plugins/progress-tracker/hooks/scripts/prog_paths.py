@@ -39,9 +39,7 @@ MIGRATION_LOG_JSON = "migration_log.json"
 ARCHITECTURE_MD = "architecture.md"
 COMPLEXITY_CACHE_JSON = "complexity_cache.json"
 
-PLAN_PREFIX = "docs/plans/"
-# Legacy paths kept for migration detection only
-LEGACY_PLAN_PREFIX = "docs/progress-tracker/plans/"
+PLAN_PREFIX = "docs/plans/"  # Superpowers standard
 OLD_TESTING_PREFIX = "docs/testing/"
 NEW_TESTING_PREFIX = "docs/progress-tracker/testing/"
 
@@ -170,7 +168,8 @@ def get_state_dir(target_root: Path) -> Path:
 
 
 def get_plans_dir(target_root: Path) -> Path:
-    return get_tracker_docs_root(target_root) / "plans"
+    """Return plans directory using Superpowers standard: docs/plans/"""
+    return target_root / "docs" / "plans"
 
 
 def get_testing_dir(target_root: Path) -> Path:
@@ -244,7 +243,6 @@ def _ensure_parent(path: Path) -> None:
 def _deep_replace_paths(value: Any) -> Any:
     if isinstance(value, str):
         replacements = (
-            (LEGACY_PLAN_PREFIX, PLAN_PREFIX),
             (OLD_TESTING_PREFIX, NEW_TESTING_PREFIX),
             (".claude/architecture.md", "docs/progress-tracker/architecture/architecture.md"),
             (".claude/progress.json", "docs/progress-tracker/state/progress.json"),
@@ -355,9 +353,10 @@ def _append_migration_log(target_root: Path, entry: Dict[str, Any]) -> None:
 
 def ensure_storage_migrated(target_root: Path) -> Dict[str, Any]:
     """
-    Perform one-time migration from legacy `.claude` and `docs/plans|testing`.
+    Perform one-time migration from legacy `.claude` and `docs/testing`.
 
-    No legacy read fallback is used after migration. This function is idempotent.
+    Plans remain in docs/plans/ (Superpowers standard), no migration needed.
+    This function is idempotent.
     """
     ensure_tracker_layout(target_root)
     new_progress_path = get_progress_json_path(target_root)
@@ -383,14 +382,9 @@ def ensure_storage_migrated(target_root: Path) -> Dict[str, Any]:
     for src, dst in file_moves:
         _move_with_conflict(src, dst, conflict_root, operations, conflicts)
 
+    # Migrate testing from docs/testing/ to docs/progress-tracker/testing/
+    # Plans stay in docs/plans/ (Superpowers standard)
     legacy_docs = target_root / "docs"
-    _move_tree_contents(
-        legacy_docs / "plans",
-        get_plans_dir(target_root),
-        conflict_root / "plans",
-        operations,
-        conflicts,
-    )
     _move_tree_contents(
         legacy_docs / "testing",
         get_testing_dir(target_root),

@@ -93,11 +93,9 @@ PROGRESS_MD = "progress.md"
 CHECKPOINTS_JSON = "checkpoints.json"
 CHECKPOINT_MAX_ENTRIES = 50
 CHECKPOINT_INTERVAL_SECONDS = 1800
+# Superpowers writing-plans standard: docs/plans/
 PLAN_PATH_PREFIX = "docs/plans/"
-PLAN_PATH_PREFIX_LEGACY = "docs/progress-tracker/plans/"
-# Both paths are accepted: docs/plans/ (Superpowers writing-plans standard)
-# and docs/progress-tracker/plans/ (legacy format for backward compatibility)
-VALID_PLAN_PREFIXES = (PLAN_PATH_PREFIX, PLAN_PATH_PREFIX_LEGACY)
+VALID_PLAN_PREFIXES = (PLAN_PATH_PREFIX,)
 PROGRESS_ARCHIVE_MAX_ENTRIES = 200
 PROGRESS_LOCK_FILE = "progress.lock"
 PROGRESS_LOCK_TIMEOUT_SECONDS = 10.0
@@ -447,9 +445,8 @@ def validate_plan_path(
     """
     Validate workflow plan path shape and optional existence.
 
-    Accepted formats:
+    Accepted format:
     - docs/plans/<YYYY-MM-DD-name>.md  (Superpowers writing-plans standard)
-    - docs/progress-tracker/plans/<name>.md  (legacy format)
     """
     if plan_path is None:
         return {"valid": True, "normalized_path": None, "error": None}
@@ -469,7 +466,7 @@ def validate_plan_path(
         return {
             "valid": False,
             "normalized_path": None,
-            "error": f"plan_path must be under '{PLAN_PATH_PREFIX}' (or legacy '{PLAN_PATH_PREFIX_LEGACY}')",
+            "error": f"plan_path must be under '{PLAN_PATH_PREFIX}'",
         }
 
     if not normalized.endswith(".md"):

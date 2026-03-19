@@ -2,6 +2,7 @@
 name: testing-standards
 description: This skill should be used when the user asks to "generate test documentation", "create acceptance report", "write bug fix report", "document testing results", "create test guide", or "standardize test documents". Defines naming conventions, frontmatter standards, and content structure for all testing documents in docs/progress-tracker/testing/. Automatically referenced by feature-complete and bug-fix skills.
 version: "1.0.0"
+model: sonnet
 scope: skill
 inputs:
   - Feature ID or Bug ID
