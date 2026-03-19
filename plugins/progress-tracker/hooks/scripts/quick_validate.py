@@ -31,11 +31,6 @@ REQUIRED_REFERENCE_FILES = [
     "skills/progress-recovery/references/communication-templates.md",
 ]
 
-PROG_START_COMMAND = "commands/prog-start.md"
-PROG_LAUNCHER_SKILL = "skills/prog-launcher/SKILL.md"
-PROG_START_ALIAS_DIR = "skills/prog-start"
-
-
 def plugin_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
@@ -115,36 +110,6 @@ def check_required_references(root: Path, errors: list[str]) -> None:
         if not path.exists():
             errors.append(f"Missing reference file: {path}")
 
-
-def check_prog_start_contract(root: Path, errors: list[str]) -> None:
-    command_path = root / PROG_START_COMMAND
-    launcher_skill = root / PROG_LAUNCHER_SKILL
-    alias_dir = root / PROG_START_ALIAS_DIR
-
-    if not command_path.exists():
-        errors.append(f"Missing command file: {command_path}")
-    else:
-        command_content = read_text(command_path)
-        if 'skill: "progress-tracker:prog-launcher"' in command_content:
-            errors.append(
-                "prog-start.md should not invoke prog-launcher — it is deprecated"
-            )
-        if "deprecated" not in command_content.lower():
-            errors.append(
-                "prog-start.md must contain deprecation notice"
-            )
-        if 'skill: "progress-tracker:prog-start"' in command_content:
-            errors.append(
-                "Found deprecated 'progress-tracker:prog-start' binding in commands/prog-start.md"
-            )
-
-    if not launcher_skill.exists():
-        errors.append(f"Missing launcher skill file: {launcher_skill}")
-
-    if alias_dir.exists():
-        errors.append(f"Deprecated alias directory exists: {alias_dir}")
-
-
 def check_generated_docs_sync(root: Path, errors: list[str]) -> None:
     script = root / "hooks" / "scripts" / "generate_prog_docs.py"
     if not script.exists():
@@ -169,7 +134,6 @@ def run_checks(root: Path, *, run_docs_check: bool = True) -> list[str]:
     errors: list[str] = []
 
     check_bug_fix_contract(root, errors)
-    check_prog_start_contract(root, errors)
     check_description_tokens(root, errors)
     check_main_skill_word_counts(root, errors)
     check_required_references(root, errors)

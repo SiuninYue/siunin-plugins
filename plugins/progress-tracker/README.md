@@ -29,8 +29,8 @@ The Progress Tracker plugin solves a critical problem in AI-assisted development
 - **Structured Update Stream** - Captures `status|decision|risk|handoff|assignment|meeting` updates in `updates[]`
 - **Role Ownership Tracking** - Stores `architecture|coding|testing` owners per feature for cross-team handoff clarity
 - **Lightweight Checkpoints** - Auto-saves workflow snapshots to `docs/progress-tracker/state/checkpoints.json` (no git history pollution)
-- **Worktree-Aware Recovery** - Records branch/worktree context so `/prog` and `/prog done` can warn when you resume in the wrong workspace
-- **Unified Git Preflight** - `prog git-auto-preflight --json` is the single workspace/Git risk probe used by `git-auto`, `/prog next`, and `/prog-start`
+- **Worktree-Aware Recovery** - Records branch/worktree context so `/prog` and `/prog-done` can warn when you resume in the wrong workspace
+- **Unified Git Preflight** - `prog git-auto-preflight --json` is the single workspace/Git risk probe used by `git-auto` and `/prog-next`
 
 ## Dependencies
 
@@ -69,19 +69,15 @@ Show current project status and recommended next action.
 
 ### `/progress-tracker:prog-sync` (alias: `/prog-sync`)
 
-Sync project capability memory from incremental Git history with batch confirmation.
+Sync project capability memory from git history with batch confirmation.
 
 ### `/progress-tracker:prog-update` (alias: `/prog-update`)
 
-Record a structured progress update entry and optional role owner assignment.
+Record a structured progress update (status/decision/risk/handoff/assignment/meeting).
 
 ### `/progress-tracker:prog-next` (alias: `/prog-next`)
 
 Start the next pending feature with deterministic complexity routing.
-
-### `/progress-tracker:prog-start` (alias: `/prog-start`)
-
-Transition the active feature from planning to developing.
 
 ### `/progress-tracker:prog-done` (alias: `/prog-done`)
 
@@ -93,7 +89,7 @@ Report, list, investigate, and fix bugs with systematic debugging and TDD.
 
 ### `/progress-tracker:prog-undo` (alias: `/prog-undo`)
 
-Revert the most recently completed feature safely via `git revert`.
+Undo the last completed feature and revert its code changes.
 
 ### `/progress-tracker:prog-reset` (alias: `/prog-reset`)
 
@@ -313,7 +309,7 @@ Stored in your project's `docs/progress-tracker/state/` directory:
 
 ```bash
 # 1. Start a new project
-/prog init Build a TODO app with CRUD operations
+/prog-init Build a TODO app with CRUD operations
 
 # → Creates feature list: database, API, frontend, etc.
 
@@ -323,7 +319,7 @@ Stored in your project's `docs/progress-tracker/state/` directory:
 # → Shows 0/5 complete
 
 # 3. Start first feature (auto-invokes Superpowers workflow)
-/prog next
+/prog-next
 
 ╔════════════════════════════════════════════════════════╗
 ║  🚀 Starting Feature Implementation                    ║
@@ -347,10 +343,10 @@ Stored in your project's `docs/progress-tracker/state/` directory:
 
 ✅ Implementation Complete
 
-**Next Step**: Run `/prog done` to finalize
+**Next Step**: Run `/prog-done` to finalize
 
 # 4. Complete and commit
-/prog done
+/prog-done
 
 ## ✅ All Tests Passed!
 
@@ -427,12 +423,12 @@ The Progress Tracker orchestrates **Superpowers** workflow skills for systematic
 
 **Workflow example**:
 ```bash
-/prog next               # Progress Tracker selects feature
+/prog-next               # Progress Tracker selects feature
                          # → Assesses complexity
                          # → Invokes superpowers:writing-plans
                          # → Invokes superpowers:subagent-driven-development
                          # → Each task: TDD + review + commit
-/prog done               # Progress Tracker runs acceptance tests
+/prog-done               # Progress Tracker runs acceptance tests
                          # → Creates feature commit
                          # → Updates progress.json
 ```
@@ -505,7 +501,7 @@ This command will:
 **During Development**
 ```bash
 # Start your feature work
-/prog next
+/prog-next
 
 # Open Progress UI in another window
 /prog-ui
@@ -556,13 +552,13 @@ Get started with Progress Tracker in 3 steps:
 
 ```bash
 # 1. Initialize your project
-/prog init Build a user authentication system
+/prog-init Build a user authentication system
 
 # 2. Start the first feature
-/prog next
+/prog-next
 
 # 3. Complete and commit
-/prog done
+/prog-done
 ```
 
 **That's it!** The plugin will:
@@ -650,7 +646,7 @@ When a mismatch is detected (for example, feature implementation happened in a w
 
 All tasks in the plan have been executed and committed.
 
-**Recommended Action**: Run `/prog done` to finalize
+**Recommended Action**: Run `/prog-done` to finalize
 ```
 
 **Scenario B: Almost Complete (80%+)**
@@ -741,7 +737,7 @@ The plugin tracks detailed workflow state for accurate recovery:
    - Completion summaries with next steps
 
 5. **Workflow Completion Validation**
-   - `/prog done` validates workflow_state before running tests
+   - `/prog-done` validates workflow_state before running tests
    - Prevents completion without going through Superpowers workflow
    - Guides recovery if workflow is incomplete
 
@@ -752,7 +748,7 @@ The plugin tracks detailed workflow state for accurate recovery:
 ### v1.2.0 (2025-01-29)
 
 #### 新增命令
-- ✅ `/prog plan` - 架构规划命令
+- ✅ `/prog-plan` - 架构规划命令
   - 技术栈推荐
   - 系统架构设计
   - 架构决策记录 (`docs/progress-tracker/architecture/architecture.md`)

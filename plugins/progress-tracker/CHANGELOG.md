@@ -6,6 +6,39 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Removed
+- Deprecated `prog-launcher` skill and associated files:
+  - Removed `skills/prog-launcher/` directory and SKILL.md
+  - Removed `tests/test_prog_start_contract.py`
+  - Updated `quick_validate.py` to remove prog-start contract checks
+  - Updated `tests/test_feature_implement_workspace_gate_contract.py` to remove prog-start references
+  - Updated `tests/test_quick_validate.py` to remove prog-start test cases
+  - Rationale: `/prog-start` workflow has been superseded by integrated `/prog-next` command flow
+
+### Fixed
+- Documentation consistency issues:
+  - Unified command descriptions across `commands/*.md`, `help.md`, and `docs/PROG_COMMANDS.md`
+  - `prog-sync`: Added missing "with batch confirmation" and "project" keywords
+  - `prog-update`: Simplified to match command file description
+  - `prog-undo`: Changed "revert" to "Undo" for consistency
+  - Regenerated documentation using `generate_prog_docs.py --write`
+
+### Changed
+- Skill version alignment and description optimization:
+  - `feature-implement-simple`: Upgraded from v1.0.0 to v1.1.0 to align with `feature-implement-complex`
+  - `feature-implement`: Simplified description (removed technical implementation details)
+  - `bug-fix`: Simplified description (removed "smart scheduling" jargon)
+  - `testing-standards`: Added `model: sonnet` field
+
+- Command version synchronization with referenced skills:
+  - `prog-next`: v1.0.0 → v3.2.0 (aligned with `feature-implement`)
+  - `prog-done`: v1.0.0 → v2.2.0 (aligned with `feature-complete`)
+  - `prog`: v1.0.0 → v2.0.0 (aligned with `progress-status`)
+
+### Technical Debt
+- Removed all prog-launcher related validation logic and tests
+- Standardized command version management to track skill evolution
 ## [1.6.13] - 2026-03-10
 
 ### Fixed

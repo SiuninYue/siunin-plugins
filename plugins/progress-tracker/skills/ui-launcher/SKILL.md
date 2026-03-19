@@ -143,6 +143,42 @@ PID:    <SERVER_PID>
   kill <SERVER_PID>
 ```
 
+### Step 5: Provide usage guidance
+
+After displaying server status, provide helpful next steps:
+
+**If no progress tracking exists** (no `docs/progress-tracker/state/progress.json`):
+```markdown
+### No Active Project
+
+No progress tracking found in this directory.
+
+**Next Steps**:
+- Start a new project: `/prog-init <your goal>`
+- Learn more: `/progress-tracker:help`
+```
+
+**If active project exists**:
+```markdown
+### Progress UI Running
+
+**Tips**:
+- Keep UI open in another window while you work
+- Checkboxes auto-sync to progress files
+- Press `?` in UI for keyboard shortcuts
+
+---
+**Paste into a new session to check status:**
+
+/progress-tracker:prog
+
+ProjectRoot: <abs_project_root>
+→ Context pre-loaded. Shows current status and recommendations.
+---
+```
+
+Get `ProjectRoot` by running: `pwd -P`
+
 ## Error Handling
 
 - **Script not found**: 提示用户重新安装 progress-tracker 插件（`~/.claude/plugins/cache` 中未找到脚本）

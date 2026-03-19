@@ -44,6 +44,35 @@ This capability reverts the most recently completed feature. It performs both a 
     *   **Success**: "Successfully undid feature: <name>. Code has been reverted (new revert commit created)."
     *   **Failure**: Explain what went wrong (e.g., git conflict, no completed features).
 
+4.  **Provide Next Step Guidance**: After successful undo, check current project state and output appropriate Context Handoff Block.
+
+    **If pending features exist**:
+    ```
+    ----
+    **Paste into a new session to continue:**
+
+    /progress-tracker:prog-next
+
+    Project: <completed>/<total> features done | Last undone: <feature_name>
+    ProjectRoot: <abs_project_root>
+    → Context pre-loaded. Auto-selects next pending feature.
+    ----
+    ```
+
+    **If no features remain (all undone)**:
+    ```
+    ----
+    **All features cleared. Ready to start over?**
+
+    /progress-tracker:prog-init <your goal here>
+
+    ProjectRoot: <abs_project_root>
+    → Initialize new project with feature breakdown.
+    ----
+    ```
+
+    Get `ProjectRoot` by running: `pwd -P`
+
 ### Git Strategy
 
 The script uses `git revert` instead of `git reset` because:
@@ -68,6 +97,20 @@ This capability resets active progress tracking files (`progress.json`, `progres
     * "Progress tracking has been reset."
     * "Previous snapshot was archived; use `plugins/progress-tracker/prog list-archives` to inspect and `restore-archive` to recover."
 
+4.  **Provide Next Step Guidance**: After successful reset, output Context Handoff Block:
+    ```
+    ----
+    **Reset complete. Ready to start fresh?**
+
+    /progress-tracker:prog-init <your goal here>
+
+    ProjectRoot: <abs_project_root>
+    → Initialize new project with feature breakdown.
+    ----
+    ```
+
+    Get `ProjectRoot` by running: `pwd -P`
+
 ## Integration with Commands
 
 This skill is invoked by:
@@ -84,12 +127,3 @@ This skill is invoked by:
    * Output: "Undoing feature: Login API... Successfully reverted commit a1b2c3d"
 3. Response: "✅ Undid feature **Login API**. A git revert commit has been created."
 
-**User**: `/prog reset`
-
-**You**: "⚠️ Are you sure you want to delete the progress tracking for this project? This action is permanent."
-
-**User**: "Yes"
-
-**You**:
-1. Run `python3 .../progress_manager.py reset --force`
-2. Response: "🗑️ Active progress reset and previous snapshot archived."

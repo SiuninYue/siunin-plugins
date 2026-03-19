@@ -177,6 +177,21 @@ Ready to start the next feature:
 Use `/prog next` to begin implementation with feature-dev.
 ```
 
+**ALWAYS output this handoff block at the end:**
+```markdown
+---
+**Paste into a new session to start next feature:**
+
+/progress-tracker:prog-next
+
+Project: <done>/<total> features done
+ProjectRoot: <abs_project_root>
+→ Context pre-loaded. Auto-selects and starts next pending feature.
+---
+```
+
+Get `ProjectRoot` by running: `pwd -P`
+
 ### Feature In Progress (Active work exists)
 
 **Condition**: `current_feature_id` is not null
@@ -191,13 +206,48 @@ When implementation is complete, use `/prog done` to:
 - Run test steps
 - Mark feature as completed
 - Commit changes to Git
+```
 
 If `workflow_state.phase == "execution_complete"`, prioritize recommendation:
 ```markdown
 ### Recommended Next Step
 Run `/prog done` to finalize the current feature.
 ```
+
+**ALWAYS output the appropriate handoff block at the end:**
+
+For `phase == "execution_complete"`:
+```markdown
+---
+**Paste into a new session to complete feature:**
+
+/progress-tracker:prog-done
+
+Feature: <feature_id> "<feature_name>" | Phase: execution_complete
+Plan: <plan_path> | Tasks: <total>/<total> done
+Branch: <branch>[ | Worktree: <worktree_path>]
+ProjectRoot: <abs_project_root>
+→ Context pre-loaded. Run verification and commit.
+---
 ```
+
+For `phase == "execution"` or `phase == "planning:approved"` or `phase == "planning_complete"`:
+```markdown
+---
+**Paste into a new session to continue:**
+
+/progress-tracker:prog-next
+
+Feature: <feature_id> "<feature_name>" | Phase: <phase>
+Plan: <plan_path> | Tasks: <completed>/<total> done
+Next: <next_task_id> — <next_task_title>
+Branch: <branch>[ | Worktree: <worktree_path>]
+ProjectRoot: <abs_project_root>
+→ Context pre-loaded. Resume from next task.
+---
+```
+
+Get `ProjectRoot` by running: `pwd -P`
 
 Also display context alignment when available:
 - `workflow_state.execution_context` (where the workflow last advanced)
@@ -336,6 +386,19 @@ def5678 chore: initialize progress tracking
 Current feature is in progress. When ready:
 1. Verify the implementation passes test steps
 2. Run `/prog done` to test and commit
+
+---
+**Paste into a new session to continue:**
+
+/progress-tracker:prog-next
+
+Feature: F3 "Registration API Endpoint" | Phase: execution
+Plan: docs/plans/2024-01-18-registration-api.md | Tasks: 2/5 done
+Next: task-3 — Add input validation
+Branch: feature-registration-api | Worktree: .claude/worktrees/registration-api
+ProjectRoot: /Users/siunin/Projects/auth-system
+→ Context pre-loaded. Resume from task 3.
+---
 ```
 
 ### Empty State Example
@@ -364,3 +427,17 @@ This will:
 4. **Visual clarity**: Use formatting (bold, lists) for readability
 5. **Git integration**: Leverage commit history for context
 6. **Test-focused**: Highlight test steps when showing in-progress features
+7. **ALWAYS output handoff block**: At the end of every status display, include the appropriate Context Handoff Block for the current state (see templates in `communication-templates.md`)
+
+## Handoff Block Reference
+
+Use these templates based on current state:
+
+| State | Template | Purpose |
+|-------|----------|---------|
+| No active feature | `prog-next` (Project only) | Start next feature |
+| Feature in progress (execution/planning:approved/planning_complete) | `prog-next` (with context) | Resume implementation |
+| execution_complete | `prog-done` | Complete feature |
+| All features complete | (none) | Show summary only |
+
+See `../progress-recovery/references/communication-templates.md` for full template definitions.

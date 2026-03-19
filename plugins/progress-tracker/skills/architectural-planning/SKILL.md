@@ -375,16 +375,9 @@ Present to user as:
 
 ```markdown
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🏗️  Architectural Planning
+🏗️  Architectural Planning Complete
 
 Project: <project name>
-
-Let's make key technical decisions...
-
-<interactive questions and recommendations>
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-✓ Architecture Planning Complete
 
 Architecture document saved to: docs/progress-tracker/architecture/architecture.md
 
@@ -392,13 +385,28 @@ Technology Stack:
   • Backend: <choice>
   • Database: <choice>
   • Cache: <choice>
-
-Next Steps:
-  → /prog init    Generate features based on architecture
-  → /prog plan    Review or update architecture
-  → /prog status  View project overview
+  • Frontend: <choice>
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**At the end, ALWAYS output the Context Handoff Block:**
+
+```markdown
+---
+**Paste into a new session to generate features:**
+
+/prog init
+
+ProjectRoot: <abs_project_root>
+TechStack: <backend>+<database>+<cache>+<frontend>
+→ Context pre-loaded. Generate feature breakdown based on architecture.
+---
+```
+
+Get the `ProjectRoot` by running:
+```bash
+pwd -P
 ```
 
 ## Key Principles

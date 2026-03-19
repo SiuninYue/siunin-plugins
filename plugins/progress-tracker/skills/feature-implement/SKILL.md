@@ -1,6 +1,6 @@
 ---
 name: feature-implement
-description: This skill should be used when the user runs "/prog next", asks to "implement next feature", "start next feature", "continue implementation", or needs to resume interrupted feature execution. Coordinates deterministic complexity routing across simple (haiku), standard (sonnet), and complex (opus) paths with fallback to the standard path.
+description: This skill should be used when the user runs "/prog next", asks to "implement next feature", "start next feature", "continue implementation", or needs to resume interrupted feature execution. Routes features to appropriate implementation paths based on complexity assessment.
 model: sonnet
 version: "3.2.0"
 scope: skill
