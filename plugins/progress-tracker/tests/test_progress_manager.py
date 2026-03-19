@@ -1480,13 +1480,13 @@ class TestWorkflowStateEdgeCases:
         assert data["workflow_state"]["phase"] == "test_phase"
 
     def test_validate_plan_path_accepts_docs_plans(self):
-        """Should accept docs/progress-tracker/plans markdown paths."""
+        """Should accept docs/plans/ markdown paths (Superpowers standard)."""
         result = progress_manager.validate_plan_path("docs/plans/feature-1-test.md")
         assert result["valid"] is True
         assert result["normalized_path"] == "docs/plans/feature-1-test.md"
 
     def test_validate_plan_path_rejects_non_standard_paths(self):
-        """Should reject plan paths outside docs/plans/ or docs/progress-tracker/plans/ (legacy)."""
+        """Should reject plan paths outside docs/plans/."""
         result = progress_manager.validate_plan_path("some/other/path/plan.md")
         assert result["valid"] is False
         result2 = progress_manager.validate_plan_path("docs/notes/plan.md")
