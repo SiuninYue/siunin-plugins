@@ -34,13 +34,14 @@ bash $CLAUDE_PLUGIN_ROOT/scripts/verify-rules.sh
 ## Skills
 
 ### package-manager
-**Activation**: When user mentions "install a package", "add a dependency", "set up a project", "configure package manager", or "initialize scaffolding"
+**Activation**: When user mentions "install a package", "add a dependency", "set up a project", "configure package manager", "initialize scaffolding", or "update packages"
 
 Provides comprehensive package management guidance including:
 - Project type detection
 - Package manager selection
 - Correct command patterns
 - Version management strategy
+- One-command update scripts (`update-all`, `update-global`, `update-project`)
 
 ### rules-reviewer
 **Activation**: When user asks to "review rules", "check prompt quality", "validate instructions", or "audit system prompts"
@@ -95,4 +96,4 @@ MIT
 
 ## Version
 
-0.1.0
+1.0.0

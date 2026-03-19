@@ -1,32 +1,22 @@
 ---
 name: package-manager
-description: Use for ANY package installation (mise/brew/npm/pip/cargo/etc), dependency management, or project setup. Covers: installing packages, adding dependencies, setting up projects, configuring package managers, initializing scaffolding.
-version: 0.3.0
+description: Use for ANY package installation (mise/brew/npm/pip/cargo/etc), dependency management, or project setup. Covers: installing packages, adding dependencies, setting up projects, configuring package managers, initializing scaffolding, updating packages.
+version: 1.0.0
 ---
 
 # Package Manager Rules
 
 ## Purpose
 
-This skill provides standardized package management guidance for Claude Code. It ensures all package installations and project setups use modern, efficient tools (mise, uv, pnpm, bun) configured with latest stable versions.
+提供标准化包管理指导，确保所有包安装和项目设置使用现代、高效的工具（mise、uv、pnpm、bun），配置为最新稳定版本。
+
+---
 
 ## ⚠️ CRITICAL: mise First Policy
 
 **ALWAYS check mise before using any other package manager.**
 
-When installing or updating any tool, follow this order:
-
-```bash
-# 1. Check if mise supports the tool
-mise search <tool-name>
-
-# 2. If mise supports it, install via mise
-mise use -g <tool>@latest
-
-# 3. Only use brew/apt if mise doesn't support it
-```
-
-### 🎯 mise 优先决策流程（最终版）
+### 决策流程
 
 ```
 需要安装工具
@@ -49,201 +39,100 @@ mise use -g <tool>@latest
   brew install xxx
 ```
 
-### 💡 简化记忆：
-
-```
-🖥️ GUI 应用     → brew cask
-🔧 其他任何工具   → 先查 mise
-🚫 mise 没有    → brew 或语言专用管理器
-```
-
 ### mise vs brew 对照表
 
 | 工具类型 | 首选 | 示例 |
 |----------|------|------|
 | GUI 应用 | brew cask | Claude Code, VSCode, Docker |
-| 语言运行时 | mise | python, node, rust, go, java |
+| 语言运行时 | mise | python, node, rust, go, java, swift, ruby |
 | 包管理器 | mise | pnpm, bun, uv, cargo |
-| 开发工具（mise 支持） | mise | terraform, kubectl, deno |
+| 开发工具（mise 支持） | mise | terraform, kubectl, deno, cmake |
 | 开发工具（mise 不支持） | brew | gh, jq, ripgrep, fzf |
 
-### mise 已支持的主要工具
+### mise 支持的主要工具
 
 ```bash
 # 编程语言
-mise use -g python@latest    # Python
-mise use -g node@lts        # Node.js
-mise use -g rust@stable     # Rust
-mise use -g go@latest       # Go
-mise use -g java@lts        # Java
-mise use -g ruby@latest     # Ruby
-mise use -g swift@latest    # Swift
+mise use -g python@latest    mise use -g node@lts
+mise use -g rust@stable      mise use -g go@latest
+mise use -g java@lts         mise use -g ruby@latest
+mise use -g swift@latest
 
-# 包管理器
-mise use -g pnpm@latest     # pnpm
-mise use -g bun@latest      # bun
-mise use -g uv@latest       # uv
-
-# 构建工具
-mise use -g cmake@latest    # CMake
+# 包管理器 & 构建工具
+mise use -g pnpm@latest      mise use -g bun@latest
+mise use -g uv@latest        mise use -g cmake@latest
 
 # 开发工具
-mise use -g terraform@latest  # Terraform
-mise use -g kubectl@latest    # kubectl
-mise use -g deno@latest       # Deno
+mise use -g terraform@latest mise use -g kubectl@latest
+mise use -g deno@latest
 ```
 
-### When to Use brew/apt
+---
 
-Only use brew/apt when:
-1. ✅ **GUI 应用程序**
-2. ✅ **mise registry 中不存在的工具**
-3. ✅ **系统级底层工具/库**
-
-4. ❌ **不要用 brew 安装 mise 已支持的编程语言运行时**
-   ```bash
-   # ❌ 错误
-   brew install python node rust go java
-
-   # ✅ 正确
-   mise use -g python@latest node@lts rust@stable go@latest java@lts
-   ```
-
-## When to Use
-
-Activate this skill when:
-- Installing any package or dependency
-- Setting up new projects
-- Configuring package managers
-- Initializing scaffolding
-- Questions about which package manager to use
-- **Any time a user wants to install/update anything**
-
-## 🔗 mise 如何代理包管理器
+## mise 代理机制
 
 ### Shims 工作原理
 
+所有 shim 都指向 mise 二进制，mise 根据调用名称路由到正确版本：
+
 ```bash
-# 所有 shim 都指向 mise 二进制
 ~/.local/share/mise/shims/python  → /opt/homebrew/bin/mise
 ~/.local/share/mise/shims/cargo   → /opt/homebrew/bin/mise
 ~/.local/share/mise/shims/uv      → /opt/homebrew/bin/mise
-... (97 个 shim 都指向同一个 mise)
 ```
 
-### 调用链示例
+### 调用链
 
-```bash
+```
 你运行: uv add requests
-   │
-   ▼
-Shell 在 PATH 中找到 ~/.local/share/mise/shims/uv
-   │
-   ▼
-mise 二进制 (通过调用名称知道是 uv)
-   │
-   ▼
-mise 读取 .mise.toml 配置 (uv = "latest")
-   │
-   ▼
-mise 执行实际的: ~/.local/share/mise/installs/uv/.../uv add requests
+   ↓
+Shell 找到 ~/.local/share/mise/shims/uv
+   ↓
+mise 读取配置 (uv = "latest")
+   ↓
+mise 执行实际的 uv add requests
 ```
 
-### mise 代理的包管理器清单
+### Rust 特殊处理
 
-| 包管理器 | 语言 | mise 代理 | 实际位置 |
-|---------|------|----------|----------|
-| **npm** | Node.js | ✅ | `~/.local/share/mise/installs/node/` |
-| **pnpm** | Node.js | ✅ | `~/Library/pnpm/` |
-| **bun** | Node.js | ✅ | `~/.local/share/mise/installs/bun/` |
-| **pip** | Python | ✅ | `~/.local/share/mise/installs/python/` |
-| **cargo** | Rust | ✅ | `~/.cargo/bin/` (rustup 管理) |
-| **go** | Go | ✅ | `~/.local/share/mise/installs/go/` |
-| **gem** | Ruby | ✅ | `~/.local/share/mise/installs/ruby/` |
-| **swift-package** | Swift | ✅ | `~/.local/share/mise/installs/swift/` |
-
-### 使用 mise 执行命令
-
-```bash
-# 方式 1: 激活 mise 后直接运行 (推荐)
-eval "$(mise activate zsh)"
-uv add requests        # 使用 mise 管理的 uv
-pnpm add lodash        # 使用 mise 管理的 pnpm
-
-# 方式 2: 一次性执行
-mise x -- uv add requests
-mise x -- pnpm add lodash
-
-# 方式 3: 运行任务
-mise run install-deps
-```
-
-## Core Principles
-
-### 1. Use Mise for Version Management
-
-Configure mise to use **latest stable versions**, not fixed versions:
-
-```bash
-# ✅ Correct - use latest stable
-mise use python@latest
-mise use node@latest
-mise use pnpm@latest
-mise use bun@latest
-mise use uv@latest
-
-# ❌ Avoid - fixed versions (unless compatibility requires)
-mise use python@3.14.2
-```
-
-**Rationale**: Latest versions provide security patches, latest features, and reduce maintenance burden.
-
-### 2. Language-Specific Package Managers
-
-| Language | Package Manager | Command Pattern | mise managed? |
-|----------|----------------|-----------------|---------------|
-| Python | `uv` | `uv add <package>` | ✅ |
-| Node.js | `pnpm` (preferred) / `bun` | `pnpm add <package>` / `bun add <package>` | ✅ |
-| Ruby | `bundle` | `bundle add <gem>` | ✅ |
-| Swift | `swift package` | Edit `Package.swift` | ✅ |
-| Rust | `cargo` | `cargo add <package>` | ✅ (via rustup) |
-| Go | `go modules` | `go get <package>@version` | ✅ |
-
-### 3. ⚠️ Rust 特殊处理: mise + rustup
-
-**Rust 在 mise 中的工作方式不同**：
-
-```bash
-# mise 声明版本但使用 rustup 在底层安装
-mise use -g rust@stable
-
-# Rust 不在 ~/.local/share/mise/installs
-# 而是 mise 设置 RUSTUP_TOOLCHAIN 环境变量
-# rustup 管理实际安装
-
-# 更新 Rust
-rustup update              # 直接更新
-mise upgrade rust          # 通过 mise (调用 rustup check)
-```
-
-**关键差异：**
+Rust 通过 **rustup** 管理，mise 只设置环境变量：
 
 | 方面 | 普通工具 | Rust |
 |------|---------|------|
 | 安装位置 | `~/.local/share/mise/installs/` | `~/.rustup/toolchains/` |
 | 管理方式 | mise 直接管理 | mise → rustup (委托) |
 | 环境变量 | PATH 修改 | `RUSTUP_TOOLCHAIN` 变量 |
-| 更新方法 | `mise upgrade` | `rustup update` 或 `mise upgrade rust` |
-
-**环境变量隔离：**
+| 更新方法 | `mise upgrade` | `rustup update` |
 
 ```bash
-# 隔离 mise 的 rustup 与系统-wide
-export MISE_RUSTUP_HOME="$HOME/.mise/rustup"
-export MISE_CARGO_HOME="$HOME/.mise/cargo"
+# 更新 Rust
+rustup update              # 直接更新
+mise upgrade rust          # 通过 mise
 ```
 
-## One-Command Updates
+---
+
+## 项目类型检测
+
+通过检查根目录文件自动检测项目类型：
+
+```
+pyproject.toml      → Python  → uv
+package.json        → Node.js → 检查 lock 文件
+  ├─ pnpm-lock.yaml → pnpm
+  ├─ bun.lockb      → bun
+  ├─ yarn.lock      → yarn
+  ├─ package-lock.json → npm
+  └─ (none)         → 推荐 pnpm
+Gemfile             → Ruby   → bundle
+Package.swift       → Swift  → swift package
+Cargo.toml          → Rust   → cargo
+go.mod              → Go     → go modules
+```
+
+---
+
+## 更新策略
 
 ### 🚀 完整一键更新（macOS）
 
@@ -318,169 +207,223 @@ brew upgrade python
 rustup update stable
 ```
 
-## Project Type Detection
+---
 
-通过检查根目录文件检测项目类型：
-
-```
-pyproject.toml      → Python project  → use uv
-package.json        → Node.js project  → check lock file:
-  ├─ pnpm-lock.yaml → pnpm
-  ├─ bun.lockb      → bun
-  ├─ yarn.lock      → yarn
-  ├─ package-lock.json → npm
-  └─ (none)         → recommend pnpm
-Gemfile             → Ruby project   → use bundle
-Package.swift       → Swift project  → use swift package
-Cargo.toml          → Rust project   → use cargo
-go.mod              → Go project     → use go modules
-```
-
-## Common Commands Reference
+## 语言命令速查
 
 ### Python (uv)
-```bash
-uv add <package>              # Install package
-uv add --dev <package>        # Install dev dependency
-uv sync                       # Sync dependencies
-uv run python script.py       # Run script
-uv run pytest                 # Run tests
-```
+
+| 操作 | 命令 |
+|------|------|
+| 安装依赖 | `uv add <package>` / `uv add --dev <package>` |
+| 同步依赖 | `uv sync` / `uv sync --upgrade` |
+| 运行脚本 | `uv run python script.py` / `uv run pytest` |
+| 全局工具 | `uv tool install <package>` / `uv tool list` / `uv tool upgrade --all` |
 
 ### Node.js (pnpm/bun)
-```bash
-# pnpm
-pnpm add <package>            # Install package
-pnpm add -D <package>         # Install dev dependency
-pnpm install                  # Install all dependencies
-pnpm run <script>             # Run script
 
-# bun
-bun add <package>             # Install package
-bun add -d <package>          # Install dev dependency
-bun install                   # Install all dependencies
-bun run <script>              # Run script
-```
-
-### Ruby (bundle)
-```bash
-bundle install                # Install dependencies
-bundle add <gem>              # Add gem to Gemfile
-bundle exec <command>         # Run command with bundle context
-bundle update                 # Update dependencies
-```
+| 操作 | pnpm | bun |
+|------|------|-----|
+| 安装依赖 | `pnpm add <package>` | `bun add <package>` |
+| 开发依赖 | `pnpm add -D <package>` | `bun add -d <package>` |
+| 安装全部 | `pnpm install` | `bun install` |
+| 运行脚本 | `pnpm run <script>` | `bun run <script>` |
+| 更新依赖 | `pnpm update` / `pnpm update --latest` | `bun update` |
+| 全局工具 | `pnpm add -g <package>` / `pnpm update -g` | `bun add -g <package>` |
 
 ### Rust (cargo)
-```bash
-cargo add <crate>             # Add dependency
-cargo build                   # Build project
-cargo test                    # Run tests
-cargo install --force <crate> # Reinstall global tool
-```
+
+| 操作 | 命令 |
+|------|------|
+| 添加依赖 | `cargo add <crate>` |
+| 构建/测试 | `cargo build` / `cargo test` |
+| 更新依赖 | `cargo update` / `cargo update -p <package>` |
+| 全局工具 | `cargo install <crate>` / `cargo install --force <crate>` |
 
 ### Swift
-```bash
-swift package resolve         # Resolve dependencies
-swift build                   # Build project
-swift test                    # Run tests
+
+| 操作 | 命令 |
+|------|------|
+| 解析依赖 | `swift package resolve` |
+| 构建/测试 | `swift build` / `swift test` |
+| 更新依赖 | `swift package update` |
+
+### Ruby (bundle)
+
+| 操作 | 命令 |
+|------|------|
+| 安装依赖 | `bundle install` |
+| 添加 gem | `bundle add <gem>` |
+| 更新依赖 | `bundle update` / `bundle update --conservative <gem>` |
+
+### Go
+
+| 操作 | 命令 |
+|------|------|
+| 添加依赖 | `go get <package>@version` |
+| 更新全部 | `go get -u ./...` |
+| 整理依赖 | `go mod tidy` |
+
+---
+
+## 统一更新策略
+
+### 更新层级
+
+```
+┌─────────────────────────────────────────┐
+│           全部更新 (update-all)          │
+├─────────────────┬───────────────────────┤
+│   全局工具      │     项目依赖           │
+│  (update-global)│  (update-project)     │
+├─────────────────┴───────────────────────┤
+│ mise → brew → rustup → 全局包 → 项目    │
+└─────────────────────────────────────────┘
 ```
 
-## Global Tool Installation
+### ⚠️ 重要提醒
+
+`mise upgrade` **只更新工具版本**，不更新：
+- ❌ 项目依赖（Cargo.lock、package.json）
+- ❌ 全局包（npm -g、uv tool、cargo install）
 
 ```bash
-# Python tools via uv
-uv tool install <package>
-
-# Node.js tools via pnpm
-pnpm add -g <package>
-
-# Ruby tools via gem
-gem install <gem-name>
-
-# Rust tools via cargo
-cargo install <crate-name>
-
-# Go tools via go install
-go install <package>@latest
+mise upgrade
+# ✅ python 3.14.0 → 3.14.3
+# ✅ node 24.0.0 → 24.14.0
+# ❌ 不更新 pnpm 全局包
+# ❌ 不更新项目依赖
 ```
 
-## mise Activation: PATH vs Shims
+---
 
-### 推荐: PATH 修改（交互式使用）
+## 快捷脚本
+
+将以下函数添加到 `~/.zshrc` 或 `~/.bashrc`：
+
+```bash
+# 更新所有内容（工具 + 全局包 + 项目依赖）
+update-all() {
+    echo "🔧 Step 1: mise 工具..."
+    mise upgrade
+
+    echo "📦 Step 2: Homebrew..."
+    brew upgrade && brew cleanup
+
+    echo "⚙️  Step 3: Rust..."
+    rustup update
+
+    echo "🌐 Step 4: 全局包..."
+    uv tool upgrade --all 2>/dev/null || true
+    pnpm update -g 2>/dev/null || true
+
+    echo "📂 Step 5: 项目依赖..."
+    [ -f "Cargo.toml" ] && cargo update
+    [ -f "Package.swift" ] && swift package update
+    [ -f "pyproject.toml" ] && uv sync --upgrade
+    if [ -f "package.json" ]; then
+        [ -f "pnpm-lock.yaml" ] && pnpm update
+        [ -f "bun.lockb" ] && bun update
+        [ ! -f "pnpm-lock.yaml" ] && [ ! -f "bun.lockb" ] && npm update
+    fi
+    [ -f "Gemfile" ] && bundle update
+    [ -f "go.mod" ] && go get -u ./... && go mod tidy
+
+    echo "✅ 检查过时项..."
+    mise outdated
+    brew outdated
+    echo "🎉 完成！"
+}
+
+# 仅更新全局工具
+update-global() {
+    mise upgrade
+    brew upgrade && brew cleanup
+    rustup update
+    uv tool upgrade --all
+    pnpm update -g
+    echo "✅ 全局更新完成！"
+}
+
+# 仅更新当前项目
+update-project() {
+    if [ -f "Cargo.toml" ]; then cargo update
+    elif [ -f "Package.swift" ]; then swift package update
+    elif [ -f "pyproject.toml" ]; then uv sync --upgrade
+    elif [ -f "package.json" ]; then
+        [ -f "pnpm-lock.yaml" ] && pnpm update
+        [ -f "bun.lockb" ] && bun update
+        [ ! -f "pnpm-lock.yaml" ] && [ ! -f "bun.lockb" ] && npm update
+    elif [ -f "Gemfile" ]; then bundle update
+    elif [ -f "go.mod" ]; then go get -u ./... && go mod tidy
+    else echo "❓ 未检测到支持的项目类型"; fi
+}
+```
+
+### 使用方法
+
+```bash
+update-all      # 更新所有内容
+update-global   # 仅更新全局工具
+update-project  # 仅更新当前项目
+```
+
+---
+
+## 工作流程
+
+```
+1. 检查 mise 支持 → mise search <tool>
+2. 检测项目类型 → 查看根目录配置文件
+3. 检查工具版本 → mise ls / mise outdated
+4. 选择包管理器 → 基于项目类型
+5. 执行命令 → 遵循语言特定模式
+```
+
+---
+
+## 安装检查清单
+
+安装任何东西之前：
+
+- [ ] mise 是否支持？(`mise search <tool>`)
+- [ ] 项目依赖还是全局工具？
+- [ ] 对应语言的包管理器是什么？
+- [ ] 最新稳定版还是特定版本？
+
+---
+
+## 激活 mise
+
+### 推荐: PATH 修改
 
 ```bash
 # ~/.zshrc or ~/.bashrc
 eval "$(mise activate zsh)"
 ```
 
-**优点：**
-- 完整功能支持
-- 环境变量立即可用
-- 更适合交互式 shell
-
-### 替代方案: Shims（IDE/脚本/CI）
+### 替代: Shims
 
 ```bash
 # ~/.zshrc or ~/.bashrc
 eval "$(mise activate zsh --shims)"
 ```
 
-**优点：**
-- 更适合 IDE 集成
-- 对脚本更可预测
-- 更轻量
+| 方式 | 适用场景 | 优点 | 缺点 |
+|------|---------|------|------|
+| PATH | 交互式 shell | 完整功能、环境变量立即可用 | 较重 |
+| Shims | IDE/脚本/CI | 轻量、可预测 | 某些功能受限 |
 
-**缺点：**
-- 某些功能受限
-- 环境变量只在 shim 执行时加载
+---
 
-### 目录结构
-
-```
-~/.local/share/mise/
-├── installs/          # 实际工具安装（Rust 除外）
-│   ├── python/
-│   ├── node/
-│   └── ...
-└── shims/             # 符号链接包装器（97 个）
-    ├── python
-    ├── node
-    ├── uv
-    ├── cargo          # 指向 rustup
-    └── ...            # 都指向同一个 mise 二进制
-```
-
-## Workflow
-
-1. **检查 mise 是否支持** - `mise search <tool>`
-2. **检测项目类型** - 检查根目录的配置文件
-3. **检查 mise 配置** - 验证工具版本
-4. **选择合适的包管理器** - 基于项目类型
-5. **使用正确的命令模式** - 遵循语言特定模式
-6. **推荐 mise use latest** - 如果使用过时工具
-
-## Installation Checklist
-
-安装任何东西之前，问自己：
-
-- [ ] 这个工具在 mise 中可用吗？(`mise search <tool>`)
-- [ ] 应该是项目依赖还是全局工具？
-- [ ] 这个语言/运行时适合的包管理器是什么？
-- [ ] 最新稳定版本是否合适，还是需要特定版本？
-
-## Additional Resources
+## 参考资料
 
 ### Scripts
 
-- **`$CLAUDE_PLUGIN_ROOT/scripts/verify-rules.sh`** - Verify package manager setup and detect project type
+- `$CLAUDE_PLUGIN_ROOT/scripts/verify-rules.sh` - 验证包管理器设置
 
-### References
-
-- **`references/package-managers.md`** - Detailed package manager documentation with examples and troubleshooting
-
-### mise Documentation
+### Documentation
 
 - [mise Official Docs](https://mise.jdx.dev)
 - [mise Rust Guide](https://mise.jdx.dev/lang/rust.html)
 - [mise Shims vs PATH](https://mise.jdx.dev/dev-tools/shims.html)
-- [mise Exec Command](https://mise.jdx.dev/cli/exec.html)
