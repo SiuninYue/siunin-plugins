@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **BREAKING**: Plan paths now only accept `docs/plans/` (Superpowers standard). Legacy `docs/progress-tracker/plans/` paths are no longer supported. Users with plans in that location should move them to `docs/plans/`.
+
 ### Removed
 - Deprecated `prog-launcher` skill and associated files:
   - Removed `skills/prog-launcher/` directory and SKILL.md
