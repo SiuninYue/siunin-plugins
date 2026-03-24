@@ -3,7 +3,8 @@
 
 Provides NoteData dataclass and template rendering functions.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime
 from typing import List
 import json
 import sys
@@ -20,6 +21,8 @@ class NoteData:
         summary: 内容摘要 (50-100字)
         key_points: 关键要点 (每行一条，- 开头)
         content: 处理后的正文内容
+        created: 创建时间 (ISO 8601 格式，默认为当前时间)
+        updated: 更新时间 (ISO 8601 格式，默认为当前时间)
     """
     title: str
     note_type: str
@@ -27,6 +30,8 @@ class NoteData:
     summary: str
     key_points: str
     content: str
+    created: str = field(default_factory=lambda: datetime.now().isoformat())
+    updated: str = field(default_factory=lambda: datetime.now().isoformat())
 
     def validate(self) -> None:
         """验证必填字段非空
