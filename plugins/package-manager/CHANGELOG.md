@@ -5,6 +5,23 @@ All notable changes to the Package Manager plugin will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-03-20
+
+### Fixed
+- **Critical update command fixes**:
+  - 移除不必要的 `pnpm self-update`（mise 已管理）
+  - 移除不必要的 `uv self update`（mise 已管理）
+  - 修正 `mise exec` 语法：`mise exec -uv --` → `mise exec uv --`
+  - 修复 `update-project` 函数，添加 `mise exec` 调用确保非交互式环境可用
+  - 修正注释错误：`npm -g outdated` 是自带功能，无需额外安装
+- **Global package management clarity**:
+  - 添加 npm vs pnpm 全局包冲突警告
+  - 简化一键更新命令，移除 `npm update -g`（避免与 pnpm 冲突）
+  - 快捷脚本中保留 `npm update -g` 作为兼容性选项
+- Updated command reference table to clarify self-update is handled by mise
+- Simplified update scripts - mise already manages pnpm/uv/bun versions
+- Ensured all commands use correct `mise exec` syntax for non-interactive shells
+
 ## [1.0.0] - 2026-03-17
 
 ### Added

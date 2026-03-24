@@ -1,7 +1,7 @@
 ---
 name: package-manager
 description: Use for ANY package installation (mise/brew/npm/pip/cargo/etc), dependency management, or project setup. Covers: installing packages, adding dependencies, setting up projects, configuring package managers, initializing scaffolding, updating packages.
-version: 1.0.0
+version: 1.0.1
 ---
 
 # Package Manager Rules
@@ -138,21 +138,23 @@ go.mod              → Go     → go modules
 
 ```bash
 # 更新所有工具（推荐按顺序执行）
-mise upgrade && brew upgrade && brew cleanup && rustup update && npm update -g && pnpm add -g pnpm && uv self update
+mise upgrade && brew upgrade && brew cleanup && rustup update
 ```
 
 ### 🐧 完整一键更新（Linux）
 
 ```bash
 # 更新所有工具（推荐按顺序执行）
-mise upgrade && sudo apt update && sudo apt upgrade && rustup update && npm update -g && pnpm add -g pnpm && uv self update
+mise upgrade && sudo apt update && sudo apt upgrade && rustup update
 ```
+
+**注**: 如需更新全局 npm/pnpm 包，请使用下方快捷脚本中的 `update-global`
 
 ### 分项更新说明
 
 ```bash
 # ===== 版本管理器 =====
-mise upgrade              # 更新所有 mise 管理的工具
+mise upgrade              # 更新所有 mise 管理的工具（pnpm/uv/bun 等都包括）
 
 # ===== 系统包管理器 =====
 brew upgrade              # macOS: 更新所有 Homebrew 包
@@ -161,13 +163,12 @@ sudo apt update && sudo apt upgrade  # Linux: 更新所有 apt 包
 sudo softwareupdate -i -a  # macOS: 更新系统
 
 # ===== 语言运行时/工具链 =====
-rustup update             # Rust: 更新所有已安装的工具链
+rustup update             # Rust: 更新所有已安装的工具链（mise 不直接管理 rust）
 
-# ===== 全局包管理器 =====
-npm update -g             # Node.js: 更新全局 npm 包
-pnpm add -g pnpm          # 更新 pnpm 自身
-bun upgrade               # 更新 bun 自身
-uv self update            # Python: 更新 uv 自身
+# ===== 全局包（通过包管理器安装的包） =====
+npm update -g             # Node.js: 更新全局 npm 包（仅当使用 npm 时）
+mise exec uv -- uv tool upgrade --all  # Python: 更新 uv 全局工具
+mise exec pnpm -- pnpm update -g       # Node.js: 更新 pnpm 全局工具（推荐）
 gem update --system       # Ruby: 更新 gem 自身
 go install golang.org/x/tools/gopls@latest  # Go: 示例更新工具
 
@@ -187,7 +188,7 @@ brew outdated
 # 检查 Rust
 rustup check
 
-# 检查 npm 全局包（需 npm-check-updates）
+# 检查 npm 全局包
 npm -g outdated
 
 # 检查 apt（Linux）
@@ -229,7 +230,8 @@ rustup update stable
 | 安装全部 | `pnpm install` | `bun install` |
 | 运行脚本 | `pnpm run <script>` | `bun run <script>` |
 | 更新依赖 | `pnpm update` / `pnpm update --latest` | `bun update` |
-| 全局工具 | `pnpm add -g <package>` / `pnpm update -g` | `bun add -g <package>` |
+| 全局工具 | `pnpm add -g <package>` / `pnpm update -g` | `bun add -g <package>` / `bun update -g` |
+| 注：自身更新 | 通过 `mise upgrade` | 通过 `mise upgrade` |
 
 ### Rust (cargo)
 
@@ -238,7 +240,8 @@ rustup update stable
 | 添加依赖 | `cargo add <crate>` |
 | 构建/测试 | `cargo build` / `cargo test` |
 | 更新依赖 | `cargo update` / `cargo update -p <package>` |
-| 全局工具 | `cargo install <crate>` / `cargo install --force <crate>` |
+| 全局工具安装 | `cargo install <crate>` |
+| 全局工具更新 | `cargo install <crate> --force` 或 `cargo uninstall <crate> && cargo install <crate>` |
 
 ### Swift
 
@@ -295,6 +298,22 @@ mise upgrade
 # ❌ 不更新项目依赖
 ```
 
+### ⚠️ npm vs pnpm 全局包冲突
+
+**不要混用 npm 和 pnpm 管理全局包！**
+
+选择一个作为主要的全局包管理器：
+
+| 场景 | 推荐命令 | 说明 |
+|------|---------|------|
+| 使用 pnpm | `mise exec pnpm -- pnpm add -g <package>` | 推荐，更高效 |
+| 使用 npm | `npm add -g <package>` | 传统方式 |
+
+**警告**: 如果混用，可能导致：
+- 包版本冲突
+- 难以追踪包来源
+- 更新时出现问题
+
 ---
 
 ## 快捷脚本
@@ -313,17 +332,18 @@ update-all() {
     echo "⚙️  Step 3: Rust..."
     rustup update
 
-    echo "🌐 Step 4: 全局包..."
-    uv tool upgrade --all 2>/dev/null || true
-    pnpm update -g 2>/dev/null || true
+    echo "🌐 Step 4: 全局包（兼容两种包管理器）..."
+    mise exec uv -- uv tool upgrade --all 2>/dev/null || true
+    mise exec pnpm -- pnpm update -g 2>/dev/null || true
+    npm update -g 2>/dev/null || true  # 兼容性：如果使用了 npm 全局包
 
     echo "📂 Step 5: 项目依赖..."
     [ -f "Cargo.toml" ] && cargo update
     [ -f "Package.swift" ] && swift package update
-    [ -f "pyproject.toml" ] && uv sync --upgrade
+    [ -f "pyproject.toml" ] && mise exec uv -- uv sync --upgrade
     if [ -f "package.json" ]; then
-        [ -f "pnpm-lock.yaml" ] && pnpm update
-        [ -f "bun.lockb" ] && bun update
+        [ -f "pnpm-lock.yaml" ] && mise exec pnpm -- pnpm update
+        [ -f "bun.lockb" ] && mise exec bun -- bun update
         [ ! -f "pnpm-lock.yaml" ] && [ ! -f "bun.lockb" ] && npm update
     fi
     [ -f "Gemfile" ] && bundle update
@@ -340,8 +360,10 @@ update-global() {
     mise upgrade
     brew upgrade && brew cleanup
     rustup update
-    uv tool upgrade --all
-    pnpm update -g
+    echo "📦 更新全局包（兼容两种包管理器）..."
+    mise exec uv -- uv tool upgrade --all 2>/dev/null || true
+    mise exec pnpm -- pnpm update -g 2>/dev/null || true
+    npm update -g 2>/dev/null || true  # 兼容性：如果使用了 npm 全局包
     echo "✅ 全局更新完成！"
 }
 
@@ -349,10 +371,10 @@ update-global() {
 update-project() {
     if [ -f "Cargo.toml" ]; then cargo update
     elif [ -f "Package.swift" ]; then swift package update
-    elif [ -f "pyproject.toml" ]; then uv sync --upgrade
+    elif [ -f "pyproject.toml" ]; then mise exec uv -- uv sync --upgrade
     elif [ -f "package.json" ]; then
-        [ -f "pnpm-lock.yaml" ] && pnpm update
-        [ -f "bun.lockb" ] && bun update
+        [ -f "pnpm-lock.yaml" ] && mise exec pnpm -- pnpm update
+        [ -f "bun.lockb" ] && mise exec bun -- bun update
         [ ! -f "pnpm-lock.yaml" ] && [ ! -f "bun.lockb" ] && npm update
     elif [ -f "Gemfile" ]; then bundle update
     elif [ -f "go.mod" ]; then go get -u ./... && go mod tidy
