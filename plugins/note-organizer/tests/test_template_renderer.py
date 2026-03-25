@@ -10,6 +10,11 @@ if str(plugin_root) not in sys.path:
 
 from scripts.template_renderer import NoteData, format_tags_list
 try:
+    from scripts.template_renderer import format_tags_yaml
+    _has_format_tags_yaml = True
+except ImportError:
+    _has_format_tags_yaml = False
+try:
     from scripts.template_renderer import render_template
     _has_render = True
 except ImportError:
@@ -36,6 +41,23 @@ class TestFormatTagsList:
     def test_multiple_tags(self):
         result = format_tags_list(["tech/ai", "tutorial"])
         assert result == "tech/ai, tutorial"
+
+
+@pytest.mark.skipif(not _has_format_tags_yaml, reason="format_tags_yaml not implemented yet")
+class TestFormatTagsYaml:
+    """Test format_tags_yaml function"""
+
+    def test_empty_list(self):
+        result = format_tags_yaml([])
+        assert result == ""
+
+    def test_single_tag(self):
+        result = format_tags_yaml(["tech/ai"])
+        assert result == "\n  - tech/ai"
+
+    def test_multiple_tags(self):
+        result = format_tags_yaml(["tech/ai", "tutorial"])
+        assert result == "\n  - tech/ai\n  - tutorial"
 
 
 class TestNoteDataValidation:

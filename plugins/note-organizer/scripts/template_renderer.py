@@ -83,7 +83,7 @@ def format_tags_yaml(tags: List[str]) -> str:
     """
     if not tags:
         return ""
-    return "\\n  - ".join([""] + tags)
+    return "\n  - ".join([""] + tags)
 
 
 def format_inline_tags(tags: List[str]) -> str:
