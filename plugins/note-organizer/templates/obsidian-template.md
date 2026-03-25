@@ -1,8 +1,7 @@
 ---
 type: {note_type}
 status: active
-tags:
-  - {tags}
+tags:{tags_yaml}
 created: {created}
 updated: {updated}
 cssclass: {note_type}
