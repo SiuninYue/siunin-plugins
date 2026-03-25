@@ -67,6 +67,44 @@ def format_tags_list(tags: List[str]) -> str:
     return ", ".join(tags)
 
 
+def format_tags_yaml(tags: List[str]) -> str:
+    """将标签列表格式化为 YAML 数组
+
+    Args:
+        tags: 标签列表，如 ["tech/ai", "tutorial"]
+
+    Returns:
+        YAML 数组格式的字符串，每行一个标签带 "- " 前缀
+        空列表返回空字符串
+
+    Examples:
+        >>> format_tags_yaml(["tech/ai", "tutorial"])
+        "\\n  - tech/ai\\n  - tutorial"
+    """
+    if not tags:
+        return ""
+    return "\\n  - ".join([""] + tags)
+
+
+def format_inline_tags(tags: List[str]) -> str:
+    """将标签列表格式化为内联 #tag 格式
+
+    Args:
+        tags: 标签列表，如 ["tech/ai", "tutorial"]
+
+    Returns:
+        空格分隔的 #tag 字符串
+        空列表返回空字符串
+
+    Examples:
+        >>> format_inline_tags(["tech/ai", "tutorial"])
+        "#tech/ai #tutorial"
+    """
+    if not tags:
+        return ""
+    return " ".join(f"#{tag}" for tag in tags)
+
+
 def render_template(template_path: str, data: NoteData) -> str:
     """渲染模板
 
@@ -97,9 +135,13 @@ def render_template(template_path: str, data: NoteData) -> str:
         "title": data.title,
         "note_type": data.note_type,
         "tags": format_tags_list(data.tags),
+        "tags_yaml": format_tags_yaml(data.tags),
+        "inline_tags": format_inline_tags(data.tags),
         "summary": data.summary,
         "key_points": data.key_points,
-        "content": data.content
+        "content": data.content,
+        "created": data.created,
+        "updated": data.updated
     }
 
     # Step 4: 使用 str.format() 替换占位符
