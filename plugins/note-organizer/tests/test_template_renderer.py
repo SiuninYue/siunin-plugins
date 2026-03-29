@@ -10,6 +10,16 @@ if str(plugin_root) not in sys.path:
 
 from scripts.template_renderer import NoteData, format_tags_list
 try:
+    from scripts.template_renderer import format_tags_yaml
+    _has_format_tags_yaml = True
+except ImportError:
+    _has_format_tags_yaml = False
+try:
+    from scripts.template_renderer import format_inline_tags
+    _has_format_inline_tags = True
+except ImportError:
+    _has_format_inline_tags = False
+try:
     from scripts.template_renderer import render_template
     _has_render = True
 except ImportError:
@@ -36,6 +46,40 @@ class TestFormatTagsList:
     def test_multiple_tags(self):
         result = format_tags_list(["tech/ai", "tutorial"])
         assert result == "tech/ai, tutorial"
+
+
+@pytest.mark.skipif(not _has_format_tags_yaml, reason="format_tags_yaml not implemented yet")
+class TestFormatTagsYaml:
+    """Test format_tags_yaml function"""
+
+    def test_empty_list(self):
+        result = format_tags_yaml([])
+        assert result == ""
+
+    def test_single_tag(self):
+        result = format_tags_yaml(["tech/ai"])
+        assert result == "\n  - tech/ai"
+
+    def test_multiple_tags(self):
+        result = format_tags_yaml(["tech/ai", "tutorial"])
+        assert result == "\n  - tech/ai\n  - tutorial"
+
+
+@pytest.mark.skipif(not _has_format_inline_tags, reason="format_inline_tags not implemented yet")
+class TestFormatInlineTags:
+    """Test format_inline_tags function"""
+
+    def test_empty_list(self):
+        result = format_inline_tags([])
+        assert result == ""
+
+    def test_single_tag(self):
+        result = format_inline_tags(["tech/ai"])
+        assert result == "#tech/ai"
+
+    def test_multiple_tags(self):
+        result = format_inline_tags(["tech/ai", "tutorial"])
+        assert result == "#tech/ai #tutorial"
 
 
 class TestNoteDataValidation:
@@ -112,6 +156,41 @@ class TestRenderTemplate:
         assert "# Test Title" in result
         assert "类型: tutorial" in result
         assert "标签: tech/ai, tutorial" in result
+
+    def test_render_obsidian_template(self, tmp_path):
+        """Test rendering Obsidian-style template with YAML frontmatter"""
+        # Create test Obsidian template
+        template_file = tmp_path / "test-obsidian.md"
+        template_file.write_text("""---
+type: {note_type}
+tags:{tags_yaml}
+created: {created}
+cssclass: {note_type}
+---
+
+# {title}
+
+{summary}
+""")
+
+        # Test data
+        data = NoteData(
+            title="Test Note",
+            note_type="tutorial",
+            tags=["python", "testing"],
+            summary="Test summary",
+            key_points="- Point 1",
+            content="Test content"
+        )
+
+        # Render and verify
+        result = render_template(str(template_file), data)
+        assert "type: tutorial" in result
+        assert "- python" in result
+        assert "- testing" in result
+        assert "cssclass: tutorial" in result
+        assert "# Test Note" in result
+        assert "Test summary" in result
 
     def test_template_not_found_raises_file_not_found_error(self):
         data = NoteData(
