@@ -11,11 +11,23 @@ siunin的Claude插件集合仓库。
 - **功能**: 14个命令、8个专业Agent、16个专业技能
 
 ### 2. 进度追踪器 (progress-tracker)
-- **版本**: 1.0.0
+- **版本**: 1.6.12
 - **描述**: 跟踪长时间运行的 AI Agent 任务，支持基于功能的进度追踪、测试驱动状态更新和 Git 集成
 - **类别**: 生产力 (productivity)
-- **功能**: 4个命令、5个专业技能、会话恢复机制
+- **功能**: 4个命令、5个专业技能、会话恢复机制、Web 仪表板
 - **依赖**: feature-dev 官方插件
+
+### 3. 笔记整理器 (note-organizer)
+- **版本**: 1.3.0
+- **描述**: 智能笔记整理插件 - 将 AI 提取的笔记转换为结构化知识库内容，支持 NotebookLM 和 Obsidian 双平台
+- **类别**: 生产力 (productivity)
+- **功能**: 3个命令、2个技能、时间戳清理、内容增强、双模板支持
+
+### 4. 包管理器 (package-manager)
+- **版本**: 0.3.0
+- **描述**: 包管理器规则和最佳实践插件 - 提供 mise、uv、pnpm、bun 等现代包管理器的标准化指导和自动化配置
+- **类别**: 生产力 (productivity)
+- **功能**: 4个技能（mise、uv、pnpm、bun）、mise 代理说明、自动化更新脚本
 
 ## 安装
 
@@ -30,6 +42,12 @@ siunin的Claude插件集合仓库。
 # 安装进度追踪器插件（需要先安装 feature-dev 依赖）
 /plugin install feature-dev@claude-plugins-official
 /plugin install progress-tracker@siunin-plugins
+
+# 安装笔记整理器插件
+/plugin install note-organizer@siunin-plugins
+
+# 安装包管理器插件
+/plugin install package-manager@siunin-plugins
 ```
 
 ### 方法2：本地开发安装
@@ -40,6 +58,8 @@ siunin的Claude插件集合仓库。
 # 安装插件
 /plugin install super-product-manager@siunin-plugins
 /plugin install progress-tracker@siunin-plugins
+/plugin install note-organizer@siunin-plugins
+/plugin install package-manager@siunin-plugins
 ```
 
 ## 项目结构
@@ -66,6 +86,24 @@ claude-plugins/                    # 插件市场根目录
 │       ├── hooks/                # 会话恢复钩子
 │       │   └── scripts/          # Python状态管理脚本
 │       ├── README.md             # 插件文档
+│       └── LICENSE               # MIT许可证
+│   ├── note-organizer/           # 笔记整理器插件
+│   │   ├── .claude-plugin/
+│   │   │   └── plugin.json       # 插件配置
+│   │   ├── commands/             # 3个命令
+│   │   ├── skills/               # 2个技能
+│   │   ├── scripts/              # Python处理脚本
+│   │   ├── templates/            # NotebookLM/Obsidian模板
+│   │   ├── tests/                # 单元测试
+│   │   ├── README.md             # 插件文档
+│   │   └── LICENSE               # MIT许可证
+│   └── package-manager/          # 包管理器插件
+│       ├── .claude-plugin/
+│       │   └── plugin.json       # 插件配置
+│       ├── skills/               # 4个技能
+│       ├── scripts/              # 更新脚本
+│       ├── README.md             # 插件文档
+│       ├── CHANGELOG.md          # 变更日志
 │       └── LICENSE               # MIT许可证
 ├── README.md                      # 项目说明（本文件）
 └── .gitignore                     # Git忽略文件

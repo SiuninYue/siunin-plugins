@@ -2,21 +2,21 @@
 
 **Created**: 2026-02-25T23:15:37.840964Z
 
-**Status**: 4/10 completed
+**Status**: 6/10 completed
 
 ## Completed
 - [x] Plugin base structure and architecture
 - [x] Timestamp cleaning module with CLI
 - [x] Batch scanner module with CLI
 - [x] Skill and reference documents
+- [x] NotebookLM template and renderer
+- [x] Obsidian template
 
-## Deferred
-- [~] NotebookLM template and renderer — Deferred for Drift Prevention P0 (group: note-organizer-2026q1)
-- [~] Obsidian template — Deferred for Drift Prevention P0 (group: note-organizer-2026q1)
-- [~] Note-process command — Deferred for Drift Prevention P0 (group: note-organizer-2026q1)
-- [~] Note-batch command — Deferred for Drift Prevention P0 (group: note-organizer-2026q1)
-- [~] Marketplace and README updates — Deferred for Drift Prevention P0 (group: note-organizer-2026q1)
-- [~] E2E structure tests — Deferred for Drift Prevention P0 (group: note-organizer-2026q1)
+## Pending
+- [ ] Note-process command
+- [ ] Note-batch command
+- [ ] Marketplace and README updates
+- [ ] E2E structure tests
 
 ## Recent Updates
 - [UPD-001] status: transaction smoke

@@ -2,7 +2,7 @@
   "schema_version": "2.0",
   "project_name": "Note Organizer Plugin",
   "created_at": "2026-02-25T23:15:37.840964Z",
-  "updated_at": "2026-03-16T21:54:16.835928Z",
+  "updated_at": "2026-03-26T00:10:56.876836Z",
   "features": [
     {
       "id": 1,
@@ -39,7 +39,29 @@
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
-      "defer_group": null
+      "defer_group": null,
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-001"
+      ],
+      "change_spec": {
+        "why": "Deliver Plugin base structure and architecture with traceable acceptance coverage.",
+        "in_scope": [
+          "Plugin base structure and architecture"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 验证架构文档: ls plugins/note-organizer/docs/ARCHITECTURE.md",
+        "Scenario: 验证插件清单: ls plugins/note-organizer/.claude-plugin/plugin.json",
+        "Scenario: 验证 README: ls plugins/note-organizer/README.md",
+        "Scenario: 验证脚本模块: ls plugins/note-organizer/scripts/__init__.py"
+      ]
     },
     {
       "id": 2,
@@ -76,7 +98,29 @@
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
-      "defer_group": null
+      "defer_group": null,
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "change_spec": {
+        "why": "Deliver Timestamp cleaning module with CLI with traceable acceptance coverage.",
+        "in_scope": [
+          "Timestamp cleaning module with CLI"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 验证模块存在: ls plugins/note-organizer/scripts/clean_timestamps.py",
+        "Scenario: 运行单元测试: cd plugins/note-organizer && pytest tests/test_clean_timestamps.py -v",
+        "Scenario: 测试 CLI 入口: cd plugins/note-organizer && python3 scripts/clean_timestamps.py --help",
+        "Scenario: 测试清理功能: echo '[00:01:23] test content' | python3 scripts/clean_timestamps.py /dev/stdin"
+      ]
     },
     {
       "id": 3,
@@ -113,7 +157,29 @@
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
-      "defer_group": null
+      "defer_group": null,
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-003"
+      ],
+      "change_spec": {
+        "why": "Deliver Batch scanner module with CLI with traceable acceptance coverage.",
+        "in_scope": [
+          "Batch scanner module with CLI"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 验证模块存在: ls plugins/note-organizer/scripts/batch_scanner.py",
+        "Scenario: 运行单元测试: cd plugins/note-organizer && pytest tests/test_batch_scanner.py -v",
+        "Scenario: 测试 CLI 入口: cd plugins/note-organizer && python3 scripts/batch_scanner.py --help",
+        "Scenario: 测试扫描功能: cd plugins/note-organizer && python3 scripts/batch_scanner.py 'tests/*.py' --json"
+      ]
     },
     {
       "id": 4,
@@ -150,7 +216,29 @@
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
-      "defer_group": null
+      "defer_group": null,
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "change_spec": {
+        "why": "Deliver Skill and reference documents with traceable acceptance coverage.",
+        "in_scope": [
+          "Skill and reference documents"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 验证主 skill: ls plugins/note-organizer/skills/organize-note/SKILL.md",
+        "Scenario: 验证参考文档: ls plugins/note-organizer/skills/organize-note/references/*.md",
+        "Scenario: 检查输入契约: grep '接收：文件内容' plugins/note-organizer/skills/organize-note/SKILL.md",
+        "Scenario: 检查输出契约: grep '返回：格式化后的文本' plugins/note-organizer/skills/organize-note/SKILL.md"
+      ]
     },
     {
       "id": 5,
@@ -161,14 +249,16 @@
         "运行测试: cd plugins/note-organizer && pytest tests/test_template_renderer.py -v",
         "测试标签格式化: python3 -c 'from scripts.template_renderer import format_tags_list; print(format_tags_list([\"tech/ai\", \"tutorial\"]))'"
       ],
-      "completed": false,
-      "development_stage": "developing",
+      "completed": true,
+      "development_stage": "completed",
       "ai_metrics": {
         "complexity_score": 21,
         "complexity_bucket": "standard",
         "selected_model": "sonnet",
         "workflow_path": "plan_execute",
-        "started_at": "2026-03-03T07:46:55.219506Z"
+        "started_at": "2026-03-03T07:46:55.219506Z",
+        "finished_at": "2026-03-24T16:40:12.420464+08:00",
+        "duration_seconds": 1817597
       },
       "started_at": "2026-03-03T16:20:03.710654Z",
       "owners": {
@@ -176,10 +266,39 @@
         "coding": null,
         "testing": null
       },
-      "deferred": true,
-      "defer_reason": "Deferred for Drift Prevention P0",
-      "deferred_at": "2026-03-16T16:13:21.249528Z",
-      "defer_group": "note-organizer-2026q1"
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-005"
+      ],
+      "change_spec": {
+        "why": "Deliver NotebookLM template and renderer with traceable acceptance coverage.",
+        "in_scope": [
+          "NotebookLM template and renderer"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 验证模板: ls plugins/note-organizer/templates/notebooklm-template.md",
+        "Scenario: 验证渲染器: ls plugins/note-organizer/scripts/template_renderer.py",
+        "Scenario: 运行测试: cd plugins/note-organizer && pytest tests/test_template_renderer.py -v",
+        "Scenario: 测试标签格式化: python3 -c 'from scripts.template_renderer import format_tags_list; print(format_tags_list([\"tech/ai\", \"tutorial\"]))'"
+      ],
+      "completed_at": "2026-03-24T16:40:12.422571Z",
+      "commit_hash": "3399bfb",
+      "archive_info": {
+        "archived_at": "2026-03-24T16:40:12.456691Z",
+        "files_moved": 0,
+        "files": []
+      }
     },
     {
       "id": 6,
@@ -190,16 +309,51 @@
         "检查模板变量: grep '{note_type}' plugins/note-organizer/templates/obsidian-template.md",
         "检查元数据格式: grep 'cssclass:' plugins/note-organizer/templates/obsidian-template.md"
       ],
-      "completed": false,
+      "completed": true,
       "owners": {
         "architecture": null,
         "coding": null,
         "testing": null
       },
-      "deferred": true,
-      "defer_reason": "Deferred for Drift Prevention P0",
-      "deferred_at": "2026-03-16T16:13:21.249528Z",
-      "defer_group": "note-organizer-2026q1"
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "change_spec": {
+        "why": "Deliver Obsidian template with traceable acceptance coverage.",
+        "in_scope": [
+          "Obsidian template"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 验证模板: ls plugins/note-organizer/templates/obsidian-template.md",
+        "Scenario: 运行测试: cd plugins/note-organizer && pytest tests/test_template_renderer.py::test_render_obsidian_template -v",
+        "Scenario: 检查模板变量: grep '{note_type}' plugins/note-organizer/templates/obsidian-template.md",
+        "Scenario: 检查元数据格式: grep 'cssclass:' plugins/note-organizer/templates/obsidian-template.md"
+      ],
+      "ai_metrics": {
+        "started_at": "2026-03-26T00:10:56.842611+08:00",
+        "finished_at": "2026-03-26T00:10:56.842611+08:00",
+        "duration_seconds": 0
+      },
+      "development_stage": "completed",
+      "completed_at": "2026-03-26T00:10:56.844317Z",
+      "commit_hash": "dbc7948",
+      "archive_info": {
+        "archived_at": "2026-03-26T00:10:56.876795Z",
+        "files_moved": 0,
+        "files": []
+      }
     },
     {
       "id": 7,
@@ -210,16 +364,51 @@
         "检查 skill 引用: grep 'organize-note' plugins/note-organizer/commands/note-process.md",
         "验证处理步骤: grep '第一步\\|第二步\\|第三步\\|第四步' plugins/note-organizer/commands/note-process.md"
       ],
-      "completed": false,
+      "completed": true,
+      "development_stage": "completed",
+      "ai_metrics": {
+        "started_at": "2026-03-17T00:00:00Z",
+        "finished_at": "2026-03-17T00:00:00Z",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-03-17T10:56:00Z",
+      "commit_hash": "240437d",
+      "archive_info": {
+        "archived_at": "2026-03-29T00:00:00Z",
+        "files_moved": 0,
+        "files": []
+      },
       "owners": {
         "architecture": null,
         "coding": null,
         "testing": null
       },
-      "deferred": true,
-      "defer_reason": "Deferred for Drift Prevention P0",
-      "deferred_at": "2026-03-16T16:13:21.249528Z",
-      "defer_group": "note-organizer-2026q1"
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "change_spec": {
+        "why": "Deliver Note-process command with traceable acceptance coverage.",
+        "in_scope": [
+          "Note-process command"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 验证命令文件: ls plugins/note-organizer/commands/note-process.md",
+        "Scenario: 检查命令格式: grep 'scope: command' plugins/note-organizer/commands/note-process.md",
+        "Scenario: 检查 skill 引用: grep 'organize-note' plugins/note-organizer/commands/note-process.md",
+        "Scenario: 验证处理步骤: grep '第一步\\|第二步\\|第三步\\|第四步' plugins/note-organizer/commands/note-process.md"
+      ]
     },
     {
       "id": 8,
@@ -230,16 +419,51 @@
         "检查路径约定: grep 'CLAUDE_PLUGIN_ROOT' plugins/note-organizer/commands/note-batch.md",
         "验证批量步骤: grep '扫描文件\\|逐个处理\\|生成报告' plugins/note-organizer/commands/note-batch.md"
       ],
-      "completed": false,
+      "completed": true,
+      "development_stage": "completed",
+      "ai_metrics": {
+        "started_at": "2026-03-17T00:00:00Z",
+        "finished_at": "2026-03-17T00:00:00Z",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-03-17T10:56:00Z",
+      "commit_hash": "240437d",
+      "archive_info": {
+        "archived_at": "2026-03-29T00:00:00Z",
+        "files_moved": 0,
+        "files": []
+      },
       "owners": {
         "architecture": null,
         "coding": null,
         "testing": null
       },
-      "deferred": true,
-      "defer_reason": "Deferred for Drift Prevention P0",
-      "deferred_at": "2026-03-16T16:13:21.249528Z",
-      "defer_group": "note-organizer-2026q1"
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "change_spec": {
+        "why": "Deliver Note-batch command with traceable acceptance coverage.",
+        "in_scope": [
+          "Note-batch command"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 验证命令文件: ls plugins/note-organizer/commands/note-batch.md",
+        "Scenario: 检查命令格式: grep 'scope: command' plugins/note-organizer/commands/note-batch.md",
+        "Scenario: 检查路径约定: grep 'CLAUDE_PLUGIN_ROOT' plugins/note-organizer/commands/note-batch.md",
+        "Scenario: 验证批量步骤: grep '扫描文件\\|逐个处理\\|生成报告' plugins/note-organizer/commands/note-batch.md"
+      ]
     },
     {
       "id": 9,
@@ -250,16 +474,51 @@
         "检查版本号: grep '1.0.0' .claude-plugin/marketplace.json",
         "验证插件位置: grep 'plugins/note-organizer' .claude-plugin/marketplace.json"
       ],
-      "completed": false,
+      "completed": true,
+      "development_stage": "completed",
+      "ai_metrics": {
+        "started_at": "2026-03-29T00:00:00Z",
+        "finished_at": "2026-03-29T00:00:00Z",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-03-29T15:40:00Z",
+      "commit_hash": "1765dc1",
+      "archive_info": {
+        "archived_at": "2026-03-29T15:40:00Z",
+        "files_moved": 0,
+        "files": []
+      },
       "owners": {
         "architecture": null,
         "coding": null,
         "testing": null
       },
-      "deferred": true,
-      "defer_reason": "Deferred for Drift Prevention P0",
-      "deferred_at": "2026-03-16T16:13:21.249528Z",
-      "defer_group": "note-organizer-2026q1"
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "change_spec": {
+        "why": "Deliver Marketplace and README updates with traceable acceptance coverage.",
+        "in_scope": [
+          "Marketplace and README updates"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 验证市场配置: grep 'note-organizer' .claude-plugin/marketplace.json",
+        "Scenario: 验证 README 更新: grep 'note-organizer' README.md",
+        "Scenario: 检查版本号: grep '1.0.0' .claude-plugin/marketplace.json",
+        "Scenario: 验证插件位置: grep 'plugins/note-organizer' .claude-plugin/marketplace.json"
+      ]
     },
     {
       "id": 10,
@@ -270,29 +529,65 @@
         "验证 NotebookLM 结构测试: grep 'test_notebooklm_output_structure' plugins/note-organizer/tests/test_e2e_structure.py",
         "验证时间戳测试: grep 'test_timestamps_removed' plugins/note-organizer/tests/test_e2e_structure.py"
       ],
-      "completed": false,
+      "completed": true,
+      "development_stage": "completed",
+      "ai_metrics": {
+        "started_at": "2026-03-29T00:00:00Z",
+        "finished_at": "2026-03-29T00:00:00Z",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-03-29T15:40:00Z",
+      "commit_hash": "1765dc1",
+      "archive_info": {
+        "archived_at": "2026-03-29T15:40:00Z",
+        "files_moved": 0,
+        "files": []
+      },
       "owners": {
         "architecture": null,
         "coding": null,
         "testing": null
       },
-      "deferred": true,
-      "defer_reason": "Deferred for Drift Prevention P0",
-      "deferred_at": "2026-03-16T16:13:21.249528Z",
-      "defer_group": "note-organizer-2026q1"
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "change_spec": {
+        "why": "Deliver E2E structure tests with traceable acceptance coverage.",
+        "in_scope": [
+          "E2E structure tests"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 验证测试文件: ls plugins/note-organizer/tests/test_e2e_structure.py",
+        "Scenario: 运行 E2E 测试: cd plugins/note-organizer && pytest tests/test_e2e_structure.py -v",
+        "Scenario: 验证 NotebookLM 结构测试: grep 'test_notebooklm_output_structure' plugins/note-organizer/tests/test_e2e_structure.py",
+        "Scenario: 验证时间戳测试: grep 'test_timestamps_removed' plugins/note-organizer/tests/test_e2e_structure.py"
+      ]
     }
   ],
   "current_feature_id": null,
   "runtime_context": {
-    "recorded_at": "2026-03-16T16:13:21.300221Z",
-    "source": "defer",
-    "workspace_mode": "worktree",
-    "worktree_path": "/Users/siunin/Projects/claude-plugins-beta",
-    "project_root": "/Users/siunin/Projects/claude-plugins-beta",
-    "cwd": "/Users/siunin/Projects/claude-plugins-beta",
-    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/claude-plugins-beta",
-    "branch": "codex/prog-beta-setup",
-    "upstream": null,
+    "recorded_at": "2026-03-24T16:40:12.454422Z",
+    "source": "complete_feature",
+    "workspace_mode": "in_place",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
+    "branch": "main",
+    "upstream": "origin/main",
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins",
     "current_feature_id": null,
     "workflow_phase": null,
     "current_task": null,
@@ -368,5 +663,6 @@
       "next_action": null,
       "refs": []
     }
-  ]
+  ],
+  "retrospectives": []
 }

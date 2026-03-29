@@ -1,7 +1,7 @@
 ---
 name: package-manager
 description: Use for ANY package installation (mise/brew/npm/pip/cargo/etc), dependency management, or project setup. Covers: installing packages, adding dependencies, setting up projects, configuring package managers, initializing scaffolding, updating packages.
-version: 1.0.1
+version: 1.1.0
 ---
 
 # Package Manager Rules
@@ -134,18 +134,30 @@ go.mod              → Go     → go modules
 
 ## 更新策略
 
-### 🚀 完整一键更新（macOS）
+### 🚀 完整一键更新（推荐）
+
+> **原则**：一键更新应该同时更新所有包管理器，不分优先级。除非有特定工具需要指定跳过。
+
+#### 并发更新（macOS，最快）
 
 ```bash
-# 更新所有工具（推荐按顺序执行）
-mise upgrade && brew upgrade && brew cleanup && rustup update
+# 并发更新所有包管理器（推荐）
+(mise upgrade &) && (brew upgrade &) && (rustup update &) && wait
+brew cleanup
 ```
 
-### 🐧 完整一键更新（Linux）
+#### 并发更新（Linux，最快）
 
 ```bash
-# 更新所有工具（推荐按顺序执行）
-mise upgrade && sudo apt update && sudo apt upgrade && rustup update
+# 并发更新所有包管理器（推荐）
+(mise upgrade &) && (sudo apt update &) && (sudo apt upgrade &) && (rustup update &) && wait
+```
+
+#### 顺序更新（更稳定）
+
+```bash
+# 如果遇到并发问题，使用顺序更新
+mise upgrade && brew upgrade && brew cleanup && rustup update
 ```
 
 **注**: 如需更新全局 npm/pnpm 包，请使用下方快捷脚本中的 `update-global`
@@ -271,6 +283,10 @@ rustup update stable
 
 ## 统一更新策略
 
+### 更新原则
+
+> **重要**：更新时不应有优先级之分。所有包管理器应该同时更新，除非明确指定跳过某个包管理器。
+
 ### 更新层级
 
 ```
@@ -280,8 +296,25 @@ rustup update stable
 │   全局工具      │     项目依赖           │
 │  (update-global)│  (update-project)     │
 ├─────────────────┴───────────────────────┤
-│ mise → brew → rustup → 全局包 → 项目    │
+│ mise + brew + rustup + 全局包 + 项目    │
+│         (并发执行，无优先级)             │
 └─────────────────────────────────────────┘
+```
+
+### 选择性跳过
+
+```bash
+# 跳过 brew 更新（如网络问题）
+update-all --skip-brew
+
+# 跳过 mise 更新
+update-all --skip-mise
+
+# 跳过 rust 更新
+update-all --skip-rust
+
+# 跳过项目依赖更新
+update-all --skip-project
 ```
 
 ### ⚠️ 重要提醒
@@ -321,49 +354,111 @@ mise upgrade
 将以下函数添加到 `~/.zshrc` 或 `~/.bashrc`：
 
 ```bash
-# 更新所有内容（工具 + 全局包 + 项目依赖）
+# === 并发更新所有内容（工具 + 全局包 + 项目依赖）===
+# 用法: update-all [--skip-brew] [--skip-mise] [--skip-rust] [--skip-project]
 update-all() {
-    echo "🔧 Step 1: mise 工具..."
-    mise upgrade
+    local skip_mise=false skip_brew=false skip_rust=false skip_project=false
 
-    echo "📦 Step 2: Homebrew..."
-    brew upgrade && brew cleanup
+    # 解析参数
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --skip-brew) skip_brew=true ;;
+            --skip-mise) skip_mise=true ;;
+            --skip-rust) skip_rust=true ;;
+            --skip-project) skip_project=true ;;
+            *) echo "❌ 未知参数: $1"; return 1 ;;
+        esac
+        shift
+    done
 
-    echo "⚙️  Step 3: Rust..."
-    rustup update
+    echo "🚀 开始并发更新所有包管理器..."
+    echo "======================================"
 
-    echo "🌐 Step 4: 全局包（兼容两种包管理器）..."
+    # 并发更新全局工具
+    if ! $skip_mise; then
+        echo "🔧 mise 工具更新中..."
+        mise upgrade &
+    fi
+
+    if ! $skip_brew && command -v brew &>/dev/null; then
+        echo "📦 Homebrew 更新中..."
+        brew upgrade &>/dev/null &
+    fi
+
+    if ! $skip_rust && command -v rustup &>/dev/null; then
+        echo "⚙️  Rust 更新中..."
+        rustup update &
+    fi
+
+    # 等待所有后台任务完成
+    wait
+
+    # Homebrew 清理（需要顺序执行）
+    if ! $skip_brew && command -v brew &>/dev/null; then
+        echo "🧹 清理 Homebrew 缓存..."
+        brew cleanup &>/dev/null
+    fi
+
+    # 更新全局包
+    echo "🌐 更新全局包..."
     mise exec uv -- uv tool upgrade --all 2>/dev/null || true
     mise exec pnpm -- pnpm update -g 2>/dev/null || true
-    npm update -g 2>/dev/null || true  # 兼容性：如果使用了 npm 全局包
+    npm update -g 2>/dev/null || true
 
-    echo "📂 Step 5: 项目依赖..."
-    [ -f "Cargo.toml" ] && cargo update
-    [ -f "Package.swift" ] && swift package update
-    [ -f "pyproject.toml" ] && mise exec uv -- uv sync --upgrade
-    if [ -f "package.json" ]; then
-        [ -f "pnpm-lock.yaml" ] && mise exec pnpm -- pnpm update
-        [ -f "bun.lockb" ] && mise exec bun -- bun update
-        [ ! -f "pnpm-lock.yaml" ] && [ ! -f "bun.lockb" ] && npm update
+    # 更新项目依赖
+    if ! $skip_project; then
+        echo "📂 更新项目依赖..."
+        [ -f "Cargo.toml" ] && cargo update &>/dev/null
+        [ -f "Package.swift" ] && swift package update &>/dev/null
+        [ -f "pyproject.toml" ] && mise exec uv -- uv sync --upgrade &>/dev/null
+        if [ -f "package.json" ]; then
+            [ -f "pnpm-lock.yaml" ] && mise exec pnpm -- pnpm update &>/dev/null
+            [ -f "bun.lockb" ] && mise exec bun -- bun update &>/dev/null
+            [ ! -f "pnpm-lock.yaml" ] && [ ! -f "bun.lockb" ] && npm update &>/dev/null
+        fi
+        [ -f "Gemfile" ] && bundle update &>/dev/null
+        [ -f "go.mod" ] && go get -u ./... &>/dev/null && go mod tidy &>/dev/null
     fi
-    [ -f "Gemfile" ] && bundle update
-    [ -f "go.mod" ] && go get -u ./... && go mod tidy
 
+    echo "======================================"
     echo "✅ 检查过时项..."
-    mise outdated
-    brew outdated
-    echo "🎉 完成！"
+    mise outdated 2>/dev/null || true
+    command -v brew &>/dev/null && brew outdated 2>/dev/null || true
+    echo "🎉 全部更新完成！"
 }
 
-# 仅更新全局工具
+# === 仅更新全局工具 ===
+# 用法: update-global [--skip-brew] [--skip-mise] [--skip-rust]
 update-global() {
-    mise upgrade
-    brew upgrade && brew cleanup
-    rustup update
-    echo "📦 更新全局包（兼容两种包管理器）..."
+    local skip_mise=false skip_brew=false skip_rust=false
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --skip-brew) skip_brew=true ;;
+            --skip-mise) skip_mise=true ;;
+            --skip-rust) skip_rust=true ;;
+            *) echo "❌ 未知参数: $1"; return 1 ;;
+        esac
+        shift
+    done
+
+    echo "🚀 开始并发更新全局工具..."
+
+    if ! $skip_mise; then mise upgrade &; fi
+    if ! $skip_brew && command -v brew &>/dev/null; then brew upgrade &>/dev/null &; fi
+    if ! $skip_rust && command -v rustup &>/dev/null; then rustup update &; fi
+
+    wait
+
+    if ! $skip_brew && command -v brew &>/dev/null; then
+        brew cleanup &>/dev/null
+    fi
+
+    echo "📦 更新全局包..."
     mise exec uv -- uv tool upgrade --all 2>/dev/null || true
     mise exec pnpm -- pnpm update -g 2>/dev/null || true
-    npm update -g 2>/dev/null || true  # 兼容性：如果使用了 npm 全局包
+    npm update -g 2>/dev/null || true
+
     echo "✅ 全局更新完成！"
 }
 

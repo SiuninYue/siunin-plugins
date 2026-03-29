@@ -5,6 +5,16 @@ All notable changes to the Package Manager plugin will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-03-29
+
+### Changed
+- **更新策略优化**：移除"按顺序执行"的描述，改为并发更新
+- **安装策略明确**：语言工具优先 mise，GUI 应用和 mise 不支持的开发工具优先 brew
+- **快捷脚本增强**：
+  - `update-all` 和 `update-global` 现在支持并发更新（使用 `&` 后台任务）
+  - 新增 `--skip-brew`、`--skip-mise`、`--skip-rust`、`--skip-project` 参数支持选择性跳过
+  - 更新过程中不再显示优先级，所有包管理器同时更新
+
 ## [1.0.1] - 2026-03-20
 
 ### Fixed

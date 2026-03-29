@@ -158,3 +158,4 @@ docs/ops/guardrails-backup-*.json
 !.claude/progress.json
 !.claude/progress.md
 !.claude/project_memory.json
+.worktrees/
