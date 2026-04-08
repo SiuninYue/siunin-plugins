@@ -144,6 +144,9 @@ go.mod              → Go     → go modules
 # 并发更新所有包管理器（推荐）
 (mise upgrade &) && (brew upgrade &) && (rustup update &) && wait
 brew cleanup
+
+# ⚠️ Claude Code 使用 latest 通道获取最新功能
+brew upgrade --cask claude-code@latest --greedy
 ```
 
 #### 并发更新（Linux，最快）
@@ -158,6 +161,9 @@ brew cleanup
 ```bash
 # 如果遇到并发问题，使用顺序更新
 mise upgrade && brew upgrade && brew cleanup && rustup update
+
+# ⚠️ Claude Code 使用 latest 通道获取最新功能
+brew upgrade --cask claude-code@latest --greedy
 ```
 
 **注**: 如需更新全局 npm/pnpm 包，请使用下方快捷脚本中的 `update-global`
@@ -176,6 +182,12 @@ sudo softwareupdate -i -a  # macOS: 更新系统
 
 # ===== 语言运行时/工具链 =====
 rustup update             # Rust: 更新所有已安装的工具链（mise 不直接管理 rust）
+
+# ===== Claude Code 更新（使用 latest 通道）=====
+# ⚠️ 重要：Claude Code 应该使用 latest 通道以获取最新功能
+brew upgrade --cask claude-code@latest --greedy
+# 或者设置后使用：
+brew install --cask claude-code@latest  # 首次安装/切换到 latest 通道
 
 # ===== 全局包（通过包管理器安装的包） =====
 npm update -g             # Node.js: 更新全局 npm 包（仅当使用 npm 时）
@@ -405,6 +417,12 @@ update-all() {
     mise exec pnpm -- pnpm update -g 2>/dev/null || true
     npm update -g 2>/dev/null || true
 
+    # 更新 Claude Code（使用 latest 通道）
+    if ! $skip_brew && command -v brew &>/dev/null; then
+        echo "🤖 更新 Claude Code (latest 通道)..."
+        brew upgrade --cask claude-code@latest --greedy &>/dev/null || true
+    fi
+
     # 更新项目依赖
     if ! $skip_project; then
         echo "📂 更新项目依赖..."
@@ -458,6 +476,12 @@ update-global() {
     mise exec uv -- uv tool upgrade --all 2>/dev/null || true
     mise exec pnpm -- pnpm update -g 2>/dev/null || true
     npm update -g 2>/dev/null || true
+
+    # 更新 Claude Code（使用 latest 通道）
+    if ! $skip_brew && command -v brew &>/dev/null; then
+        echo "🤖 更新 Claude Code (latest 通道)..."
+        brew upgrade --cask claude-code@latest --greedy &>/dev/null || true
+    fi
 
     echo "✅ 全局更新完成！"
 }

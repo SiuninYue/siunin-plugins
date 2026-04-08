@@ -41,7 +41,35 @@ Provides comprehensive package management guidance including:
 - Package manager selection
 - Correct command patterns
 - Version management strategy
-- One-command update scripts (`update-all`, `update-global`, `update-project`)
+- Claude Code latest 通道更新策略
+
+### rules-reviewer
+**Activation**: When user asks to "review rules", "check prompt quality", "validate instructions", or "audit system prompts"
+
+Reviews Claude Code rules, prompts, and instructions for quality and effectiveness.
+
+## Commands
+
+### update-all
+一键更新所有包管理器（mise, brew, rustup, Claude Code latest 通道, 全局包, 项目依赖）
+
+```
+/update-all [--skip-brew] [--skip-mise] [--skip-rust] [--skip-project]
+```
+
+### update-global
+更新全局工具（mise, brew, rustup, Claude Code latest 通道, 全局包）
+
+```
+/update-global [--skip-brew] [--skip-mise] [--skip-rust]
+```
+
+### update-project
+更新当前项目依赖（自动检测项目类型并使用对应包管理器）
+
+```
+/update-project
+```
 
 ### rules-reviewer
 **Activation**: When user asks to "review rules", "check prompt quality", "validate instructions", or "audit system prompts"
@@ -96,4 +124,4 @@ MIT
 
 ## Version
 
-1.0.1
+1.2.0

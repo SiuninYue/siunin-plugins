@@ -1,6 +1,6 @@
 {
   "name": "package-manager",
-  "version": "0.3.0",
+  "version": "1.2.0",
   "description": "包管理器规则和最佳实践插件。提供 mise、uv、pnpm、bun 等现代包管理器的标准化指导和自动化配置。在用户提及安装、更新、卸载任何工具/包/依赖时自动激活。包含 mise 代理包管理器的工作原理说明",
   "author": {
     "name": "siunin"

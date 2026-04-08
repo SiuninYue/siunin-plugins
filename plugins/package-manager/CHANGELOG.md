@@ -5,6 +5,22 @@ All notable changes to the Package Manager plugin will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-04-08
+
+### Added
+- **新增 Commands**：添加 3 个 slash commands
+  - `update-all` - 一键更新所有包管理器
+  - `update-global` - 仅更新全局工具
+  - `update-project` - 仅更新当前项目依赖
+- **Claude Code Latest 通道支持**：
+  - 所有更新命令现在使用 `claude-code@latest` 通道
+  - 确保获取最新功能和修复
+  - 更新命令：`brew upgrade --cask claude-code@latest --greedy`
+
+### Changed
+- 更新 `plugin.md` 添加 Commands 部分文档
+- 更新快捷脚本，集成 Claude Code latest 通道更新
+
 ## [1.1.0] - 2026-03-29
 
 ### Changed
