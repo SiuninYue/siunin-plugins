@@ -70,3 +70,39 @@ def test_sync_assignment_executes_owner_then_assignment_update(monkeypatch) -> N
     assert calls[1][0] == "add-update"
     assert "--category" in calls[1]
     assert "assignment" in calls[1]
+
+
+def test_sync_planning_update_emits_planning_source_and_refs(monkeypatch) -> None:
+    calls = []
+
+    def fake_run(argv, cwd=None):
+        calls.append(argv)
+        return {"ok": True, "command": "x", "stdout": "", "stderr": "", "returncode": 0}
+
+    monkeypatch.setattr(prog_bridge, "run_prog", fake_run)
+
+    result = prog_bridge.sync_planning_update(
+        stage="office_hours",
+        summary="Planning kickoff complete",
+        doc_path="docs/product-contracts/2026-04-09-office-hours.md",
+        refs=["custom:token"],
+    )
+
+    assert result["ok"] is True
+    argv = calls[0]
+    assert argv[0] == "add-update"
+    assert "--source" in argv
+    assert "spm_planning" in argv
+    assert "planning:office_hours" in argv
+    assert "doc:docs/product-contracts/2026-04-09-office-hours.md" in argv
+    assert "custom:token" in argv
+
+
+def test_sync_planning_update_rejects_unknown_stage() -> None:
+    result = prog_bridge.sync_planning_update(
+        stage="unknown",
+        summary="Invalid stage",
+    )
+
+    assert result["ok"] is False
+    assert result["error"] == "invalid_planning_stage"

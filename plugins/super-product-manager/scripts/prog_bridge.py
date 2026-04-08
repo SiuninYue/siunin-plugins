@@ -12,7 +12,8 @@ from typing import Any, Dict, List, Optional
 
 OWNER_ROLES = ("architecture", "coding", "testing")
 UPDATE_CATEGORIES = ("status", "decision", "risk", "handoff", "assignment", "meeting")
-UPDATE_SOURCES = ("prog_update", "spm_meeting", "spm_assign", "manual")
+UPDATE_SOURCES = ("prog_update", "spm_meeting", "spm_assign", "spm_planning", "manual")
+PLANNING_REFS = ("office_hours", "ceo_review", "design_review", "devex_review")
 
 
 def _local_prog_path() -> Path:
@@ -242,5 +243,43 @@ def sync_followup(
         feature_id=feature_id,
         source="spm_meeting",
         next_action=next_action,
+        cwd=cwd,
+    )
+
+
+def sync_planning_update(
+    *,
+    stage: str,
+    summary: str,
+    details: Optional[str] = None,
+    category: str = "decision",
+    feature_id: Optional[int] = None,
+    doc_path: Optional[str] = None,
+    refs: Optional[List[str]] = None,
+    cwd: Optional[Path] = None,
+) -> Dict[str, Any]:
+    """Sync SPM planning-stage output into PROG updates stream."""
+    normalized_stage = stage.strip().lower()
+    if normalized_stage not in PLANNING_REFS:
+        return {
+            "ok": False,
+            "error": "invalid_planning_stage",
+            "stderr": f"Unsupported planning stage: {stage}",
+            "command": "",
+        }
+
+    stage_refs: List[str] = [f"planning:{normalized_stage}"]
+    if isinstance(doc_path, str) and doc_path.strip():
+        stage_refs.append(f"doc:{doc_path.strip()}")
+    if refs:
+        stage_refs.extend(refs)
+
+    return sync_update(
+        category=category,
+        summary=summary,
+        details=details,
+        feature_id=feature_id,
+        source="spm_planning",
+        refs=stage_refs,
         cwd=cwd,
     )

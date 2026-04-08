@@ -781,6 +781,32 @@ class TestCurrentFeature:
         assert payload["status"] == "ok"
         assert payload["feature_id"] == 2
 
+    def test_next_feature_blocks_when_planning_gate_missing_required(
+        self, progress_file, capsys
+    ):
+        """next-feature should block when planning gate is enabled and required refs are missing."""
+        Path("docs/product-contracts").mkdir(parents=True, exist_ok=True)
+
+        result = progress_manager.next_feature(output_json=True)
+        assert result is False
+
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["status"] == "blocked"
+        assert payload["reason"] == "planning_missing"
+        assert "office_hours" in payload["missing"]
+        assert "ceo_review" in payload["missing"]
+
+    def test_next_feature_allows_ack_for_planning_risk(self, progress_file, capsys):
+        """--ack-planning-risk should allow next-feature to proceed."""
+        Path("docs/product-contracts").mkdir(parents=True, exist_ok=True)
+
+        result = progress_manager.next_feature(output_json=True, ack_planning_risk=True)
+        assert result is True
+
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["status"] == "ok"
+        assert payload["planning"]["status"] == "missing"
+
 
 class TestDevelopmentStage:
     """Test development_stage read/write helpers."""
@@ -1723,6 +1749,64 @@ class TestMainFunction:
         assert update["category"] == "meeting"
         assert update["summary"] == "Kickoff completed"
         assert update["source"] == "manual"
+
+    def test_main_add_update_command_accepts_spm_planning_source(self, progress_file):
+        """add-update should accept spm_planning as a valid source."""
+        with patch(
+            "sys.argv",
+            [
+                "progress_manager.py",
+                "add-update",
+                "--category",
+                "decision",
+                "--summary",
+                "Office hours synced",
+                "--source",
+                "spm_planning",
+                "--feature-id",
+                "2",
+                "--ref",
+                "planning:office_hours",
+            ],
+        ):
+            result = progress_manager.main()
+            assert result is True
+
+        data = progress_manager.load_progress_json()
+        update = data["updates"][0]
+        assert update["source"] == "spm_planning"
+        assert "planning:office_hours" in update["refs"]
+
+    def test_main_validate_planning_command_outputs_json(self, progress_file, capsys):
+        """validate-planning should emit machine-readable readiness contract."""
+        Path("docs/product-contracts").mkdir(parents=True, exist_ok=True)
+        assert progress_manager.add_update(
+            category="decision",
+            summary="Office hours complete",
+            feature_id=2,
+            source="spm_planning",
+            refs=["planning:office_hours", "doc:docs/product-contracts/oh.md"],
+        )
+        capsys.readouterr()
+
+        with patch(
+            "sys.argv",
+            [
+                "progress_manager.py",
+                "validate-planning",
+                "--feature-id",
+                "2",
+                "--json",
+            ],
+        ):
+            result = progress_manager.main()
+            assert result is True
+
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["ok"] is True
+        assert payload["status"] == "missing"
+        assert payload["required"] == ["office_hours", "ceo_review"]
+        assert payload["missing"] == ["ceo_review"]
 
     def test_main_list_updates_includes_refs_overflow_hint(self, progress_file, capsys):
         """list-updates should display overflow hint when refs are compacted."""

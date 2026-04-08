@@ -10,13 +10,14 @@ Usage:
     python3 progress_manager.py status
     python3 progress_manager.py check
     python3 progress_manager.py reconcile [--json]
-    python3 progress_manager.py next-feature [--json]
+    python3 progress_manager.py next-feature [--json] [--ack-planning-risk]
     python3 progress_manager.py list-archives [--limit <n>]
     python3 progress_manager.py restore-archive <archive_id> [--force]
     python3 progress_manager.py git-sync-check
     python3 progress_manager.py git-auto-preflight [--json]
     python3 progress_manager.py set-current <feature_id>
     python3 progress_manager.py validate-readiness <feature_id>
+    python3 progress_manager.py validate-planning --feature-id <id> [--json]
     python3 progress_manager.py fix-readiness <feature_id> [--add-requirement <REQ-ID>] [--set-why <text>] [--add-acceptance <text>]
     python3 progress_manager.py set-development-stage <planning|developing|completed> [--feature-id <id>]
     python3 progress_manager.py complete <feature_id>
@@ -117,8 +118,12 @@ DEVELOPMENT_STAGES = ("planning", "developing", "completed")
 LIFECYCLE_STATES = ("approved", "implementing", "verified", "archived")
 OWNER_ROLES = ("architecture", "coding", "testing")
 UPDATE_CATEGORIES = ("status", "decision", "risk", "handoff", "assignment", "meeting")
-UPDATE_SOURCES = ("prog_update", "spm_meeting", "spm_assign", "manual")
+UPDATE_SOURCES = ("prog_update", "spm_meeting", "spm_assign", "spm_planning", "manual")
 UPDATE_REFS_INLINE_LIMIT = 12
+PLANNING_SOURCE = "spm_planning"
+PLANNING_REQUIRED_REFS = ("office_hours", "ceo_review")
+PLANNING_OPTIONAL_REFS = ("design_review", "devex_review")
+PLANNING_ARTIFACT_DIRS = ("docs/product-contracts", "docs/product-reviews")
 RECONCILE_DIAGNOSES = (
     "in_sync",
     "implementation_ahead_of_tracker",
@@ -856,6 +861,35 @@ def validate_readiness_command(feature_id: int) -> int:
 
     print_readiness_error(feature, report)
     return 1
+
+
+def validate_planning_command(feature_id: int, output_json: bool = False) -> bool:
+    """Validate preflight planning artifacts from structured updates."""
+    data = load_progress_json()
+    if not data:
+        print("No progress tracking found. Use init first.")
+        return False
+
+    features = data.get("features", [])
+    target_feature = next((f for f in features if f.get("id") == feature_id), None)
+    if target_feature is None:
+        print(f"Feature ID {feature_id} not found")
+        return False
+
+    report = _evaluate_planning_readiness(data, feature_id=feature_id)
+    if output_json:
+        print(json.dumps(report, ensure_ascii=False))
+        return True
+
+    print(
+        f"Planning preflight for feature #{feature_id}: {report['status']} - "
+        f"{report['message']}"
+    )
+    if report.get("refs"):
+        print("Refs:")
+        for ref in report["refs"]:
+            print(f"- {ref}")
+    return True
 
 
 def fix_readiness_command(
@@ -3600,7 +3634,7 @@ def get_next_feature():
     return None
 
 
-def next_feature(output_json: bool = False) -> bool:
+def next_feature(output_json: bool = False, ack_planning_risk: bool = False) -> bool:
     """Print the next actionable feature (skipping completed/deferred)."""
     data = load_progress_json()
     if data:
@@ -3652,6 +3686,31 @@ def next_feature(output_json: bool = False) -> bool:
         "test_steps": feature.get("test_steps", []),
         "deferred": bool(feature.get("deferred", False)),
     }
+
+    planning_report = _evaluate_planning_readiness(data, feature_id=feature.get("id"))
+    if planning_report["status"] in {"missing", "warn"} and not ack_planning_risk:
+        blocked = {
+            "status": "blocked",
+            "reason": f"planning_{planning_report['status']}",
+            "feature_id": feature.get("id"),
+            "required": planning_report["required"],
+            "missing": planning_report["missing"],
+            "optional_missing": planning_report["optional_missing"],
+            "refs": planning_report["refs"],
+            "message": planning_report["message"],
+            "recommended_next_step": (
+                "Run SPM planning commands, or re-run with "
+                "`prog next-feature --ack-planning-risk` to continue."
+            ),
+        }
+        if output_json:
+            print(json.dumps(blocked, ensure_ascii=False))
+        else:
+            print(blocked["message"])
+            print(blocked["recommended_next_step"])
+        return False
+
+    payload["planning"] = planning_report
 
     if output_json:
         print(json.dumps(payload, ensure_ascii=False))
@@ -4482,6 +4541,118 @@ def _compact_update_refs(refs: List[str]) -> Tuple[List[str], List[str]]:
     if len(refs) <= UPDATE_REFS_INLINE_LIMIT:
         return refs, []
     return refs[:UPDATE_REFS_INLINE_LIMIT], refs[UPDATE_REFS_INLINE_LIMIT:]
+
+
+def _collect_update_refs(update_item: Dict[str, Any]) -> List[str]:
+    """Collect refs and overflow refs from one update item."""
+    refs: List[str] = []
+    inline_refs = update_item.get("refs")
+    if isinstance(inline_refs, list):
+        refs.extend([ref for ref in inline_refs if isinstance(ref, str)])
+    overflow_refs = update_item.get("refs_overflow")
+    if isinstance(overflow_refs, list):
+        refs.extend([ref for ref in overflow_refs if isinstance(ref, str)])
+    return _normalize_ref_tokens(refs)
+
+
+def _planning_gate_enabled(data: Dict[str, Any]) -> bool:
+    """Return whether preflight planning gate should be evaluated for this project."""
+    updates = data.get("updates", [])
+    if isinstance(updates, list):
+        for item in updates:
+            if not isinstance(item, dict):
+                continue
+            if str(item.get("source") or "").strip().lower() == PLANNING_SOURCE:
+                return True
+
+    project_root = find_project_root()
+    for rel_path in PLANNING_ARTIFACT_DIRS:
+        if (project_root / rel_path).exists():
+            return True
+    return False
+
+
+def _evaluate_planning_readiness(
+    data: Dict[str, Any],
+    feature_id: Optional[int] = None,
+) -> Dict[str, Any]:
+    """
+    Evaluate preflight planning readiness from updates + refs without schema changes.
+
+    Contract:
+      {
+        "ok": true,
+        "status": "ready|warn|missing",
+        "required": ["office_hours", "ceo_review"],
+        "missing": [...],
+        "optional_missing": [...],
+        "refs": ["doc:..."],
+        "message": "..."
+      }
+    """
+    required = list(PLANNING_REQUIRED_REFS)
+    optional = list(PLANNING_OPTIONAL_REFS)
+
+    planning_refs: List[str] = []
+    updates = data.get("updates", [])
+    if isinstance(updates, list):
+        for item in updates:
+            if not isinstance(item, dict):
+                continue
+            source = str(item.get("source") or "").strip().lower()
+            if source != PLANNING_SOURCE:
+                continue
+            item_feature_id = item.get("feature_id")
+            if feature_id is not None and item_feature_id not in (None, feature_id):
+                continue
+            planning_refs.extend(_collect_update_refs(item))
+
+    normalized_planning_refs = set(_normalize_ref_tokens(planning_refs))
+    doc_refs = sorted([ref for ref in normalized_planning_refs if ref.startswith("doc:")])
+
+    if not _planning_gate_enabled(data):
+        return {
+            "ok": True,
+            "status": "ready",
+            "required": required,
+            "missing": [],
+            "optional_missing": [],
+            "refs": doc_refs,
+            "message": "Planning gate not enabled for this project.",
+        }
+
+    missing = [name for name in required if f"planning:{name}" not in normalized_planning_refs]
+    optional_missing = [
+        name for name in optional if f"planning:{name}" not in normalized_planning_refs
+    ]
+
+    if missing:
+        status = "missing"
+        message = (
+            "Planning preflight incomplete: "
+            + ", ".join(missing)
+            + ". Run SPM planning commands or use --ack-planning-risk to continue."
+        )
+    elif optional_missing:
+        status = "warn"
+        message = (
+            "Planning preflight required artifacts are present, but optional reviews are missing: "
+            + ", ".join(optional_missing)
+            + ". Use --ack-planning-risk to continue."
+        )
+    else:
+        status = "ready"
+        message = "Planning preflight is ready."
+
+    return {
+        "ok": True,
+        "status": status,
+        "required": required,
+        "missing": missing,
+        "optional_missing": optional_missing,
+        "refs": doc_refs,
+        "message": message,
+    }
 
 
 def add_update(
@@ -5835,6 +6006,12 @@ def main():
         dest="output_json",
         help="Emit machine-readable JSON output",
     )
+    next_feature_parser.add_argument(
+        "--ack-planning-risk",
+        action="store_true",
+        dest="ack_planning_risk",
+        help="Acknowledge planning preflight warnings and continue selection",
+    )
 
     # Archive history commands
     archives_parser = subparsers.add_parser(
@@ -5861,6 +6038,23 @@ def main():
         help="Validate feature readiness contract for starting work",
     )
     validate_readiness_parser.add_argument("feature_id", type=int, help="Feature ID")
+
+    validate_planning_parser = subparsers.add_parser(
+        "validate-planning",
+        help="Validate SPM planning preflight contract using updates+refs",
+    )
+    validate_planning_parser.add_argument(
+        "--feature-id",
+        type=int,
+        required=True,
+        help="Feature ID to evaluate planning readiness for",
+    )
+    validate_planning_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="output_json",
+        help="Emit machine-readable JSON output",
+    )
 
     # Fix readiness command (mutating)
     fix_readiness_parser = subparsers.add_parser(
@@ -5964,7 +6158,7 @@ def main():
     add_update_parser.add_argument(
         "--source",
         default="prog_update",
-        help="Source: prog_update|spm_meeting|spm_assign|manual",
+        help="Source: prog_update|spm_meeting|spm_assign|spm_planning|manual",
     )
     add_update_parser.add_argument("--next-action", help="Suggested next action")
     add_update_parser.add_argument(
@@ -6125,7 +6319,10 @@ def main():
         if args.command == "reconcile":
             return reconcile(output_json=args.output_json)
         if args.command == "next-feature":
-            return next_feature(output_json=args.output_json)
+            return next_feature(
+                output_json=args.output_json,
+                ack_planning_risk=args.ack_planning_risk,
+            )
         if args.command == "list-archives":
             return list_archives(limit=args.limit)
         if args.command == "restore-archive":
@@ -6134,6 +6331,11 @@ def main():
             return set_current(args.feature_id)
         if args.command == "validate-readiness":
             return validate_readiness_command(args.feature_id)
+        if args.command == "validate-planning":
+            return validate_planning_command(
+                args.feature_id,
+                output_json=args.output_json,
+            )
         if args.command == "fix-readiness":
             return fix_readiness_command(
                 args.feature_id,
