@@ -19,7 +19,6 @@ def test_core_progress_commands_remain_discoverable():
         "prog-next.md",
         "prog-update.md",
         "prog-done.md",
-        "prog-start.md",
         "prog-sync.md",
         "prog-ui.md",
         "help.md",
@@ -27,3 +26,8 @@ def test_core_progress_commands_remain_discoverable():
 
     actual_commands = {path.name for path in COMMANDS_DIR.glob("*.md")}
     assert expected_commands.issubset(actual_commands)
+
+
+def test_prog_start_command_is_not_reintroduced():
+    """ADR-008: `/prog-next` is the sole feature-start entrypoint."""
+    assert not (COMMANDS_DIR / "prog-start.md").exists()
