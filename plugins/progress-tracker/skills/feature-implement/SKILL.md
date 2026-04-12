@@ -354,7 +354,43 @@ When this skill starts a feature, always include:
 2. Complexity result (`score + bucket + selected_model`)
 3. Workflow path chosen
 4. Current phase status — show `/prog done` instruction **only** when `phase=execution_complete`; during planning/execution show current phase and expected next step instead
-5. Context Handoff Block at the end of every response — generated from `references/communication-templates.md` → "Context Handoff Block"
+5. Context Handoff Block at the end of every response:
+
+**Phase = `execution_complete`:**
+```text
+/progress-tracker:prog-done
+
+Feature: <feature_id> "<feature_name>" | Phase: execution_complete
+Plan: <plan_path> | Tasks: <total>/<total> done
+Branch: <branch>[ | Worktree: <worktree_path>]
+ProjectRoot: <abs_project_root>
+→ Context pre-loaded. Switch to worktree/branch above first if not already there.
+```
+
+**Phase = `execution` or `planning_complete`:**
+```text
+/progress-tracker:prog-next
+
+Feature: <feature_id> "<feature_name>" | Phase: <phase>
+Plan: <plan_path> | Tasks: <completed>/<total> done
+Next: <next_task_id> — <next_task_title>
+Branch: <branch>[ | Worktree: <worktree_path>]
+ProjectRoot: <abs_project_root>
+→ Context pre-loaded. Switch to worktree/branch above first if not already there.
+```
+
+**Phase = `planning:approved`:**
+```text
+/progress-tracker:prog-next
+
+Feature: <feature_id> "<feature_name>" | Phase: planning:approved
+Plan: <plan_path>
+Bucket: <simple|standard|complex>
+Tasks: <total_count>
+Branch: <branch>[ | Worktree: <worktree_path>]
+ProjectRoot: <abs_project_root>
+→ Context pre-loaded. Routes by Bucket field.
+```
 
 ## Additional Resources
 
