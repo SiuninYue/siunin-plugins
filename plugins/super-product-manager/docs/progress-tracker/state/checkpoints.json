@@ -1,0 +1,36 @@
+{
+  "last_checkpoint_at": "2026-04-12T14:12:29.848123+08:00",
+  "max_entries": 50,
+  "entries": [
+    {
+      "timestamp": "2026-04-12T11:18:40.552762+08:00",
+      "feature_id": 2,
+      "feature_name": "SPM-1 add four gstack planning commands and workflow bridge",
+      "phase": "unknown",
+      "plan_path": null,
+      "current_task": null,
+      "total_tasks": null,
+      "next_action": null,
+      "workspace_mode": "in_place",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+      "branch": "codex/spm-prog1-spm-planning-source",
+      "upstream": null,
+      "reason": "auto_interval"
+    },
+    {
+      "timestamp": "2026-04-12T14:12:29.848123+08:00",
+      "feature_id": 3,
+      "feature_name": "PROG-2 add validate-planning json contract",
+      "phase": "unknown",
+      "plan_path": null,
+      "current_task": null,
+      "total_tasks": null,
+      "next_action": null,
+      "workspace_mode": "in_place",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+      "branch": "codex/spm-prog1-spm-planning-source",
+      "upstream": "origin/codex/spm-prog1-spm-planning-source",
+      "reason": "auto_interval"
+    }
+  ]
+}

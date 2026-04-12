@@ -1,33 +1,23 @@
-# Project Progress: PROG 全量规范化
+# Project Progress: prog-parent-coordination-archive
 
-**Created**: 2026-03-16T14:28:41.135552Z
+**Created**: 2026-04-09T01:12:55.289861Z
 
-**Status**: 14/14 completed
+**Status**: 1/14 completed
 
 ## Completed
-- [x] 1. 基线与失败测试先行
-- [x] 2. 事务层与并发锁
-- [x] 3. schema 2.1 回填与迁移校验
-- [x] 4. 脑裂修复与降级开关
-- [x] 5. 合约自动导入与 Markdown FSM 解析器
-- [x] 6. readiness 校验器与 /prog-start 串联
-- [x] 7. 生命周期 API 与回退规则
-- [x] 8. /prog-done 收尾门禁
-- [x] 9. refs 智能裁剪
-- [x] 10. summary 投影与状态展示
-- [x] 11. 命令文档与帮助更新（含 Drift Prevention/Codex 兼容）
-- [x] 12. 全量回归与验收报告
-- [x] P0 Batch 1: Reconcile engine + check/next/done gates
-- [x] Plan: 低学习成本优先的命令分层（保留能力，隐藏复杂度）
+- [x] 定义父级协调追踪器 Schema（linked_projects + snapshot 元数据）
 
-## Recent Updates
-- [UPD-008] risk: Feature 4 in-progress: scope gates verified, known red baseline still open (feature:4)
-  Next: Decide whether to keep baseline red (documented) or implement scope preset/relative-root ergonomics before completing feature 4.
-- [UPD-009] status: Feature 4: scope baseline closed and --project-root dot semantics fixed (feature:4)
-  Next: Run /prog done to complete Feature 4
-- [UPD-010] status: Feature 4 completed via /prog done (feature:4)
-  Next: Start feature 5 with /prog next
-- [UPD-011] status: Feature 8: implemented deterministic /prog done gate (feature:8)
-  Next: Run /prog done for final closure
-- [UPD-012] status: Feature 9: refs compaction and overflow capture implemented (feature:9)
-  Next: Run /prog done to execute acceptance gate and close feature 9
+## Pending
+- [ ] 实现子项目 progress.json 发现与只读聚合采集器
+- [ ] 实现 monorepo 根目录歧义 fail-closed 与显式 scope 选择
+- [ ] 新增父级同步命令 sync-linked（刷新子项目最新快照）
+- [ ] 全部功能完成时自动归档当前 run 并写入归档索引
+- [ ] prog init --force 归档与旧状态重命名策略标准化
+- [ ] 状态展示与文档更新（父级总览+子项目明细+归档历史）
+- [ ] 清理 /prog-start 残留并锁定 /prog-next 为唯一 start path
+- [ ] 实现 set-finish-state 显式解锁器并固化 finish_pending 阻断链路
+- [ ] 落地 evaluator_gate 与 quality_gates.evaluator 独立评估门
+- [ ] 落地 review_router 智能分流并持久化 review lanes
+- [ ] 落地 ship_check 统一门禁与 docs-sync 证据校验
+- [ ] 落地 sprint_ledger 与 schema 2.1 的 sprint_contract/handoff 持久化
+- [ ] 落地 wf_state_machine + wf_auto_driver + hook 自动推进

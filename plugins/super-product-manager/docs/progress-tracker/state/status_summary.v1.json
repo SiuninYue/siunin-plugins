@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-04-09T01:45:38.387927Z",
+  "updated_at": "2026-04-12T11:43:45.505959Z",
   "source": {
     "generator": "progress_manager.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,32 +11,32 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1775670134621384785,
-      "size": 22682
+      "mtime_ns": 1775965419347441870,
+      "size": 16261
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
       "exists": true,
-      "mtime_ns": 1773941693941457340,
-      "size": 5700
+      "mtime_ns": 1775963920599695171,
+      "size": 622
     }
   },
   "progress": {
-    "completed": 0,
-    "total": 14,
-    "percentage": 0
+    "completed": 1,
+    "total": 6,
+    "percentage": 16
   },
   "next_action": {
     "type": "feature",
-    "feature_id": 1,
-    "feature_name": "定义父级协调追踪器 Schema（linked_projects + snapshot 元数据）",
+    "feature_id": 2,
+    "feature_name": "SPM-1 add four gstack planning commands and workflow bridge",
     "development_stage": "developing",
     "stage_label": "开发中"
   },
   "plan_health": {
-    "status": "N/A",
-    "plan_path": null,
-    "message": "无活跃计划"
+    "status": "OK",
+    "plan_path": "docs/plans/2026-04-12-spm-1-gstack-planning-commands-and-bridge.md",
+    "message": "计划文件完整且符合规范"
   },
   "risk_blocker": {
     "has_risk": false,
@@ -46,7 +46,7 @@
   },
   "recent_snapshot": {
     "exists": true,
-    "timestamp": "2026-03-17T17:39:07.030850+08:00",
-    "relative_time": "22 天前"
+    "timestamp": "2026-04-12T11:18:40.552762+08:00",
+    "relative_time": "25 分钟前"
   }
 }

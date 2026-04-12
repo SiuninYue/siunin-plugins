@@ -1,0 +1,17 @@
+{
+  "feature_id": 1,
+  "feature_name": "PROG-1 support spm_planning source",
+  "done_attempt_at": "2026-04-12T09:47:38.058365Z",
+  "overall_success": false,
+  "results": [
+    {
+      "step": "../../plugins/progress-tracker/prog add-update --category decision --summary \"Feature 1 acceptance: spm_planning source\" --source spm_planning --feature-id 1",
+      "command": "../../plugins/progress-tracker/prog add-update --category decision --summary \"Feature 1 acceptance: spm_planning source\" --source spm_planning --feature-id 1",
+      "success": false,
+      "output_summary": "Error: Timed out acquiring progress lock after 10.0s: /Users/siunin/Projects/Claude-Plugins/plugins/super-product-manager/docs/progress-tracker/state/progress.lock",
+      "duration_ms": 10102,
+      "exit_code": 1,
+      "error": "command exited with code 1"
+    }
+  ]
+}

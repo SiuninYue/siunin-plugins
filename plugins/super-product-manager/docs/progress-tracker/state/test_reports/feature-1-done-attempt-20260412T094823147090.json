@@ -1,0 +1,26 @@
+{
+  "feature_id": 1,
+  "feature_name": "PROG-1 support spm_planning source",
+  "done_attempt_at": "2026-04-12T09:48:23.147297Z",
+  "overall_success": true,
+  "results": [
+    {
+      "step": "rg -q 'UPDATE_SOURCES = .*spm_planning' ../progress-tracker/hooks/scripts/progress_manager.py",
+      "command": "rg -q 'UPDATE_SOURCES = .*spm_planning' ../progress-tracker/hooks/scripts/progress_manager.py",
+      "success": true,
+      "output_summary": "",
+      "duration_ms": 6,
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "step": "../../plugins/progress-tracker/prog list-updates --limit 20 | rg -q \"source=spm_planning\"",
+      "command": "../../plugins/progress-tracker/prog list-updates --limit 20 | rg -q \"source=spm_planning\"",
+      "success": true,
+      "output_summary": "",
+      "duration_ms": 78,
+      "exit_code": 0,
+      "error": null
+    }
+  ]
+}
