@@ -286,7 +286,7 @@
         "spm planning outputs are consumed by prog validate-planning and prog-next",
         "readme and command docs describe preflight product review vs release gate"
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -296,7 +296,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "implementing",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-006"
       ],
@@ -316,7 +316,7 @@
         "Scenario: spm planning outputs are consumed by prog validate-planning and prog-next",
         "Scenario: readme and command docs describe preflight product review vs release gate"
       ],
-      "development_stage": "developing",
+      "development_stage": "completed",
       "started_at": "2026-04-12T15:20:23.277782Z",
       "ai_metrics": {
         "complexity_score": 20,
@@ -324,10 +324,17 @@
         "selected_model": "sonnet",
         "workflow_path": "plan_execute",
         "started_at": "2026-04-12T15:20:51.372571Z"
+      },
+      "completed_at": "2026-04-12T07:50:45.806067Z",
+      "commit_hash": "5488fb5",
+      "archive_info": {
+        "archived_at": "2026-04-12T07:50:45.806218Z",
+        "files_moved": 0,
+        "files": []
       }
     }
   ],
-  "current_feature_id": 6,
+  "current_feature_id": null,
   "updates": [
     {
       "id": "UPD-001",
@@ -675,20 +682,5 @@
     "updated_at": null,
     "projects": []
   },
-  "workflow_state": {
-    "phase": "execution_complete",
-    "updated_at": "2026-04-12T15:45:49.769746Z",
-    "execution_context": {
-      "recorded_at": "2026-04-12T15:45:49.785755Z",
-      "source": "set_workflow_state",
-      "workspace_mode": "in_place",
-      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
-      "project_root": "/Users/siunin/Projects/Claude-Plugins",
-      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/super-product-manager",
-      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
-      "branch": "codex/spm-prog1-spm-planning-source",
-      "upstream": "origin/codex/spm-prog1-spm-planning-source"
-    },
-    "plan_path": "docs/plans/2026-04-12-e2e-cross-plugin-integration-tests.md"
-  }
+  "workflow_state": {}
 }
