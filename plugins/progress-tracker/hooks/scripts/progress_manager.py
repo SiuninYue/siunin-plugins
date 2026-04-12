@@ -37,6 +37,7 @@ import argparse
 import json
 import os
 import re
+import shlex
 import sys
 import subprocess
 import shutil
@@ -114,6 +115,7 @@ STATUS_SUMMARY_CORE_FIELDS = (
 
 # Schema version - increment when breaking changes occur
 CURRENT_SCHEMA_VERSION = "2.0"
+LINKED_SNAPSHOT_SCHEMA_VERSION = "1.0"
 DEVELOPMENT_STAGES = ("planning", "developing", "completed")
 LIFECYCLE_STATES = ("approved", "implementing", "verified", "archived")
 OWNER_ROLES = ("architecture", "coding", "testing")
@@ -709,6 +711,37 @@ def _normalize_feature_contract(feature: Dict[str, Any]) -> None:
     acceptance_scenarios = feature.get("acceptance_scenarios")
     if not isinstance(acceptance_scenarios, list):
         feature["acceptance_scenarios"] = _default_acceptance_scenarios(feature)
+
+
+def _default_linked_snapshot() -> Dict[str, Any]:
+    """Build default snapshot metadata for linked project status aggregation."""
+    return {
+        "schema_version": LINKED_SNAPSHOT_SCHEMA_VERSION,
+        "updated_at": None,
+        "projects": [],
+    }
+
+
+def _normalize_linked_schema(data: Dict[str, Any]) -> None:
+    """Backfill linked_projects and linked_snapshot top-level schema fields."""
+    linked_projects = data.get("linked_projects")
+    if not isinstance(linked_projects, list):
+        linked_projects = []
+    data["linked_projects"] = linked_projects
+
+    linked_snapshot = data.get("linked_snapshot")
+    defaults = _default_linked_snapshot()
+    if not isinstance(linked_snapshot, dict):
+        data["linked_snapshot"] = defaults
+        return
+
+    for key, value in defaults.items():
+        linked_snapshot.setdefault(key, value)
+
+    if not isinstance(linked_snapshot.get("projects"), list):
+        linked_snapshot["projects"] = []
+
+    data["linked_snapshot"] = linked_snapshot
 
 
 def _apply_imported_feature_contract(feature: Dict[str, Any], contract: Dict[str, Any]) -> None:
@@ -1329,6 +1362,8 @@ def _apply_schema_defaults(data: Dict[str, Any]) -> None:
             _normalize_feature_owners(feature)
             _normalize_feature_defer_state(feature)
             _normalize_feature_contract(feature)
+
+    _normalize_linked_schema(data)
 
     updates = data.get("updates")
     if not isinstance(updates, list):
@@ -3991,7 +4026,32 @@ def _is_executable_test_step(step: str) -> bool:
         return False
     if normalized.startswith("#") or normalized.startswith("//"):
         return False
-    return True
+
+    try:
+        tokens = shlex.split(normalized, posix=True)
+    except ValueError:
+        return False
+
+    if not tokens:
+        return False
+
+    command_token: Optional[str] = None
+    for token in tokens:
+        if re.match(r"^[A-Za-z_][A-Za-z0-9_]*=.*$", token):
+            continue
+        command_token = token
+        break
+
+    if not command_token:
+        return False
+
+    if command_token.startswith(("./", "../", "/", "~/")):
+        return True
+
+    if command_token in {"[", "test"}:
+        return True
+
+    return shutil.which(command_token) is not None
 
 
 def _run_acceptance_tests(
@@ -4011,6 +4071,7 @@ def _run_acceptance_tests(
         if not isinstance(raw_step, str):
             continue
         if not _is_executable_test_step(raw_step):
+            print(f"[DONE][SKIP] {raw_step}")
             continue
 
         command = raw_step.strip()
@@ -4769,6 +4830,9 @@ def list_updates(limit: int = 10) -> bool:
     print(f"Showing latest {min(safe_limit, len(updates))} update(s):")
     for item in updates[-safe_limit:]:
         line = f"- [{item.get('id', 'UPD-???')}] {item.get('category', 'status')}: {item.get('summary', '')}"
+        source = str(item.get("source") or "").strip()
+        if source:
+            line += f" [source={source}]"
         if item.get("feature_id") is not None:
             line += f" (feature:{item['feature_id']})"
         if item.get("role") and item.get("owner"):
@@ -5733,6 +5797,24 @@ def validate_plan(plan_path: Optional[str] = None):
         resolved_plan_path = workflow_state.get("plan_path")
 
     if not resolved_plan_path:
+        current_id = data.get("current_feature_id")
+        features = data.get("features", [])
+        current_feature = next(
+            (item for item in features if item.get("id") == current_id),
+            None,
+        )
+        ai_metrics = current_feature.get("ai_metrics") if isinstance(current_feature, dict) else {}
+        workflow_path = (
+            str(ai_metrics.get("workflow_path") or "").strip().lower()
+            if isinstance(ai_metrics, dict)
+            else ""
+        )
+        if workflow_path == "direct_tdd":
+            print(
+                "Plan validation skipped: direct_tdd workflow does not require workflow_state.plan_path."
+            )
+            return True
+
         print("Error: No plan path provided and no workflow_state.plan_path found")
         return False
 
@@ -6457,6 +6539,10 @@ def main():
         return 1
 
     if args.command in MUTATING_COMMANDS:
+        # `done` may execute nested `prog` mutating commands from acceptance steps.
+        # Holding an outer process lock here can deadlock those nested invocations.
+        if args.command == "done":
+            return _dispatch_command()
         try:
             with progress_transaction():
                 return _dispatch_command()

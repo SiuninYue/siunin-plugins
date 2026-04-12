@@ -7,6 +7,7 @@ import os
 import subprocess
 import sys
 import time
+import contextlib
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 from typing import List, Optional
@@ -1530,6 +1531,43 @@ class TestWorkflowStateEdgeCases:
         result = progress_manager.validate_plan()
         assert result is True
 
+    def test_validate_plan_allows_missing_plan_for_direct_tdd(self, temp_dir, capsys):
+        """direct_tdd workflow should not require workflow_state.plan_path."""
+        state_dir = temp_dir / "docs" / "progress-tracker" / "state"
+        state_dir.mkdir(parents=True, exist_ok=True)
+        data = {
+            "project_name": "Direct TDD Plan Skip",
+            "created_at": "2026-01-01T00:00:00Z",
+            "schema_version": "2.0",
+            "features": [
+                {
+                    "id": 1,
+                    "name": "Simple Feature",
+                    "test_steps": ["echo ok"],
+                    "completed": False,
+                    "ai_metrics": {
+                        "workflow_path": "direct_tdd",
+                        "complexity_bucket": "simple",
+                    },
+                }
+            ],
+            "current_feature_id": 1,
+            "workflow_state": {
+                "phase": "execution_complete",
+                "next_action": "verify_and_complete",
+            },
+        }
+        (state_dir / "progress.json").write_text(
+            json.dumps(data, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+
+        result = progress_manager.validate_plan()
+        output = capsys.readouterr().out
+
+        assert result is True
+        assert "direct_tdd" in output
+
     def test_validate_plan_document_accepts_superpowers_template(self, temp_dir):
         """Should accept superpowers writing-plans format with advisory warnings."""
         plans_dir = Path("docs/plans")
@@ -1662,6 +1700,17 @@ class TestMainFunction:
         with patch("sys.argv", ["progress_manager.py", "update-feature", "2", "RenamedFeature", "new-step"]):
             result = progress_manager.main()
             assert result is True
+
+    def test_main_done_command_skips_outer_transaction_lock(self, temp_dir):
+        """done should run without outer transaction lock to avoid nested command deadlocks."""
+        with patch("progress_manager.cmd_done", return_value=0), patch(
+            "progress_manager.progress_transaction",
+            return_value=contextlib.nullcontext(),
+        ) as transaction_mock, patch("sys.argv", ["progress_manager.py", "done"]):
+            result = progress_manager.main()
+
+        assert result == 0
+        transaction_mock.assert_not_called()
 
     def test_main_defer_command(self, progress_file):
         """Should handle defer command."""
@@ -1807,6 +1856,29 @@ class TestMainFunction:
         assert payload["status"] == "missing"
         assert payload["required"] == ["office_hours", "ceo_review"]
         assert payload["missing"] == ["ceo_review"]
+
+    def test_main_list_updates_includes_source_marker(self, progress_file, capsys):
+        """list-updates should surface the update source token."""
+        with patch(
+            "sys.argv",
+            [
+                "progress_manager.py",
+                "add-update",
+                "--category",
+                "decision",
+                "--summary",
+                "Office hours synced",
+                "--source",
+                "spm_planning",
+            ],
+        ):
+            assert progress_manager.main() is True
+
+        with patch("sys.argv", ["progress_manager.py", "list-updates", "--limit", "5"]):
+            assert progress_manager.main() is True
+
+        output = capsys.readouterr().out
+        assert "source=spm_planning" in output
 
     def test_main_list_updates_includes_refs_overflow_hint(self, progress_file, capsys):
         """list-updates should display overflow hint when refs are compacted."""
@@ -2006,6 +2078,45 @@ class TestDoneCommand:
         assert result.returncode == 0
         assert "done-step-1" in result.stdout
         assert "done-step-2" in result.stdout
+
+    def test_done_command_skips_non_command_steps(self, temp_dir):
+        """done should skip natural-language acceptance lines instead of shelling them."""
+        self._write_done_state(
+            temp_dir,
+            test_steps=[
+                "add-update --source spm_planning succeeds",
+                "list-updates shows source=spm_planning",
+            ],
+            phase="execution_complete",
+            current_feature_id=1,
+        )
+
+        result = self._run_done(temp_dir, "--skip-archive")
+
+        assert result.returncode == 0
+        assert "[DONE][SKIP] add-update --source spm_planning succeeds" in result.stdout
+        assert "[DONE][SKIP] list-updates shows source=spm_planning" in result.stdout
+        assert "No executable acceptance commands found" in result.stdout
+
+    def test_done_command_allows_nested_prog_mutation_steps(self, temp_dir):
+        """done should allow acceptance steps that invoke nested mutating prog commands."""
+        script_path = Path(progress_manager.__file__).resolve()
+        self._write_done_state(
+            temp_dir,
+            test_steps=[
+                (
+                    f"{sys.executable} {script_path} add-update "
+                    "--category status --summary nested-lock-check --source manual"
+                ),
+            ],
+            phase="execution_complete",
+            current_feature_id=1,
+        )
+
+        result = self._run_done(temp_dir, "--skip-archive")
+
+        assert result.returncode == 0
+        assert "Acceptance passed" in result.stdout
 
     def test_done_command_saves_test_report(self, temp_dir):
         """done should persist a report in docs/progress-tracker/state/test_reports."""
