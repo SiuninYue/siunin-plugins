@@ -2,22 +2,22 @@
 
 **Created**: 2026-04-09T01:12:55.289861Z
 
-**Status**: 2/14 completed
+**Status**: 4/14 completed
 
 ## Completed
 - [x] 定义父级协调追踪器 Schema（linked_projects + snapshot 元数据）
 - [x] 实现子项目 progress.json 发现与只读聚合采集器
+- [x] 实现 monorepo 根目录歧义 fail-closed 与显式 scope 选择
+- [x] 新增父级同步命令 sync-linked（刷新子项目最新快照）
 
 ## In Progress
-- [ ] 实现 monorepo 根目录歧义 fail-closed 与显式 scope 选择
+- [ ] 全部功能完成时自动归档当前 run 并写入归档索引
   **Test steps**:
-  - 在多候选 tracker 情况下阻断 mutating 命令并给出修复提示
-  - 运行: pytest -q plugins/progress-tracker/tests/test_scope_fail_closed.py
-  - 校验 --project-root 显式指定后同命令可继续执行
+  - 当最后一个 feature 完成后触发 run 归档与索引更新
+  - 运行: pytest -q plugins/progress-tracker/tests/test_auto_archive_on_completion.py
+  - 校验归档产物命名包含项目名、时间戳与完成标识
 
 ## Pending
-- [ ] 新增父级同步命令 sync-linked（刷新子项目最新快照）
-- [ ] 全部功能完成时自动归档当前 run 并写入归档索引
 - [ ] prog init --force 归档与旧状态重命名策略标准化
 - [ ] 状态展示与文档更新（父级总览+子项目明细+归档历史）
 - [ ] 清理 /prog-start 残留并锁定 /prog-next 为唯一 start path

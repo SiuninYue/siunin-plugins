@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-04-12T16:35:19.033301Z",
+  "updated_at": "2026-04-12T17:22:02.288449Z",
   "source": {
     "generator": "progress_manager.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,8 +11,8 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1775982847522491708,
-      "size": 24309
+      "mtime_ns": 1775985088876444341,
+      "size": 25597
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
@@ -22,16 +22,16 @@
     }
   },
   "progress": {
-    "completed": 2,
+    "completed": 4,
     "total": 14,
-    "percentage": 14
+    "percentage": 28
   },
   "next_action": {
     "type": "feature",
-    "feature_id": 3,
-    "feature_name": "实现 monorepo 根目录歧义 fail-closed 与显式 scope 选择",
-    "development_stage": "developing",
-    "stage_label": "开发中"
+    "feature_id": 5,
+    "feature_name": "全部功能完成时自动归档当前 run 并写入归档索引",
+    "development_stage": "pending",
+    "stage_label": "待开始"
   },
   "plan_health": {
     "status": "N/A",

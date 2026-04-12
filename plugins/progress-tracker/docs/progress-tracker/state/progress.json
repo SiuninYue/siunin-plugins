@@ -2,7 +2,7 @@
   "schema_version": "2.0",
   "project_name": "prog-parent-coordination-archive",
   "created_at": "2026-04-09T01:12:55.289861Z",
-  "updated_at": "2026-04-12T16:34:07.521886Z",
+  "updated_at": "2026-04-12T17:22:09.809522Z",
   "features": [
     {
       "id": 1,
@@ -124,7 +124,7 @@
         "运行: pytest -q plugins/progress-tracker/tests/test_scope_fail_closed.py",
         "校验 --project-root 显式指定后同命令可继续执行"
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -134,7 +134,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "implementing",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-003"
       ],
@@ -155,8 +155,24 @@
         "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_scope_fail_closed.py",
         "Scenario: 校验 --project-root 显式指定后同命令可继续执行"
       ],
-      "development_stage": "developing",
-      "started_at": "2026-04-12T16:34:07.493935Z"
+      "development_stage": "completed",
+      "started_at": "2026-04-12T16:34:07.493935Z",
+      "ai_metrics": {
+        "complexity_score": 21,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-12T16:37:52.500946Z",
+        "finished_at": "2026-04-12T16:45:59.799554+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-12T16:45:59.852530Z",
+      "commit_hash": "4fcb3832e454e794e13ca242449f07f15dfdf3e7",
+      "archive_info": {
+        "archived_at": "2026-04-12T16:45:59.934774Z",
+        "files_moved": 0,
+        "files": []
+      }
     },
     {
       "id": 4,
@@ -166,7 +182,7 @@
         "运行: pytest -q plugins/progress-tracker/tests/test_sync_linked_command.py",
         "执行: plugins/progress-tracker/prog --project-root plugins/progress-tracker sync-linked --json"
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -176,7 +192,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "approved",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-004"
       ],
@@ -196,7 +212,25 @@
         "Scenario: 新增命令将子项目状态写入父级 linked_snapshot",
         "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_sync_linked_command.py",
         "Scenario: 执行: plugins/progress-tracker/prog --project-root plugins/progress-tracker sync-linked --json"
-      ]
+      ],
+      "development_stage": "completed",
+      "started_at": "2026-04-12T16:52:08.217560Z",
+      "ai_metrics": {
+        "complexity_score": 16,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-12T16:56:22.524909Z",
+        "finished_at": "2026-04-12T17:10:56.680159+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-12T17:10:56.727362Z",
+      "commit_hash": "4fcb3832e454e794e13ca242449f07f15dfdf3e7",
+      "archive_info": {
+        "archived_at": "2026-04-12T17:10:56.802243Z",
+        "files_moved": 0,
+        "files": []
+      }
     },
     {
       "id": 5,
@@ -216,7 +250,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "approved",
+      "lifecycle_state": "implementing",
       "requirement_ids": [
         "REQ-005"
       ],
@@ -236,7 +270,9 @@
         "Scenario: 当最后一个 feature 完成后触发 run 归档与索引更新",
         "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_auto_archive_on_completion.py",
         "Scenario: 校验归档产物命名包含项目名、时间戳与完成标识"
-      ]
+      ],
+      "development_stage": "developing",
+      "started_at": "2026-04-12T17:22:09.776631Z"
     },
     {
       "id": 6,
@@ -599,21 +635,21 @@
       ]
     }
   ],
-  "current_feature_id": 3,
+  "current_feature_id": 5,
   "updates": [],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-04-12T16:34:07.521555Z",
+    "recorded_at": "2026-04-12T17:22:09.809167Z",
     "source": "set_current",
     "workspace_mode": "worktree",
     "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-2-linked-status-collector",
     "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-2-linked-status-collector",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-2-linked-status-collector/plugins/progress-tracker",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-2-linked-status-collector",
     "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-2-linked-status-collector",
     "branch": "codex/feature-2-linked-status-collector",
     "upstream": "origin/codex/feature-2-linked-status-collector",
     "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-2-linked-status-collector/plugins/progress-tracker",
-    "current_feature_id": 3,
+    "current_feature_id": 5,
     "workflow_phase": null,
     "current_task": null,
     "total_tasks": null,
@@ -622,7 +658,7 @@
   "linked_projects": [],
   "linked_snapshot": {
     "schema_version": "1.0",
-    "updated_at": null,
+    "updated_at": "2026-04-12T17:11:21.554556Z",
     "projects": []
   }
 }

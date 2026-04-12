@@ -25,6 +25,7 @@ Usage:
     python3 progress_manager.py set-feature-ai-metrics <feature_id> --complexity-score <score> --selected-model <model> --workflow-path <path>
     python3 progress_manager.py complete-feature-ai-metrics <feature_id>
     python3 progress_manager.py auto-checkpoint
+    python3 progress_manager.py sync-linked [--json] [--stale-after-hours <hours>]
     python3 progress_manager.py validate-plan [--plan-path <path>]
     python3 progress_manager.py add-feature <name> <test_steps...>
     python3 progress_manager.py update-feature <feature_id> <name> [test_steps...]
@@ -171,6 +172,7 @@ MUTATING_COMMANDS = {
     "set-feature-ai-metrics",
     "complete-feature-ai-metrics",
     "auto-checkpoint",
+    "sync-linked",
     "sync-runtime-context",
     "restore-archive",
     "add-bug",
@@ -925,6 +927,68 @@ def collect_linked_project_statuses(
         statuses.append(status)
 
     return statuses
+
+
+def sync_linked(
+    output_json: bool = False,
+    stale_after_hours: int = DEFAULT_LINKED_STATUS_STALE_HOURS,
+) -> bool:
+    """Refresh and persist linked project status snapshot under linked_snapshot."""
+    data = load_progress_json()
+    if not data:
+        payload = {"status": "error", "message": "No progress tracking found"}
+        if output_json:
+            print(json.dumps(payload, ensure_ascii=False))
+        else:
+            print(payload["message"])
+        return False
+
+    stale_window_hours = max(stale_after_hours, 0)
+    statuses = collect_linked_project_statuses(
+        data,
+        stale_after_hours=stale_window_hours,
+    )
+
+    linked_snapshot = data.get("linked_snapshot")
+    if not isinstance(linked_snapshot, dict):
+        linked_snapshot = {}
+
+    linked_snapshot["schema_version"] = LINKED_SNAPSHOT_SCHEMA_VERSION
+    linked_snapshot["updated_at"] = _iso_now()
+    linked_snapshot["projects"] = statuses
+    data["linked_snapshot"] = linked_snapshot
+
+    _update_runtime_context(data, source="sync_linked")
+    save_progress_json(data)
+
+    md_content = generate_progress_md(data)
+    save_progress_md(md_content)
+
+    ok_count = sum(1 for item in statuses if item.get("status") == "ok")
+    missing_count = sum(1 for item in statuses if item.get("status") == "missing")
+    invalid_count = sum(1 for item in statuses if item.get("status") == "invalid")
+    stale_count = sum(1 for item in statuses if item.get("is_stale") is True)
+
+    payload = {
+        "status": "ok",
+        "project_count": len(statuses),
+        "ok_count": ok_count,
+        "missing_count": missing_count,
+        "invalid_count": invalid_count,
+        "stale_count": stale_count,
+        "stale_after_hours": stale_window_hours,
+        "snapshot": linked_snapshot,
+    }
+
+    if output_json:
+        print(json.dumps(payload, ensure_ascii=False))
+    else:
+        print(
+            "Synced linked snapshot: "
+            f"{len(statuses)} projects (ok={ok_count}, missing={missing_count}, "
+            f"invalid={invalid_count}, stale={stale_count})"
+        )
+    return True
 
 
 def _apply_imported_feature_contract(feature: Dict[str, Any], contract: Dict[str, Any]) -> None:
@@ -6526,6 +6590,21 @@ def main():
 
     # Auto-checkpoint command
     subparsers.add_parser("auto-checkpoint", help="Create checkpoint snapshot if interval elapsed")
+    sync_linked_parser = subparsers.add_parser(
+        "sync-linked", help="Refresh linked project snapshots into linked_snapshot"
+    )
+    sync_linked_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="output_json",
+        help="Emit machine-readable JSON output",
+    )
+    sync_linked_parser.add_argument(
+        "--stale-after-hours",
+        type=int,
+        default=DEFAULT_LINKED_STATUS_STALE_HOURS,
+        help="Staleness threshold in hours for linked snapshots",
+    )
     runtime_sync_parser = subparsers.add_parser(
         "sync-runtime-context",
         help="Record current session/worktree context without changing semantic progress timestamps",
@@ -6700,6 +6779,11 @@ def main():
             return complete_feature_ai_metrics(args.feature_id)
         if args.command == "auto-checkpoint":
             return auto_checkpoint()
+        if args.command == "sync-linked":
+            return sync_linked(
+                output_json=args.output_json,
+                stale_after_hours=args.stale_after_hours,
+            )
         if args.command == "sync-runtime-context":
             return sync_runtime_context(source=args.source, quiet=args.quiet, force=args.force)
         if args.command == "validate-plan":
