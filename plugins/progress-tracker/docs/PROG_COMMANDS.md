@@ -118,6 +118,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py auto-checkpoint
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py git-auto-preflight [--json]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py sync-runtime-context [--source <session_start|manual>] [--quiet] [--force]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-plan [--plan-path <path>]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-planning <feature_id> [--json]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-feature <name> <test_steps...>
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py undo
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py reset [--force]
@@ -254,6 +255,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py auto-checkpoint
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py git-auto-preflight [--json]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py sync-runtime-context [--source <session_start|manual>] [--quiet] [--force]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-plan [--plan-path <path>]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-planning <feature_id> [--json]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-feature <name> <test_steps...>
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py undo
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py reset [--force]
@@ -316,3 +318,56 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py register-rejection
 - Use `generate_prog_docs.py --check` in CI-style validation.
 - Use `generate_prog_docs.py --write` after changing this source.
 <!-- SOURCE:PROG_HELP:END -->
+
+## Command Reference
+
+### validate-planning
+
+Validate preflight planning artifacts from structured updates.
+
+```bash
+prog validate-planning <feature-id> [--json]
+```
+
+**Output:**
+
+- `status`: `ready` | `warn` | `missing`
+- `required`: List of required planning lanes for the inferred change type
+- `missing`: Required lanes not yet completed
+- `optional_missing`: Optional recommended lanes not yet completed
+- `refs`: Document references (`doc:` format) from planning artifacts
+- `message`: Human-readable status message
+
+**Exit Codes:**
+
+- `0`: Status is `ready` or `warn`
+- `1`: Status is `missing`
+
+**Planning Sources:**
+
+Updates with `source=spm_planning` are consumed from SPM planning workflows:
+
+| Lane | Ref Format | Required For |
+|------|------------|--------------|
+| office_hours | `planning:office_hours` | All types |
+| ceo_review | `planning:ceo_review` | All types |
+| design_review | `planning:design_review` | Optional (design/devex categories) |
+| devex_review | `planning:devex_review` | Optional (design/devex categories) |
+
+**Change Type Inference:**
+
+Required lanes are determined by change type inferred from:
+1. Feature `change_spec.in_scope` categories
+2. Branch name patterns (e.g., `feat/`, `fix/`, `refactor/`)
+
+Default (`feature` type): `office_hours`, `ceo_review` required; `design_review`, `devex_review` optional.
+
+### prog-next / next-feature — Planning Preflight Gate
+
+When `spm_planning` updates or planning artifacts exist, `prog-next` evaluates planning readiness before returning the next feature:
+
+- `status=missing`: Blocks with instructions to complete required planning
+- `status=warn`: Blocks with warning about missing optional lanes
+- `status=ready`: Proceeds normally
+
+Use `--ack-planning-risk` to proceed with `warn` status (not recommended for `missing`).
