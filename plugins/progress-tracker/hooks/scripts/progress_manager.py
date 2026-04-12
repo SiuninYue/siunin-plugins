@@ -1743,6 +1743,49 @@ def _make_archive_id(project_name: str, reason: Optional[str] = None) -> str:
     return archive_id
 
 
+def _resolve_unique_archive_id(
+    base_archive_id: str,
+    archive_dir: Path,
+    history: List[Dict[str, Any]],
+) -> str:
+    """Ensure archive IDs remain unique across history and on-disk artifacts."""
+    existing_ids = {
+        str(entry.get("archive_id")).strip()
+        for entry in history
+        if isinstance(entry, dict) and entry.get("archive_id")
+    }
+
+    candidate = base_archive_id
+    suffix = 2
+    while candidate in existing_ids or any(archive_dir.glob(f"{candidate}.*")):
+        candidate = f"{base_archive_id}-{suffix}"
+        suffix += 1
+    return candidate
+
+
+def _copy_archive_artifact(
+    source_path: Path,
+    archive_dir: Path,
+    archive_id: str,
+    *,
+    kind: str,
+    suffix: str,
+) -> Optional[Dict[str, str]]:
+    """Copy one state artifact into archive storage using standardized naming."""
+    if not source_path.exists():
+        return None
+
+    archive_name = f"{archive_id}.{suffix}"
+    archive_path = archive_dir / archive_name
+    shutil.copy2(source_path, archive_path)
+
+    return {
+        "kind": kind,
+        "source_path": rel_progress_path(source_path.name),
+        "archive_path": f"{PROGRESS_ARCHIVE_DIR}/{archive_name}",
+    }
+
+
 def archive_current_progress(reason: str) -> Optional[Dict[str, Any]]:
     """
     Archive the current active progress files before destructive operations.
@@ -1762,22 +1805,39 @@ def archive_current_progress(reason: str) -> Optional[Dict[str, Any]]:
         active_data = {}
 
     project_name = active_data.get("project_name", "unknown-project")
-    archive_id = _make_archive_id(project_name, reason=reason)
     archive_dir = progress_dir / PROGRESS_ARCHIVE_DIR
     archive_dir.mkdir(parents=True, exist_ok=True)
+    history = _load_progress_history()
+    base_archive_id = _make_archive_id(project_name, reason=reason)
+    archive_id = _resolve_unique_archive_id(base_archive_id, archive_dir, history)
 
-    archive_json_rel = None
-    archive_md_rel = None
+    archived_artifacts: List[Dict[str, str]] = []
 
-    if json_path.exists():
-        archive_json_name = f"{archive_id}.progress.json"
-        shutil.copy2(json_path, archive_dir / archive_json_name)
-        archive_json_rel = f"{PROGRESS_ARCHIVE_DIR}/{archive_json_name}"
+    for source_path, kind, suffix in (
+        (json_path, "progress_json", "progress.json"),
+        (md_path, "progress_md", "progress.md"),
+        (progress_dir / STATUS_SUMMARY_FILE, "status_summary_v1", "status-summary.v1.json"),
+        (
+            progress_dir / STATUS_SUMMARY_LEGACY_FILE,
+            "status_summary_legacy",
+            "status-summary.legacy.json",
+        ),
+    ):
+        artifact = _copy_archive_artifact(
+            source_path,
+            archive_dir,
+            archive_id,
+            kind=kind,
+            suffix=suffix,
+        )
+        if artifact:
+            archived_artifacts.append(artifact)
 
-    if md_path.exists():
-        archive_md_name = f"{archive_id}.progress.md"
-        shutil.copy2(md_path, archive_dir / archive_md_name)
-        archive_md_rel = f"{PROGRESS_ARCHIVE_DIR}/{archive_md_name}"
+    artifact_by_kind = {
+        item["kind"]: item["archive_path"]
+        for item in archived_artifacts
+        if isinstance(item, dict) and isinstance(item.get("kind"), str)
+    }
 
     features = active_data.get("features", [])
     if not isinstance(features, list):
@@ -1792,11 +1852,13 @@ def archive_current_progress(reason: str) -> Optional[Dict[str, Any]]:
         "total_features": len(features),
         "completed_features": completed_features,
         "current_feature_id": active_data.get("current_feature_id"),
-        "progress_json": archive_json_rel,
-        "progress_md": archive_md_rel,
+        "progress_json": artifact_by_kind.get("progress_json"),
+        "progress_md": artifact_by_kind.get("progress_md"),
+        "status_summary_v1": artifact_by_kind.get("status_summary_v1"),
+        "status_summary_legacy": artifact_by_kind.get("status_summary_legacy"),
+        "archived_artifacts": archived_artifacts,
     }
 
-    history = _load_progress_history()
     history.append(entry)
     _save_progress_history(history)
     return entry

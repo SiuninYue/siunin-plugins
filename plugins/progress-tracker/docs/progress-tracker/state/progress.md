@@ -2,23 +2,23 @@
 
 **Created**: 2026-04-09T01:12:55.289861Z
 
-**Status**: 4/14 completed
+**Status**: 5/14 completed
 
 ## Completed
 - [x] 定义父级协调追踪器 Schema（linked_projects + snapshot 元数据）
 - [x] 实现子项目 progress.json 发现与只读聚合采集器
 - [x] 实现 monorepo 根目录歧义 fail-closed 与显式 scope 选择
 - [x] 新增父级同步命令 sync-linked（刷新子项目最新快照）
+- [x] 全部功能完成时自动归档当前 run 并写入归档索引
 
 ## In Progress
-- [ ] 全部功能完成时自动归档当前 run 并写入归档索引
+- [ ] prog init --force 归档与旧状态重命名策略标准化
   **Test steps**:
-  - 当最后一个 feature 完成后触发 run 归档与索引更新
-  - 运行: pytest -q plugins/progress-tracker/tests/test_auto_archive_on_completion.py
-  - 校验归档产物命名包含项目名、时间戳与完成标识
+  - 在 re-init 时统一归档旧 progress 文件并保留可追溯元信息
+  - 运行: pytest -q plugins/progress-tracker/tests/test_reinit_archive_naming.py
+  - 校验重复 re-init 不会覆盖历史归档
 
 ## Pending
-- [ ] prog init --force 归档与旧状态重命名策略标准化
 - [ ] 状态展示与文档更新（父级总览+子项目明细+归档历史）
 - [ ] 清理 /prog-start 残留并锁定 /prog-next 为唯一 start path
 - [ ] 实现 set-finish-state 显式解锁器并固化 finish_pending 阻断链路
@@ -30,6 +30,6 @@
 
 ## Workflow Context
 - Phase: execution_complete
-- Next action: Run /prog-done to finalize feature 5
+- Next action: verify_and_complete
 - Execution context: codex/feature-2-linked-status-collector @ feature-2-linked-status-collector [worktree]
 - Current session context: codex/feature-2-linked-status-collector @ feature-2-linked-status-collector [worktree]
