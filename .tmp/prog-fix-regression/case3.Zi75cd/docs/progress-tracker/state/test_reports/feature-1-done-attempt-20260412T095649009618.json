@@ -1,0 +1,17 @@
+{
+  "feature_id": 1,
+  "feature_name": "simple",
+  "done_attempt_at": "2026-04-12T09:56:49.009825Z",
+  "overall_success": true,
+  "results": [
+    {
+      "step": "python3 /Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/hooks/scripts/progress_manager.py --project-root /Users/siunin/Projects/Claude-Plugins/.tmp/prog-fix-regression/case3.Zi75cd add-update --category status --summary nested-lock-check --source manual",
+      "command": "python3 /Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/hooks/scripts/progress_manager.py --project-root /Users/siunin/Projects/Claude-Plugins/.tmp/prog-fix-regression/case3.Zi75cd add-update --category status --summary nested-lock-check --source manual",
+      "success": true,
+      "output_summary": "Added update UPD-001: status - nested-lock-check",
+      "duration_ms": 68,
+      "exit_code": 0,
+      "error": null
+    }
+  ]
+}

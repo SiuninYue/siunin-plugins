@@ -1,0 +1,97 @@
+{
+  "schema_version": "2.0",
+  "project_name": "case3",
+  "created_at": "2026-04-12T00:00:00Z",
+  "features": [
+    {
+      "id": 1,
+      "name": "simple",
+      "test_steps": [
+        "python3 /Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/hooks/scripts/progress_manager.py --project-root /Users/siunin/Projects/Claude-Plugins/.tmp/prog-fix-regression/case3.Zi75cd add-update --category status --summary nested-lock-check --source manual"
+      ],
+      "completed": true,
+      "development_stage": "completed",
+      "lifecycle_state": "verified",
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "requirement_ids": [
+        "REQ-001"
+      ],
+      "change_spec": {
+        "why": "Deliver simple with traceable acceptance coverage.",
+        "in_scope": [
+          "simple"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: python3 /Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/hooks/scripts/progress_manager.py --project-root /Users/siunin/Projects/Claude-Plugins/.tmp/prog-fix-regression/case3.Zi75cd add-update --category status --summary nested-lock-check --source manual"
+      ],
+      "ai_metrics": {
+        "started_at": "2026-04-12T09:56:49.040417+08:00",
+        "finished_at": "2026-04-12T09:56:49.040417+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-12T09:56:49.041697Z",
+      "commit_hash": "cb93876fdd0d2f95db2f8e54513813a68aa30982"
+    }
+  ],
+  "current_feature_id": null,
+  "workflow_state": {
+    "phase": "execution_complete",
+    "next_action": "run done"
+  },
+  "linked_projects": [],
+  "linked_snapshot": {
+    "schema_version": "1.0",
+    "updated_at": null,
+    "projects": []
+  },
+  "updates": [
+    {
+      "id": "UPD-001",
+      "created_at": "2026-04-12T09:56:49.002310Z",
+      "category": "status",
+      "summary": "nested-lock-check",
+      "details": null,
+      "feature_id": null,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "manual",
+      "next_action": null,
+      "refs": []
+    }
+  ],
+  "retrospectives": [],
+  "updated_at": "2026-04-12T09:56:49.058375Z",
+  "runtime_context": {
+    "recorded_at": "2026-04-12T09:56:49.058115Z",
+    "source": "complete_feature",
+    "workspace_mode": "in_place",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/plugins/super-product-manager",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
+    "branch": "main",
+    "upstream": "origin/main",
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.tmp/prog-fix-regression/case3.Zi75cd",
+    "current_feature_id": null,
+    "workflow_phase": "execution_complete",
+    "current_task": null,
+    "total_tasks": null,
+    "next_action": "run done"
+  }
+}

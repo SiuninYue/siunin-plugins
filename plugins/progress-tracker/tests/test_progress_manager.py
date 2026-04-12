@@ -1821,7 +1821,8 @@ class TestMainFunction:
             ],
         ):
             result = progress_manager.main()
-            assert result is True
+            # When status is "missing", should return False (which becomes exit code 1)
+            assert result is False
 
         payload = json.loads(capsys.readouterr().out)
         assert payload["ok"] is True

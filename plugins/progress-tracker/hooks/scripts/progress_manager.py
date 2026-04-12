@@ -124,6 +124,13 @@ PLANNING_SOURCE = "spm_planning"
 PLANNING_REQUIRED_REFS = ("office_hours", "ceo_review")
 PLANNING_OPTIONAL_REFS = ("design_review", "devex_review")
 PLANNING_ARTIFACT_DIRS = ("docs/product-contracts", "docs/product-reviews")
+PLANNING_MESSAGE_KEYS = {
+    "gate_disabled": "planning.gate_disabled",
+    "missing": "planning.missing",
+    "optional_missing": "planning.optional_missing",
+    "ready": "planning.ready",
+}
+PLANNING_SCHEMA_VERSION = "1.0"
 RECONCILE_DIAGNOSES = (
     "in_sync",
     "implementation_ahead_of_tracker",
@@ -864,7 +871,12 @@ def validate_readiness_command(feature_id: int) -> int:
 
 
 def validate_planning_command(feature_id: int, output_json: bool = False) -> bool:
-    """Validate preflight planning artifacts from structured updates."""
+    """Validate preflight planning artifacts from structured updates.
+
+    Returns:
+        True (exit code 0) for ready/warn status
+        False (exit code 1) for missing status
+    """
     data = load_progress_json()
     if not data:
         print("No progress tracking found. Use init first.")
@@ -879,17 +891,19 @@ def validate_planning_command(feature_id: int, output_json: bool = False) -> boo
     report = _evaluate_planning_readiness(data, feature_id=feature_id)
     if output_json:
         print(json.dumps(report, ensure_ascii=False))
-        return True
+    else:
+        print(
+            f"Planning preflight for feature #{feature_id}: {report['status']} - "
+            f"{report['message']}"
+        )
+        if report.get("refs"):
+            print("Refs:")
+            for ref in report["refs"]:
+                print(f"- {ref}")
 
-    print(
-        f"Planning preflight for feature #{feature_id}: {report['status']} - "
-        f"{report['message']}"
-    )
-    if report.get("refs"):
-        print("Refs:")
-        for ref in report["refs"]:
-            print(f"- {ref}")
-    return True
+    # Return exit code: 0 (True) for ready/warn, 1 (False) for missing
+    status = report.get("status", "ready")
+    return status != "missing"
 
 
 def fix_readiness_command(
@@ -4631,7 +4645,8 @@ def _evaluate_planning_readiness(
             "missing": [],
             "optional_missing": [],
             "refs": doc_refs,
-            "message": "Planning gate not enabled for this project.",
+            "message": PLANNING_MESSAGE_KEYS["gate_disabled"],
+            "schema_version": PLANNING_SCHEMA_VERSION,
         }
 
     missing = [name for name in required if f"planning:{name}" not in normalized_planning_refs]
@@ -4641,21 +4656,13 @@ def _evaluate_planning_readiness(
 
     if missing:
         status = "missing"
-        message = (
-            "Planning preflight incomplete: "
-            + ", ".join(missing)
-            + ". Run SPM planning commands or use --ack-planning-risk to continue."
-        )
+        message = PLANNING_MESSAGE_KEYS["missing"]
     elif optional_missing:
         status = "warn"
-        message = (
-            "Planning preflight required artifacts are present, but optional reviews are missing: "
-            + ", ".join(optional_missing)
-            + ". Use --ack-planning-risk to continue."
-        )
+        message = PLANNING_MESSAGE_KEYS["optional_missing"]
     else:
         status = "ready"
-        message = "Planning preflight is ready."
+        message = PLANNING_MESSAGE_KEYS["ready"]
 
     return {
         "ok": True,
@@ -4665,6 +4672,7 @@ def _evaluate_planning_readiness(
         "optional_missing": optional_missing,
         "refs": doc_refs,
         "message": message,
+        "schema_version": PLANNING_SCHEMA_VERSION,
     }
 
 

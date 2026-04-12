@@ -1,0 +1,1 @@
+Plan validation skipped: direct_tdd workflow does not require workflow_state.plan_path.

@@ -1,0 +1,11 @@
+[DONE] Running acceptance tests for Feature 1: simple
+[DONE][SKIP] add-update --source spm_planning succeeds
+[DONE][SKIP] list-updates shows source=spm_planning
+[DONE] No executable acceptance commands found; treating as pass.
+[DONE] Acceptance passed
+AI metrics finalized for feature 1: duration=0s
+Completed feature: simple
+Recorded commit: cb93876fdd0d2f95db2f8e54513813a68aa30982
+[DONE] Feature 1 completed
+[DONE] Commit: cb93876fdd0d2f95db2f8e54513813a68aa30982
+[DONE] Report: docs/progress-tracker/state/test_reports/feature-1-done-attempt-20260412T095648801711.json
