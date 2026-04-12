@@ -2,7 +2,7 @@
   "schema_version": "2.0",
   "project_name": "SPM-PROG Harness Linkage",
   "created_at": "2026-04-09T01:18:09.247847Z",
-  "updated_at": "2026-04-12T14:50:40.718965Z",
+  "updated_at": "2026-04-12T14:52:15.062946Z",
   "features": [
     {
       "id": 1,
@@ -123,7 +123,7 @@
         "validate-planning returns ready warn missing statuses as specified",
         "required missing optional_missing refs message fields are present"
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -133,7 +133,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "implementing",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-003"
       ],
@@ -153,8 +153,24 @@
         "Scenario: validate-planning returns ready warn missing statuses as specified",
         "Scenario: required missing optional_missing refs message fields are present"
       ],
-      "development_stage": "developing",
-      "started_at": "2026-04-12T14:11:33.352516Z"
+      "development_stage": "completed",
+      "started_at": "2026-04-12T14:11:33.352516Z",
+      "ai_metrics": {
+        "started_at": "2026-04-12T14:52:10.406647+08:00",
+        "finished_at": "2026-04-12T14:52:15.005145+08:00",
+        "duration_seconds": 4,
+        "complexity_score": 8,
+        "complexity_bucket": "simple",
+        "selected_model": "haiku",
+        "workflow_path": "direct_tdd"
+      },
+      "completed_at": "2026-04-12T14:52:10.407435Z",
+      "commit_hash": "309da4b18bf32f93c126b2f6fae5003af7166448",
+      "archive_info": {
+        "archived_at": "2026-04-12T14:52:10.424171Z",
+        "files_moved": 0,
+        "files": []
+      }
     },
     {
       "id": 4,
@@ -271,7 +287,7 @@
       ]
     }
   ],
-  "current_feature_id": 3,
+  "current_feature_id": null,
   "updates": [
     {
       "id": "UPD-001",
@@ -512,8 +528,8 @@
   ],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-04-12T14:50:40.718810Z",
-    "source": "set_workflow_state",
+    "recorded_at": "2026-04-12T14:52:10.423337Z",
+    "source": "complete_feature",
     "workspace_mode": "in_place",
     "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
     "project_root": "/Users/siunin/Projects/Claude-Plugins",
@@ -522,7 +538,7 @@
     "branch": "codex/spm-prog1-spm-planning-source",
     "upstream": "origin/codex/spm-prog1-spm-planning-source",
     "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/super-product-manager",
-    "current_feature_id": 3,
+    "current_feature_id": null,
     "workflow_phase": "execution_complete",
     "current_task": null,
     "total_tasks": null,
@@ -533,21 +549,5 @@
     "schema_version": "1.0",
     "updated_at": null,
     "projects": []
-  },
-  "workflow_state": {
-    "phase": "execution_complete",
-    "next_action": "verify_and_complete",
-    "updated_at": "2026-04-12T14:50:40.687077Z",
-    "execution_context": {
-      "recorded_at": "2026-04-12T14:50:40.703739Z",
-      "source": "set_workflow_state",
-      "workspace_mode": "in_place",
-      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
-      "project_root": "/Users/siunin/Projects/Claude-Plugins",
-      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/super-product-manager",
-      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
-      "branch": "codex/spm-prog1-spm-planning-source",
-      "upstream": "origin/codex/spm-prog1-spm-planning-source"
-    }
   }
 }
