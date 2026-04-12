@@ -1,0 +1,52 @@
+{
+  "schema_version": "status_summary.v1",
+  "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
+  "updated_at": "2026-04-12T14:49:43.588731Z",
+  "source": {
+    "generator": "progress_manager.load_status_summary_projection",
+    "progress_path": "docs/progress-tracker/state/progress.json",
+    "checkpoints_path": "docs/progress-tracker/state/checkpoints.json"
+  },
+  "inputs": {
+    "progress": {
+      "path": "docs/progress-tracker/state/progress.json",
+      "exists": true,
+      "mtime_ns": 1775976572488189751,
+      "size": 23282
+    },
+    "checkpoints": {
+      "path": "docs/progress-tracker/state/checkpoints.json",
+      "exists": false,
+      "mtime_ns": null,
+      "size": null
+    }
+  },
+  "progress": {
+    "completed": 1,
+    "total": 14,
+    "percentage": 7
+  },
+  "next_action": {
+    "type": "feature",
+    "feature_id": 2,
+    "feature_name": "实现子项目 progress.json 发现与只读聚合采集器",
+    "development_stage": "pending",
+    "stage_label": "待开始"
+  },
+  "plan_health": {
+    "status": "N/A",
+    "plan_path": null,
+    "message": "无活跃计划"
+  },
+  "risk_blocker": {
+    "has_risk": false,
+    "high_priority_bugs": 0,
+    "blocked_count": 0,
+    "message": "正常"
+  },
+  "recent_snapshot": {
+    "exists": false,
+    "timestamp": null,
+    "relative_time": "暂无快照"
+  }
+}
