@@ -2,7 +2,7 @@
   "schema_version": "2.0",
   "project_name": "prog-parent-coordination-archive",
   "created_at": "2026-04-09T01:12:55.289861Z",
-  "updated_at": "2026-04-12T21:59:53.523022Z",
+  "updated_at": "2026-04-12T23:13:46.181445Z",
   "features": [
     {
       "id": 1,
@@ -386,7 +386,16 @@
         "Scenario: 更新 status/README/PROG_COMMANDS 以展示 linked 项目矩阵与归档摘要",
         "Scenario: 运行: python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check",
         "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_status_linked_summary.py"
-      ]
+      ],
+      "development_stage": "planning",
+      "started_at": "2026-04-12T22:58:26.161499Z",
+      "ai_metrics": {
+        "complexity_score": 20,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-12T22:59:22.152638Z"
+      }
     },
     {
       "id": 8,
@@ -669,30 +678,46 @@
       ]
     }
   ],
-  "current_feature_id": null,
+  "current_feature_id": 7,
   "updates": [],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-04-12T21:59:45.472969Z",
-    "source": "complete_feature",
+    "recorded_at": "2026-04-12T23:13:46.165610Z",
+    "source": "set_workflow_state",
     "workspace_mode": "worktree",
     "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-2-linked-status-collector",
     "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-2-linked-status-collector",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-2-linked-status-collector/plugins/progress-tracker",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-2-linked-status-collector",
     "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-2-linked-status-collector",
     "branch": "codex/feature-2-linked-status-collector",
     "upstream": "origin/codex/feature-2-linked-status-collector",
     "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-2-linked-status-collector/plugins/progress-tracker",
-    "current_feature_id": null,
+    "current_feature_id": 7,
     "workflow_phase": "execution_complete",
     "current_task": null,
     "total_tasks": null,
-    "next_action": "verify_and_complete"
+    "next_action": "Run /prog done to complete F7"
   },
   "linked_projects": [],
   "linked_snapshot": {
     "schema_version": "1.0",
     "updated_at": "2026-04-12T17:25:06.586500Z",
     "projects": []
+  },
+  "workflow_state": {
+    "phase": "execution_complete",
+    "next_action": "Run /prog done to complete F7",
+    "updated_at": "2026-04-12T23:13:46.065758Z",
+    "execution_context": {
+      "recorded_at": "2026-04-12T23:13:46.118768Z",
+      "source": "set_workflow_state",
+      "workspace_mode": "worktree",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-2-linked-status-collector",
+      "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-2-linked-status-collector",
+      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-2-linked-status-collector/plugins/progress-tracker",
+      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-2-linked-status-collector",
+      "branch": "codex/feature-2-linked-status-collector",
+      "upstream": "origin/codex/feature-2-linked-status-collector"
+    }
   }
 }

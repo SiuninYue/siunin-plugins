@@ -3095,6 +3095,56 @@ def status():
     if deferred and not remaining and not in_progress:
         print("\nUse `prog resume --all` or `prog resume --defer-group <group>` to continue deferred features.")
 
+    # Display linked projects matrix
+    linked_snapshot = data.get("linked_snapshot")
+    if isinstance(linked_snapshot, dict):
+        linked_projects_list = linked_snapshot.get("projects")
+        if isinstance(linked_projects_list, list) and linked_projects_list:
+            linked_updated_at = linked_snapshot.get("updated_at")
+            snapshot_age = (
+                f" (snapshot: {_format_relative_time_for_summary(linked_updated_at)})"
+                if linked_updated_at
+                else ""
+            )
+            print(f"\n### Linked Projects{snapshot_age}:")
+            for proj in linked_projects_list:
+                proj_name = proj.get("project_name") or proj.get("project_root", "Unknown")
+                proj_status = proj.get("status", "unknown")
+                completed_n = proj.get("completed", 0)
+                total_n = proj.get("total", 0)
+                rate = proj.get("completion_rate", 0.0)
+                pct = int(rate * 100)
+                stale_marker = " [stale]" if proj.get("is_stale") else ""
+                updated = proj.get("updated_at")
+                updated_str = (
+                    f" | {_format_relative_time_for_summary(updated)}" if updated else ""
+                )
+                if proj_status == "ok":
+                    print(
+                        f"  [{proj_name}] {completed_n}/{total_n} ({pct}%){stale_marker}{updated_str}"
+                    )
+                elif proj_status == "missing":
+                    print(f"  [{proj_name}] missing{stale_marker}")
+                else:
+                    print(f"  [{proj_name}] {proj_status}{stale_marker}")
+
+    # Display archive history summary
+    history = _load_progress_history()
+    if history:
+        latest = history[-1]
+        archive_id = latest.get("archive_id", "?")
+        project_name_arch = latest.get("project_name", "?")
+        reason = latest.get("reason", "?")
+        archived_at = latest.get("archived_at")
+        archived_str = (
+            _format_relative_time_for_summary(archived_at) if archived_at else archived_at or "?"
+        )
+        total_archives = len(history)
+        print(f"\n### Archive History ({total_archives} total):")
+        print(
+            f"  Latest: [{archive_id}] {project_name_arch} | {reason} | {archived_str}"
+        )
+
     return True
 
 

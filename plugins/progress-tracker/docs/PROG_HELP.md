@@ -6,7 +6,7 @@
 
 - `/progress-tracker:prog-plan <project description>` (alias: `/prog-plan`): architecture planning and stack decisions.
 - `/progress-tracker:prog-init <goal description>` (alias: `/prog-init`): initialize tracking and feature decomposition.
-- `/progress-tracker:prog` (alias: `/prog`): show progress status and recommendations.
+- `/progress-tracker:prog` (alias: `/prog`): show progress status, linked project matrix, archive history summary, and recommendations.
 - `/progress-tracker:prog-sync` (alias: `/prog-sync`): sync capability memory from incremental Git history.
 - `/progress-tracker:prog-update` (alias: `/prog-update`): append structured updates and optional owner assignments.
 - `/progress-tracker:prog-next` (alias: `/prog-next`): begin next feature using deterministic routing.

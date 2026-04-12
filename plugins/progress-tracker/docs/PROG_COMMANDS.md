@@ -23,7 +23,7 @@ Initialize progress tracking and break goal into testable features.
 
 ### `/progress-tracker:prog` (alias: `/prog`)
 
-Show current project status and recommended next action.
+Show current project status and recommended next action. Includes linked project matrix (completion rate, stale markers) and archive history summary when available.
 
 ### `/progress-tracker:prog-sync` (alias: `/prog-sync`)
 
@@ -103,6 +103,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py reconcile [--jso
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py next-feature [--json]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-archives [--limit <n>]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py restore-archive <archive_id> [--force]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py sync-linked [--json] [--stale-after-hours <hours>]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-current <feature_id>
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-readiness <feature_id>
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py fix-readiness <feature_id> [--add-requirement <req-id>] [--set-why "<why>"] [--add-acceptance "<scenario>"]
@@ -160,7 +161,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py register-rejection
 
 ### `/progress-tracker:prog` (别名：`/prog`)
 
-显示项目当前进度与推荐下一步。
+显示项目当前进度与推荐下一步。包含 linked 子项目矩阵（完成率、stale 标记）与归档历史摘要（如有数据）。
 
 ### `/progress-tracker:prog-sync` (别名：`/prog-sync`)
 
@@ -240,6 +241,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py reconcile [--jso
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py next-feature [--json]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-archives [--limit <n>]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py restore-archive <archive_id> [--force]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py sync-linked [--json] [--stale-after-hours <hours>]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-current <feature_id>
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-readiness <feature_id>
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py fix-readiness <feature_id> [--add-requirement <req-id>] [--set-why "<why>"] [--add-acceptance "<scenario>"]
@@ -293,7 +295,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py register-rejection
 
 - `/progress-tracker:prog-plan <project description>` (alias: `/prog-plan`): architecture planning and stack decisions.
 - `/progress-tracker:prog-init <goal description>` (alias: `/prog-init`): initialize tracking and feature decomposition.
-- `/progress-tracker:prog` (alias: `/prog`): show progress status and recommendations.
+- `/progress-tracker:prog` (alias: `/prog`): show progress status, linked project matrix, archive history summary, and recommendations.
 - `/progress-tracker:prog-sync` (alias: `/prog-sync`): sync capability memory from incremental Git history.
 - `/progress-tracker:prog-update` (alias: `/prog-update`): append structured updates and optional owner assignments.
 - `/progress-tracker:prog-next` (alias: `/prog-next`): begin next feature using deterministic routing.
