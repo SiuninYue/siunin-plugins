@@ -125,6 +125,7 @@ def run_ceo_review(
     project_root: Optional[Path] = None,
 ) -> Dict[str, Any]:
     """Create plan-ceo-review artifact and sync into PROG."""
+    verdict = verdict.strip()[:500]
     root = (project_root or Path.cwd()).resolve()
     now = datetime.now(timezone.utc)
     date_token = now.strftime("%Y-%m-%d")
@@ -182,6 +183,8 @@ def run_design_review(
     project_root: Optional[Path] = None,
 ) -> Dict[str, Any]:
     """Create plan-design-review artifact and sync into PROG."""
+    if not (0 <= score <= 10):
+        return {"ok": False, "error": "invalid_score", "message": f"score must be 0-10, got {score}"}
     root = (project_root or Path.cwd()).resolve()
     now = datetime.now(timezone.utc)
     date_token = now.strftime("%Y-%m-%d")
@@ -243,6 +246,8 @@ def run_devex_review(
     project_root: Optional[Path] = None,
 ) -> Dict[str, Any]:
     """Create plan-devex-review artifact and sync into PROG."""
+    if not (0 <= score <= 10):
+        return {"ok": False, "error": "invalid_score", "message": f"score must be 0-10, got {score}"}
     root = (project_root or Path.cwd()).resolve()
     now = datetime.now(timezone.utc)
     date_token = now.strftime("%Y-%m-%d")
