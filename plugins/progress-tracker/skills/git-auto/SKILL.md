@@ -2,7 +2,7 @@
 name: git-auto
 description: This skill should be used when the user asks to "create a git commit", "commit changes", "commit and push", "make a commit", "handle git", "git auto", "git auto start", "git auto done", or "git auto fix", or needs git operations automated with branch/PR/merge decisions.
 model: sonnet
-version: "2.1.0"
+version: "2.1.1"
 scope: skill
 inputs:
   - Current git repository state
@@ -46,7 +46,7 @@ Keep command names unchanged:
 - Plan descriptions MUST use English or Chinese
 - All reason text MUST use English or Chinese
 - Status messages MUST use English or Chinese
-- Any user-facing content MUST use English or Chinese
+- Any user-facing content MUST be English or Chinese
 - **DO NOT use Korean** - this is a bug to prevent
 
 Examples of CORRECT output:
@@ -83,6 +83,8 @@ Intent rules:
 2. Treat default branch as policy-controlled; probe protection first.
 3. Keep direct-main as exception, not default.
 4. Prefer Draft PR on first push unless user asks ready-for-review.
+   **Exception:** For `Execution Intent=commit_push_pr` or `commit_push_pr_merge`,
+   create ready-for-review PR (not draft) since these indicate completion/ship intent.
 5. Prefer squash merge.
 
 ## Unified Preflight (Single Fact Source)
@@ -143,6 +145,9 @@ Every plan MUST print:
 - If `Workspace Mode=worktree`, call `using-git-worktrees` first.
 - If strategy is `direct-main-exception`, verify policy and mode allow it.
 - If push fails with `GH006`, preserve local commits and switch to branch + PR fallback.
+- **PR Draft/Ready Decision:**
+  - If `Execution Intent=commit_push_pr` or `commit_push_pr_merge`: create ready-for-review PR
+  - Otherwise: create draft PR (default for first push)
 - Merge execution is allowed only for `Execution Intent=commit_push_pr_merge` and all merge gates pass.
 
 ## PR Maintenance Extensions (Comments + CI)
@@ -150,7 +155,6 @@ Every plan MUST print:
 `git-auto` MAY run a post-push PR maintenance lane when users ask to address review comments and/or fix CI.
 
 Core rules (details in `references/pr-maintenance.md`):
-
 - Keep stable command interface unchanged.
 - Run `gh auth status` before any `gh` operations.
 - Use activation modes: `address-comments`, `fix-ci`, `address-comments+fix-ci`.
@@ -165,7 +169,7 @@ When used, output MUST include:
 
 - `Execution Mode: autorun`
 - `Autorun Reason: <qualification>`
-- `Autorun Scope: <through push|through push + draft-pr>`
+- `Autorun Scope: <through push|through push + draft-pr|through push + ready-pr>`
 
 ## Plan Template (Required)
 
