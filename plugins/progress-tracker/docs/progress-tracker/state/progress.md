@@ -27,3 +27,9 @@
 - [ ] 落地 ship_check 统一门禁与 docs-sync 证据校验
 - [ ] 落地 sprint_ledger 与 schema 2.1 的 sprint_contract/handoff 持久化
 - [ ] 落地 wf_state_machine + wf_auto_driver + hook 自动推进
+
+## Workflow Context
+- Phase: execution_complete
+- Next action: Run /prog-done to finalize feature 5
+- Execution context: codex/feature-2-linked-status-collector @ feature-2-linked-status-collector [worktree]
+- Current session context: codex/feature-2-linked-status-collector @ feature-2-linked-status-collector [worktree]

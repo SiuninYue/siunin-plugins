@@ -1733,10 +1733,14 @@ def _save_progress_history(entries: List[Dict[str, Any]]) -> None:
         _atomic_write_text(history_path, payload)
 
 
-def _make_archive_id(project_name: str) -> str:
+def _make_archive_id(project_name: str, reason: Optional[str] = None) -> str:
     """Build a unique archive identifier."""
     timestamp = datetime.now().strftime("%Y%m%dT%H%M%S%f")
-    return f"{timestamp}-{_slugify(project_name)}"
+    archive_id = f"{timestamp}-{_slugify(project_name)}"
+    reason_slug = _slugify(reason, fallback="") if reason else ""
+    if reason_slug:
+        archive_id = f"{archive_id}-{reason_slug}"
+    return archive_id
 
 
 def archive_current_progress(reason: str) -> Optional[Dict[str, Any]]:
@@ -1758,7 +1762,7 @@ def archive_current_progress(reason: str) -> Optional[Dict[str, Any]]:
         active_data = {}
 
     project_name = active_data.get("project_name", "unknown-project")
-    archive_id = _make_archive_id(project_name)
+    archive_id = _make_archive_id(project_name, reason=reason)
     archive_dir = progress_dir / PROGRESS_ARCHIVE_DIR
     archive_dir.mkdir(parents=True, exist_ok=True)
 
@@ -1796,6 +1800,17 @@ def archive_current_progress(reason: str) -> Optional[Dict[str, Any]]:
     history.append(entry)
     _save_progress_history(history)
     return entry
+
+
+def _is_project_fully_completed(data: Dict[str, Any]) -> bool:
+    """Return True when all tracked features are completed."""
+    features = data.get("features", [])
+    if not isinstance(features, list):
+        return False
+    feature_items = [item for item in features if isinstance(item, dict)]
+    if not feature_items:
+        return False
+    return all(bool(item.get("completed")) for item in feature_items)
 
 
 def list_archives(limit: int = 20) -> bool:
@@ -4694,6 +4709,16 @@ def complete_feature(feature_id, commit_hash=None, skip_archive=False):
             # Archive failures should not prevent feature completion
             logger.error(f"Archive failed but feature completed: {e}")
             print(f"Warning: Document archiving failed but feature is marked complete")
+
+        refreshed = load_progress_json()
+        if refreshed and _is_project_fully_completed(refreshed):
+            completed_archive = archive_current_progress(reason="completed")
+            if completed_archive:
+                print(
+                    "Archived completed run as "
+                    f"{completed_archive.get('archive_id')} "
+                    f"(reason={completed_archive.get('reason')})"
+                )
 
     return True
 
