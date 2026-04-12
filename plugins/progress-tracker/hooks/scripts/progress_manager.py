@@ -2994,7 +2994,20 @@ def analyze_git_sync_risks() -> Dict[str, Any]:
         )
         if exit_code == 0 and stdout.strip():
             branch_ref = f"refs/heads/{branch}"
-            current_worktree = str(project_root.resolve())
+            # Use the actual git worktree root, not project_root which may be a
+            # subdirectory (e.g. a plugin folder inside the repo). Using project_root
+            # would cause a false-positive: git worktree list reports the git root,
+            # so the comparison would always fail when cwd is a subdirectory.
+            _ec, _toplevel, _ = _run_git(
+                ["rev-parse", "--show-toplevel"],
+                cwd=str(project_root),
+                timeout=5,
+            )
+            current_worktree = (
+                str(Path(_toplevel.strip()).resolve())
+                if _ec == 0 and _toplevel.strip()
+                else str(project_root.resolve())
+            )
             worktrees = _parse_worktree_list_output(stdout)
             duplicate_paths: List[str] = []
             for entry in worktrees:
