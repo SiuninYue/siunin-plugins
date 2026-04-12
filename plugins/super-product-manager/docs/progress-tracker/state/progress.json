@@ -2,7 +2,7 @@
   "schema_version": "2.0",
   "project_name": "SPM-PROG Harness Linkage",
   "created_at": "2026-04-09T01:18:09.247847Z",
-  "updated_at": "2026-04-12T14:52:15.062946Z",
+  "updated_at": "2026-04-12T15:45:49.801212Z",
   "features": [
     {
       "id": 1,
@@ -179,7 +179,7 @@
         "prog-next blocks with planning warning when required artifacts missing",
         "prog-next continues when --ack-planning-risk is provided"
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -189,7 +189,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "approved",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-004"
       ],
@@ -208,7 +208,25 @@
       "acceptance_scenarios": [
         "Scenario: prog-next blocks with planning warning when required artifacts missing",
         "Scenario: prog-next continues when --ack-planning-risk is provided"
-      ]
+      ],
+      "development_stage": "completed",
+      "started_at": "2026-04-12T14:54:02.921143Z",
+      "ai_metrics": {
+        "complexity_score": 15,
+        "complexity_bucket": "simple",
+        "selected_model": "haiku",
+        "workflow_path": "direct_tdd",
+        "started_at": "2026-04-12T14:58:12.729346Z",
+        "finished_at": "2026-04-12T15:05:15.897713+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-12T15:05:15.921538Z",
+      "commit_hash": "150bd664382cf00108a610ed75a6a4c343137a78",
+      "archive_info": {
+        "archived_at": "2026-04-12T15:05:15.971664Z",
+        "files_moved": 0,
+        "files": []
+      }
     },
     {
       "id": 5,
@@ -217,7 +235,7 @@
         "design and devex suggestions follow category mapping",
         "optional lanes do not block readiness"
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -227,7 +245,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "approved",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-005"
       ],
@@ -246,7 +264,20 @@
       "acceptance_scenarios": [
         "Scenario: design and devex suggestions follow category mapping",
         "Scenario: optional lanes do not block readiness"
-      ]
+      ],
+      "ai_metrics": {
+        "started_at": "2026-04-12T15:17:12.164472+08:00",
+        "finished_at": "2026-04-12T15:17:12.164472+08:00",
+        "duration_seconds": 0
+      },
+      "development_stage": "completed",
+      "completed_at": "2026-04-12T15:17:12.188503Z",
+      "commit_hash": "150bd664382cf00108a610ed75a6a4c343137a78",
+      "archive_info": {
+        "archived_at": "2026-04-12T15:17:12.237582Z",
+        "files_moved": 0,
+        "files": []
+      }
     },
     {
       "id": 6,
@@ -265,7 +296,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "approved",
+      "lifecycle_state": "implementing",
       "requirement_ids": [
         "REQ-006"
       ],
@@ -284,10 +315,19 @@
       "acceptance_scenarios": [
         "Scenario: spm planning outputs are consumed by prog validate-planning and prog-next",
         "Scenario: readme and command docs describe preflight product review vs release gate"
-      ]
+      ],
+      "development_stage": "developing",
+      "started_at": "2026-04-12T15:20:23.277782Z",
+      "ai_metrics": {
+        "complexity_score": 20,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-12T15:20:51.372571Z"
+      }
     }
   ],
-  "current_feature_id": null,
+  "current_feature_id": 6,
   "updates": [
     {
       "id": "UPD-001",
@@ -524,30 +564,131 @@
         "planning:devex_review",
         "doc:docs/product-reviews/2026-04-12-prog-2-add-validate-planning-json-contract-plan-devex-review.md"
       ]
+    },
+    {
+      "id": "UPD-015",
+      "created_at": "2026-04-12T15:08:17.001005Z",
+      "category": "decision",
+      "summary": "office-hours complete: SPM-2 auto-suggest design and devex lanes by change type",
+      "details": "Planner contract captured (goals/scope/acceptance/risks).",
+      "feature_id": 5,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:office_hours",
+        "doc:docs/product-contracts/2026-04-12-spm-2-auto-suggest-design-and-devex-lanes-by-change-type-office-hours.md"
+      ]
+    },
+    {
+      "id": "UPD-016",
+      "created_at": "2026-04-12T15:08:37.574995Z",
+      "category": "decision",
+      "summary": "plan-ceo-review complete: SPM-2 auto-suggest design and devex lanes by change type (pass)",
+      "details": "CEO-level opportunity/risk review captured.",
+      "feature_id": 5,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:ceo_review",
+        "doc:docs/product-reviews/2026-04-12-spm-2-auto-suggest-design-and-devex-lanes-by-change-type-plan-ceo-review.md"
+      ]
+    },
+    {
+      "id": "UPD-017",
+      "created_at": "2026-04-12T15:08:59.840984Z",
+      "category": "decision",
+      "summary": "plan-design-review complete: SPM-2 auto-suggest design and devex lanes by change type (score=9/10)",
+      "details": "Design quality review recorded.",
+      "feature_id": 5,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:design_review",
+        "doc:docs/product-reviews/2026-04-12-spm-2-auto-suggest-design-and-devex-lanes-by-change-type-plan-design-review.md"
+      ]
+    },
+    {
+      "id": "UPD-018",
+      "created_at": "2026-04-12T15:09:23.070688Z",
+      "category": "decision",
+      "summary": "plan-devex-review complete: SPM-2 auto-suggest design and devex lanes by change type (score=8/10)",
+      "details": "Developer experience review recorded.",
+      "feature_id": 5,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:devex_review",
+        "doc:docs/product-reviews/2026-04-12-spm-2-auto-suggest-design-and-devex-lanes-by-change-type-plan-devex-review.md"
+      ]
+    },
+    {
+      "id": "UPD-019",
+      "created_at": "2026-04-12T15:31:21.405362Z",
+      "category": "decision",
+      "summary": "office-hours complete: e2e-test-topic",
+      "details": "Planner contract captured (goals/scope/acceptance/risks).",
+      "feature_id": 6,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:office_hours",
+        "doc:docs/product-contracts/2026-04-12-e2e-test-topic-office-hours.md"
+      ]
     }
   ],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-04-12T14:52:10.423337Z",
-    "source": "complete_feature",
+    "recorded_at": "2026-04-12T15:45:49.801064Z",
+    "source": "set_workflow_state",
     "workspace_mode": "in_place",
     "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
     "project_root": "/Users/siunin/Projects/Claude-Plugins",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/plugins/super-product-manager",
     "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
     "branch": "codex/spm-prog1-spm-planning-source",
     "upstream": "origin/codex/spm-prog1-spm-planning-source",
     "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/super-product-manager",
-    "current_feature_id": null,
+    "current_feature_id": 6,
     "workflow_phase": "execution_complete",
     "current_task": null,
     "total_tasks": null,
-    "next_action": "verify_and_complete"
+    "next_action": null
   },
   "linked_projects": [],
   "linked_snapshot": {
     "schema_version": "1.0",
     "updated_at": null,
     "projects": []
+  },
+  "workflow_state": {
+    "phase": "execution_complete",
+    "updated_at": "2026-04-12T15:45:49.769746Z",
+    "execution_context": {
+      "recorded_at": "2026-04-12T15:45:49.785755Z",
+      "source": "set_workflow_state",
+      "workspace_mode": "in_place",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+      "project_root": "/Users/siunin/Projects/Claude-Plugins",
+      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/super-product-manager",
+      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
+      "branch": "codex/spm-prog1-spm-planning-source",
+      "upstream": "origin/codex/spm-prog1-spm-planning-source"
+    },
+    "plan_path": "docs/plans/2026-04-12-e2e-cross-plugin-integration-tests.md"
   }
 }
