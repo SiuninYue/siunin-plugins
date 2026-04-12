@@ -25,6 +25,7 @@ Usage:
     python3 progress_manager.py set-feature-ai-metrics <feature_id> --complexity-score <score> --selected-model <model> --workflow-path <path>
     python3 progress_manager.py complete-feature-ai-metrics <feature_id>
     python3 progress_manager.py auto-checkpoint
+    python3 progress_manager.py sync-linked [--json] [--stale-after-hours <hours>]
     python3 progress_manager.py validate-plan [--plan-path <path>]
     python3 progress_manager.py add-feature <name> <test_steps...>
     python3 progress_manager.py update-feature <feature_id> <name> [test_steps...]
@@ -116,6 +117,7 @@ STATUS_SUMMARY_CORE_FIELDS = (
 # Schema version - increment when breaking changes occur
 CURRENT_SCHEMA_VERSION = "2.0"
 LINKED_SNAPSHOT_SCHEMA_VERSION = "1.0"
+DEFAULT_LINKED_STATUS_STALE_HOURS = 24
 DEVELOPMENT_STAGES = ("planning", "developing", "completed")
 LIFECYCLE_STATES = ("approved", "implementing", "verified", "archived")
 OWNER_ROLES = ("architecture", "coding", "testing")
@@ -170,6 +172,7 @@ MUTATING_COMMANDS = {
     "set-feature-ai-metrics",
     "complete-feature-ai-metrics",
     "auto-checkpoint",
+    "sync-linked",
     "sync-runtime-context",
     "restore-archive",
     "add-bug",
@@ -749,6 +752,243 @@ def _normalize_linked_schema(data: Dict[str, Any]) -> None:
         linked_snapshot["projects"] = []
 
     data["linked_snapshot"] = linked_snapshot
+
+
+def _iter_linked_project_specs(progress_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Extract normalized linked project specs from progress payload."""
+    linked_projects = progress_data.get("linked_projects")
+    if not isinstance(linked_projects, list):
+        return []
+
+    specs: List[Dict[str, Any]] = []
+    for entry in linked_projects:
+        if isinstance(entry, dict):
+            raw_root = (
+                entry.get("project_root")
+                or entry.get("path")
+                or entry.get("root")
+            )
+            label = entry.get("label")
+        elif isinstance(entry, str):
+            raw_root = entry
+            label = None
+            entry = {"project_root": entry}
+        else:
+            continue
+
+        raw_root_text = str(raw_root or "").strip()
+        if not raw_root_text:
+            continue
+
+        specs.append(
+            {
+                "raw_project_root": raw_root_text,
+                "label": str(label).strip() if isinstance(label, str) and label.strip() else None,
+                "entry": entry,
+            }
+        )
+
+    return specs
+
+
+def _resolve_linked_project_root(
+    raw_root: str,
+    project_root: Path,
+    repo_root: Path,
+) -> Path:
+    """Resolve linked project root from absolute or relative configuration."""
+    candidate = Path(raw_root).expanduser()
+    if candidate.is_absolute():
+        return candidate.resolve()
+
+    repo_candidate = (repo_root / candidate).resolve()
+    project_candidate = (project_root / candidate).resolve()
+
+    if repo_candidate.exists():
+        return repo_candidate
+    if project_candidate.exists():
+        return project_candidate
+    if repo_root != project_root:
+        return repo_candidate
+    return project_candidate
+
+
+def _count_feature_completion(features: Any) -> Tuple[int, int]:
+    """Return (completed, total) from a progress features payload."""
+    if not isinstance(features, list):
+        return (0, 0)
+
+    total = 0
+    completed = 0
+    for feature in features:
+        if not isinstance(feature, dict):
+            continue
+        total += 1
+        if bool(feature.get("completed")):
+            completed += 1
+    return (completed, total)
+
+
+def _is_linked_snapshot_stale(
+    updated_at: Optional[str],
+    now: datetime,
+    stale_after_hours: int,
+) -> bool:
+    """Return True when linked snapshot timestamp is missing/invalid/too old."""
+    timestamp = _parse_iso_timestamp(updated_at)
+    if timestamp is None:
+        return True
+
+    reference_time = now
+    if reference_time.tzinfo is None:
+        reference_time = reference_time.replace(tzinfo=timezone.utc)
+
+    if timestamp.tzinfo is None:
+        timestamp = timestamp.replace(tzinfo=timezone.utc)
+
+    age_seconds = (reference_time - timestamp.astimezone(reference_time.tzinfo)).total_seconds()
+    return age_seconds > max(stale_after_hours, 0) * 3600
+
+
+def collect_linked_project_statuses(
+    progress_data: Dict[str, Any],
+    *,
+    project_root: Optional[Path] = None,
+    repo_root: Optional[Path] = None,
+    now: Optional[datetime] = None,
+    stale_after_hours: int = DEFAULT_LINKED_STATUS_STALE_HOURS,
+) -> List[Dict[str, Any]]:
+    """
+    Collect linked project progress snapshots in read-only mode.
+
+    This function never writes linked project files; it only reads each child's
+    `docs/progress-tracker/state/progress.json` and computes summary status.
+    """
+    if not isinstance(progress_data, dict):
+        return []
+
+    effective_project_root = Path(project_root or find_project_root()).resolve()
+    effective_repo_root = Path(repo_root or _REPO_ROOT or effective_project_root).resolve()
+    reference_time = now or datetime.now(timezone.utc)
+
+    statuses: List[Dict[str, Any]] = []
+    for spec in _iter_linked_project_specs(progress_data):
+        linked_root = _resolve_linked_project_root(
+            spec["raw_project_root"], effective_project_root, effective_repo_root
+        )
+        progress_path = get_progress_json_path(linked_root)
+        fallback_name = spec.get("label") or linked_root.name
+
+        status: Dict[str, Any] = {
+            "status": "missing",
+            "configured_project_root": spec["raw_project_root"],
+            "project_root": str(linked_root),
+            "project_name": fallback_name,
+            "completed": 0,
+            "total": 0,
+            "completion_rate": 0.0,
+            "updated_at": None,
+            "is_stale": True,
+        }
+
+        if not progress_path.exists():
+            statuses.append(status)
+            continue
+
+        try:
+            payload = json.loads(progress_path.read_text(encoding="utf-8"))
+            if not isinstance(payload, dict):
+                raise ValueError("progress payload must be object")
+        except (OSError, json.JSONDecodeError, ValueError) as exc:
+            status["status"] = "invalid"
+            status["error"] = str(exc)
+            statuses.append(status)
+            continue
+
+        project_name = payload.get("project_name")
+        if isinstance(project_name, str) and project_name.strip():
+            status["project_name"] = project_name.strip()
+
+        completed, total = _count_feature_completion(payload.get("features"))
+        updated_at = payload.get("updated_at")
+        if not isinstance(updated_at, str) or not updated_at.strip():
+            updated_at = None
+
+        status["status"] = "ok"
+        status["completed"] = completed
+        status["total"] = total
+        status["completion_rate"] = (completed / total) if total > 0 else 0.0
+        status["updated_at"] = updated_at
+        status["is_stale"] = _is_linked_snapshot_stale(
+            updated_at,
+            reference_time,
+            stale_after_hours,
+        )
+        statuses.append(status)
+
+    return statuses
+
+
+def sync_linked(
+    output_json: bool = False,
+    stale_after_hours: int = DEFAULT_LINKED_STATUS_STALE_HOURS,
+) -> bool:
+    """Refresh and persist linked project status snapshot under linked_snapshot."""
+    data = load_progress_json()
+    if not data:
+        payload = {"status": "error", "message": "No progress tracking found"}
+        if output_json:
+            print(json.dumps(payload, ensure_ascii=False))
+        else:
+            print(payload["message"])
+        return False
+
+    stale_window_hours = max(stale_after_hours, 0)
+    statuses = collect_linked_project_statuses(
+        data,
+        stale_after_hours=stale_window_hours,
+    )
+
+    linked_snapshot = data.get("linked_snapshot")
+    if not isinstance(linked_snapshot, dict):
+        linked_snapshot = {}
+
+    linked_snapshot["schema_version"] = LINKED_SNAPSHOT_SCHEMA_VERSION
+    linked_snapshot["updated_at"] = _iso_now()
+    linked_snapshot["projects"] = statuses
+    data["linked_snapshot"] = linked_snapshot
+
+    _update_runtime_context(data, source="sync_linked")
+    save_progress_json(data)
+
+    md_content = generate_progress_md(data)
+    save_progress_md(md_content)
+
+    ok_count = sum(1 for item in statuses if item.get("status") == "ok")
+    missing_count = sum(1 for item in statuses if item.get("status") == "missing")
+    invalid_count = sum(1 for item in statuses if item.get("status") == "invalid")
+    stale_count = sum(1 for item in statuses if item.get("is_stale") is True)
+
+    payload = {
+        "status": "ok",
+        "project_count": len(statuses),
+        "ok_count": ok_count,
+        "missing_count": missing_count,
+        "invalid_count": invalid_count,
+        "stale_count": stale_count,
+        "stale_after_hours": stale_window_hours,
+        "snapshot": linked_snapshot,
+    }
+
+    if output_json:
+        print(json.dumps(payload, ensure_ascii=False))
+    else:
+        print(
+            "Synced linked snapshot: "
+            f"{len(statuses)} projects (ok={ok_count}, missing={missing_count}, "
+            f"invalid={invalid_count}, stale={stale_count})"
+        )
+    return True
 
 
 def _apply_imported_feature_contract(feature: Dict[str, Any], contract: Dict[str, Any]) -> None:
@@ -1493,10 +1733,57 @@ def _save_progress_history(entries: List[Dict[str, Any]]) -> None:
         _atomic_write_text(history_path, payload)
 
 
-def _make_archive_id(project_name: str) -> str:
+def _make_archive_id(project_name: str, reason: Optional[str] = None) -> str:
     """Build a unique archive identifier."""
     timestamp = datetime.now().strftime("%Y%m%dT%H%M%S%f")
-    return f"{timestamp}-{_slugify(project_name)}"
+    archive_id = f"{timestamp}-{_slugify(project_name)}"
+    reason_slug = _slugify(reason, fallback="") if reason else ""
+    if reason_slug:
+        archive_id = f"{archive_id}-{reason_slug}"
+    return archive_id
+
+
+def _resolve_unique_archive_id(
+    base_archive_id: str,
+    archive_dir: Path,
+    history: List[Dict[str, Any]],
+) -> str:
+    """Ensure archive IDs remain unique across history and on-disk artifacts."""
+    existing_ids = {
+        str(entry.get("archive_id")).strip()
+        for entry in history
+        if isinstance(entry, dict) and entry.get("archive_id")
+    }
+
+    candidate = base_archive_id
+    suffix = 2
+    while candidate in existing_ids or any(archive_dir.glob(f"{candidate}.*")):
+        candidate = f"{base_archive_id}-{suffix}"
+        suffix += 1
+    return candidate
+
+
+def _copy_archive_artifact(
+    source_path: Path,
+    archive_dir: Path,
+    archive_id: str,
+    *,
+    kind: str,
+    suffix: str,
+) -> Optional[Dict[str, str]]:
+    """Copy one state artifact into archive storage using standardized naming."""
+    if not source_path.exists():
+        return None
+
+    archive_name = f"{archive_id}.{suffix}"
+    archive_path = archive_dir / archive_name
+    shutil.copy2(source_path, archive_path)
+
+    return {
+        "kind": kind,
+        "source_path": rel_progress_path(source_path.name),
+        "archive_path": f"{PROGRESS_ARCHIVE_DIR}/{archive_name}",
+    }
 
 
 def archive_current_progress(reason: str) -> Optional[Dict[str, Any]]:
@@ -1518,22 +1805,39 @@ def archive_current_progress(reason: str) -> Optional[Dict[str, Any]]:
         active_data = {}
 
     project_name = active_data.get("project_name", "unknown-project")
-    archive_id = _make_archive_id(project_name)
     archive_dir = progress_dir / PROGRESS_ARCHIVE_DIR
     archive_dir.mkdir(parents=True, exist_ok=True)
+    history = _load_progress_history()
+    base_archive_id = _make_archive_id(project_name, reason=reason)
+    archive_id = _resolve_unique_archive_id(base_archive_id, archive_dir, history)
 
-    archive_json_rel = None
-    archive_md_rel = None
+    archived_artifacts: List[Dict[str, str]] = []
 
-    if json_path.exists():
-        archive_json_name = f"{archive_id}.progress.json"
-        shutil.copy2(json_path, archive_dir / archive_json_name)
-        archive_json_rel = f"{PROGRESS_ARCHIVE_DIR}/{archive_json_name}"
+    for source_path, kind, suffix in (
+        (json_path, "progress_json", "progress.json"),
+        (md_path, "progress_md", "progress.md"),
+        (progress_dir / STATUS_SUMMARY_FILE, "status_summary_v1", "status-summary.v1.json"),
+        (
+            progress_dir / STATUS_SUMMARY_LEGACY_FILE,
+            "status_summary_legacy",
+            "status-summary.legacy.json",
+        ),
+    ):
+        artifact = _copy_archive_artifact(
+            source_path,
+            archive_dir,
+            archive_id,
+            kind=kind,
+            suffix=suffix,
+        )
+        if artifact:
+            archived_artifacts.append(artifact)
 
-    if md_path.exists():
-        archive_md_name = f"{archive_id}.progress.md"
-        shutil.copy2(md_path, archive_dir / archive_md_name)
-        archive_md_rel = f"{PROGRESS_ARCHIVE_DIR}/{archive_md_name}"
+    artifact_by_kind = {
+        item["kind"]: item["archive_path"]
+        for item in archived_artifacts
+        if isinstance(item, dict) and isinstance(item.get("kind"), str)
+    }
 
     features = active_data.get("features", [])
     if not isinstance(features, list):
@@ -1548,14 +1852,27 @@ def archive_current_progress(reason: str) -> Optional[Dict[str, Any]]:
         "total_features": len(features),
         "completed_features": completed_features,
         "current_feature_id": active_data.get("current_feature_id"),
-        "progress_json": archive_json_rel,
-        "progress_md": archive_md_rel,
+        "progress_json": artifact_by_kind.get("progress_json"),
+        "progress_md": artifact_by_kind.get("progress_md"),
+        "status_summary_v1": artifact_by_kind.get("status_summary_v1"),
+        "status_summary_legacy": artifact_by_kind.get("status_summary_legacy"),
+        "archived_artifacts": archived_artifacts,
     }
 
-    history = _load_progress_history()
     history.append(entry)
     _save_progress_history(history)
     return entry
+
+
+def _is_project_fully_completed(data: Dict[str, Any]) -> bool:
+    """Return True when all tracked features are completed."""
+    features = data.get("features", [])
+    if not isinstance(features, list):
+        return False
+    feature_items = [item for item in features if isinstance(item, dict)]
+    if not feature_items:
+        return False
+    return all(bool(item.get("completed")) for item in feature_items)
 
 
 def list_archives(limit: int = 20) -> bool:
@@ -2778,6 +3095,56 @@ def status():
     if deferred and not remaining and not in_progress:
         print("\nUse `prog resume --all` or `prog resume --defer-group <group>` to continue deferred features.")
 
+    # Display linked projects matrix
+    linked_snapshot = data.get("linked_snapshot")
+    if isinstance(linked_snapshot, dict):
+        linked_projects_list = linked_snapshot.get("projects")
+        if isinstance(linked_projects_list, list) and linked_projects_list:
+            linked_updated_at = linked_snapshot.get("updated_at")
+            snapshot_age = (
+                f" (snapshot: {_format_relative_time_for_summary(linked_updated_at)})"
+                if linked_updated_at
+                else ""
+            )
+            print(f"\n### Linked Projects{snapshot_age}:")
+            for proj in linked_projects_list:
+                proj_name = proj.get("project_name") or proj.get("project_root", "Unknown")
+                proj_status = proj.get("status", "unknown")
+                completed_n = proj.get("completed", 0)
+                total_n = proj.get("total", 0)
+                rate = proj.get("completion_rate", 0.0)
+                pct = int(rate * 100)
+                stale_marker = " [stale]" if proj.get("is_stale") else ""
+                updated = proj.get("updated_at")
+                updated_str = (
+                    f" | {_format_relative_time_for_summary(updated)}" if updated else ""
+                )
+                if proj_status == "ok":
+                    print(
+                        f"  [{proj_name}] {completed_n}/{total_n} ({pct}%){stale_marker}{updated_str}"
+                    )
+                elif proj_status == "missing":
+                    print(f"  [{proj_name}] missing{stale_marker}")
+                else:
+                    print(f"  [{proj_name}] {proj_status}{stale_marker}")
+
+    # Display archive history summary
+    history = _load_progress_history()
+    if history:
+        latest = history[-1]
+        archive_id = latest.get("archive_id", "?")
+        project_name_arch = latest.get("project_name", "?")
+        reason = latest.get("reason", "?")
+        archived_at = latest.get("archived_at")
+        archived_str = (
+            _format_relative_time_for_summary(archived_at) if archived_at else archived_at or "?"
+        )
+        total_archives = len(history)
+        print(f"\n### Archive History ({total_archives} total):")
+        print(
+            f"  Latest: [{archive_id}] {project_name_arch} | {reason} | {archived_str}"
+        )
+
     return True
 
 
@@ -3325,13 +3692,16 @@ def _check_other_worktrees_for_incomplete_work(current_worktree: str) -> List[Di
     return other_worktrees
 
 
-def check():
+def check(output_json: bool = False):
     """
     Check if progress tracking exists and has incomplete features.
     Returns exit code 0 if tracking is complete or doesn't exist, 1 if incomplete.
 
     Outputs JSON-formatted recovery information when incomplete work is detected.
     Also checks other worktrees for incomplete work and provides informative messages.
+
+    Args:
+        output_json: If True, emit only machine-readable JSON output without text messages.
     """
     # Check for incomplete work in other worktrees
     current_root = str(find_project_root())
@@ -3394,15 +3764,16 @@ def check():
             info_msg += f"其他 worktree: {'; '.join(wt_list)}\n"
             info_msg += f"如需切换，使用: cd <worktree_path>\n"
 
-            print(json.dumps({
-                "status": "info_other_worktrees",
-                "message": info_msg,
-                "other_worktrees": other_worktrees_with_work[:3],
-                "drift_diagnosis": reconcile_report.get("diagnosis"),
-                "drift_recommended_next_step": reconcile_report.get(
-                    "recommended_next_step"
-                ),
-            }))
+            if not output_json:
+                print(json.dumps({
+                    "status": "info_other_worktrees",
+                    "message": info_msg,
+                    "other_worktrees": other_worktrees_with_work[:3],
+                    "drift_diagnosis": reconcile_report.get("diagnosis"),
+                    "drift_recommended_next_step": reconcile_report.get(
+                        "recommended_next_step"
+                    ),
+                }))
 
         # Then proceed with current worktree recovery
         project_name = data.get("project_name", "Unknown")
@@ -3522,20 +3893,34 @@ def check():
                 return 1
 
         # General incomplete status (no specific feature in progress)
-        print(f"[Progress Tracker] Unfinished project detected: {project_name}")
-        print(f"Progress: {completed}/{total} completed")
-        if reconcile_report.get("diagnosis") != "in_sync":
-            print(
-                "[Progress Tracker] Reality check: "
-                f"{reconcile_report.get('diagnosis')} -> "
-                f"{reconcile_report.get('recommended_next_step')}"
-            )
-        if actionable_incomplete:
-            print("Use '/prog' to view status or '/prog-next' to continue")
-            return 1
+        result = {
+            "status": "incomplete",
+            "project_name": project_name,
+            "completed": completed,
+            "total": total,
+            "actionable_count": len(actionable_incomplete),
+            "deferred_count": len(deferred_incomplete),
+            "drift_diagnosis": reconcile_report.get("diagnosis"),
+            "drift_recommended_next_step": reconcile_report.get("recommended_next_step"),
+        }
 
-        print("Only deferred pending features remain. Use `prog resume --all` to continue.")
-        return 0
+        if not output_json:
+            print(f"[Progress Tracker] Unfinished project detected: {project_name}")
+            print(f"Progress: {completed}/{total} completed")
+            if reconcile_report.get("diagnosis") != "in_sync":
+                print(
+                    "[Progress Tracker] Reality check: "
+                    f"{reconcile_report.get('diagnosis')} -> "
+                    f"{reconcile_report.get('recommended_next_step')}"
+                )
+            if actionable_incomplete:
+                print("Use '/prog' to view status or '/prog-next' to continue")
+            else:
+                print("Only deferred pending features remain. Use `prog resume --all` to continue.")
+        else:
+            print(json.dumps(result))
+
+        return 1 if actionable_incomplete else 0
 
     return 0
 
@@ -4491,6 +4876,16 @@ def complete_feature(feature_id, commit_hash=None, skip_archive=False):
             # Archive failures should not prevent feature completion
             logger.error(f"Archive failed but feature completed: {e}")
             print(f"Warning: Document archiving failed but feature is marked complete")
+
+        refreshed = load_progress_json()
+        if refreshed and _is_project_fully_completed(refreshed):
+            completed_archive = archive_current_progress(reason="completed")
+            if completed_archive:
+                print(
+                    "Archived completed run as "
+                    f"{completed_archive.get('archive_id')} "
+                    f"(reason={completed_archive.get('reason')})"
+                )
 
     return True
 
@@ -6127,7 +6522,13 @@ def main():
     subparsers.add_parser("status", help="Show progress status")
 
     # Check command
-    subparsers.add_parser("check", help="Check for incomplete progress")
+    check_parser = subparsers.add_parser("check", help="Check for incomplete progress")
+    check_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="output_json",
+        help="Emit machine-readable JSON output only",
+    )
     reconcile_parser = subparsers.add_parser(
         "reconcile", help="Diagnose tracker drift and suggest the next safe action"
     )
@@ -6387,6 +6788,21 @@ def main():
 
     # Auto-checkpoint command
     subparsers.add_parser("auto-checkpoint", help="Create checkpoint snapshot if interval elapsed")
+    sync_linked_parser = subparsers.add_parser(
+        "sync-linked", help="Refresh linked project snapshots into linked_snapshot"
+    )
+    sync_linked_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="output_json",
+        help="Emit machine-readable JSON output",
+    )
+    sync_linked_parser.add_argument(
+        "--stale-after-hours",
+        type=int,
+        default=DEFAULT_LINKED_STATUS_STALE_HOURS,
+        help="Staleness threshold in hours for linked snapshots",
+    )
     runtime_sync_parser = subparsers.add_parser(
         "sync-runtime-context",
         help="Record current session/worktree context without changing semantic progress timestamps",
@@ -6455,7 +6871,7 @@ def main():
         if args.command == "status":
             return status()
         if args.command == "check":
-            return check()
+            return check(output_json=args.output_json)
         if args.command == "reconcile":
             return reconcile(output_json=args.output_json)
         if args.command == "next-feature":
@@ -6561,6 +6977,11 @@ def main():
             return complete_feature_ai_metrics(args.feature_id)
         if args.command == "auto-checkpoint":
             return auto_checkpoint()
+        if args.command == "sync-linked":
+            return sync_linked(
+                output_json=args.output_json,
+                stale_after_hours=args.stale_after_hours,
+            )
         if args.command == "sync-runtime-context":
             return sync_runtime_context(source=args.source, quiet=args.quiet, force=args.force)
         if args.command == "validate-plan":

@@ -427,17 +427,42 @@ This will:
 4. **Visual clarity**: Use formatting (bold, lists) for readability
 5. **Git integration**: Leverage commit history for context
 6. **Test-focused**: Highlight test steps when showing in-progress features
-7. **ALWAYS output handoff block**: At the end of every status display, include the appropriate Context Handoff Block for the current state (see templates in `communication-templates.md`)
+7. **ALWAYS output handoff block**: At the end of every status display, include the appropriate Context Handoff Block for the current state
 
 ## Handoff Block Reference
 
 Use these templates based on current state:
 
-| State | Template | Purpose |
-|-------|----------|---------|
-| No active feature | `prog-next` (Project only) | Start next feature |
-| Feature in progress (execution/planning:approved/planning_complete) | `prog-next` (with context) | Resume implementation |
-| execution_complete | `prog-done` | Complete feature |
-| All features complete | (none) | Show summary only |
+**No active feature:**
+```text
+/progress-tracker:prog-next
 
-See `../progress-recovery/references/communication-templates.md` for full template definitions.
+Project: <done>/<total> features done
+ProjectRoot: <abs_project_root>
+→ Context pre-loaded. Auto-selects and starts next pending feature.
+```
+
+**Feature in progress (execution/planning:approved/planning_complete):**
+```text
+/progress-tracker:prog-next
+
+Feature: <feature_id> "<feature_name>" | Phase: <phase>
+Plan: <plan_path> | Tasks: <completed>/<total> done
+Next: <next_task_id> — <next_task_title>
+Branch: <branch>[ | Worktree: <worktree_path>]
+ProjectRoot: <abs_project_root>
+→ Context pre-loaded. Resume from next task.
+```
+
+**execution_complete:**
+```text
+/progress-tracker:prog-done
+
+Feature: <feature_id> "<feature_name>" | Phase: execution_complete
+Plan: <plan_path> | Tasks: <total>/<total> done
+Branch: <branch>[ | Worktree: <worktree_path>]
+ProjectRoot: <abs_project_root>
+→ Context pre-loaded. Run verification and commit.
+```
+
+**All features complete:** Show project summary only (no handoff block).

@@ -294,6 +294,17 @@ Always include:
 1. Feature ID and name
 2. Verification summary (pass/fail per test step)
 3. Progress update result
-4. Context Handoff Block (see Step 9 template above)
+4. Context Handoff Block (next feature or project complete):
+
+**If pending features remain:**
+```text
+/progress-tracker:prog-next
+
+Project: <done>/<total> features done | F<feature_id> "<feature_name>" ✓ just completed
+ProjectRoot: <abs_project_root>
+→ Context pre-loaded. Auto-selects and starts next pending feature.
+```
+
+**If ALL features complete:** Output project completion summary instead (no handoff block).
 
 For full examples of pass/fail conversations, read `references/session-examples.md`.

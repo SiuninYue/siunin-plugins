@@ -1,0 +1,56 @@
+{
+  "schema_version": "1.0",
+  "created_at": "2026-04-12T09:38:02.910760Z",
+  "updated_at": "2026-04-12T14:00:32.463789Z",
+  "next_capability_seq": 3,
+  "last_synced_commit": null,
+  "capabilities": [
+    {
+      "cap_id": "CAP-001",
+      "fingerprint": "39fc11702c62089c",
+      "title": "F5 自动归档当前 run 并更新归档索引",
+      "summary": "实现当项目全部 feature 完成时自动归档 progress 快照并写入 progress_history 索引；已通过专用测试并完成验收收尾。",
+      "tags": [
+        "progress-tracker",
+        "archive",
+        "completion"
+      ],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 5,
+        "commit_hash": "c6ea51a57d8bf0e6b2fe9bb48a7808e16671cffb",
+        "commit_range": ""
+      },
+      "created_at": "2026-04-12T09:38:02.910967Z",
+      "updated_at": "2026-04-12T09:38:02.910967Z"
+    },
+    {
+      "cap_id": "CAP-002",
+      "fingerprint": "64ea46534e089151",
+      "title": "Re-init Archive Naming Standardization",
+      "summary": "Implemented collision-safe archive ID generation with timestamps for prog init --force. Old progress files are now archived with traceable metadata instead of being overwritten.",
+      "tags": [
+        "archive",
+        "naming",
+        "reinit",
+        "progress-tracker"
+      ],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 6,
+        "commit_hash": "a155998",
+        "commit_range": ""
+      },
+      "created_at": "2026-04-12T14:00:32.450639Z",
+      "updated_at": "2026-04-12T14:00:32.450639Z"
+    }
+  ],
+  "rejected_fingerprints": [],
+  "sync_history": [],
+  "limits": {
+    "max_sync_history": 50,
+    "max_rejected_fingerprints": 500
+  }
+}

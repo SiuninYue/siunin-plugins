@@ -152,7 +152,43 @@ Recovery responses must include:
 3. Workflow phase and plan validity
 4. Context alignment summary (execution context vs current session context)
 5. Ranked next actions (1-3 options)
-6. Context Handoff Block — always append at the end so user can continue in a new session without re-reading state files (see `references/communication-templates.md` → "Context Handoff Block")
+6. Context Handoff Block — always append at the end so user can continue in a new session
+
+**Common handoff blocks:**
+
+**No interrupted work:**
+```text
+/progress-tracker:prog-next
+
+Project: <done>/<total> features done
+ProjectRoot: <abs_project_root>
+→ Context pre-loaded. Auto-selects and starts next pending feature.
+```
+
+**Resume feature (phase = execution/planning:approved/planning_complete):**
+```text
+/progress-tracker:prog-next
+
+Feature: <feature_id> "<feature_name>" | Phase: <phase>
+Plan: <plan_path> | Tasks: <completed>/<total> done
+Next: <next_task_id> — <next_task_title>
+Branch: <branch>[ | Worktree: <worktree_path>]
+ProjectRoot: <abs_project_root>
+→ Context pre-loaded. Resume from next task.
+```
+
+**Complete feature (phase = execution_complete):**
+```text
+/progress-tracker:prog-done
+
+Feature: <feature_id> "<feature_name>" | Phase: execution_complete
+Plan: <plan_path> | Tasks: <total>/<total> done
+Branch: <branch>[ | Worktree: <worktree_path>]
+ProjectRoot: <abs_project_root>
+→ Context pre-loaded. Run verification and commit.
+```
+
+For additional templates and edge cases, see `references/communication-templates.md`.
 
 Keep message concise by default; expand only when user asks for details.
 
