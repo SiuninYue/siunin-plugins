@@ -151,10 +151,63 @@ def resolve_target_project_root(
         return plugin_root, repo_root
 
     if (repo_root / "plugins").is_dir():
-        raise ProjectRootResolutionError(
-            "Ambiguous monorepo scope. Run inside plugins/<name> or pass "
-            "--project-root plugins/<name>."
-        )
+        # In a worktree, try to auto-detect the primary plugin
+        if ".worktrees" in str(repo_root):
+            plugins_dir = repo_root / "plugins"
+            available = [d for d in plugins_dir.iterdir() if d.is_dir()]
+
+            # Strategy 1: If only one plugin exists, auto-select it
+            if len(available) == 1:
+                return available[0], repo_root
+
+            # Strategy 2: Try to infer from worktree path/name
+            # Extract worktree name from path like: repo/.worktrees/feature-2-xxx
+            worktree_name = repo_root.name
+            if worktree_name != ".worktrees":
+                # Try to match worktree name to a plugin
+                for plugin_path in available:
+                    plugin_name = plugin_path.name
+                    # Match if worktree name contains plugin name or vice versa
+                    if (plugin_name.replace("-", "_") in worktree_name.replace("-", "_") or
+                        worktree_name.replace("-", "_") in plugin_name.replace("-", "_")):
+                        return plugin_path, repo_root
+
+            # Strategy 3: Use most recently modified plugin (based on mtime)
+            # This assumes the active worktree touches its primary plugin most recently
+            if available:
+                most_recent = max(available, key=lambda p: p.stat().st_mtime)
+                return most_recent, repo_root
+
+        # Build a more helpful error message
+        msg_parts = ["Ambiguous monorepo scope."]
+
+        # Detect if we're in a worktree
+        if ".worktrees" in str(repo_root):
+            msg_parts.append("You're in a worktree.")
+
+        # Detect current location relative to repo root
+        try:
+            rel_path = current.relative_to(repo_root)
+            if str(rel_path) == ".":
+                msg_parts.append("Currently at monorepo root.")
+            else:
+                msg_parts.append(f"Currently at: {rel_path}")
+        except ValueError:
+            pass  # current might not be relative to repo_root
+
+        # Provide solutions
+        msg_parts.append("\nSolutions:")
+        msg_parts.append(f"  1. cd plugins/<name> && prog <command>")
+        msg_parts.append(f"  2. prog --project-root plugins/<name> <command>")
+
+        # Try to detect available plugins
+        plugins_dir = repo_root / "plugins"
+        if plugins_dir.is_dir():
+            available = [d.name for d in plugins_dir.iterdir() if d.is_dir()]
+            if available:
+                msg_parts.append(f"\nAvailable plugins: {', '.join(available[:5])}")
+
+        raise ProjectRootResolutionError("\n".join(msg_parts))
 
     return repo_root, repo_root
 

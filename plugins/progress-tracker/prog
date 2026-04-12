@@ -5,6 +5,7 @@
 # Usage:
 #   prog <progress_manager_command> [args...]
 #   prog memory <project_memory_command> [args...]
+#   python prog.py <command> [args...]  # Python entry point
 #
 # This script can be called from any directory and will correctly
 # locate the scripts relative to its own location.

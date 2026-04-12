@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-04-12T14:49:43.588731Z",
+  "updated_at": "2026-04-12T16:35:19.033301Z",
   "source": {
     "generator": "progress_manager.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,8 +11,8 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1775976572488189751,
-      "size": 23282
+      "mtime_ns": 1775982847522491708,
+      "size": 24309
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
@@ -22,16 +22,16 @@
     }
   },
   "progress": {
-    "completed": 1,
+    "completed": 2,
     "total": 14,
-    "percentage": 7
+    "percentage": 14
   },
   "next_action": {
     "type": "feature",
-    "feature_id": 2,
-    "feature_name": "实现子项目 progress.json 发现与只读聚合采集器",
-    "development_stage": "pending",
-    "stage_label": "待开始"
+    "feature_id": 3,
+    "feature_name": "实现 monorepo 根目录歧义 fail-closed 与显式 scope 选择",
+    "development_stage": "developing",
+    "stage_label": "开发中"
   },
   "plan_health": {
     "status": "N/A",

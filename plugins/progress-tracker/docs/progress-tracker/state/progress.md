@@ -2,20 +2,20 @@
 
 **Created**: 2026-04-09T01:12:55.289861Z
 
-**Status**: 1/14 completed
+**Status**: 2/14 completed
 
 ## Completed
 - [x] 定义父级协调追踪器 Schema（linked_projects + snapshot 元数据）
+- [x] 实现子项目 progress.json 发现与只读聚合采集器
 
 ## In Progress
-- [ ] 实现子项目 progress.json 发现与只读聚合采集器
+- [ ] 实现 monorepo 根目录歧义 fail-closed 与显式 scope 选择
   **Test steps**:
-  - 实现子项目路径发现与 progress.json 读取（无写入）
-  - 运行: pytest -q plugins/progress-tracker/tests/test_linked_status_collector.py
-  - 校验采集结果包含项目名、完成率、更新时间、stale 标记
+  - 在多候选 tracker 情况下阻断 mutating 命令并给出修复提示
+  - 运行: pytest -q plugins/progress-tracker/tests/test_scope_fail_closed.py
+  - 校验 --project-root 显式指定后同命令可继续执行
 
 ## Pending
-- [ ] 实现 monorepo 根目录歧义 fail-closed 与显式 scope 选择
 - [ ] 新增父级同步命令 sync-linked（刷新子项目最新快照）
 - [ ] 全部功能完成时自动归档当前 run 并写入归档索引
 - [ ] prog init --force 归档与旧状态重命名策略标准化
@@ -27,9 +27,3 @@
 - [ ] 落地 ship_check 统一门禁与 docs-sync 证据校验
 - [ ] 落地 sprint_ledger 与 schema 2.1 的 sprint_contract/handoff 持久化
 - [ ] 落地 wf_state_machine + wf_auto_driver + hook 自动推进
-
-## Workflow Context
-- Phase: execution_complete
-- Next action: /prog done
-- Execution context: codex/feature-2-linked-status-collector @ feature-2-linked-status-collector [worktree]
-- Current session context: codex/feature-2-linked-status-collector @ feature-2-linked-status-collector [worktree]
