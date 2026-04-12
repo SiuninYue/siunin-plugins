@@ -3888,8 +3888,9 @@ def archive_feature_docs(feature_id: int, feature_name: str = None) -> Dict[str,
     - docs/archive/testing/
 
     Supports naming patterns:
-    - Legacy: feature-{feature_id}-*.md
-    - Current: YYYY-MM-DD-description.md
+    - Primary: Reads plan_path from feature object (preserved before completion)
+    - Fallback: feature-{feature_id}-*.md (legacy pattern)
+    - Fallback: bug-*-fix-report.md (testing reports)
 
     Args:
         feature_id: The ID of the completed feature
@@ -3919,7 +3920,38 @@ def archive_feature_docs(feature_id: int, feature_name: str = None) -> Dict[str,
         testing_archive.mkdir(parents=True, exist_ok=True)
         plans_archive.mkdir(parents=True, exist_ok=True)
 
-        # Collect all patterns to try for this feature
+        # Try to get plan_path from feature object (preserved before workflow_state clear)
+        data = load_progress_json()
+        feature = next((f for f in data.get("features", []) if f.get("id") == feature_id), None)
+        plan_path_from_feature = feature.get("plan_path") if feature else None
+
+        # Archive plan file if plan_path is available
+        if plan_path_from_feature:
+            try:
+                plan_file = project_root / plan_path_from_feature
+                if plan_file.exists():
+                    dst_file = plans_archive / plan_file.name
+
+                    # Handle filename conflicts
+                    if dst_file.exists():
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        stem = plan_file.stem
+                        suffix = plan_file.suffix
+                        new_name = f"{stem}_{timestamp}{suffix}"
+                        dst_file = plans_archive / new_name
+
+                    shutil.move(str(plan_file), str(dst_file))
+                    result["archived_files"].append({
+                        "from": plan_path_from_feature,
+                        "to": str(dst_file.relative_to(project_root))
+                    })
+                    logger.info(f"Archived plan: {plan_path_from_feature} -> {dst_file.relative_to(project_root)}")
+            except Exception as e:
+                error_msg = f"Failed to archive plan {plan_path_from_feature}: {e}"
+                result["errors"].append(error_msg)
+                logger.warning(error_msg)
+
+        # Collect all patterns to try for this feature (fallback)
         patterns = [
             # Legacy pattern: feature-{feature_id}-*.md
             (testing_src, testing_archive, f"feature-{feature_id}-*.md"),
@@ -4420,6 +4452,11 @@ def complete_feature(feature_id, commit_hash=None, skip_archive=False):
     _clear_feature_finish_pending(feature)
     if commit_hash:
         feature["commit_hash"] = commit_hash
+
+    # Preserve plan_path for archiving before clearing workflow_state
+    plan_path = data.get("workflow_state", {}).get("plan_path")
+    if plan_path:
+        feature["plan_path"] = plan_path
 
     data["current_feature_id"] = None
     _update_runtime_context(data, source="complete_feature")
