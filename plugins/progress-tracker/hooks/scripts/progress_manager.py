@@ -3642,13 +3642,16 @@ def _check_other_worktrees_for_incomplete_work(current_worktree: str) -> List[Di
     return other_worktrees
 
 
-def check():
+def check(output_json: bool = False):
     """
     Check if progress tracking exists and has incomplete features.
     Returns exit code 0 if tracking is complete or doesn't exist, 1 if incomplete.
 
     Outputs JSON-formatted recovery information when incomplete work is detected.
     Also checks other worktrees for incomplete work and provides informative messages.
+
+    Args:
+        output_json: If True, emit only machine-readable JSON output without text messages.
     """
     # Check for incomplete work in other worktrees
     current_root = str(find_project_root())
@@ -3711,15 +3714,16 @@ def check():
             info_msg += f"其他 worktree: {'; '.join(wt_list)}\n"
             info_msg += f"如需切换，使用: cd <worktree_path>\n"
 
-            print(json.dumps({
-                "status": "info_other_worktrees",
-                "message": info_msg,
-                "other_worktrees": other_worktrees_with_work[:3],
-                "drift_diagnosis": reconcile_report.get("diagnosis"),
-                "drift_recommended_next_step": reconcile_report.get(
-                    "recommended_next_step"
-                ),
-            }))
+            if not output_json:
+                print(json.dumps({
+                    "status": "info_other_worktrees",
+                    "message": info_msg,
+                    "other_worktrees": other_worktrees_with_work[:3],
+                    "drift_diagnosis": reconcile_report.get("diagnosis"),
+                    "drift_recommended_next_step": reconcile_report.get(
+                        "recommended_next_step"
+                    ),
+                }))
 
         # Then proceed with current worktree recovery
         project_name = data.get("project_name", "Unknown")
@@ -3839,20 +3843,34 @@ def check():
                 return 1
 
         # General incomplete status (no specific feature in progress)
-        print(f"[Progress Tracker] Unfinished project detected: {project_name}")
-        print(f"Progress: {completed}/{total} completed")
-        if reconcile_report.get("diagnosis") != "in_sync":
-            print(
-                "[Progress Tracker] Reality check: "
-                f"{reconcile_report.get('diagnosis')} -> "
-                f"{reconcile_report.get('recommended_next_step')}"
-            )
-        if actionable_incomplete:
-            print("Use '/prog' to view status or '/prog-next' to continue")
-            return 1
+        result = {
+            "status": "incomplete",
+            "project_name": project_name,
+            "completed": completed,
+            "total": total,
+            "actionable_count": len(actionable_incomplete),
+            "deferred_count": len(deferred_incomplete),
+            "drift_diagnosis": reconcile_report.get("diagnosis"),
+            "drift_recommended_next_step": reconcile_report.get("recommended_next_step"),
+        }
 
-        print("Only deferred pending features remain. Use `prog resume --all` to continue.")
-        return 0
+        if not output_json:
+            print(f"[Progress Tracker] Unfinished project detected: {project_name}")
+            print(f"Progress: {completed}/{total} completed")
+            if reconcile_report.get("diagnosis") != "in_sync":
+                print(
+                    "[Progress Tracker] Reality check: "
+                    f"{reconcile_report.get('diagnosis')} -> "
+                    f"{reconcile_report.get('recommended_next_step')}"
+                )
+            if actionable_incomplete:
+                print("Use '/prog' to view status or '/prog-next' to continue")
+            else:
+                print("Only deferred pending features remain. Use `prog resume --all` to continue.")
+        else:
+            print(json.dumps(result))
+
+        return 1 if actionable_incomplete else 0
 
     return 0
 
@@ -6417,7 +6435,13 @@ def main():
     subparsers.add_parser("status", help="Show progress status")
 
     # Check command
-    subparsers.add_parser("check", help="Check for incomplete progress")
+    check_parser = subparsers.add_parser("check", help="Check for incomplete progress")
+    check_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="output_json",
+        help="Emit machine-readable JSON output only",
+    )
     reconcile_parser = subparsers.add_parser(
         "reconcile", help="Diagnose tracker drift and suggest the next safe action"
     )
@@ -6760,7 +6784,7 @@ def main():
         if args.command == "status":
             return status()
         if args.command == "check":
-            return check()
+            return check(output_json=args.output_json)
         if args.command == "reconcile":
             return reconcile(output_json=args.output_json)
         if args.command == "next-feature":

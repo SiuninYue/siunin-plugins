@@ -2,7 +2,7 @@
 
 **Created**: 2026-04-09T01:12:55.289861Z
 
-**Status**: 5/14 completed
+**Status**: 6/14 completed
 
 ## Completed
 - [x] 定义父级协调追踪器 Schema（linked_projects + snapshot 元数据）
@@ -10,13 +10,7 @@
 - [x] 实现 monorepo 根目录歧义 fail-closed 与显式 scope 选择
 - [x] 新增父级同步命令 sync-linked（刷新子项目最新快照）
 - [x] 全部功能完成时自动归档当前 run 并写入归档索引
-
-## In Progress
-- [ ] prog init --force 归档与旧状态重命名策略标准化
-  **Test steps**:
-  - 在 re-init 时统一归档旧 progress 文件并保留可追溯元信息
-  - 运行: pytest -q plugins/progress-tracker/tests/test_reinit_archive_naming.py
-  - 校验重复 re-init 不会覆盖历史归档
+- [x] prog init --force 归档与旧状态重命名策略标准化
 
 ## Pending
 - [ ] 状态展示与文档更新（父级总览+子项目明细+归档历史）
@@ -27,9 +21,3 @@
 - [ ] 落地 ship_check 统一门禁与 docs-sync 证据校验
 - [ ] 落地 sprint_ledger 与 schema 2.1 的 sprint_contract/handoff 持久化
 - [ ] 落地 wf_state_machine + wf_auto_driver + hook 自动推进
-
-## Workflow Context
-- Phase: execution_complete
-- Next action: verify_and_complete
-- Execution context: codex/feature-2-linked-status-collector @ feature-2-linked-status-collector [worktree]
-- Current session context: codex/feature-2-linked-status-collector @ feature-2-linked-status-collector [worktree]
