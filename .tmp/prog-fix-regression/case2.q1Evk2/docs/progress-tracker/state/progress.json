@@ -1,0 +1,84 @@
+{
+  "schema_version": "2.0",
+  "project_name": "case2",
+  "created_at": "2026-04-12T00:00:00Z",
+  "features": [
+    {
+      "id": 1,
+      "name": "simple",
+      "test_steps": [
+        "add-update --source spm_planning succeeds",
+        "list-updates shows source=spm_planning"
+      ],
+      "completed": true,
+      "development_stage": "completed",
+      "lifecycle_state": "verified",
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "requirement_ids": [
+        "REQ-001"
+      ],
+      "change_spec": {
+        "why": "Deliver simple with traceable acceptance coverage.",
+        "in_scope": [
+          "simple"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: add-update --source spm_planning succeeds",
+        "Scenario: list-updates shows source=spm_planning"
+      ],
+      "ai_metrics": {
+        "started_at": "2026-04-12T09:56:48.837137+08:00",
+        "finished_at": "2026-04-12T09:56:48.837137+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-12T09:56:48.839031Z",
+      "commit_hash": "cb93876fdd0d2f95db2f8e54513813a68aa30982"
+    }
+  ],
+  "current_feature_id": null,
+  "workflow_state": {
+    "phase": "execution_complete",
+    "next_action": "run done"
+  },
+  "linked_projects": [],
+  "linked_snapshot": {
+    "schema_version": "1.0",
+    "updated_at": null,
+    "projects": []
+  },
+  "updates": [],
+  "retrospectives": [],
+  "updated_at": "2026-04-12T09:56:48.858153Z",
+  "runtime_context": {
+    "recorded_at": "2026-04-12T09:56:48.857856Z",
+    "source": "complete_feature",
+    "workspace_mode": "in_place",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/plugins/super-product-manager",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
+    "branch": "main",
+    "upstream": "origin/main",
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.tmp/prog-fix-regression/case2.q1Evk2",
+    "current_feature_id": null,
+    "workflow_phase": "execution_complete",
+    "current_task": null,
+    "total_tasks": null,
+    "next_action": "run done"
+  }
+}

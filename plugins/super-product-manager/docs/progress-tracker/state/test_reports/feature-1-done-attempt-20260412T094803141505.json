@@ -1,0 +1,17 @@
+{
+  "feature_id": 1,
+  "feature_name": "PROG-1 support spm_planning source",
+  "done_attempt_at": "2026-04-12T09:48:03.141703Z",
+  "overall_success": false,
+  "results": [
+    {
+      "step": "pytest ../progress-tracker/tests/test_progress_manager.py -k 'main_add_update_command_accepts_spm_planning_source' -q",
+      "command": "pytest ../progress-tracker/tests/test_progress_manager.py -k 'main_add_update_command_accepts_spm_planning_source' -q",
+      "success": false,
+      "output_summary": "/bin/sh: /Users/siunin/.local/bin/pytest: /Users/siunin/.local/share/uv/tools/pytest/bin/python: bad interpreter: No such file or directory",
+      "duration_ms": 7,
+      "exit_code": 126,
+      "error": "/bin/sh: /Users/siunin/.local/bin/pytest: /Users/siunin/.local/share/uv/tools/pytest/bin/python: bad interpreter: No such file or directory"
+    }
+  ]
+}

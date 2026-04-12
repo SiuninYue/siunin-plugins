@@ -807,6 +807,27 @@ class TestCurrentFeature:
         assert payload["status"] == "ok"
         assert payload["planning"]["status"] == "missing"
 
+    def test_next_feature_blocks_when_planning_gate_warn(self, progress_file, capsys):
+        """next-feature should block with reason=planning_warn when required refs present but optional missing."""
+        Path("docs/product-contracts").mkdir(parents=True, exist_ok=True)
+
+        # Inject required planning refs (office_hours + ceo_review) but no optional refs
+        data = progress_manager.load_progress_json()
+        data.setdefault("updates", []).append({
+            "source": "spm_planning",
+            "refs": ["planning:office_hours", "planning:ceo_review"],
+        })
+        progress_manager.save_progress_json(data)
+
+        result = progress_manager.next_feature(output_json=True)
+        assert result is False
+
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["status"] == "blocked"
+        assert payload["reason"] == "planning_warn"
+        assert payload["missing"] == []
+        assert "design_review" in payload.get("optional_missing", [])
+
 
 class TestDevelopmentStage:
     """Test development_stage read/write helpers."""
@@ -1800,7 +1821,8 @@ class TestMainFunction:
             ],
         ):
             result = progress_manager.main()
-            assert result is True
+            # When status is "missing", should return False (which becomes exit code 1)
+            assert result is False
 
         payload = json.loads(capsys.readouterr().out)
         assert payload["ok"] is True

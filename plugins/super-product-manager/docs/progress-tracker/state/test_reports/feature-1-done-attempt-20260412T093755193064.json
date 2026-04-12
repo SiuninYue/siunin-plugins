@@ -1,0 +1,26 @@
+{
+  "feature_id": 1,
+  "feature_name": "PROG-1 support spm_planning source",
+  "done_attempt_at": "2026-04-12T09:37:55.193267Z",
+  "overall_success": false,
+  "results": [
+    {
+      "step": "add-update --source spm_planning succeeds",
+      "command": "add-update --source spm_planning succeeds",
+      "success": false,
+      "output_summary": "/bin/sh: add-update: command not found",
+      "duration_ms": 3,
+      "exit_code": 127,
+      "error": "/bin/sh: add-update: command not found"
+    },
+    {
+      "step": "list-updates shows source=spm_planning",
+      "command": "list-updates shows source=spm_planning",
+      "success": false,
+      "output_summary": "/bin/sh: list-updates: command not found",
+      "duration_ms": 3,
+      "exit_code": 127,
+      "error": "/bin/sh: list-updates: command not found"
+    }
+  ]
+}

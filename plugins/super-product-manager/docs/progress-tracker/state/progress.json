@@ -1,0 +1,694 @@
+{
+  "schema_version": "2.0",
+  "project_name": "SPM-PROG Harness Linkage",
+  "created_at": "2026-04-09T01:18:09.247847Z",
+  "updated_at": "2026-04-12T15:45:49.801212Z",
+  "features": [
+    {
+      "id": 1,
+      "name": "PROG-1 support spm_planning source",
+      "test_steps": [
+        "rg -q 'UPDATE_SOURCES = .*spm_planning' ../progress-tracker/hooks/scripts/progress_manager.py",
+        "../../plugins/progress-tracker/prog list-updates --limit 20 | rg -q \"source=spm_planning\""
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-001"
+      ],
+      "change_spec": {
+        "why": "Deliver PROG-1 support spm_planning source with traceable acceptance coverage.",
+        "in_scope": [
+          "PROG-1 support spm_planning source"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: add-update --source spm_planning succeeds",
+        "Scenario: list-updates shows source=spm_planning"
+      ],
+      "development_stage": "completed",
+      "started_at": "2026-04-09T01:36:41.873644Z",
+      "ai_metrics": {
+        "complexity_score": 12,
+        "complexity_bucket": "simple",
+        "selected_model": "haiku",
+        "workflow_path": "direct_tdd",
+        "started_at": "2026-04-09T01:40:59.653412Z",
+        "finished_at": "2026-04-12T09:48:23.208185+08:00",
+        "duration_seconds": 259643
+      },
+      "completed_at": "2026-04-12T09:48:23.233306Z",
+      "commit_hash": "cb93876fdd0d2f95db2f8e54513813a68aa30982",
+      "archive_info": {
+        "archived_at": "2026-04-12T09:48:23.286619Z",
+        "files_moved": 0,
+        "files": []
+      }
+    },
+    {
+      "id": 2,
+      "name": "SPM-1 add four gstack planning commands and workflow bridge",
+      "test_steps": [
+        "office-hours and plan-* commands write docs under docs/product-contracts or docs/product-reviews",
+        "sync_planning_update writes updates with refs and source spm_planning"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "change_spec": {
+        "why": "Deliver SPM-1 add four gstack planning commands and workflow bridge with traceable acceptance coverage.",
+        "in_scope": [
+          "SPM-1 add four gstack planning commands and workflow bridge"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: office-hours and plan-* commands write docs under docs/product-contracts or docs/product-reviews",
+        "Scenario: sync_planning_update writes updates with refs and source spm_planning"
+      ],
+      "development_stage": "completed",
+      "started_at": "2026-04-12T11:08:39.307039Z",
+      "ai_metrics": {
+        "complexity_score": 21,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-12T11:19:01.443896Z",
+        "finished_at": "2026-04-12T14:07:24.660561+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-12T14:07:07.764446Z",
+      "commit_hash": "4d44c1330e84023c22a3cfe8f81a1700ff39fafd",
+      "archive_info": {
+        "archived_at": "2026-04-12T14:07:07.813690Z",
+        "files_moved": 0,
+        "files": []
+      }
+    },
+    {
+      "id": 3,
+      "name": "PROG-2 add validate-planning json contract",
+      "test_steps": [
+        "validate-planning returns ready warn missing statuses as specified",
+        "required missing optional_missing refs message fields are present"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-003"
+      ],
+      "change_spec": {
+        "why": "Deliver PROG-2 add validate-planning json contract with traceable acceptance coverage.",
+        "in_scope": [
+          "PROG-2 add validate-planning json contract"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: validate-planning returns ready warn missing statuses as specified",
+        "Scenario: required missing optional_missing refs message fields are present"
+      ],
+      "development_stage": "completed",
+      "started_at": "2026-04-12T14:11:33.352516Z",
+      "ai_metrics": {
+        "started_at": "2026-04-12T14:52:10.406647+08:00",
+        "finished_at": "2026-04-12T14:52:15.005145+08:00",
+        "duration_seconds": 4,
+        "complexity_score": 8,
+        "complexity_bucket": "simple",
+        "selected_model": "haiku",
+        "workflow_path": "direct_tdd"
+      },
+      "completed_at": "2026-04-12T14:52:10.407435Z",
+      "commit_hash": "309da4b18bf32f93c126b2f6fae5003af7166448",
+      "archive_info": {
+        "archived_at": "2026-04-12T14:52:10.424171Z",
+        "files_moved": 0,
+        "files": []
+      }
+    },
+    {
+      "id": 4,
+      "name": "PROG-3 wire soft planning gate into prog-next with ack flag",
+      "test_steps": [
+        "prog-next blocks with planning warning when required artifacts missing",
+        "prog-next continues when --ack-planning-risk is provided"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "change_spec": {
+        "why": "Deliver PROG-3 wire soft planning gate into prog-next with ack flag with traceable acceptance coverage.",
+        "in_scope": [
+          "PROG-3 wire soft planning gate into prog-next with ack flag"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: prog-next blocks with planning warning when required artifacts missing",
+        "Scenario: prog-next continues when --ack-planning-risk is provided"
+      ],
+      "development_stage": "completed",
+      "started_at": "2026-04-12T14:54:02.921143Z",
+      "ai_metrics": {
+        "complexity_score": 15,
+        "complexity_bucket": "simple",
+        "selected_model": "haiku",
+        "workflow_path": "direct_tdd",
+        "started_at": "2026-04-12T14:58:12.729346Z",
+        "finished_at": "2026-04-12T15:05:15.897713+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-12T15:05:15.921538Z",
+      "commit_hash": "150bd664382cf00108a610ed75a6a4c343137a78",
+      "archive_info": {
+        "archived_at": "2026-04-12T15:05:15.971664Z",
+        "files_moved": 0,
+        "files": []
+      }
+    },
+    {
+      "id": 5,
+      "name": "SPM-2 auto-suggest design and devex lanes by change type",
+      "test_steps": [
+        "design and devex suggestions follow category mapping",
+        "optional lanes do not block readiness"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-005"
+      ],
+      "change_spec": {
+        "why": "Deliver SPM-2 auto-suggest design and devex lanes by change type with traceable acceptance coverage.",
+        "in_scope": [
+          "SPM-2 auto-suggest design and devex lanes by change type"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: design and devex suggestions follow category mapping",
+        "Scenario: optional lanes do not block readiness"
+      ],
+      "ai_metrics": {
+        "started_at": "2026-04-12T15:17:12.164472+08:00",
+        "finished_at": "2026-04-12T15:17:12.164472+08:00",
+        "duration_seconds": 0
+      },
+      "development_stage": "completed",
+      "completed_at": "2026-04-12T15:17:12.188503Z",
+      "commit_hash": "150bd664382cf00108a610ed75a6a4c343137a78",
+      "archive_info": {
+        "archived_at": "2026-04-12T15:17:12.237582Z",
+        "files_moved": 0,
+        "files": []
+      }
+    },
+    {
+      "id": 6,
+      "name": "E2E cross-plugin integration tests and docs",
+      "test_steps": [
+        "spm planning outputs are consumed by prog validate-planning and prog-next",
+        "readme and command docs describe preflight product review vs release gate"
+      ],
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "implementing",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "change_spec": {
+        "why": "Deliver E2E cross-plugin integration tests and docs with traceable acceptance coverage.",
+        "in_scope": [
+          "E2E cross-plugin integration tests and docs"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: spm planning outputs are consumed by prog validate-planning and prog-next",
+        "Scenario: readme and command docs describe preflight product review vs release gate"
+      ],
+      "development_stage": "developing",
+      "started_at": "2026-04-12T15:20:23.277782Z",
+      "ai_metrics": {
+        "complexity_score": 20,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-12T15:20:51.372571Z"
+      }
+    }
+  ],
+  "current_feature_id": 6,
+  "updates": [
+    {
+      "id": "UPD-001",
+      "created_at": "2026-04-09T01:39:38.987991Z",
+      "category": "decision",
+      "summary": "Feature 1 acceptance probe: spm_planning source",
+      "details": null,
+      "feature_id": 1,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:office_hours"
+      ]
+    },
+    {
+      "id": "UPD-002",
+      "created_at": "2026-04-09T01:40:37.359920Z",
+      "category": "status",
+      "summary": "Feature 1 acceptance probe: source retained",
+      "details": null,
+      "feature_id": 1,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "req:REQ-001"
+      ]
+    },
+    {
+      "id": "UPD-003",
+      "created_at": "2026-04-12T11:06:53.959172Z",
+      "category": "decision",
+      "summary": "office-hours complete: SPM-1 add four gstack planning commands and workflow bridge",
+      "details": "Planner contract captured (goals/scope/acceptance/risks).",
+      "feature_id": 2,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:office_hours",
+        "doc:docs/product-contracts/2026-04-12-spm-1-add-four-gstack-planning-commands-and-workflow-bridge-office-hours.md"
+      ]
+    },
+    {
+      "id": "UPD-004",
+      "created_at": "2026-04-12T11:07:00.968644Z",
+      "category": "decision",
+      "summary": "plan-ceo-review complete: SPM-1 add four gstack planning commands and workflow bridge (pass_with_risks)",
+      "details": "CEO-level opportunity/risk review captured.",
+      "feature_id": 2,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:ceo_review",
+        "doc:docs/product-reviews/2026-04-12-spm-1-add-four-gstack-planning-commands-and-workflow-bridge-plan-ceo-review.md"
+      ]
+    },
+    {
+      "id": "UPD-005",
+      "created_at": "2026-04-12T11:07:31.544415Z",
+      "category": "decision",
+      "summary": "plan-design-review complete: SPM-1 add four gstack planning commands and workflow bridge (score=8/10)",
+      "details": "Design quality review recorded.",
+      "feature_id": 2,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:design_review",
+        "doc:docs/product-reviews/2026-04-12-spm-1-add-four-gstack-planning-commands-and-workflow-bridge-plan-design-review.md"
+      ]
+    },
+    {
+      "id": "UPD-006",
+      "created_at": "2026-04-12T11:07:35.795424Z",
+      "category": "decision",
+      "summary": "plan-devex-review complete: SPM-1 add four gstack planning commands and workflow bridge (score=8/10)",
+      "details": "Developer experience review recorded.",
+      "feature_id": 2,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:devex_review",
+        "doc:docs/product-reviews/2026-04-12-spm-1-add-four-gstack-planning-commands-and-workflow-bridge-plan-devex-review.md"
+      ]
+    },
+    {
+      "id": "UPD-007",
+      "created_at": "2026-04-12T11:42:41.804933Z",
+      "category": "decision",
+      "summary": "office-hours complete: SPM-1 feature-2 execution smoke",
+      "details": "Planner contract captured (goals/scope/acceptance/risks).",
+      "feature_id": 2,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:office_hours",
+        "doc:docs/product-contracts/2026-04-12-spm-1-feature-2-execution-smoke-office-hours.md"
+      ]
+    },
+    {
+      "id": "UPD-008",
+      "created_at": "2026-04-12T11:42:45.497715Z",
+      "category": "decision",
+      "summary": "plan-ceo-review complete: SPM-1 feature-2 execution smoke (pass)",
+      "details": "CEO-level opportunity/risk review captured.",
+      "feature_id": 2,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:ceo_review",
+        "doc:docs/product-reviews/2026-04-12-spm-1-feature-2-execution-smoke-plan-ceo-review.md"
+      ]
+    },
+    {
+      "id": "UPD-009",
+      "created_at": "2026-04-12T11:42:50.203362Z",
+      "category": "decision",
+      "summary": "plan-design-review complete: SPM-1 feature-2 execution smoke (score=8/10)",
+      "details": "Design quality review recorded.",
+      "feature_id": 2,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:design_review",
+        "doc:docs/product-reviews/2026-04-12-spm-1-feature-2-execution-smoke-plan-design-review.md"
+      ]
+    },
+    {
+      "id": "UPD-010",
+      "created_at": "2026-04-12T11:42:53.683258Z",
+      "category": "decision",
+      "summary": "plan-devex-review complete: SPM-1 feature-2 execution smoke (score=8/10)",
+      "details": "Developer experience review recorded.",
+      "feature_id": 2,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:devex_review",
+        "doc:docs/product-reviews/2026-04-12-spm-1-feature-2-execution-smoke-plan-devex-review.md"
+      ]
+    },
+    {
+      "id": "UPD-011",
+      "created_at": "2026-04-12T14:10:28.116062Z",
+      "category": "decision",
+      "summary": "office-hours complete: PROG-2 add validate-planning json contract",
+      "details": "Planner contract captured (goals/scope/acceptance/risks).",
+      "feature_id": 3,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:office_hours",
+        "doc:docs/product-contracts/2026-04-12-prog-2-add-validate-planning-json-contract-office-hours.md"
+      ]
+    },
+    {
+      "id": "UPD-012",
+      "created_at": "2026-04-12T14:10:45.729894Z",
+      "category": "decision",
+      "summary": "plan-ceo-review complete: PROG-2 add validate-planning json contract (pass)",
+      "details": "CEO-level opportunity/risk review captured.",
+      "feature_id": 3,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:ceo_review",
+        "doc:docs/product-reviews/2026-04-12-prog-2-add-validate-planning-json-contract-plan-ceo-review.md"
+      ]
+    },
+    {
+      "id": "UPD-013",
+      "created_at": "2026-04-12T14:11:04.046307Z",
+      "category": "decision",
+      "summary": "plan-design-review complete: PROG-2 add validate-planning json contract (score=9/10)",
+      "details": "Design quality review recorded.",
+      "feature_id": 3,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:design_review",
+        "doc:docs/product-reviews/2026-04-12-prog-2-add-validate-planning-json-contract-plan-design-review.md"
+      ]
+    },
+    {
+      "id": "UPD-014",
+      "created_at": "2026-04-12T14:11:22.918489Z",
+      "category": "decision",
+      "summary": "plan-devex-review complete: PROG-2 add validate-planning json contract (score=8/10)",
+      "details": "Developer experience review recorded.",
+      "feature_id": 3,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:devex_review",
+        "doc:docs/product-reviews/2026-04-12-prog-2-add-validate-planning-json-contract-plan-devex-review.md"
+      ]
+    },
+    {
+      "id": "UPD-015",
+      "created_at": "2026-04-12T15:08:17.001005Z",
+      "category": "decision",
+      "summary": "office-hours complete: SPM-2 auto-suggest design and devex lanes by change type",
+      "details": "Planner contract captured (goals/scope/acceptance/risks).",
+      "feature_id": 5,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:office_hours",
+        "doc:docs/product-contracts/2026-04-12-spm-2-auto-suggest-design-and-devex-lanes-by-change-type-office-hours.md"
+      ]
+    },
+    {
+      "id": "UPD-016",
+      "created_at": "2026-04-12T15:08:37.574995Z",
+      "category": "decision",
+      "summary": "plan-ceo-review complete: SPM-2 auto-suggest design and devex lanes by change type (pass)",
+      "details": "CEO-level opportunity/risk review captured.",
+      "feature_id": 5,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:ceo_review",
+        "doc:docs/product-reviews/2026-04-12-spm-2-auto-suggest-design-and-devex-lanes-by-change-type-plan-ceo-review.md"
+      ]
+    },
+    {
+      "id": "UPD-017",
+      "created_at": "2026-04-12T15:08:59.840984Z",
+      "category": "decision",
+      "summary": "plan-design-review complete: SPM-2 auto-suggest design and devex lanes by change type (score=9/10)",
+      "details": "Design quality review recorded.",
+      "feature_id": 5,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:design_review",
+        "doc:docs/product-reviews/2026-04-12-spm-2-auto-suggest-design-and-devex-lanes-by-change-type-plan-design-review.md"
+      ]
+    },
+    {
+      "id": "UPD-018",
+      "created_at": "2026-04-12T15:09:23.070688Z",
+      "category": "decision",
+      "summary": "plan-devex-review complete: SPM-2 auto-suggest design and devex lanes by change type (score=8/10)",
+      "details": "Developer experience review recorded.",
+      "feature_id": 5,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:devex_review",
+        "doc:docs/product-reviews/2026-04-12-spm-2-auto-suggest-design-and-devex-lanes-by-change-type-plan-devex-review.md"
+      ]
+    },
+    {
+      "id": "UPD-019",
+      "created_at": "2026-04-12T15:31:21.405362Z",
+      "category": "decision",
+      "summary": "office-hours complete: e2e-test-topic",
+      "details": "Planner contract captured (goals/scope/acceptance/risks).",
+      "feature_id": 6,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:office_hours",
+        "doc:docs/product-contracts/2026-04-12-e2e-test-topic-office-hours.md"
+      ]
+    }
+  ],
+  "retrospectives": [],
+  "runtime_context": {
+    "recorded_at": "2026-04-12T15:45:49.801064Z",
+    "source": "set_workflow_state",
+    "workspace_mode": "in_place",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/plugins/super-product-manager",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
+    "branch": "codex/spm-prog1-spm-planning-source",
+    "upstream": "origin/codex/spm-prog1-spm-planning-source",
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/super-product-manager",
+    "current_feature_id": 6,
+    "workflow_phase": "execution_complete",
+    "current_task": null,
+    "total_tasks": null,
+    "next_action": null
+  },
+  "linked_projects": [],
+  "linked_snapshot": {
+    "schema_version": "1.0",
+    "updated_at": null,
+    "projects": []
+  },
+  "workflow_state": {
+    "phase": "execution_complete",
+    "updated_at": "2026-04-12T15:45:49.769746Z",
+    "execution_context": {
+      "recorded_at": "2026-04-12T15:45:49.785755Z",
+      "source": "set_workflow_state",
+      "workspace_mode": "in_place",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+      "project_root": "/Users/siunin/Projects/Claude-Plugins",
+      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/super-product-manager",
+      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
+      "branch": "codex/spm-prog1-spm-planning-source",
+      "upstream": "origin/codex/spm-prog1-spm-planning-source"
+    },
+    "plan_path": "docs/plans/2026-04-12-e2e-cross-plugin-integration-tests.md"
+  }
+}

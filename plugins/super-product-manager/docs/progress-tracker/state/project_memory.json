@@ -1,0 +1,56 @@
+{
+  "schema_version": "1.0",
+  "created_at": "2026-04-12T06:07:18.942623Z",
+  "updated_at": "2026-04-12T06:52:20.690793Z",
+  "next_capability_seq": 3,
+  "last_synced_commit": null,
+  "capabilities": [
+    {
+      "cap_id": "CAP-001",
+      "fingerprint": "f5f900687187c9a9",
+      "title": "SPM-1 four gstack planning commands",
+      "summary": "Delivered office-hours, plan-ceo-review, plan-design-review, plan-devex-review commands with planning_workflow.py artifact generation, prog_bridge.py sync (source=spm_planning), and planning gate integration in progress_manager.py",
+      "tags": [
+        "spm",
+        "planning",
+        "prog-bridge"
+      ],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 2,
+        "commit_hash": "4d44c1330e84023c22a3cfe8f81a1700ff39fafd",
+        "commit_range": ""
+      },
+      "created_at": "2026-04-12T06:07:18.943169Z",
+      "updated_at": "2026-04-12T06:07:18.943169Z"
+    },
+    {
+      "cap_id": "CAP-002",
+      "fingerprint": "5fae54eaec0294fe",
+      "title": "validate-planning JSON contract",
+      "summary": "Added machine-readable message keys (planning.ready/missing/optional_missing/gate_disabled), exit code 0 for ready/warn and 1 for missing, schema_version 1.0 in all JSON outputs",
+      "tags": [
+        "validate-planning",
+        "json-contract",
+        "exit-codes",
+        "machine-readable"
+      ],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 3,
+        "commit_hash": "309da4b18bf32f93c126b2f6fae5003af7166448",
+        "commit_range": ""
+      },
+      "created_at": "2026-04-12T06:52:20.690769Z",
+      "updated_at": "2026-04-12T06:52:20.690769Z"
+    }
+  ],
+  "rejected_fingerprints": [],
+  "sync_history": [],
+  "limits": {
+    "max_sync_history": 50,
+    "max_rejected_fingerprints": 500
+  }
+}

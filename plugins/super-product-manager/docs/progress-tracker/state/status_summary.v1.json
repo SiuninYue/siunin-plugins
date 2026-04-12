@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-04-12T14:49:43.588731Z",
+  "updated_at": "2026-04-12T15:31:09.098068Z",
   "source": {
     "generator": "progress_manager.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,32 +11,32 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1775976572488189751,
-      "size": 23282
+      "mtime_ns": 1775978800611079148,
+      "size": 23449
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
-      "exists": false,
-      "mtime_ns": null,
-      "size": null
+      "exists": true,
+      "mtime_ns": 1775978425185804763,
+      "size": 1709
     }
   },
   "progress": {
-    "completed": 1,
-    "total": 14,
-    "percentage": 7
+    "completed": 5,
+    "total": 6,
+    "percentage": 83
   },
   "next_action": {
     "type": "feature",
-    "feature_id": 2,
-    "feature_name": "实现子项目 progress.json 发现与只读聚合采集器",
-    "development_stage": "pending",
-    "stage_label": "待开始"
+    "feature_id": 6,
+    "feature_name": "E2E cross-plugin integration tests and docs",
+    "development_stage": "developing",
+    "stage_label": "开发中"
   },
   "plan_health": {
-    "status": "N/A",
-    "plan_path": null,
-    "message": "无活跃计划"
+    "status": "OK",
+    "plan_path": "docs/plans/2026-04-12-e2e-cross-plugin-integration-tests.md",
+    "message": "计划文件完整且符合规范"
   },
   "risk_blocker": {
     "has_risk": false,
@@ -45,8 +45,8 @@
     "message": "正常"
   },
   "recent_snapshot": {
-    "exists": false,
-    "timestamp": null,
-    "relative_time": "暂无快照"
+    "exists": true,
+    "timestamp": "2026-04-12T15:20:25.169526+08:00",
+    "relative_time": "10 分钟前"
   }
 }

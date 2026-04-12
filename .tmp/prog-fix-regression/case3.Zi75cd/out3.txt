@@ -1,0 +1,10 @@
+[DONE] Running acceptance tests for Feature 1: simple
+[DONE][RUN] python3 /Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/hooks/scripts/progress_manager.py --project-root /Users/siunin/Projects/Claude-Plugins/.tmp/prog-fix-regression/case3.Zi75cd add-update --category status --summary nested-lock-check --source manual
+Added update UPD-001: status - nested-lock-check
+[DONE] Acceptance passed
+AI metrics finalized for feature 1: duration=0s
+Completed feature: simple
+Recorded commit: cb93876fdd0d2f95db2f8e54513813a68aa30982
+[DONE] Feature 1 completed
+[DONE] Commit: cb93876fdd0d2f95db2f8e54513813a68aa30982
+[DONE] Report: docs/progress-tracker/state/test_reports/feature-1-done-attempt-20260412T095649009618.json

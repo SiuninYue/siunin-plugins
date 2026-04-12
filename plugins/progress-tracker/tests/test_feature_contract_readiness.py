@@ -100,7 +100,7 @@ def test_validate_feature_readiness_detects_missing_contract_fields(temp_dir):
 
 
 def test_set_development_stage_developing_requires_readiness(temp_dir):
-    """/prog-start transition should fail if feature readiness contract is invalid."""
+    """/prog-next start path should fail if feature readiness contract is invalid."""
     progress_manager.init_tracking("Readiness Gate", force=True)
     progress_manager.add_feature("Feature A", ["step 1"])
     progress_manager.set_current(1)
