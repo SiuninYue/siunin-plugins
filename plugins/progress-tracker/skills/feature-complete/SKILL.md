@@ -136,7 +136,7 @@ Skill("superpowers:requesting-code-review", args="Final review before marking fe
 
 ```text
 Skill("progress-tracker:git-auto",
-      args="git auto done — feature <feature_id> closeout, autorun authorized, intent: commit_push_pr")
+      args="git auto done — feature <feature_id> closeout, autorun authorized, intent: commit_push_pr_merge")
 ```
 
    Parse the Execution Result Block (`=== Git Auto Result ===` … `=== End Result ===`):
@@ -192,41 +192,47 @@ plugins/progress-tracker/prog clear-workflow-state
 
 9. Show next step and output a Context Handoff Block:
 
-If pending features remain, output:
+Before outputting, read `docs/progress-tracker/state/progress.json` to find:
+- `project_name`
+- count of `completed == true` features and `total` features
+- the **first** feature with `completed == false` (next feature: its `id` and `name`)
+- the absolute project root path (from `runtime_context.tracker_root` or resolve from CWD)
+
+If pending features remain, output this exact block (fill in all placeholders from live data):
+
 ```
 ---
-**Paste into a new session to start the next feature:**
+**粘贴到新会话以启动下一个功能：**
 
 /progress-tracker:prog-next
 
-Project: <done>/<total> features done | F<feature_id> "<feature_name>" ✓ just completed
-ProjectRoot: <abs_project_root>
-→ Context pre-loaded. Auto-selects and starts next pending feature.
+  Project: <project_name> | <done>/<total> completed
+  Feature: F<next_id> "<next_name>"
+  ProjectRoot: <abs_project_root>
+  → Context pre-loaded. Auto-selects and starts next pending feature.
 ---
+```
+
+Also show the next feature's `test_steps` as a preview so the user knows what's coming:
+
+```
+**下一个功能预览：**
+- ID: F<next_id>
+- Name: <next_name>
+- Test steps:
+  1. <step1>
+  2. <step2>
+  ...
 ```
 
 If all features are complete: output project completion summary instead (no handoff block needed).
 
-10. If all features are complete, first detect whether current branch already has a PR:
+10. Merge-first closeout policy:
 
-```bash
-CURRENT_BRANCH=$(git branch --show-current)
-EXISTING_PR_URL=$(gh pr list --head "$CURRENT_BRANCH" --json url --jq '.[0].url' 2>/dev/null || true)
-```
-
-11. Apply duplicate-finish guard:
-
-- If `EXISTING_PR_URL` is non-empty and not `null`:
-  - report existing PR URL
-  - skip branch finishing flow automatically (avoid duplicate PR/cleanup actions)
-- Only invoke `finishing-a-development-branch` when **both** conditions are true:
-  1. No existing PR found
-  2. The handoff block that triggered this run explicitly contains `Intent: commit_push_pr_merge`
-- For normal `/prog done` runs (standard `commit_push_pr` intent from git-auto), do NOT invoke `finishing-a-development-branch` — git-auto's commit + push + PR is sufficient.
-
-```text
-Skill("superpowers:finishing-a-development-branch", args="Complete branch integration after progress-tracker project completion")
-```
+- `/prog done` defaults to `commit_push_pr_merge`.
+- `git-auto` is the single authority for merge gating and execution.
+- Do NOT invoke `finishing-a-development-branch` automatically inside normal `/prog done` flow; this avoids duplicate closeout decisions and worktree/main drift.
+- Only invoke `finishing-a-development-branch` when the user explicitly requests a manual integration path after `/prog done`.
 
 #### Fail Path
 
@@ -274,8 +280,8 @@ plugins/progress-tracker/prog add-bug \
 
 ### PR Detection Unavailable
 
-- Message: unable to detect PR status (e.g. `gh` unavailable or unauthenticated).
-- Next action: do not auto-run branch finishing; ask user whether to proceed manually.
+- Message: `git-auto` could not complete merge-first closeout due to missing PR/gh context.
+- Next action: keep feature open, surface blocker details, and ask user whether to proceed with manual integration.
 
 - Workflow Context Mismatch (warning path):
   - Message: current session branch/worktree differs from recorded execution context.

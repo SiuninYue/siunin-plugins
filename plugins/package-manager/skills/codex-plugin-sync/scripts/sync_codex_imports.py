@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Sync Claude plugin resources into Codex skill wrappers with compatibility transforms."""
+"""Sync Claude plugin resources into Codex wrappers or Codex plugin SOP outputs."""
 
 from __future__ import annotations
 
@@ -14,7 +14,10 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
+DEFAULT_WORKSPACE_PLUGINS = "/Users/siunin/Projects/Claude-Plugins/plugins"
+
 SUPPORTED_INCLUDE_DIRS = ("skills", "commands", "agents")
+OPTIONAL_PLUGIN_DIRS = ("templates", "assets")
 INCLUDE_DIR_CANDIDATES: dict[str, tuple[Path, ...]] = {
     "skills": (
         Path("skills"),
@@ -34,6 +37,7 @@ INCLUDE_DIR_CANDIDATES: dict[str, tuple[Path, ...]] = {
 }
 PLACEHOLDER_BRACED = "${CLAUDE_PLUGIN_ROOT}"
 PLACEHOLDER_PLAIN_PATTERN = re.compile(r"(?<![A-Za-z0-9_])\$CLAUDE_PLUGIN_ROOT\b")
+HOOK_EVENT_PATTERN_USER_PROMPT_SUBMIT = re.compile(r"(?<![A-Za-z0-9_])UserPromptSubmit(?![A-Za-z0-9_])")
 TOP_LEVEL_KEY_PATTERN = re.compile(r"^([A-Za-z0-9_-]+):(.*)$")
 SEMVER_PATTERN = re.compile(
     r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)"
@@ -58,6 +62,7 @@ class PluginStats:
     fields_added: int = 0
     placeholder_rewrites: int = 0
     placeholder_hits: int = 0
+    hook_events_mapped: int = 0
     prompts_synced: int = 0
 
 
@@ -67,6 +72,7 @@ class PluginResult:
     plugin_name: str
     source_selected: str | None = None
     source_origin: str | None = None
+    target_path: str | None = None
     include_dirs_requested: list[str] = field(default_factory=list)
     include_dirs_applied: list[str] = field(default_factory=list)
     extras_included: list[str] = field(default_factory=list)
@@ -86,11 +92,15 @@ def default_codex_skills_root() -> Path:
     return codex_home / "skills"
 
 
+def default_codex_plugins_root() -> Path:
+    return Path(DEFAULT_WORKSPACE_PLUGINS).parent / "plugins-codex"
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Sync migrated Claude plugin resources into ~/.codex/skills wrappers and "
-            "normalize content for Codex compatibility."
+            "Sync Claude plugin resources into Codex skill wrappers or convert them "
+            "into Codex plugin SOP directories."
         )
     )
     parser.add_argument(
@@ -105,13 +115,39 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "--workspace-plugins",
-        default="/Users/siunin/Projects/Claude-Plugins/plugins",
+        default=DEFAULT_WORKSPACE_PLUGINS,
         help="Workspace plugins directory for workspace-first resolution.",
+    )
+    parser.add_argument(
+        "--record-source",
+        choices=("auto", "manifest", "workspace"),
+        default="auto",
+        help=(
+            "Plugin record source. auto -> wrapper mode uses manifest, codex-plugin "
+            "mode uses workspace scan."
+        ),
     )
     parser.add_argument(
         "--codex-skills-root",
         default=str(default_codex_skills_root()),
         help="Codex skills root directory (default: $CODEX_HOME/skills).",
+    )
+    parser.add_argument(
+        "--codex-plugins-root",
+        default=str(default_codex_plugins_root()),
+        help=(
+            "Output root for converted Codex plugins when "
+            "--output-mode=codex-plugin."
+        ),
+    )
+    parser.add_argument(
+        "--output-mode",
+        choices=("wrapper-skill", "codex-plugin"),
+        default="wrapper-skill",
+        help=(
+            "wrapper-skill -> update ~/.codex/skills wrappers; codex-plugin -> "
+            "export full Codex plugin directories with .codex-plugin/plugin.json."
+        ),
     )
     parser.add_argument(
         "--source-policy",
@@ -141,9 +177,18 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="How to handle ${CLAUDE_PLUGIN_ROOT} placeholders.",
     )
     parser.add_argument(
+        "--hook-event-map",
+        choices=("none", "userpromptsubmit-beforeagent"),
+        default="none",
+        help=(
+            "Optional hook event compatibility mapping for hooks.json files. "
+            "userpromptsubmit-beforeagent maps UserPromptSubmit -> BeforeAgent."
+        ),
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Compute and report changes without writing to codex skills.",
+        help="Compute and report changes without writing output files.",
     )
     parser.add_argument(
         "--report",
@@ -167,6 +212,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         "--global-prompts-root",
         default=str(Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))) / "prompts"),
         help="Global prompts directory used by --sync-prompts=global|both.",
+    )
+    parser.add_argument(
+        "--prompt-args-token",
+        default="$ARGUMENTS",
+        help=(
+            "Token text used in generated prompts for commands with args=\"{user_input}\" "
+            "(default: $ARGUMENTS)."
+        ),
     )
     return parser.parse_args(argv)
 
@@ -284,6 +337,36 @@ def load_manifest(path: Path) -> list[PluginRecord]:
                 wrapper_name=wrapper_name,
                 source=source_path,
                 include_dirs=include_dirs,
+                plugin_name=plugin_name,
+            )
+        )
+    return records
+
+
+def detect_include_dirs(source_root: Path) -> list[str]:
+    include_dirs: list[str] = []
+    for include_dir in SUPPORTED_INCLUDE_DIRS:
+        if resolve_include_source_dir(source_root, include_dir) is not None:
+            include_dirs.append(include_dir)
+    return include_dirs
+
+
+def load_workspace_records(workspace_plugins: Path) -> list[PluginRecord]:
+    if not workspace_plugins.is_dir():
+        raise FileNotFoundError(f"Workspace plugins directory not found: {workspace_plugins}")
+
+    records: list[PluginRecord] = []
+    for child in sorted(workspace_plugins.iterdir()):
+        if not child.is_dir():
+            continue
+        if child.name.startswith("."):
+            continue
+        plugin_name = infer_plugin_name(child)
+        records.append(
+            PluginRecord(
+                wrapper_name=plugin_name,
+                source=child,
+                include_dirs=detect_include_dirs(child),
                 plugin_name=plugin_name,
             )
         )
@@ -505,6 +588,12 @@ def detect_doc_kind(wrapper_relative_path: Path) -> tuple[str | None, str | None
         return "command", wrapper_relative_path.stem
     if len(parts) >= 3 and parts[0] == "references" and parts[1] == "agents" and wrapper_relative_path.suffix == ".md":
         return "agent", wrapper_relative_path.stem
+    if len(parts) >= 2 and parts[0] == "skills" and parts[-1] == "SKILL.md":
+        return "skill", parts[1]
+    if len(parts) >= 2 and parts[0] == "commands" and wrapper_relative_path.suffix == ".md":
+        return "command", wrapper_relative_path.stem
+    if len(parts) >= 2 and parts[0] == "agents" and wrapper_relative_path.suffix == ".md":
+        return "agent", wrapper_relative_path.stem
     return None, None
 
 
@@ -521,11 +610,30 @@ def rewrite_placeholders(text: str, replacement: str) -> tuple[str, int]:
     return rewritten, hits + plain_hits
 
 
+def is_hooks_manifest(relative_path: Path) -> bool:
+    if relative_path.name != "hooks.json":
+        return False
+    parts = relative_path.parts
+    if len(parts) == 1 and parts[0] == "hooks.json":
+        return True
+    return len(parts) >= 2 and parts[-2] == "hooks"
+
+
+def rewrite_hook_events(text: str, mode: str) -> tuple[str, int]:
+    if mode != "userpromptsubmit-beforeagent":
+        return text, 0
+    hits = len(HOOK_EVENT_PATTERN_USER_PROMPT_SUBMIT.findall(text))
+    if hits == 0:
+        return text, 0
+    return HOOK_EVENT_PATTERN_USER_PROMPT_SUBMIT.sub("BeforeAgent", text), hits
+
+
 def process_text_file(
     file_path: Path,
     wrapper_root: Path,
-    wrapper_name: str,
     placeholder_mode: str,
+    hook_event_map_mode: str,
+    placeholder_replacement: str,
     result: PluginResult,
     apply_frontmatter: bool,
 ) -> bool:
@@ -563,11 +671,17 @@ def process_text_file(
             if warning not in result.warnings:
                 result.warnings.append(warning)
         elif placeholder_mode == "rewrite":
-            replacement = f"${{CODEX_HOME:-$HOME/.codex}}/skills/{wrapper_name}"
-            rewritten, rewrites = rewrite_placeholders(text, replacement)
+            rewritten, rewrites = rewrite_placeholders(text, placeholder_replacement)
             text = rewritten
             result.stats.placeholder_rewrites += rewrites
             changed = changed or rewrites > 0
+
+    if hook_event_map_mode != "none" and is_hooks_manifest(relative):
+        rewritten, mapped = rewrite_hook_events(text, hook_event_map_mode)
+        if mapped > 0:
+            text = rewritten
+            result.stats.hook_events_mapped += mapped
+            changed = True
 
     if changed:
         file_path.write_text(text, encoding="utf-8")
@@ -598,7 +712,7 @@ def extract_skill_and_args(command_body: str) -> tuple[str | None, str | None]:
     return skill, args_value
 
 
-def build_prompt_from_command(command_text: str, command_name: str) -> str:
+def build_prompt_from_command(command_text: str, command_name: str, prompt_args_token: str) -> str:
     parsed = split_frontmatter(command_text)
     if parsed is None:
         description = f"Run {command_name} workflow"
@@ -611,7 +725,9 @@ def build_prompt_from_command(command_text: str, command_name: str) -> str:
     if skill_name:
         prompt_lines = [f"Use the `${skill_name}` skill now."]
         if args_value == "{user_input}":
-            prompt_lines.append("If arguments are provided, treat them as extra context: `$ARGUMENTS`.")
+            prompt_lines.append(
+                f"If arguments are provided, treat them as extra context: `{prompt_args_token}`."
+            )
         elif args_value:
             prompt_lines.append(f"Pass this exact argument: `{args_value}`.")
         body_text = "\n".join(prompt_lines)
@@ -631,6 +747,7 @@ def sync_prompts_from_commands(
     prompts_root: Path,
     dry_run: bool,
     result: PluginResult,
+    prompt_args_token: str,
 ) -> int:
     if not source_commands_dir.is_dir():
         result.warnings.append(f"Missing commands directory for prompt sync: {source_commands_dir}")
@@ -644,7 +761,11 @@ def sync_prompts_from_commands(
     for command_file in command_files:
         prompt_name = command_file.name
         command_text = command_file.read_text(encoding="utf-8")
-        prompt_text = build_prompt_from_command(command_text, command_file.stem)
+        prompt_text = build_prompt_from_command(
+            command_text,
+            command_file.stem,
+            prompt_args_token,
+        )
         target_file = prompts_root / prompt_name
         if not dry_run:
             target_file.write_text(prompt_text, encoding="utf-8")
@@ -652,6 +773,159 @@ def sync_prompts_from_commands(
 
     result.stats.prompts_synced += synced
     return synced
+
+
+def load_json_object(path: Path) -> dict | None:
+    if not path.is_file():
+        return None
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    return raw if isinstance(raw, dict) else None
+
+
+def read_source_plugin_manifest(source_root: Path) -> dict:
+    claude_manifest = load_json_object(source_root / ".claude-plugin" / "plugin.json")
+    if claude_manifest is not None:
+        return claude_manifest
+    codex_manifest = load_json_object(source_root / ".codex-plugin" / "plugin.json")
+    if codex_manifest is not None:
+        return codex_manifest
+    return {}
+
+
+def sanitize_string_list(value: object, limit: int | None = None) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    result: list[str] = []
+    for item in value:
+        if not isinstance(item, str):
+            continue
+        candidate = item.strip()
+        if not candidate:
+            continue
+        result.append(candidate)
+        if limit is not None and len(result) >= limit:
+            break
+    return result
+
+
+def infer_interface_capabilities(
+    include_dirs: list[str],
+    extras_included: list[str],
+) -> list[str]:
+    capabilities: list[str] = []
+    if "skills" in include_dirs:
+        capabilities.append("Instructional")
+    if "commands" in include_dirs:
+        capabilities.append("Interactive")
+    if "agents" in include_dirs:
+        capabilities.append("Agentic")
+    if "hooks" in extras_included or "scripts" in extras_included:
+        capabilities.append("Automation")
+    return capabilities or ["Productivity"]
+
+
+def resolve_hooks_manifest_relative(staged_plugin: Path) -> str | None:
+    hooks_manifest = staged_plugin / "hooks" / "hooks.json"
+    if hooks_manifest.is_file():
+        return "./hooks/hooks.json"
+    legacy_hooks_manifest = staged_plugin / "hooks.json"
+    if legacy_hooks_manifest.is_file():
+        return "./hooks.json"
+    return None
+
+
+def build_codex_plugin_manifest(
+    *,
+    plugin_name: str,
+    source_manifest: dict,
+    staged_plugin: Path,
+    include_dirs: list[str],
+    extras_included: list[str],
+) -> dict:
+    description = source_manifest.get("description")
+    if not isinstance(description, str) or not description.strip():
+        description = f"Converted from Claude plugin {plugin_name}"
+    description = description.strip()
+
+    version = source_manifest.get("version")
+    if not isinstance(version, str) or not version.strip():
+        version = "0.1.0"
+    version = version.strip()
+
+    author_value = source_manifest.get("author")
+    if isinstance(author_value, dict):
+        author: dict[str, str] = {}
+        for key in ("name", "email", "url"):
+            val = author_value.get(key)
+            if isinstance(val, str) and val.strip():
+                author[key] = val.strip()
+        if "name" not in author:
+            author["name"] = "unknown"
+    elif isinstance(author_value, str) and author_value.strip():
+        author = {"name": author_value.strip()}
+    else:
+        author = {"name": "unknown"}
+
+    manifest: dict[str, object] = {
+        "name": plugin_name,
+        "version": version,
+        "description": description,
+        "author": author,
+        "license": source_manifest.get("license", "MIT"),
+        "keywords": sanitize_string_list(source_manifest.get("keywords")),
+    }
+
+    homepage = source_manifest.get("homepage")
+    if isinstance(homepage, str) and homepage.strip():
+        manifest["homepage"] = homepage.strip()
+
+    repository = source_manifest.get("repository")
+    if isinstance(repository, str) and repository.strip():
+        manifest["repository"] = repository.strip()
+
+    if (staged_plugin / "skills").is_dir():
+        manifest["skills"] = "./skills/"
+
+    hooks_relative = resolve_hooks_manifest_relative(staged_plugin)
+    if hooks_relative:
+        manifest["hooks"] = hooks_relative
+
+    mcp_relative = None
+    if (staged_plugin / ".mcp.json").is_file():
+        mcp_relative = "./.mcp.json"
+    elif (staged_plugin / "mcp.json").is_file():
+        mcp_relative = "./mcp.json"
+    if mcp_relative:
+        manifest["mcpServers"] = mcp_relative
+
+    apps_relative = None
+    if (staged_plugin / ".app.json").is_file():
+        apps_relative = "./.app.json"
+    elif (staged_plugin / "app.json").is_file():
+        apps_relative = "./app.json"
+    if apps_relative:
+        manifest["apps"] = apps_relative
+
+    display_name = title_case_slug(plugin_name)
+    developer_name = author.get("name", "unknown")
+    interface = {
+        "displayName": display_name,
+        "shortDescription": description[:120],
+        "longDescription": f"Converted from Claude plugin '{plugin_name}' with codex-plugin-sync.",
+        "developerName": developer_name,
+        "category": "Productivity",
+        "capabilities": infer_interface_capabilities(include_dirs, extras_included),
+        "defaultPrompt": [
+            f"Use {display_name} workflows in this repository.",
+            f"Run {display_name} commands for this task.",
+            f"Apply {display_name} guidance before implementation.",
+        ],
+    }
+    manifest["interface"] = interface
+    return manifest
 
 
 def generate_wrapper_skill(
@@ -690,28 +964,28 @@ def generate_openai_yaml(wrapper_name: str, plugin_name: str) -> str:
     )
 
 
-def deploy_wrapper(
-    staged_wrapper: Path,
-    destination_wrapper: Path,
+def deploy_directory(
+    staged_path: Path,
+    destination_path: Path,
     backup_root: Path,
 ) -> None:
-    destination_wrapper.parent.mkdir(parents=True, exist_ok=True)
-    backup_path = backup_root / destination_wrapper.name
+    destination_path.parent.mkdir(parents=True, exist_ok=True)
+    backup_path = backup_root / destination_path.name
 
     moved_existing = False
-    if destination_wrapper.exists():
+    if destination_path.exists():
         backup_path.parent.mkdir(parents=True, exist_ok=True)
         if backup_path.exists():
             shutil.rmtree(backup_path)
-        shutil.move(str(destination_wrapper), str(backup_path))
+        shutil.move(str(destination_path), str(backup_path))
         moved_existing = True
 
     try:
-        shutil.move(str(staged_wrapper), str(destination_wrapper))
+        shutil.move(str(staged_path), str(destination_path))
     except Exception as error:
-        if moved_existing and backup_path.exists() and not destination_wrapper.exists():
-            shutil.move(str(backup_path), str(destination_wrapper))
-        raise RuntimeError(f"Failed to deploy wrapper {destination_wrapper.name}: {error}") from error
+        if moved_existing and backup_path.exists() and not destination_path.exists():
+            shutil.move(str(backup_path), str(destination_path))
+        raise RuntimeError(f"Failed to deploy path {destination_path.name}: {error}") from error
 
 
 def sync_plugin(
@@ -720,9 +994,11 @@ def sync_plugin(
     codex_skills_root: Path,
     extra_dirs_mode: str,
     placeholder_mode: str,
+    hook_event_map_mode: str,
     dry_run: bool,
     backup_root: Path,
     sync_prompts_mode: str,
+    prompt_args_token: str,
     project_prompts_root: Path,
     global_prompts_root: Path,
 ) -> PluginResult:
@@ -766,8 +1042,9 @@ def sync_plugin(
             if process_text_file(
                 file_path=file_path,
                 wrapper_root=staged_wrapper,
-                wrapper_name=record.wrapper_name,
                 placeholder_mode=placeholder_mode,
+                hook_event_map_mode=hook_event_map_mode,
+                placeholder_replacement=f"${{CODEX_HOME:-$HOME/.codex}}/skills/{record.wrapper_name}",
                 result=result,
                 apply_frontmatter=True,
             ):
@@ -793,8 +1070,9 @@ def sync_plugin(
                     process_text_file(
                         file_path=file_path,
                         wrapper_root=staged_wrapper,
-                        wrapper_name=record.wrapper_name,
                         placeholder_mode=placeholder_mode,
+                        hook_event_map_mode=hook_event_map_mode,
+                        placeholder_replacement=f"${{CODEX_HOME:-$HOME/.codex}}/skills/{record.wrapper_name}",
                         result=result,
                         apply_frontmatter=False,
                     )
@@ -820,10 +1098,11 @@ def sync_plugin(
         )
 
         destination_wrapper = codex_skills_root / record.wrapper_name
+        result.target_path = str(destination_wrapper)
         if dry_run:
             result.status = "dry-run"
         else:
-            deploy_wrapper(staged_wrapper, destination_wrapper, backup_root)
+            deploy_directory(staged_wrapper, destination_wrapper, backup_root)
             result.status = "ok"
 
         if sync_prompts_mode != "none":
@@ -837,6 +1116,7 @@ def sync_plugin(
                     prompts_root=project_prompts_root,
                     dry_run=dry_run,
                     result=result,
+                    prompt_args_token=prompt_args_token,
                 )
             if sync_prompts_mode in {"global", "both"}:
                 sync_prompts_from_commands(
@@ -844,6 +1124,140 @@ def sync_plugin(
                     prompts_root=global_prompts_root,
                     dry_run=dry_run,
                     result=result,
+                    prompt_args_token=prompt_args_token,
+                )
+    except Exception as error:
+        result.status = "error"
+        result.error = str(error)
+    finally:
+        if tmp_root.exists():
+            shutil.rmtree(tmp_root, ignore_errors=True)
+
+    return result
+
+
+def sync_plugin_to_codex_plugin(
+    record: PluginRecord,
+    source_root: Path,
+    codex_plugins_root: Path,
+    extra_dirs_mode: str,
+    placeholder_mode: str,
+    hook_event_map_mode: str,
+    dry_run: bool,
+    backup_root: Path,
+    sync_prompts_mode: str,
+    prompt_args_token: str,
+    project_prompts_root: Path,
+    global_prompts_root: Path,
+) -> PluginResult:
+    requested_dirs = list(record.include_dirs) if record.include_dirs else list(SUPPORTED_INCLUDE_DIRS)
+    result = PluginResult(
+        wrapper_name=record.wrapper_name,
+        plugin_name=record.plugin_name,
+        source_selected=str(source_root),
+        include_dirs_requested=requested_dirs,
+    )
+
+    tmp_root = Path(tempfile.mkdtemp(prefix="codex-plugin-sync-"))
+    staged_plugin = tmp_root / record.plugin_name
+
+    include_mapping = {
+        "skills": Path("skills"),
+        "commands": Path("commands"),
+        "agents": Path("agents"),
+    }
+
+    try:
+        staged_plugin.mkdir(parents=True, exist_ok=True)
+
+        for include_dir in requested_dirs:
+            if include_dir not in include_mapping:
+                result.warnings.append(f"Unsupported include dir in manifest: {include_dir}")
+                continue
+            source_dir = resolve_include_source_dir(source_root, include_dir)
+            if source_dir is None:
+                result.warnings.append(format_missing_include_warning(source_root, include_dir))
+                continue
+            target_dir = staged_plugin / include_mapping[include_dir]
+            copy_directory(source_dir, target_dir)
+            result.include_dirs_applied.append(include_dir)
+
+        include_extras = extra_dirs_mode != "never"
+        if include_extras:
+            for extra_dir in ("hooks", "scripts"):
+                source_extra = source_root / extra_dir
+                if not source_extra.is_dir():
+                    continue
+                target_extra = staged_plugin / extra_dir
+                copy_directory(source_extra, target_extra)
+                result.extras_included.append(extra_dir)
+
+        for optional_dir in OPTIONAL_PLUGIN_DIRS:
+            source_optional = source_root / optional_dir
+            if source_optional.is_dir():
+                copy_directory(source_optional, staged_plugin / optional_dir)
+
+        for optional_file in (".mcp.json", ".app.json", "mcp.json", "app.json"):
+            source_optional_file = source_root / optional_file
+            if source_optional_file.is_file():
+                shutil.copy2(source_optional_file, staged_plugin / optional_file)
+
+        for file_path in staged_plugin.rglob("*"):
+            if not file_path.is_file():
+                continue
+            process_text_file(
+                file_path=file_path,
+                wrapper_root=staged_plugin,
+                placeholder_mode=placeholder_mode,
+                hook_event_map_mode=hook_event_map_mode,
+                placeholder_replacement=f"${{CODEX_HOME:-$HOME/.codex}}/plugins/{record.plugin_name}",
+                result=result,
+                apply_frontmatter=True,
+            )
+
+        source_manifest = read_source_plugin_manifest(source_root)
+        codex_manifest = build_codex_plugin_manifest(
+            plugin_name=record.plugin_name,
+            source_manifest=source_manifest,
+            staged_plugin=staged_plugin,
+            include_dirs=result.include_dirs_applied,
+            extras_included=result.extras_included,
+        )
+        codex_manifest_path = staged_plugin / ".codex-plugin" / "plugin.json"
+        codex_manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        codex_manifest_path.write_text(
+            json.dumps(codex_manifest, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+
+        destination_plugin = codex_plugins_root / record.plugin_name
+        result.target_path = str(destination_plugin)
+        if dry_run:
+            result.status = "dry-run"
+        else:
+            deploy_directory(staged_plugin, destination_plugin, backup_root)
+            result.status = "ok"
+
+        if sync_prompts_mode != "none":
+            commands_dir = resolve_include_source_dir(source_root, "commands")
+            if commands_dir is None:
+                result.warnings.append(format_missing_include_warning(source_root, "commands"))
+                commands_dir = source_root / "commands"
+            if sync_prompts_mode in {"project", "both"}:
+                sync_prompts_from_commands(
+                    source_commands_dir=commands_dir,
+                    prompts_root=project_prompts_root,
+                    dry_run=dry_run,
+                    result=result,
+                    prompt_args_token=prompt_args_token,
+                )
+            if sync_prompts_mode in {"global", "both"}:
+                sync_prompts_from_commands(
+                    source_commands_dir=commands_dir,
+                    prompts_root=global_prompts_root,
+                    dry_run=dry_run,
+                    result=result,
+                    prompt_args_token=prompt_args_token,
                 )
     except Exception as error:
         result.status = "error"
@@ -859,11 +1273,13 @@ def print_plugin_summary(result: PluginResult) -> None:
     dirs = ",".join(result.include_dirs_applied) or "-"
     extras = ",".join(result.extras_included) or "-"
     source = result.source_selected or "-"
+    target = result.target_path or "-"
     status = result.status.upper()
     print(
-        f"[{status}] {result.wrapper_name} | source={source} | dirs={dirs} | extras={extras} | "
+        f"[{status}] {result.wrapper_name} | source={source} | target={target} | dirs={dirs} | extras={extras} | "
         f"converted={result.stats.files_converted} | removed={result.stats.fields_removed} | "
         f"added={result.stats.fields_added} | rewrites={result.stats.placeholder_rewrites} | "
+        f"hook_maps={result.stats.hook_events_mapped} | "
         f"prompts={result.stats.prompts_synced}"
     )
     for warning in result.warnings:
@@ -881,15 +1297,20 @@ def build_report(args: argparse.Namespace, results: list[PluginResult]) -> dict:
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "config": {
             "plugins": args.plugins,
+            "record_source": args.record_source,
             "manifest": str(Path(args.manifest).expanduser()),
             "workspace_plugins": str(Path(args.workspace_plugins).expanduser()),
+            "output_mode": args.output_mode,
             "codex_skills_root": str(Path(args.codex_skills_root).expanduser()),
+            "codex_plugins_root": str(Path(args.codex_plugins_root).expanduser()),
             "source_policy": args.source_policy,
             "missing_source_policy": args.missing_source_policy,
             "extra_dirs": args.extra_dirs,
             "placeholder_mode": args.placeholder_mode,
+            "hook_event_map": args.hook_event_map,
             "dry_run": args.dry_run,
             "sync_prompts": args.sync_prompts,
+            "prompt_args_token": args.prompt_args_token,
             "project_root": str(Path(args.project_root).expanduser()),
             "global_prompts_root": str(Path(args.global_prompts_root).expanduser()),
         },
@@ -906,6 +1327,7 @@ def build_report(args: argparse.Namespace, results: list[PluginResult]) -> dict:
                 "status": result.status,
                 "source_selected": result.source_selected,
                 "source_origin": result.source_origin,
+                "target_path": result.target_path,
                 "include_dirs_requested": result.include_dirs_requested,
                 "include_dirs_applied": result.include_dirs_applied,
                 "extras_included": result.extras_included,
@@ -918,6 +1340,7 @@ def build_report(args: argparse.Namespace, results: list[PluginResult]) -> dict:
                     "fields_added": result.stats.fields_added,
                     "placeholder_hits": result.stats.placeholder_hits,
                     "placeholder_rewrites": result.stats.placeholder_rewrites,
+                    "hook_events_mapped": result.stats.hook_events_mapped,
                     "prompts_synced": result.stats.prompts_synced,
                 },
             }
@@ -928,24 +1351,50 @@ def build_report(args: argparse.Namespace, results: list[PluginResult]) -> dict:
 
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
+    prompt_args_token = args.prompt_args_token.strip()
+    if not prompt_args_token:
+        print("Error: --prompt-args-token cannot be empty", file=sys.stderr)
+        return 1
 
     manifest_path = Path(args.manifest).expanduser()
     workspace_plugins = Path(args.workspace_plugins).expanduser()
     codex_skills_root = Path(args.codex_skills_root).expanduser()
+    codex_plugins_root = Path(args.codex_plugins_root).expanduser()
     project_root = Path(args.project_root).expanduser()
     project_prompts_root = project_root / ".codex" / "prompts"
     global_prompts_root = Path(args.global_prompts_root).expanduser()
 
+    if args.record_source == "auto":
+        resolved_record_source = "workspace" if args.output_mode == "codex-plugin" else "manifest"
+    else:
+        resolved_record_source = args.record_source
+
     try:
-        records = load_manifest(manifest_path)
-        selected = select_records(records, args.plugins)
+        if resolved_record_source == "manifest":
+            records = load_manifest(manifest_path)
+            try:
+                selected = select_records(records, args.plugins)
+            except ValueError:
+                if args.record_source != "auto":
+                    raise
+                records = load_workspace_records(workspace_plugins)
+                selected = select_records(records, args.plugins)
+                resolved_record_source = "workspace"
+        else:
+            records = load_workspace_records(workspace_plugins)
+            selected = select_records(records, args.plugins)
     except Exception as error:
         print(f"Error: {error}", file=sys.stderr)
         return 1
 
+    if args.output_mode == "wrapper-skill":
+        output_root = codex_skills_root
+    else:
+        output_root = codex_plugins_root
+
     if not args.dry_run:
-        codex_skills_root.mkdir(parents=True, exist_ok=True)
-    backup_root = codex_skills_root / ".sync-backups" / datetime.now().strftime("%Y%m%d-%H%M%S")
+        output_root.mkdir(parents=True, exist_ok=True)
+    backup_root = output_root / ".sync-backups" / datetime.now().strftime("%Y%m%d-%H%M%S")
 
     results: list[PluginResult] = []
 
@@ -956,18 +1405,36 @@ def main(argv: list[str]) -> int:
                 workspace_plugins=workspace_plugins,
                 source_policy=args.source_policy,
             )
-            result = sync_plugin(
-                record=record,
-                source_root=source_root,
-                codex_skills_root=codex_skills_root,
-                extra_dirs_mode=args.extra_dirs,
-                placeholder_mode=args.placeholder_mode,
-                dry_run=args.dry_run,
-                backup_root=backup_root,
-                sync_prompts_mode=args.sync_prompts,
-                project_prompts_root=project_prompts_root,
-                global_prompts_root=global_prompts_root,
-            )
+            if args.output_mode == "wrapper-skill":
+                result = sync_plugin(
+                    record=record,
+                    source_root=source_root,
+                    codex_skills_root=codex_skills_root,
+                    extra_dirs_mode=args.extra_dirs,
+                    placeholder_mode=args.placeholder_mode,
+                    hook_event_map_mode=args.hook_event_map,
+                    dry_run=args.dry_run,
+                    backup_root=backup_root,
+                    sync_prompts_mode=args.sync_prompts,
+                    prompt_args_token=prompt_args_token,
+                    project_prompts_root=project_prompts_root,
+                    global_prompts_root=global_prompts_root,
+                )
+            else:
+                result = sync_plugin_to_codex_plugin(
+                    record=record,
+                    source_root=source_root,
+                    codex_plugins_root=codex_plugins_root,
+                    extra_dirs_mode=args.extra_dirs,
+                    placeholder_mode=args.placeholder_mode,
+                    hook_event_map_mode=args.hook_event_map,
+                    dry_run=args.dry_run,
+                    backup_root=backup_root,
+                    sync_prompts_mode=args.sync_prompts,
+                    prompt_args_token=prompt_args_token,
+                    project_prompts_root=project_prompts_root,
+                    global_prompts_root=global_prompts_root,
+                )
             result.source_origin = source_origin
         except FileNotFoundError as error:
             if args.missing_source_policy == "skip":

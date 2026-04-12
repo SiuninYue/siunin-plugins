@@ -1,4 +1,4 @@
 interface:
   display_name: "Codex Plugin Sync"
-  short_description: "Sync Claude plugin resources into Codex wrappers"
-  default_prompt: "Use $codex-plugin-sync to migrate/sync skills, commands, and agents from Claude plugins into Codex-compatible wrappers."
+  short_description: "Sync wrappers or convert Claude plugins to Codex plugin SOP"
+  default_prompt: "Use $codex-plugin-sync to sync legacy Codex wrappers or convert Claude plugins into .codex-plugin/plugin.json-based Codex plugin packages."

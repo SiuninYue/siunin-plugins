@@ -7,7 +7,7 @@ inputs:
 outputs:
   - Test execution results
   - Feature marked as completed or finish-pending
-  - Git commit with changes
+  - Git closeout result (merge-first with policy gates; fallback to blocker summary)
   - Next step recommendation
 evidence: optional
 references: []

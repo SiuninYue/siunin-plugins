@@ -67,12 +67,16 @@
 用于审查和验证 Claude Code 规则、提示和指令的质量。
 
 ### 3. codex-plugin-sync
-**触发条件**：同步 Codex skill、迁移 Claude plugin 资源、刷新迁移后的 skills/commands/agents、修复 `${CLAUDE_PLUGIN_ROOT}` 兼容性
+**触发条件**：同步 Codex skill、迁移 Claude plugin 资源、将 Claude plugin 转换成 Codex plugin SOP、刷新迁移后的 skills/commands/agents、修复 `${CLAUDE_PLUGIN_ROOT}` 兼容性
 
-用于将插件资源同步到 `~/.codex/skills` 并做 Codex 兼容转换：
+支持双模式：
+- `wrapper-skill`（保留）：同步到 `~/.codex/skills`
+- `codex-plugin`（新增）：输出 `.codex-plugin/plugin.json` 的 Codex 插件目录
+
+统一兼容转换规则：
 - `skills/*/SKILL.md` 仅保留 `name` 和 `description`
 - `commands/*.md` 与 `agents/*.md` 清理 `model`/`madel`
-- `${CLAUDE_PLUGIN_ROOT}` 可改写为 Codex 可执行路径
+- `${CLAUDE_PLUGIN_ROOT}` 可改写为 Codex 可执行路径（按输出模式选择目标路径）
 
 ## 脚本
 
@@ -127,10 +131,27 @@ python3 /Users/siunin/Projects/Claude-Plugins/plugins/package-manager/skills/cod
   --placeholder-mode rewrite
 ```
 
+### 4) 转换为 Codex plugin SOP（新增）
+
+```bash
+python3 /Users/siunin/Projects/Claude-Plugins/plugins/package-manager/skills/codex-plugin-sync/scripts/sync_codex_imports.py \
+  --plugins all \
+  --record-source workspace \
+  --output-mode codex-plugin \
+  --codex-plugins-root /Users/siunin/Projects/Claude-Plugins/plugins-codex \
+  --source-policy workspace-first \
+  --extra-dirs auto \
+  --placeholder-mode rewrite
+```
+
 默认行为：
 - `workspace-first`：优先读工作区插件目录，不存在时回退 manifest source
-- `extra-dirs=auto`：检测到 `${CLAUDE_PLUGIN_ROOT}` 时按需补迁 `hooks/`、`scripts/`
-- `placeholder-mode=rewrite`：改写为 `${CODEX_HOME:-$HOME/.codex}/skills/<wrapper_name>`
+- `extra-dirs=auto`：
+  - wrapper 模式：检测到 `${CLAUDE_PLUGIN_ROOT}` 时按需补迁 `hooks/`、`scripts/`
+  - codex-plugin 模式：默认复制存在的 `hooks/`、`scripts/`
+- `placeholder-mode=rewrite`：
+  - wrapper 模式：`${CODEX_HOME:-$HOME/.codex}/skills/<wrapper_name>`
+  - codex-plugin 模式：`${CODEX_HOME:-$HOME/.codex}/plugins/<plugin_name>`
 
 ## 文件结构
 
