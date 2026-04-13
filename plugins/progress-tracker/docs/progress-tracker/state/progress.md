@@ -2,7 +2,7 @@
 
 **Created**: 2026-04-09T01:12:55.289861Z
 
-**Status**: 6/14 completed
+**Status**: 7/24 completed
 
 ## Completed
 - [x] 定义父级协调追踪器 Schema（linked_projects + snapshot 元数据）
@@ -11,15 +11,25 @@
 - [x] 新增父级同步命令 sync-linked（刷新子项目最新快照）
 - [x] 全部功能完成时自动归档当前 run 并写入归档索引
 - [x] prog init --force 归档与旧状态重命名策略标准化
+- [x] 状态展示与文档更新（父级总览+子项目明细+归档历史）
 
 ## In Progress
-- [ ] 状态展示与文档更新（父级总览+子项目明细+归档历史）
+- [ ] [RouteV1] 父级路由 Schema 扩展（tracker_role/project_code/routing_queue/active_routes）
   **Test steps**:
-  - 更新 status/README/PROG_COMMANDS 以展示 linked 项目矩阵与归档摘要
-  - 运行: python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check
-  - 运行: pytest -q plugins/progress-tracker/tests/test_status_linked_summary.py
+  - 在 progress.json 新增并回填 tracker_role/project_code/routing_queue/active_routes
+  - 运行: pytest -q plugins/progress-tracker/tests/test_linked_projects_schema.py
+  - 校验旧仓库未启用父级时行为不变
 
 ## Pending
+- [ ] [RouteV1] 新增 link-project 命令注册子项目与 project_code
+- [ ] [RouteV1] 新增 route-status/route-select 命令
+- [ ] [RouteV1] feature_ref 命名空间化（<project_code>-F<number>）
+- [ ] [RouteV1] mutating 命令统一 route_preflight fail-closed
+- [ ] [RouteV1] worktree/branch 一致性校验（next/done fail-closed）
+- [ ] [RouteV1] 并行 active_routes 冲突策略（允许执行+强告警）
+- [ ] [RouteV1] 父级顺序调度：/prog-next 按 routing_queue 选首个可执行子项目
+- [ ] [RouteV1] sync-linked 升级为父级统一同步入口
+- [ ] [RouteV1] 在 prog-init/prog-plan 与子项目完成时回写父级备案
 - [ ] 清理 /prog-start 残留并锁定 /prog-next 为唯一 start path
 - [ ] 实现 set-finish-state 显式解锁器并固化 finish_pending 阻断链路
 - [ ] 落地 evaluator_gate 与 quality_gates.evaluator 独立评估门
@@ -30,6 +40,6 @@
 
 ## Workflow Context
 - Phase: execution_complete
-- Next action: Run /prog done to complete F7
-- Execution context: codex/feature-2-linked-status-collector @ feature-2-linked-status-collector [worktree]
-- Current session context: codex/feature-2-linked-status-collector @ feature-2-linked-status-collector [worktree]
+- Next action: /prog-done
+- Execution context: main @ Claude-Plugins [in_place]
+- Current session context: main @ Claude-Plugins [in_place]

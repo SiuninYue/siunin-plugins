@@ -1,11 +1,41 @@
 {
-  "last_checkpoint_at": "2026-04-12T16:33:22.148046+08:00",
+  "last_checkpoint_at": "2026-04-13T23:36:02.772590+08:00",
   "max_entries": 50,
   "entries": [
     {
       "timestamp": "2026-04-12T16:33:22.148046+08:00",
       "feature_id": 2,
       "feature_name": "实现子项目 progress.json 发现与只读聚合采集器",
+      "phase": "unknown",
+      "plan_path": null,
+      "current_task": null,
+      "total_tasks": null,
+      "next_action": null,
+      "workspace_mode": "in_place",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+      "branch": "main",
+      "upstream": "origin/main",
+      "reason": "auto_interval"
+    },
+    {
+      "timestamp": "2026-04-13T00:51:03.019352+08:00",
+      "feature_id": 7,
+      "feature_name": "状态展示与文档更新（父级总览+子项目明细+归档历史）",
+      "phase": "execution_complete",
+      "plan_path": null,
+      "current_task": null,
+      "total_tasks": null,
+      "next_action": "Run /prog done to complete F7",
+      "workspace_mode": "in_place",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+      "branch": "main",
+      "upstream": "origin/main",
+      "reason": "auto_interval"
+    },
+    {
+      "timestamp": "2026-04-13T23:36:02.772590+08:00",
+      "feature_id": 15,
+      "feature_name": "[RouteV1] 父级路由 Schema 扩展（tracker_role/project_code/routing_queue/active_routes）",
       "phase": "unknown",
       "plan_path": null,
       "current_task": null,

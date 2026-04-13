@@ -118,6 +118,8 @@ STATUS_SUMMARY_CORE_FIELDS = (
 CURRENT_SCHEMA_VERSION = "2.0"
 LINKED_SNAPSHOT_SCHEMA_VERSION = "1.0"
 DEFAULT_LINKED_STATUS_STALE_HOURS = 24
+TRACKER_ROLES = ("standalone", "parent", "child")
+DEFAULT_TRACKER_ROLE = "standalone"
 DEVELOPMENT_STAGES = ("planning", "developing", "completed")
 LIFECYCLE_STATES = ("approved", "implementing", "verified", "archived")
 OWNER_ROLES = ("architecture", "coding", "testing")
@@ -752,6 +754,35 @@ def _normalize_linked_schema(data: Dict[str, Any]) -> None:
         linked_snapshot["projects"] = []
 
     data["linked_snapshot"] = linked_snapshot
+
+
+def _normalize_route_schema(data: Dict[str, Any]) -> None:
+    """Backfill routing metadata fields used by RouteV1 coordination."""
+    tracker_role = data.get("tracker_role")
+    if not isinstance(tracker_role, str):
+        normalized_tracker_role = DEFAULT_TRACKER_ROLE
+    else:
+        normalized_tracker_role = tracker_role.strip().lower()
+        if normalized_tracker_role not in TRACKER_ROLES:
+            normalized_tracker_role = DEFAULT_TRACKER_ROLE
+    data["tracker_role"] = normalized_tracker_role
+
+    project_code = data.get("project_code")
+    if isinstance(project_code, str):
+        stripped_project_code = project_code.strip()
+        data["project_code"] = stripped_project_code or None
+    else:
+        data["project_code"] = None
+
+    routing_queue = data.get("routing_queue")
+    if not isinstance(routing_queue, list):
+        routing_queue = []
+    data["routing_queue"] = routing_queue
+
+    active_routes = data.get("active_routes")
+    if not isinstance(active_routes, list):
+        active_routes = []
+    data["active_routes"] = active_routes
 
 
 def _iter_linked_project_specs(progress_data: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -1618,6 +1649,7 @@ def _apply_schema_defaults(data: Dict[str, Any]) -> None:
             _normalize_feature_contract(feature)
 
     _normalize_linked_schema(data)
+    _normalize_route_schema(data)
 
     updates = data.get("updates")
     if not isinstance(updates, list):

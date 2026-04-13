@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-04-12T21:45:06.064880Z",
+  "updated_at": "2026-04-13T23:29:15.214641Z",
   "source": {
     "generator": "progress_manager.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,32 +11,32 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1776001500672811816,
-      "size": 27571
+      "mtime_ns": 1776094153671626587,
+      "size": 42859
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
-      "exists": false,
-      "mtime_ns": null,
-      "size": null
+      "exists": true,
+      "mtime_ns": 1776012663045755678,
+      "size": 1152
     }
   },
   "progress": {
-    "completed": 5,
-    "total": 14,
-    "percentage": 35
+    "completed": 7,
+    "total": 24,
+    "percentage": 29
   },
   "next_action": {
     "type": "feature",
-    "feature_id": 6,
-    "feature_name": "prog init --force 归档与旧状态重命名策略标准化",
-    "development_stage": "developing",
-    "stage_label": "开发中"
+    "feature_id": 8,
+    "feature_name": "清理 /prog-start 残留并锁定 /prog-next 为唯一 start path",
+    "development_stage": "pending",
+    "stage_label": "待开始"
   },
   "plan_health": {
-    "status": "OK",
-    "plan_path": "docs/plans/2026-04-12-feature-6-reinit-archive-naming.md",
-    "message": "计划文件完整且符合规范"
+    "status": "N/A",
+    "plan_path": null,
+    "message": "无活跃计划"
   },
   "risk_blocker": {
     "has_risk": false,
@@ -45,8 +45,8 @@
     "message": "正常"
   },
   "recent_snapshot": {
-    "exists": false,
-    "timestamp": null,
-    "relative_time": "暂无快照"
+    "exists": true,
+    "timestamp": "2026-04-13T00:51:03.019352+08:00",
+    "relative_time": "22 小时前"
   }
 }

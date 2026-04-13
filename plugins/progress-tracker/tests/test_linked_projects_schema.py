@@ -27,10 +27,14 @@ def test_load_progress_json_backfills_linked_schema_defaults(temp_dir):
         "updated_at": None,
         "projects": [],
     }
+    assert data["tracker_role"] == "standalone"
+    assert data["project_code"] is None
+    assert data["routing_queue"] == []
+    assert data["active_routes"] == []
 
 
 def test_load_progress_json_normalizes_invalid_linked_schema_shapes(temp_dir):
-    """Invalid linked schema shapes should normalize to safe defaults."""
+    """Invalid linked/route schema shapes should normalize to safe defaults."""
     state_dir = temp_dir / "docs" / "progress-tracker" / "state"
     state_dir.mkdir(parents=True, exist_ok=True)
     payload = {
@@ -40,6 +44,10 @@ def test_load_progress_json_normalizes_invalid_linked_schema_shapes(temp_dir):
         "current_feature_id": None,
         "linked_projects": "not-a-list",
         "linked_snapshot": ["not-a-dict"],
+        "tracker_role": {"bad": "shape"},
+        "project_code": ["bad-shape"],
+        "routing_queue": "not-a-list",
+        "active_routes": {"bad": "shape"},
     }
     (state_dir / "progress.json").write_text(json.dumps(payload), encoding="utf-8")
 
@@ -51,10 +59,14 @@ def test_load_progress_json_normalizes_invalid_linked_schema_shapes(temp_dir):
         "updated_at": None,
         "projects": [],
     }
+    assert data["tracker_role"] == "standalone"
+    assert data["project_code"] is None
+    assert data["routing_queue"] == []
+    assert data["active_routes"] == []
 
 
-def test_save_progress_json_preserves_unknown_fields_with_linked_schema(temp_dir):
-    """Saving should keep unknown fields while backfilling linked schema defaults."""
+def test_save_progress_json_preserves_unknown_fields_with_linked_route_schema(temp_dir):
+    """Saving should keep unknown fields while backfilling linked/route defaults."""
     payload = {
         "project_name": "Parent tracker",
         "created_at": "2026-04-09T00:00:00Z",
@@ -71,6 +83,12 @@ def test_save_progress_json_preserves_unknown_fields_with_linked_schema(temp_dir
             "projects": [{"project_name": "tracker", "completed": 1, "total": 1}],
             "collector": "manual-seed",
         },
+        "tracker_role": " parent ",
+        "project_code": " PT ",
+        "routing_queue": ["PT", "NO"],
+        "active_routes": [
+            {"project_code": "PT", "feature_ref": "PT-F1", "custom_route_flag": True}
+        ],
         "x_parent_marker": {"retain": True},
     }
 
@@ -87,3 +105,9 @@ def test_save_progress_json_preserves_unknown_fields_with_linked_schema(temp_dir
         {"project_name": "tracker", "completed": 1, "total": 1}
     ]
     assert reloaded["linked_projects"][0]["custom_entry_flag"] is True
+    assert reloaded["tracker_role"] == "parent"
+    assert reloaded["project_code"] == "PT"
+    assert reloaded["routing_queue"] == ["PT", "NO"]
+    assert reloaded["active_routes"] == [
+        {"project_code": "PT", "feature_ref": "PT-F1", "custom_route_flag": True}
+    ]

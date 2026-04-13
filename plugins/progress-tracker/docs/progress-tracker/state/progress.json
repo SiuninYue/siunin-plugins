@@ -2,7 +2,7 @@
   "schema_version": "2.0",
   "project_name": "prog-parent-coordination-archive",
   "created_at": "2026-04-09T01:12:55.289861Z",
-  "updated_at": "2026-04-12T23:13:46.181445Z",
+  "updated_at": "2026-04-13T23:39:42.513453Z",
   "features": [
     {
       "id": 1,
@@ -349,11 +349,93 @@
       }
     },
     {
-      "id": 7,
-      "name": "状态展示与文档更新（父级总览+子项目明细+归档历史）",
+      "id": 15,
+      "name": "[RouteV1] 父级路由 Schema 扩展（tracker_role/project_code/routing_queue/active_routes）",
       "test_steps": [
-        "更新 status/README/PROG_COMMANDS 以展示 linked 项目矩阵与归档摘要",
-        "运行: python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check",
+        "在 progress.json 新增并回填 tracker_role/project_code/routing_queue/active_routes",
+        "运行: pytest -q plugins/progress-tracker/tests/test_linked_projects_schema.py",
+        "校验旧仓库未启用父级时行为不变"
+      ],
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "implementing",
+      "requirement_ids": [
+        "REQ-015"
+      ],
+      "change_spec": {
+        "why": "Deliver [RouteV1] 父级路由 Schema 扩展（tracker_role/project_code/routing_queue/active_routes） with traceable acceptance coverage.",
+        "in_scope": [
+          "[RouteV1] 父级路由 Schema 扩展（tracker_role/project_code/routing_queue/active_routes）"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 在 progress.json 新增并回填 tracker_role/project_code/routing_queue/active_routes",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_linked_projects_schema.py",
+        "Scenario: 校验旧仓库未启用父级时行为不变"
+      ],
+      "development_stage": "developing",
+      "started_at": "2026-04-13T23:30:35.705756Z"
+    },
+    {
+      "id": 16,
+      "name": "[RouteV1] 新增 link-project 命令注册子项目与 project_code",
+      "test_steps": [
+        "实现: prog link-project --project-root <path> --code <code>",
+        "运行: pytest -q plugins/progress-tracker/tests/test_sync_linked_command.py -k linked",
+        "校验注册后 linked_projects 与 routing_queue 一致"
+      ],
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-016"
+      ],
+      "change_spec": {
+        "why": "Deliver [RouteV1] 新增 link-project 命令注册子项目与 project_code with traceable acceptance coverage.",
+        "in_scope": [
+          "[RouteV1] 新增 link-project 命令注册子项目与 project_code"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 实现: prog link-project --project-root <path> --code <code>",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_sync_linked_command.py -k linked",
+        "Scenario: 校验注册后 linked_projects 与 routing_queue 一致"
+      ]
+    },
+    {
+      "id": 17,
+      "name": "[RouteV1] 新增 route-status/route-select 命令",
+      "test_steps": [
+        "实现: prog route-status 输出当前路由与冲突摘要",
+        "实现: prog route-select --project <code> [--feature-ref <code-Fn>]",
         "运行: pytest -q plugins/progress-tracker/tests/test_status_linked_summary.py"
       ],
       "completed": false,
@@ -367,6 +449,326 @@
         "testing": null
       },
       "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-017"
+      ],
+      "change_spec": {
+        "why": "Deliver [RouteV1] 新增 route-status/route-select 命令 with traceable acceptance coverage.",
+        "in_scope": [
+          "[RouteV1] 新增 route-status/route-select 命令"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 实现: prog route-status 输出当前路由与冲突摘要",
+        "Scenario: 实现: prog route-select --project <code> [--feature-ref <code-Fn>]",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_status_linked_summary.py"
+      ]
+    },
+    {
+      "id": 18,
+      "name": "[RouteV1] feature_ref 命名空间化（<project_code>-F<number>）",
+      "test_steps": [
+        "父级 snapshot/UI/日志展示 active_feature_ref 而不是裸 F<number>",
+        "两个子项目各有 F2 时展示为 PT-F2 / NO-F2",
+        "运行: pytest -q plugins/progress-tracker/tests/test_linked_status_collector.py"
+      ],
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-018"
+      ],
+      "change_spec": {
+        "why": "Deliver [RouteV1] feature_ref 命名空间化（<project_code>-F<number>） with traceable acceptance coverage.",
+        "in_scope": [
+          "[RouteV1] feature_ref 命名空间化（<project_code>-F<number>）"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 父级 snapshot/UI/日志展示 active_feature_ref 而不是裸 F<number>",
+        "Scenario: 两个子项目各有 F2 时展示为 PT-F2 / NO-F2",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_linked_status_collector.py"
+      ]
+    },
+    {
+      "id": 19,
+      "name": "[RouteV1] mutating 命令统一 route_preflight fail-closed",
+      "test_steps": [
+        "对 next/done/add-feature/update-feature/complete 等 mutating 命令执行 preflight",
+        "未注册子项目或路由不一致时阻断并给出 cd + --project-root 指令",
+        "运行: pytest -q plugins/progress-tracker/tests/test_scope_fail_closed.py"
+      ],
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-019"
+      ],
+      "change_spec": {
+        "why": "Deliver [RouteV1] mutating 命令统一 route_preflight fail-closed with traceable acceptance coverage.",
+        "in_scope": [
+          "[RouteV1] mutating 命令统一 route_preflight fail-closed"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 对 next/done/add-feature/update-feature/complete 等 mutating 命令执行 preflight",
+        "Scenario: 未注册子项目或路由不一致时阻断并给出 cd + --project-root 指令",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_scope_fail_closed.py"
+      ]
+    },
+    {
+      "id": 21,
+      "name": "[RouteV1] worktree/branch 一致性校验（next/done fail-closed）",
+      "test_steps": [
+        "active_routes 记录 worktree_path/branch",
+        "在错误 worktree 执行 /prog-next /prog-done 时阻断并提示 route-select",
+        "运行: pytest -q plugins/progress-tracker/tests/test_scope_fail_closed.py"
+      ],
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-021"
+      ],
+      "change_spec": {
+        "why": "Deliver [RouteV1] worktree/branch 一致性校验（next/done fail-closed） with traceable acceptance coverage.",
+        "in_scope": [
+          "[RouteV1] worktree/branch 一致性校验（next/done fail-closed）"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: active_routes 记录 worktree_path/branch",
+        "Scenario: 在错误 worktree 执行 /prog-next /prog-done 时阻断并提示 route-select",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_scope_fail_closed.py"
+      ]
+    },
+    {
+      "id": 20,
+      "name": "[RouteV1] 并行 active_routes 冲突策略（允许执行+强告警）",
+      "test_steps": [
+        "当多个 active_routes 并行时输出冲突告警与上下文摘要",
+        "不阻断写操作但要求显示当前 route 与其他 active 项目",
+        "运行: pytest -q plugins/progress-tracker/tests/test_status_linked_summary.py -k Linked"
+      ],
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-020"
+      ],
+      "change_spec": {
+        "why": "Deliver [RouteV1] 并行 active_routes 冲突策略（允许执行+强告警） with traceable acceptance coverage.",
+        "in_scope": [
+          "[RouteV1] 并行 active_routes 冲突策略（允许执行+强告警）"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 当多个 active_routes 并行时输出冲突告警与上下文摘要",
+        "Scenario: 不阻断写操作但要求显示当前 route 与其他 active 项目",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_status_linked_summary.py -k Linked"
+      ]
+    },
+    {
+      "id": 22,
+      "name": "[RouteV1] 父级顺序调度：/prog-next 按 routing_queue 选首个可执行子项目",
+      "test_steps": [
+        "实现 /prog-next 从 routing_queue 选首个可执行项目与首个 pending feature",
+        "子项目显式执行时允许局部推进并回写父级快照",
+        "运行: pytest -q plugins/progress-tracker/tests/test_prog_start_behavior.py"
+      ],
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-022"
+      ],
+      "change_spec": {
+        "why": "Deliver [RouteV1] 父级顺序调度：/prog-next 按 routing_queue 选首个可执行子项目 with traceable acceptance coverage.",
+        "in_scope": [
+          "[RouteV1] 父级顺序调度：/prog-next 按 routing_queue 选首个可执行子项目"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 实现 /prog-next 从 routing_queue 选首个可执行项目与首个 pending feature",
+        "Scenario: 子项目显式执行时允许局部推进并回写父级快照",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_prog_start_behavior.py"
+      ]
+    },
+    {
+      "id": 23,
+      "name": "[RouteV1] sync-linked 升级为父级统一同步入口",
+      "test_steps": [
+        "linked_snapshot.projects[] 增加 project_code/active_feature_ref/workspace/route_status",
+        "执行: plugins/progress-tracker/prog --project-root plugins/progress-tracker sync-linked --json",
+        "运行: pytest -q plugins/progress-tracker/tests/test_sync_linked_command.py"
+      ],
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-023"
+      ],
+      "change_spec": {
+        "why": "Deliver [RouteV1] sync-linked 升级为父级统一同步入口 with traceable acceptance coverage.",
+        "in_scope": [
+          "[RouteV1] sync-linked 升级为父级统一同步入口"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: linked_snapshot.projects[] 增加 project_code/active_feature_ref/workspace/route_status",
+        "Scenario: 执行: plugins/progress-tracker/prog --project-root plugins/progress-tracker sync-linked --json",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_sync_linked_command.py"
+      ]
+    },
+    {
+      "id": 24,
+      "name": "[RouteV1] 在 prog-init/prog-plan 与子项目完成时回写父级备案",
+      "test_steps": [
+        "prog-init/prog-plan 产出的拆解 feature 同步到父级 progress.json",
+        "子项目 /prog-done 完成后同步父级完成率与 active_feature_ref",
+        "运行: pytest -q plugins/progress-tracker/tests/test_integration.py"
+      ],
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-024"
+      ],
+      "change_spec": {
+        "why": "Deliver [RouteV1] 在 prog-init/prog-plan 与子项目完成时回写父级备案 with traceable acceptance coverage.",
+        "in_scope": [
+          "[RouteV1] 在 prog-init/prog-plan 与子项目完成时回写父级备案"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: prog-init/prog-plan 产出的拆解 feature 同步到父级 progress.json",
+        "Scenario: 子项目 /prog-done 完成后同步父级完成率与 active_feature_ref",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_integration.py"
+      ]
+    },
+    {
+      "id": 7,
+      "name": "状态展示与文档更新（父级总览+子项目明细+归档历史）",
+      "test_steps": [
+        "更新 status/README/PROG_COMMANDS 以展示 linked 项目矩阵与归档摘要",
+        "运行: python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check",
+        "运行: pytest -q plugins/progress-tracker/tests/test_status_linked_summary.py"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-007"
       ],
@@ -387,14 +789,23 @@
         "Scenario: 运行: python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check",
         "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_status_linked_summary.py"
       ],
-      "development_stage": "planning",
+      "development_stage": "completed",
       "started_at": "2026-04-12T22:58:26.161499Z",
       "ai_metrics": {
         "complexity_score": 20,
         "complexity_bucket": "standard",
         "selected_model": "sonnet",
         "workflow_path": "plan_execute",
-        "started_at": "2026-04-12T22:59:22.152638Z"
+        "started_at": "2026-04-12T22:59:22.152638Z",
+        "finished_at": "2026-04-13T23:29:11.874521+08:00",
+        "duration_seconds": 59389
+      },
+      "completed_at": "2026-04-13T23:29:11.877187Z",
+      "commit_hash": "3af74f987033ea8de2f13743d53ddacfff6651fb",
+      "archive_info": {
+        "archived_at": "2026-04-13T23:29:11.927259Z",
+        "files_moved": 0,
+        "files": []
       }
     },
     {
@@ -678,25 +1089,25 @@
       ]
     }
   ],
-  "current_feature_id": 7,
+  "current_feature_id": 15,
   "updates": [],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-04-12T23:13:46.165610Z",
+    "recorded_at": "2026-04-13T23:39:42.490418Z",
     "source": "set_workflow_state",
-    "workspace_mode": "worktree",
-    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-2-linked-status-collector",
-    "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-2-linked-status-collector",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-2-linked-status-collector",
-    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-2-linked-status-collector",
-    "branch": "codex/feature-2-linked-status-collector",
-    "upstream": "origin/codex/feature-2-linked-status-collector",
-    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-2-linked-status-collector/plugins/progress-tracker",
-    "current_feature_id": 7,
+    "workspace_mode": "in_place",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
+    "branch": "main",
+    "upstream": "origin/main",
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+    "current_feature_id": 15,
     "workflow_phase": "execution_complete",
     "current_task": null,
     "total_tasks": null,
-    "next_action": "Run /prog done to complete F7"
+    "next_action": "/prog-done"
   },
   "linked_projects": [],
   "linked_snapshot": {
@@ -704,20 +1115,24 @@
     "updated_at": "2026-04-12T17:25:06.586500Z",
     "projects": []
   },
+  "tracker_role": "standalone",
+  "project_code": null,
+  "routing_queue": [],
+  "active_routes": [],
   "workflow_state": {
     "phase": "execution_complete",
-    "next_action": "Run /prog done to complete F7",
-    "updated_at": "2026-04-12T23:13:46.065758Z",
+    "next_action": "/prog-done",
+    "updated_at": "2026-04-13T23:39:42.345375Z",
     "execution_context": {
-      "recorded_at": "2026-04-12T23:13:46.118768Z",
+      "recorded_at": "2026-04-13T23:39:42.420489Z",
       "source": "set_workflow_state",
-      "workspace_mode": "worktree",
-      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-2-linked-status-collector",
-      "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-2-linked-status-collector",
-      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-2-linked-status-collector/plugins/progress-tracker",
-      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-2-linked-status-collector",
-      "branch": "codex/feature-2-linked-status-collector",
-      "upstream": "origin/codex/feature-2-linked-status-collector"
+      "workspace_mode": "in_place",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+      "project_root": "/Users/siunin/Projects/Claude-Plugins",
+      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
+      "branch": "main",
+      "upstream": "origin/main"
     }
   }
 }
