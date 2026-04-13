@@ -166,7 +166,7 @@ plugins/progress-tracker/prog set-current <feature_id>
 
 **Only run this step if `workflow_state.phase` is not already set** (i.e., this is a fresh feature start, not a resume).
 
-1. Run: `plugins/progress-tracker/prog memory read`
+1. Run: `plugins/progress-tracker/prog memory read` (project_memory.py read)
 2. If memory is empty or returns error → skip, continue silently.
 3. If memory has entries, do a lightweight keyword match (feature name vs capability IDs) — no deep Claude reasoning.
 4. Only surface a warning if there is a clear name/keyword collision. Otherwise, stay silent.

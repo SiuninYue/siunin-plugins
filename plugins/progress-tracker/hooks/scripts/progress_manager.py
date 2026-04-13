@@ -26,6 +26,7 @@ Usage:
     python3 progress_manager.py complete-feature-ai-metrics <feature_id>
     python3 progress_manager.py auto-checkpoint
     python3 progress_manager.py sync-linked [--json] [--stale-after-hours <hours>]
+    python3 progress_manager.py link-project --project-root <path> --code <CODE> [--parent-root <path>] [--json]
     python3 progress_manager.py validate-plan [--plan-path <path>]
     python3 progress_manager.py add-feature <name> <test_steps...>
     python3 progress_manager.py update-feature <feature_id> <name> [test_steps...]
@@ -175,6 +176,7 @@ MUTATING_COMMANDS = {
     "complete-feature-ai-metrics",
     "auto-checkpoint",
     "sync-linked",
+    "link-project",
     "sync-runtime-context",
     "restore-archive",
     "add-bug",
@@ -1018,6 +1020,338 @@ def sync_linked(
             "Synced linked snapshot: "
             f"{len(statuses)} projects (ok={ok_count}, missing={missing_count}, "
             f"invalid={invalid_count}, stale={stale_count})"
+        )
+    return True
+
+
+def _normalize_project_code(raw_code: str) -> Optional[str]:
+    """Normalize and validate RouteV1 project code tokens."""
+    token = str(raw_code or "").strip().upper()
+    if not token:
+        return None
+    if not re.fullmatch(r"[A-Z][A-Z0-9_]{0,31}", token):
+        return None
+    return token
+
+
+def _serialize_project_root_for_config(project_root: Path, repo_root: Path) -> str:
+    """Persist linked project roots as repo-relative paths when possible."""
+    resolved_root = project_root.resolve()
+    try:
+        return resolved_root.relative_to(repo_root.resolve()).as_posix()
+    except ValueError:
+        return str(resolved_root)
+
+
+def _load_progress_payload_at_root(project_root: Path) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+    """Load a progress payload from an explicit root without mutating scope globals."""
+    json_path = get_progress_json_path(project_root)
+    if not json_path.exists():
+        return None, f"linked child progress.json not found: {json_path}"
+    try:
+        payload = json.loads(json_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return None, f"failed to load linked child progress.json: {exc}"
+    if not isinstance(payload, dict):
+        return None, f"linked child progress.json must contain a JSON object: {json_path}"
+    _apply_schema_defaults(payload)
+    return payload, None
+
+
+def _save_progress_payload_at_root(
+    project_root: Path,
+    data: Dict[str, Any],
+    *,
+    touch_updated_at: bool = True,
+) -> None:
+    """Persist progress payload + markdown for an explicit root."""
+    ensure_tracker_layout(project_root)
+    _apply_schema_defaults(data)
+    if touch_updated_at:
+        data["updated_at"] = _iso_now()
+    _atomic_write_text(
+        get_progress_json_path(project_root),
+        json.dumps(data, indent=2, ensure_ascii=False),
+    )
+    _atomic_write_text(get_progress_md_path(project_root), generate_progress_md(data))
+
+
+def link_project(
+    child_project_root: Optional[str],
+    code: str,
+    *,
+    label: Optional[str] = None,
+    output_json: bool = False,
+) -> bool:
+    """Register a child tracker under linked_projects and route queue."""
+    parent_data = load_progress_json()
+    if not parent_data:
+        message = "No progress tracking found. Use init first."
+        if output_json:
+            print(json.dumps({"status": "error", "message": message}, ensure_ascii=False))
+        else:
+            print(message)
+        return False
+
+    raw_child_root = str(child_project_root or "").strip()
+    if not raw_child_root:
+        message = (
+            "Error: link-project requires child --project-root "
+            "(example: prog link-project --project-root plugins/note-organizer --code NO)"
+        )
+        if output_json:
+            print(json.dumps({"status": "error", "message": message}, ensure_ascii=False))
+        else:
+            print(message)
+        return False
+
+    normalized_code = _normalize_project_code(code)
+    if normalized_code is None:
+        message = (
+            "Error: Invalid --code value. Use 1-32 chars matching "
+            "[A-Z][A-Z0-9_]* (example: NO, APP2, CORE_API)."
+        )
+        if output_json:
+            print(json.dumps({"status": "error", "message": message}, ensure_ascii=False))
+        else:
+            print(message)
+        return False
+
+    parent_root = find_project_root().resolve()
+    repo_root = Path(_REPO_ROOT or parent_root).resolve()
+    child_root = _resolve_linked_project_root(raw_child_root, parent_root, repo_root)
+
+    if child_root == parent_root:
+        message = "Error: Child project root cannot be the same as parent project root."
+        if output_json:
+            print(json.dumps({"status": "error", "message": message}, ensure_ascii=False))
+        else:
+            print(message)
+        return False
+
+    child_data, child_error = _load_progress_payload_at_root(child_root)
+    if child_data is None:
+        message = child_error or "Error: Unable to load child progress tracker data."
+        if output_json:
+            print(json.dumps({"status": "error", "message": message}, ensure_ascii=False))
+        else:
+            print(f"Error: {message}")
+        return False
+
+    child_role_raw = child_data.get("tracker_role")
+    if isinstance(child_role_raw, str):
+        child_role = child_role_raw.strip().lower()
+    else:
+        child_role = DEFAULT_TRACKER_ROLE
+    if child_role not in TRACKER_ROLES:
+        child_role = DEFAULT_TRACKER_ROLE
+
+    child_code_raw = child_data.get("project_code")
+    child_code = _normalize_project_code(child_code_raw) if isinstance(child_code_raw, str) else None
+
+    parent_linked_projects = parent_data.get("linked_projects")
+    if not isinstance(parent_linked_projects, list):
+        parent_linked_projects = []
+    parent_has_child_entry = False
+    for entry in parent_linked_projects:
+        entry_root_raw: Optional[str]
+        if isinstance(entry, dict):
+            raw_value = entry.get("project_root") or entry.get("path") or entry.get("root")
+            entry_root_raw = str(raw_value).strip() if raw_value is not None else None
+        elif isinstance(entry, str):
+            entry_root_raw = entry.strip()
+        else:
+            continue
+        if not entry_root_raw:
+            continue
+        entry_root = _resolve_linked_project_root(entry_root_raw, parent_root, repo_root)
+        if entry_root == child_root:
+            parent_has_child_entry = True
+            break
+
+    if child_role == "parent":
+        message = (
+            "Error: Child project is already a parent tracker. "
+            "Cannot link it as a child tracker."
+        )
+        if output_json:
+            print(json.dumps({"status": "error", "message": message}, ensure_ascii=False))
+        else:
+            print(message)
+        return False
+    if (
+        child_role == "child"
+        and child_code
+        and child_code != normalized_code
+        and not parent_has_child_entry
+    ):
+        message = (
+            "Error: Child project already linked with "
+            f"project_code={child_code}. Use matching --code or unlink first."
+        )
+        if output_json:
+            print(json.dumps({"status": "error", "message": message}, ensure_ascii=False))
+        else:
+            print(message)
+        return False
+
+    child_data["tracker_role"] = "child"
+    child_data["project_code"] = normalized_code
+    _save_progress_payload_at_root(child_root, child_data)
+
+    child_name = child_data.get("project_name")
+    inferred_label = (
+        child_name.strip()
+        if isinstance(child_name, str) and child_name.strip()
+        else child_root.name
+    )
+    normalized_label = (
+        label.strip() if isinstance(label, str) and label.strip() else inferred_label
+    )
+    configured_project_root = _serialize_project_root_for_config(child_root, repo_root)
+
+    linked_projects = parent_data.get("linked_projects")
+    if not isinstance(linked_projects, list):
+        linked_projects = []
+
+    previous_codes: Set[str] = set()
+    deduped_projects: List[Any] = []
+    target_written = False
+    for entry in linked_projects:
+        entry_root_raw: Optional[str]
+        entry_code_raw: Optional[str]
+        if isinstance(entry, dict):
+            raw_value = entry.get("project_root") or entry.get("path") or entry.get("root")
+            entry_root_raw = str(raw_value).strip() if raw_value is not None else None
+            entry_code_raw = entry.get("project_code")
+        elif isinstance(entry, str):
+            entry_root_raw = entry.strip()
+            entry_code_raw = None
+        else:
+            deduped_projects.append(entry)
+            continue
+
+        entry_root = (
+            _resolve_linked_project_root(entry_root_raw, parent_root, repo_root)
+            if entry_root_raw
+            else None
+        )
+        entry_code = (
+            str(entry_code_raw).strip().upper()
+            if isinstance(entry_code_raw, str) and entry_code_raw.strip()
+            else None
+        )
+
+        if entry_code and entry_root == child_root and entry_code != normalized_code:
+            previous_codes.add(entry_code)
+
+        matches_target = (entry_root == child_root) or (entry_code == normalized_code)
+        if matches_target:
+            if target_written:
+                continue
+            base_entry = entry if isinstance(entry, dict) else {}
+            updated_entry = dict(base_entry)
+            updated_entry["project_root"] = configured_project_root
+            updated_entry["project_code"] = normalized_code
+            updated_entry["label"] = normalized_label
+            deduped_projects.append(updated_entry)
+            target_written = True
+            continue
+
+        deduped_projects.append(entry)
+
+    if not target_written:
+        deduped_projects.append(
+            {
+                "project_root": configured_project_root,
+                "project_code": normalized_code,
+                "label": normalized_label,
+            }
+        )
+
+    parent_data["linked_projects"] = deduped_projects
+    parent_data["tracker_role"] = "parent"
+
+    routing_queue = parent_data.get("routing_queue")
+    if not isinstance(routing_queue, list):
+        routing_queue = []
+    normalized_queue: List[str] = []
+    seen_queue_codes: Set[str] = set()
+    for item in routing_queue:
+        if not isinstance(item, str):
+            continue
+        token = item.strip().upper()
+        if not token:
+            continue
+        if token in previous_codes:
+            continue
+        if token == normalized_code:
+            continue
+        if token in seen_queue_codes:
+            continue
+        seen_queue_codes.add(token)
+        normalized_queue.append(token)
+    normalized_queue.append(normalized_code)
+    parent_data["routing_queue"] = normalized_queue
+
+    active_routes = parent_data.get("active_routes")
+    if not isinstance(active_routes, list):
+        active_routes = []
+    normalized_routes: List[Any] = []
+    seen_route_keys: Set[Tuple[str, str, str]] = set()
+    for route in active_routes:
+        if not isinstance(route, dict):
+            normalized_routes.append(route)
+            continue
+
+        updated_route = dict(route)
+        route_code_raw = updated_route.get("project_code")
+        route_code = (
+            str(route_code_raw).strip().upper()
+            if isinstance(route_code_raw, str) and route_code_raw.strip()
+            else None
+        )
+        if route_code in previous_codes:
+            route_code = normalized_code
+        if route_code:
+            updated_route["project_code"] = route_code
+
+        dedupe_key: Optional[Tuple[str, str, str]] = None
+        if route_code:
+            feature_ref = str(updated_route.get("feature_ref") or "").strip()
+            worktree_path = str(updated_route.get("worktree_path") or "").strip()
+            dedupe_key = (route_code, feature_ref, worktree_path)
+        if dedupe_key and dedupe_key in seen_route_keys:
+            continue
+        if dedupe_key:
+            seen_route_keys.add(dedupe_key)
+        normalized_routes.append(updated_route)
+    parent_data["active_routes"] = normalized_routes
+
+    _update_runtime_context(parent_data, source="link_project")
+    save_progress_json(parent_data)
+    save_progress_md(generate_progress_md(parent_data))
+
+    payload = {
+        "status": "ok",
+        "project_code": normalized_code,
+        "parent_project_root": str(parent_root),
+        "child_project_root": str(child_root),
+        "linked_project": {
+            "project_root": configured_project_root,
+            "project_code": normalized_code,
+            "label": normalized_label,
+        },
+        "routing_queue": normalized_queue,
+        "active_routes": normalized_routes,
+    }
+    if output_json:
+        print(json.dumps(payload, ensure_ascii=False))
+    else:
+        print(
+            "Linked child project "
+            f"{configured_project_root} as {normalized_code}. "
+            f"routing_queue={normalized_queue}"
         )
     return True
 
@@ -6835,6 +7169,35 @@ def main():
         default=DEFAULT_LINKED_STATUS_STALE_HOURS,
         help="Staleness threshold in hours for linked snapshots",
     )
+    link_project_parser = subparsers.add_parser(
+        "link-project",
+        help=(
+            "Register child tracker into linked_projects/routing_queue. "
+            "Use global --project-root for child path."
+        ),
+    )
+    link_project_parser.add_argument(
+        "--code",
+        required=True,
+        help="Project code token for route coordination (e.g. NO, APP2)",
+    )
+    link_project_parser.add_argument(
+        "--label",
+        help="Optional display label for linked project entry",
+    )
+    link_project_parser.add_argument(
+        "--parent-root",
+        help=(
+            "Optional parent tracker root when invoking from monorepo root. "
+            "Defaults to current working project."
+        ),
+    )
+    link_project_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="output_json",
+        help="Emit machine-readable JSON output",
+    )
     runtime_sync_parser = subparsers.add_parser(
         "sync-runtime-context",
         help="Record current session/worktree context without changing semantic progress timestamps",
@@ -6894,7 +7257,11 @@ def main():
 
     args = parser.parse_args()
 
-    if not configure_project_scope(args.project_root):
+    scope_project_root = args.project_root
+    if args.command == "link-project":
+        scope_project_root = args.parent_root
+
+    if not configure_project_scope(scope_project_root):
         return False
 
     def _dispatch_command() -> Any:
@@ -7013,6 +7380,13 @@ def main():
             return sync_linked(
                 output_json=args.output_json,
                 stale_after_hours=args.stale_after_hours,
+            )
+        if args.command == "link-project":
+            return link_project(
+                child_project_root=args.project_root,
+                code=args.code,
+                label=args.label,
+                output_json=args.output_json,
             )
         if args.command == "sync-runtime-context":
             return sync_runtime_context(source=args.source, quiet=args.quiet, force=args.force)

@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-04-13T23:29:15.214641Z",
+  "updated_at": "2026-04-14T00:01:41.154448Z",
   "source": {
     "generator": "progress_manager.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,14 +11,14 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1776094153671626587,
-      "size": 42859
+      "mtime_ns": 1776094782514456394,
+      "size": 43698
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
       "exists": true,
-      "mtime_ns": 1776012663045755678,
-      "size": 1152
+      "mtime_ns": 1776094562870548080,
+      "size": 1687
     }
   },
   "progress": {
@@ -28,10 +28,10 @@
   },
   "next_action": {
     "type": "feature",
-    "feature_id": 8,
-    "feature_name": "清理 /prog-start 残留并锁定 /prog-next 为唯一 start path",
-    "development_stage": "pending",
-    "stage_label": "待开始"
+    "feature_id": 15,
+    "feature_name": "[RouteV1] 父级路由 Schema 扩展（tracker_role/project_code/routing_queue/active_routes）",
+    "development_stage": "developing",
+    "stage_label": "开发中"
   },
   "plan_health": {
     "status": "N/A",
@@ -46,7 +46,7 @@
   },
   "recent_snapshot": {
     "exists": true,
-    "timestamp": "2026-04-13T00:51:03.019352+08:00",
-    "relative_time": "22 小时前"
+    "timestamp": "2026-04-13T23:36:02.772590+08:00",
+    "relative_time": "25 分钟前"
   }
 }

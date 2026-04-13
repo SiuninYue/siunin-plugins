@@ -130,3 +130,370 @@ def test_sync_linked_reports_missing_child_project_in_json_payload(temp_dir, cap
     assert len(projects) == 1
     assert projects[0]["status"] == "missing"
     assert projects[0]["updated_at"] is None
+
+
+def test_link_project_registers_child_and_updates_parent_route_fields(temp_dir, capsys):
+    """link-project should bind child tracker + parent linked routing metadata."""
+    os.system(f"git -C {temp_dir} init >/dev/null 2>&1")
+
+    repo_root = temp_dir
+    parent_root = repo_root / "plugins" / "progress-tracker"
+    child_root = repo_root / "plugins" / "note-organizer"
+    parent_root.mkdir(parents=True, exist_ok=True)
+    child_root.mkdir(parents=True, exist_ok=True)
+
+    _write_progress(
+        parent_root,
+        {
+            "project_name": "Parent Tracker",
+            "created_at": "2026-04-12T00:00:00Z",
+            "features": [],
+            "current_feature_id": None,
+            "linked_projects": [],
+            "routing_queue": [],
+        },
+    )
+    _write_progress(
+        child_root,
+        {
+            "project_name": "Note Organizer",
+            "created_at": "2026-04-12T00:00:00Z",
+            "features": [],
+            "current_feature_id": None,
+        },
+    )
+
+    os.chdir(parent_root)
+    with patch(
+        "sys.argv",
+        [
+            "progress_manager.py",
+            "--project-root",
+            "plugins/note-organizer",
+            "link-project",
+            "--code",
+            "NO",
+            "--json",
+        ],
+    ):
+        assert progress_manager.main() is True
+
+    payload = json.loads(_last_output_line(capsys))
+    assert payload["status"] == "ok"
+    assert payload["project_code"] == "NO"
+
+    parent_progress = json.loads(
+        (parent_root / "docs" / "progress-tracker" / "state" / "progress.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert parent_progress["tracker_role"] == "parent"
+    assert parent_progress["routing_queue"] == ["NO"]
+    assert parent_progress["linked_projects"] == [
+        {
+            "project_root": "plugins/note-organizer",
+            "project_code": "NO",
+            "label": "Note Organizer",
+        }
+    ]
+
+    child_progress = json.loads(
+        (child_root / "docs" / "progress-tracker" / "state" / "progress.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert child_progress["tracker_role"] == "child"
+    assert child_progress["project_code"] == "NO"
+
+
+def test_link_project_fails_when_child_progress_missing(temp_dir, capsys):
+    """link-project should fail fast when child tracker file does not exist."""
+    parent_root = temp_dir / "plugins" / "progress-tracker"
+    parent_root.mkdir(parents=True, exist_ok=True)
+    _write_progress(
+        parent_root,
+        {
+            "project_name": "Parent Tracker",
+            "created_at": "2026-04-12T00:00:00Z",
+            "features": [],
+            "current_feature_id": None,
+        },
+    )
+
+    os.chdir(parent_root)
+    with patch(
+        "sys.argv",
+        [
+            "progress_manager.py",
+            "--project-root",
+            "plugins/missing-child",
+            "link-project",
+            "--code",
+            "MC",
+        ],
+    ):
+        assert progress_manager.main() is False
+
+    output = capsys.readouterr().out
+    assert "linked child progress.json not found" in output
+
+
+def test_link_project_updates_existing_entry_and_route_fields(temp_dir, capsys):
+    """link-project should update existing child code across linked/routing metadata."""
+    os.system(f"git -C {temp_dir} init >/dev/null 2>&1")
+
+    repo_root = temp_dir
+    parent_root = repo_root / "plugins" / "progress-tracker"
+    child_root = repo_root / "plugins" / "note-organizer"
+    parent_root.mkdir(parents=True, exist_ok=True)
+    child_root.mkdir(parents=True, exist_ok=True)
+
+    _write_progress(
+        parent_root,
+        {
+            "project_name": "Parent Tracker",
+            "created_at": "2026-04-12T00:00:00Z",
+            "features": [],
+            "current_feature_id": None,
+            "linked_projects": [
+                {
+                    "project_root": "plugins/note-organizer",
+                    "project_code": "OLD",
+                    "label": "Old Label",
+                }
+            ],
+            "routing_queue": ["OLD", "OLD", "API"],
+            "active_routes": [
+                {"project_code": "OLD", "feature_ref": "OLD-F1"},
+                {"project_code": "API", "feature_ref": "API-F2"},
+            ],
+        },
+    )
+    _write_progress(
+        child_root,
+        {
+            "project_name": "Note Organizer",
+            "created_at": "2026-04-12T00:00:00Z",
+            "features": [],
+            "current_feature_id": None,
+            "tracker_role": "child",
+            "project_code": "OLD",
+        },
+    )
+
+    os.chdir(parent_root)
+    with patch(
+        "sys.argv",
+        [
+            "progress_manager.py",
+            "--project-root",
+            "plugins/note-organizer",
+            "link-project",
+            "--code",
+            "NO",
+            "--json",
+        ],
+    ):
+        assert progress_manager.main() is True
+
+    payload = json.loads(_last_output_line(capsys))
+    assert payload["status"] == "ok"
+    assert payload["routing_queue"] == ["API", "NO"]
+    assert payload["active_routes"] == [
+        {"project_code": "NO", "feature_ref": "OLD-F1"},
+        {"project_code": "API", "feature_ref": "API-F2"},
+    ]
+
+    parent_progress = json.loads(
+        (parent_root / "docs" / "progress-tracker" / "state" / "progress.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert parent_progress["linked_projects"] == [
+        {
+            "project_root": "plugins/note-organizer",
+            "project_code": "NO",
+            "label": "Note Organizer",
+        }
+    ]
+    assert parent_progress["routing_queue"] == ["API", "NO"]
+    assert parent_progress["active_routes"] == [
+        {"project_code": "NO", "feature_ref": "OLD-F1"},
+        {"project_code": "API", "feature_ref": "API-F2"},
+    ]
+
+
+def test_link_project_dedupes_duplicate_project_code_entries(temp_dir, capsys):
+    """link-project should keep a single linked_projects entry for one project_code."""
+    os.system(f"git -C {temp_dir} init >/dev/null 2>&1")
+
+    repo_root = temp_dir
+    parent_root = repo_root / "plugins" / "progress-tracker"
+    child_root = repo_root / "plugins" / "note-organizer"
+    old_root = repo_root / "plugins" / "legacy-notes"
+    parent_root.mkdir(parents=True, exist_ok=True)
+    child_root.mkdir(parents=True, exist_ok=True)
+    old_root.mkdir(parents=True, exist_ok=True)
+
+    _write_progress(
+        parent_root,
+        {
+            "project_name": "Parent Tracker",
+            "created_at": "2026-04-12T00:00:00Z",
+            "features": [],
+            "current_feature_id": None,
+            "linked_projects": [
+                {
+                    "project_root": "plugins/legacy-notes",
+                    "project_code": "NO",
+                    "label": "legacy",
+                },
+                {
+                    "project_root": "plugins/note-organizer",
+                    "project_code": "NO",
+                    "label": "duplicate",
+                },
+            ],
+            "routing_queue": ["NO", "NO"],
+        },
+    )
+    _write_progress(
+        child_root,
+        {
+            "project_name": "Note Organizer",
+            "created_at": "2026-04-12T00:00:00Z",
+            "features": [],
+            "current_feature_id": None,
+        },
+    )
+
+    os.chdir(parent_root)
+    with patch(
+        "sys.argv",
+        [
+            "progress_manager.py",
+            "--project-root",
+            "plugins/note-organizer",
+            "link-project",
+            "--code",
+            "NO",
+            "--json",
+        ],
+    ):
+        assert progress_manager.main() is True
+
+    payload = json.loads(_last_output_line(capsys))
+    assert payload["status"] == "ok"
+    assert payload["routing_queue"] == ["NO"]
+
+    parent_progress = json.loads(
+        (parent_root / "docs" / "progress-tracker" / "state" / "progress.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    linked_projects = parent_progress["linked_projects"]
+    assert len(linked_projects) == 1
+    assert linked_projects[0]["project_root"] == "plugins/note-organizer"
+    assert linked_projects[0]["project_code"] == "NO"
+
+
+def test_link_project_fails_when_child_is_parent_tracker(temp_dir, capsys):
+    """link-project should reject child trackers that are already parent trackers."""
+    os.system(f"git -C {temp_dir} init >/dev/null 2>&1")
+
+    repo_root = temp_dir
+    parent_root = repo_root / "plugins" / "progress-tracker"
+    child_root = repo_root / "plugins" / "note-organizer"
+    parent_root.mkdir(parents=True, exist_ok=True)
+    child_root.mkdir(parents=True, exist_ok=True)
+
+    _write_progress(
+        parent_root,
+        {
+            "project_name": "Parent Tracker",
+            "created_at": "2026-04-12T00:00:00Z",
+            "features": [],
+            "current_feature_id": None,
+            "linked_projects": [],
+            "routing_queue": [],
+        },
+    )
+    _write_progress(
+        child_root,
+        {
+            "project_name": "Note Organizer",
+            "created_at": "2026-04-12T00:00:00Z",
+            "features": [],
+            "current_feature_id": None,
+            "tracker_role": "parent",
+            "project_code": "NO",
+        },
+    )
+
+    os.chdir(parent_root)
+    with patch(
+        "sys.argv",
+        [
+            "progress_manager.py",
+            "--project-root",
+            "plugins/note-organizer",
+            "link-project",
+            "--code",
+            "NO",
+        ],
+    ):
+        assert progress_manager.main() is False
+
+    output = capsys.readouterr().out
+    assert "already a parent tracker" in output
+
+
+def test_link_project_fails_when_child_has_conflicting_code(temp_dir, capsys):
+    """link-project should fail when child already has a different child project_code."""
+    os.system(f"git -C {temp_dir} init >/dev/null 2>&1")
+
+    repo_root = temp_dir
+    parent_root = repo_root / "plugins" / "progress-tracker"
+    child_root = repo_root / "plugins" / "note-organizer"
+    parent_root.mkdir(parents=True, exist_ok=True)
+    child_root.mkdir(parents=True, exist_ok=True)
+
+    _write_progress(
+        parent_root,
+        {
+            "project_name": "Parent Tracker",
+            "created_at": "2026-04-12T00:00:00Z",
+            "features": [],
+            "current_feature_id": None,
+            "linked_projects": [],
+            "routing_queue": [],
+        },
+    )
+    _write_progress(
+        child_root,
+        {
+            "project_name": "Note Organizer",
+            "created_at": "2026-04-12T00:00:00Z",
+            "features": [],
+            "current_feature_id": None,
+            "tracker_role": "child",
+            "project_code": "LEGACY",
+        },
+    )
+
+    os.chdir(parent_root)
+    with patch(
+        "sys.argv",
+        [
+            "progress_manager.py",
+            "--project-root",
+            "plugins/note-organizer",
+            "link-project",
+            "--code",
+            "NO",
+        ],
+    ):
+        assert progress_manager.main() is False
+
+    output = capsys.readouterr().out
+    assert "already linked with project_code=LEGACY" in output
