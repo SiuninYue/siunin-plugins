@@ -4356,8 +4356,7 @@ def set_current(feature_id):
     data["current_feature_id"] = feature_id
 
     # Selecting a feature for work should immediately enter active development.
-    # This keeps `/prog-next` as a one-step start action instead of requiring
-    # an additional `/prog-start` transition.
+    # This keeps `/prog-next` as a one-step start action.
     if not feature.get("completed", False):
         feature["development_stage"] = "developing"
         feature["lifecycle_state"] = "implementing"
