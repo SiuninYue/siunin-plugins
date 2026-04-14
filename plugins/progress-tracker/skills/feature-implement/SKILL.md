@@ -46,16 +46,30 @@ If the invocation includes inline context lines (`Feature:`, `Phase:`, `Plan:`, 
    - `Questions` → clarifying questions (pipe-separated)
    - `ProjectRoot` → absolute project root path (used for all `prog` commands)
 
-2. If `Worktree` is present: **immediately switch to it before anything else**:
-   ```bash
-   cd <worktree_path>
-   ```
-   If `cd` fails, warn the user and stop — do not proceed in the wrong directory.
+2. If `Worktree` is present: **store `worktree_path` as the execution root for all shell commands**.
 
-3. If `Branch` is present: verify current branch matches. If not, switch:
+   > **Claude Code — CWD does NOT persist between Bash tool calls.**  
+   > A standalone `cd <worktree_path>` affects only that single call and has no effect on subsequent calls.  
+   > Do NOT use a bare `cd` to set context.  
+   > Instead, prefix **every** shell command that must run in the feature directory with:  
+   > `cd <worktree_path> && <command>`
+
+   Verify the path is accessible before proceeding:
    ```bash
-   git checkout <branch>
+   ls <worktree_path>
    ```
+   If the path is inaccessible, warn the user and stop.
+
+3. If `Branch` is present: verify the checked-out branch matches.
+   - If `worktree_path` is present:
+     ```bash
+     cd <worktree_path> && git branch --show-current
+     ```
+   - If `worktree_path` is absent (in-place session):
+     ```bash
+     git branch --show-current
+     ```
+   If branch doesn't match, stop and ask the user to switch to `<branch>` first; do not run `git checkout` automatically.
 
 4. **Skip entirely** (do not run): Steps 1 full re-read, Step 2.4 memory overlap check, Step 2.5 git preflight, complexity re-scoring.
 
@@ -64,7 +78,7 @@ If the invocation includes inline context lines (`Feature:`, `Phase:`, `Plan:`, 
    - `execution` → jump to Step 4 route with existing plan, resume from `Next` task
    - `planning_complete` → jump to Step 4B subagent execution with existing plan
    - `planning` → jump to Step 3 complexity scoring
-   - `planning:approved` → cd Worktree (if present) → read inline `Bucket:` field and route execution directly:
+   - `planning:approved` → verify worktree accessible (if present) → read inline `Bucket:` field and route execution directly:
      - Skip: Steps 2.4, 2.5, brainstorming, writing-plans
      - Bucket routing (priority: inline `Bucket:` > persisted `feature.ai_metrics.complexity_bucket` > standard fallback):
        - `simple` → delegate to `feature-implement-simple`
@@ -74,7 +88,7 @@ If the invocation includes inline context lines (`Feature:`, `Phase:`, `Plan:`, 
    - `planning:draft` → display `PlanSummary`, wait for user approval/changes; do NOT re-run brainstorming
    - `planning:clarifying` → read `Questions` field, re-ask questions, proceed to draft after answers received
 
-6. `ProjectRoot` present → use `ProjectRoot` as working directory for all `prog` commands.
+6. `ProjectRoot` present → pass `--project-root <project_root>` to **every** `prog` CLI call.
    Branch/worktree mismatch validation still applies (ProjectRoot only determines command directory, does not bypass checks).
 
 **The inline context is the source of truth.** Do not re-read `progress.json` to "verify" it — that defeats the purpose.

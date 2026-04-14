@@ -2,7 +2,7 @@
   "schema_version": "2.0",
   "project_name": "prog-parent-coordination-archive",
   "created_at": "2026-04-09T01:12:55.289861Z",
-  "updated_at": "2026-04-13T23:39:42.513453Z",
+  "updated_at": "2026-04-14T08:09:02.103753Z",
   "features": [
     {
       "id": 1,
@@ -356,7 +356,7 @@
         "运行: pytest -q plugins/progress-tracker/tests/test_linked_projects_schema.py",
         "校验旧仓库未启用父级时行为不变"
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -366,7 +366,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "implementing",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-015"
       ],
@@ -387,8 +387,20 @@
         "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_linked_projects_schema.py",
         "Scenario: 校验旧仓库未启用父级时行为不变"
       ],
-      "development_stage": "developing",
-      "started_at": "2026-04-13T23:30:35.705756Z"
+      "development_stage": "completed",
+      "started_at": "2026-04-13T23:30:35.705756Z",
+      "ai_metrics": {
+        "started_at": "2026-04-14T00:53:47.211186+08:00",
+        "finished_at": "2026-04-14T00:53:47.211186+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-14T00:53:47.217115Z",
+      "commit_hash": "d2f232d1770e039853a9e23c134f682e2322e320",
+      "archive_info": {
+        "archived_at": "2026-04-14T00:53:47.261447Z",
+        "files_moved": 0,
+        "files": []
+      }
     },
     {
       "id": 16,
@@ -398,7 +410,7 @@
         "运行: pytest -q plugins/progress-tracker/tests/test_sync_linked_command.py -k linked",
         "校验注册后 linked_projects 与 routing_queue 一致"
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -408,7 +420,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "approved",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-016"
       ],
@@ -428,7 +440,25 @@
         "Scenario: 实现: prog link-project --project-root <path> --code <code>",
         "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_sync_linked_command.py -k linked",
         "Scenario: 校验注册后 linked_projects 与 routing_queue 一致"
-      ]
+      ],
+      "development_stage": "completed",
+      "started_at": "2026-04-14T01:10:36.939374Z",
+      "ai_metrics": {
+        "complexity_score": 21,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-14T01:10:51.546306Z",
+        "finished_at": "2026-04-14T01:15:21.674678+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-14T01:15:21.734719Z",
+      "commit_hash": "d2f232d1770e039853a9e23c134f682e2322e320",
+      "archive_info": {
+        "archived_at": "2026-04-14T01:15:21.872848Z",
+        "files_moved": 0,
+        "files": []
+      }
     },
     {
       "id": 17,
@@ -816,7 +846,7 @@
         "运行: pytest -q plugins/progress-tracker/tests/test_command_discovery_contract.py",
         "校验帮助文档与命令包装不再引用 /prog-start"
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -826,7 +856,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "approved",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-008"
       ],
@@ -846,7 +876,25 @@
         "Scenario: 更新 command-discovery/readiness 相关契约测试，移除 prog-start 期望",
         "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_command_discovery_contract.py",
         "Scenario: 校验帮助文档与命令包装不再引用 /prog-start"
-      ]
+      ],
+      "development_stage": "completed",
+      "started_at": "2026-04-14T01:18:16.082517Z",
+      "ai_metrics": {
+        "complexity_score": 10,
+        "complexity_bucket": "simple",
+        "selected_model": "haiku",
+        "workflow_path": "direct_tdd",
+        "started_at": "2026-04-14T01:18:45.555676Z",
+        "finished_at": "2026-04-14T01:43:09.879053+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-14T01:43:06.924781Z",
+      "commit_hash": "0aa7954fc787a7e07a4e7c0e3f51a1a025c5c22c",
+      "archive_info": {
+        "archived_at": "2026-04-14T01:43:07.067416Z",
+        "files_moved": 0,
+        "files": []
+      }
     },
     {
       "id": 9,
@@ -1089,12 +1137,12 @@
       ]
     }
   ],
-  "current_feature_id": 15,
+  "current_feature_id": null,
   "updates": [],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-04-13T23:39:42.490418Z",
-    "source": "set_workflow_state",
+    "recorded_at": "2026-04-14T01:43:06.981107Z",
+    "source": "complete_feature",
     "workspace_mode": "in_place",
     "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
     "project_root": "/Users/siunin/Projects/Claude-Plugins",
@@ -1103,11 +1151,11 @@
     "branch": "main",
     "upstream": "origin/main",
     "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
-    "current_feature_id": 15,
+    "current_feature_id": null,
     "workflow_phase": "execution_complete",
     "current_task": null,
     "total_tasks": null,
-    "next_action": "/prog-done"
+    "next_action": null
   },
   "linked_projects": [],
   "linked_snapshot": {
@@ -1119,20 +1167,21 @@
   "project_code": null,
   "routing_queue": [],
   "active_routes": [],
-  "workflow_state": {
-    "phase": "execution_complete",
-    "next_action": "/prog-done",
-    "updated_at": "2026-04-13T23:39:42.345375Z",
-    "execution_context": {
-      "recorded_at": "2026-04-13T23:39:42.420489Z",
-      "source": "set_workflow_state",
-      "workspace_mode": "in_place",
-      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
-      "project_root": "/Users/siunin/Projects/Claude-Plugins",
-      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
-      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
-      "branch": "main",
-      "upstream": "origin/main"
+  "bugs": [
+    {
+      "id": "BUG-001",
+      "description": "/prog done 应该自动切换到内联上下文中指定的工作树进行验收测试验证，避免在错误分支上运行测试导致误判",
+      "status": "confirmed",
+      "priority": "medium",
+      "category": "technical_debt",
+      "created_at": "2026-04-14T07:59:00.827777Z",
+      "quick_verification": {},
+      "updated_at": "2026-04-14T08:09:02.103675Z",
+      "root_cause": "feature-complete/SKILL.md 的 Inline Context Fast Path 步骤 2 使用了 cd <worktree_path>，但 Claude Code 的 Bash tool 每次调用都在独立 shell 中，CWD 不会持久化。导致步骤 4 验收测试在错误目录运行，且 prog CLI 命令没有传 --project-root。",
+      "investigation": {
+        "root_cause": "feature-complete/SKILL.md 的 Inline Context Fast Path 步骤 2 使用了 cd <worktree_path>，但 Claude Code 的 Bash tool 每次调用都在独立 shell 中，CWD 不会持久化。导致步骤 4 验收测试在错误目录运行，且 prog CLI 命令没有传 --project-root。",
+        "confirmed_at": "2026-04-14T08:09:02.103690Z"
+      }
     }
-  }
+  ]
 }

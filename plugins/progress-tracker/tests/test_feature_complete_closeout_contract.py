@@ -22,3 +22,12 @@ def test_feature_complete_keeps_single_merge_authority_in_git_auto():
 
     assert "`git-auto` is the single authority for merge gating and execution." in content
     assert "Do NOT invoke `finishing-a-development-branch` automatically" in content
+
+
+def test_feature_complete_branch_check_supports_in_place_and_fail_closed():
+    """Inline context branch check should work without worktree and stop on mismatch."""
+    content = FEATURE_COMPLETE_SKILL.read_text(encoding="utf-8")
+
+    assert "If `worktree_path` is absent (in-place session):" in content
+    assert "stop and ask the user to switch to `<branch>` first" in content
+    assert "warn the user but continue" not in content
