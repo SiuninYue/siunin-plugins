@@ -177,6 +177,7 @@ MUTATING_COMMANDS = {
     "auto-checkpoint",
     "sync-linked",
     "link-project",
+    "route-select",
     "sync-runtime-context",
     "restore-archive",
     "add-bug",
@@ -1353,6 +1354,192 @@ def link_project(
             f"{configured_project_root} as {normalized_code}. "
             f"routing_queue={normalized_queue}"
         )
+    return True
+
+
+def route_status(*, output_json: bool = False) -> bool:
+    """Display routing_queue, active_routes, and conflict summary."""
+    data = load_progress_json()
+    if not data:
+        message = "No progress tracking found. Use init first."
+        if output_json:
+            print(json.dumps({"status": "error", "message": message}, ensure_ascii=False))
+        else:
+            print(message)
+        return False
+
+    routing_queue: List[str] = data.get("routing_queue") or []
+    if not isinstance(routing_queue, list):
+        routing_queue = []
+
+    active_routes: List[Any] = data.get("active_routes") or []
+    if not isinstance(active_routes, list):
+        active_routes = []
+
+    linked_projects: List[Any] = data.get("linked_projects") or []
+    if not isinstance(linked_projects, list):
+        linked_projects = []
+
+    # Collect linked project codes for conflict Type B check
+    linked_codes: set = set()
+    for entry in linked_projects:
+        if isinstance(entry, dict):
+            code_raw = entry.get("project_code")
+            if isinstance(code_raw, str) and code_raw.strip():
+                linked_codes.add(code_raw.strip().upper())
+
+    # Detect conflicts
+    conflicts: List[Dict[str, Any]] = []
+
+    # Type A: duplicate project_code in active_routes
+    seen_codes: Dict[str, int] = {}
+    for route in active_routes:
+        if not isinstance(route, dict):
+            continue
+        code_raw = route.get("project_code")
+        if not isinstance(code_raw, str):
+            continue
+        code = code_raw.strip().upper()
+        seen_codes[code] = seen_codes.get(code, 0) + 1
+    for code, count in seen_codes.items():
+        if count > 1:
+            conflicts.append(
+                {"type": "A", "code": code, "message": f"duplicate in active_routes ({count} entries)"}
+            )
+
+    # Type B: routing_queue code not in linked_projects
+    for item in routing_queue:
+        if not isinstance(item, str):
+            continue
+        code = item.strip().upper()
+        if code and code not in linked_codes:
+            conflicts.append(
+                {"type": "B", "code": code, "message": f"{code} in routing_queue but not in linked_projects"}
+            )
+
+    if output_json:
+        print(
+            json.dumps(
+                {
+                    "status": "ok",
+                    "routing_queue": routing_queue,
+                    "active_routes": active_routes,
+                    "conflicts": conflicts,
+                },
+                ensure_ascii=False,
+            )
+        )
+        return True
+
+    print("Route Status")
+    print("============")
+    print(f"routing_queue: {routing_queue or '(empty)'}")
+    print()
+    if active_routes:
+        print("active_routes:")
+        for route in active_routes:
+            if isinstance(route, dict):
+                code = route.get("project_code", "?")
+                ref = route.get("feature_ref") or "(no feature_ref)"
+                print(f"  {code} -> {ref}")
+    else:
+        print("active_routes: (empty)")
+    if conflicts:
+        print()
+        print("Conflicts:")
+        for c in conflicts:
+            print(f"  [{c['type']}] {c['message']}")
+    return True
+
+
+def route_select(
+    project_code: str,
+    *,
+    feature_ref: Optional[str] = None,
+    output_json: bool = False,
+) -> bool:
+    """Upsert active_routes entry for project_code (unique key), merging duplicates."""
+    data = load_progress_json()
+    if not data:
+        message = "No progress tracking found. Use init first."
+        if output_json:
+            print(json.dumps({"status": "error", "message": message}, ensure_ascii=False))
+        else:
+            print(message)
+        return False
+
+    normalized_code = _normalize_project_code(project_code)
+    if normalized_code is None:
+        message = (
+            "Error: Invalid --project value. Use 1-32 chars matching "
+            "[A-Z][A-Z0-9_]* (example: NO, APP2, CORE_API)."
+        )
+        if output_json:
+            print(json.dumps({"status": "error", "message": message}, ensure_ascii=False))
+        else:
+            print(message)
+        return False
+
+    active_routes: List[Any] = data.get("active_routes") or []
+    if not isinstance(active_routes, list):
+        active_routes = []
+
+    # Collect existing entry for the target code (take first match for feature_ref preservation)
+    existing_entry: Optional[Dict[str, Any]] = None
+    other_routes: List[Any] = []
+    for route in active_routes:
+        if not isinstance(route, dict):
+            other_routes.append(route)
+            continue
+        route_code_raw = route.get("project_code")
+        route_code = (
+            str(route_code_raw).strip().upper()
+            if isinstance(route_code_raw, str) and route_code_raw.strip()
+            else None
+        )
+        if route_code == normalized_code:
+            if existing_entry is None:
+                existing_entry = dict(route)
+            # Skip duplicates — deduplication happens by writing only one entry below
+        else:
+            other_routes.append(route)
+
+    # Determine final feature_ref
+    if feature_ref is not None:
+        final_ref = feature_ref
+    elif existing_entry is not None:
+        final_ref = existing_entry.get("feature_ref", "")
+        if not isinstance(final_ref, str):
+            final_ref = ""
+    else:
+        final_ref = ""
+
+    upserted_entry: Dict[str, Any] = {"project_code": normalized_code, "feature_ref": final_ref}
+    if existing_entry is not None:
+        # Preserve extra fields (e.g. worktree_path, custom flags) from first match
+        merged = dict(existing_entry)
+        merged["project_code"] = normalized_code
+        merged["feature_ref"] = final_ref
+        upserted_entry = merged
+
+    new_routes = other_routes + [upserted_entry]
+    data["active_routes"] = new_routes
+
+    _update_runtime_context(data, source="route_select")
+    save_progress_json(data)
+    save_progress_md(generate_progress_md(data))
+
+    action = "updated" if existing_entry is not None else "inserted"
+    if output_json:
+        print(
+            json.dumps(
+                {"status": "ok", "project_code": normalized_code, "active_routes": new_routes},
+                ensure_ascii=False,
+            )
+        )
+    else:
+        ref_display = final_ref or "(empty)"
+        print(f"route-select: {action} {normalized_code} -> {ref_display}")
     return True
 
 
@@ -7198,6 +7385,36 @@ def main():
         dest="output_json",
         help="Emit machine-readable JSON output",
     )
+    route_status_parser = subparsers.add_parser(
+        "route-status",
+        help="Display routing_queue, active_routes, and conflict summary.",
+    )
+    route_status_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="output_json",
+        help="Emit machine-readable JSON output",
+    )
+    route_select_parser = subparsers.add_parser(
+        "route-select",
+        help="Upsert active_routes entry for a project code (unique key).",
+    )
+    route_select_parser.add_argument(
+        "--project",
+        required=True,
+        help="Project code token to select (e.g. NO, APP2)",
+    )
+    route_select_parser.add_argument(
+        "--feature-ref",
+        dest="feature_ref",
+        help="Feature reference within the project (e.g. NO-F3). Omit to preserve existing.",
+    )
+    route_select_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="output_json",
+        help="Emit machine-readable JSON output",
+    )
     runtime_sync_parser = subparsers.add_parser(
         "sync-runtime-context",
         help="Record current session/worktree context without changing semantic progress timestamps",
@@ -7386,6 +7603,14 @@ def main():
                 child_project_root=args.project_root,
                 code=args.code,
                 label=args.label,
+                output_json=args.output_json,
+            )
+        if args.command == "route-status":
+            return route_status(output_json=args.output_json)
+        if args.command == "route-select":
+            return route_select(
+                args.project,
+                feature_ref=args.feature_ref,
                 output_json=args.output_json,
             )
         if args.command == "sync-runtime-context":

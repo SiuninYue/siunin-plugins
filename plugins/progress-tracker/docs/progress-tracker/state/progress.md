@@ -16,8 +16,14 @@
 - [x] 状态展示与文档更新（父级总览+子项目明细+归档历史）
 - [x] 清理 /prog-start 残留并锁定 /prog-next 为唯一 start path
 
-## Pending
+## In Progress
 - [ ] [RouteV1] 新增 route-status/route-select 命令
+  **Test steps**:
+  - 实现: prog route-status 输出当前路由与冲突摘要
+  - 实现: prog route-select --project <code> [--feature-ref <code-Fn>]
+  - 运行: pytest -q plugins/progress-tracker/tests/test_status_linked_summary.py
+
+## Pending
 - [ ] [RouteV1] feature_ref 命名空间化（<project_code>-F<number>）
 - [ ] [RouteV1] mutating 命令统一 route_preflight fail-closed
 - [ ] [RouteV1] worktree/branch 一致性校验（next/done fail-closed）
@@ -32,7 +38,11 @@
 - [ ] 落地 sprint_ledger 与 schema 2.1 的 sprint_contract/handoff 持久化
 - [ ] 落地 wf_state_machine + wf_auto_driver + hook 自动推进
 
-## Bug Backlog
-### Medium Priority (🟡)
-- [🟢] [BUG-001] [DEBT] /prog done 应该自动切换到内联上下文中指定的工作树进行验收测试验证，避免在错误分支上运行测试导致误判
-  Root cause: feature-complete/SKILL.md 的 Inline Context Fast Path 步骤 2 使用了 cd <worktree_path>，但 Claude Code 的 Bash tool 每次调用都在独立 shell 中，CWD 不会持久化。导致步骤 4 验收测试在错误目录运行，且 prog CLI 命令没有传 --project-root。
+## Workflow Context
+- Phase: execution_complete
+- Execution context: fix/bug-001-worktree-cwd-feature-complete @ Claude-Plugins [in_place]
+- Current session context: fix/bug-001-worktree-cwd-feature-complete @ Claude-Plugins [in_place]
+
+### Fixed (✅)
+- [x] [BUG-001] [DEBT] /prog done 应该自动切换到内联上下文中指定的工作树进行验收测试验证，避免在错误分支上运行测试导致误判
+  Fix: Fix applied: feature-complete + feature-implement SKILL.md CWD persistence bug fixed, all prog CLI calls use --project-root (commits: 8f887ca, 1c6332e). PR: SiuninYue/siunin-plugins#16
