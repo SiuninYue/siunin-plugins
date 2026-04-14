@@ -923,6 +923,7 @@ def collect_linked_project_statuses(
             "completion_rate": 0.0,
             "updated_at": None,
             "is_stale": True,
+            "active_feature_ref": None,
         }
 
         if not progress_path.exists():
@@ -958,6 +959,13 @@ def collect_linked_project_statuses(
             reference_time,
             stale_after_hours,
         )
+
+        # Compute active_feature_ref from project_code and current_feature_id
+        project_code = payload.get("project_code")
+        current_feature_id = payload.get("current_feature_id")
+        if isinstance(project_code, str) and project_code.strip() and isinstance(current_feature_id, int):
+            status["active_feature_ref"] = f"{project_code.strip()}-F{current_feature_id}"
+
         statuses.append(status)
 
     return statuses
@@ -3668,13 +3676,15 @@ def status():
                 rate = proj.get("completion_rate", 0.0)
                 pct = int(rate * 100)
                 stale_marker = " [stale]" if proj.get("is_stale") else ""
+                active_feature_ref = proj.get("active_feature_ref")
+                active_marker = f" | active: {active_feature_ref}" if active_feature_ref else ""
                 updated = proj.get("updated_at")
                 updated_str = (
                     f" | {_format_relative_time_for_summary(updated)}" if updated else ""
                 )
                 if proj_status == "ok":
                     print(
-                        f"  [{proj_name}] {completed_n}/{total_n} ({pct}%){stale_marker}{updated_str}"
+                        f"  [{proj_name}] {completed_n}/{total_n} ({pct}%){active_marker}{stale_marker}{updated_str}"
                     )
                 elif proj_status == "missing":
                     print(f"  [{proj_name}] missing{stale_marker}")
