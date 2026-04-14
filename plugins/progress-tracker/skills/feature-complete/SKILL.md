@@ -31,18 +31,27 @@ Finalize the active feature only after verification passes, then update tracking
 If the invocation includes inline context lines (`Feature:`, `Phase:`, `Plan:`, `Branch:`, `Worktree:`, `ProjectRoot:`), treat them as pre-loaded state:
 
 1. Parse inline context: `feature_id`, `feature_name`, `plan_path`, `branch`, `worktree_path`, `project_root`.
-   - If `ProjectRoot` is present: use it as the working directory for all `prog` commands.
+   - If `ProjectRoot` is present: pass `--project-root <project_root>` to **every** `prog` CLI call below.
 
-2. If `Worktree` is present: **switch to it immediately**:
-   ```bash
-   cd <worktree_path>
-   ```
-   If `cd` fails, warn and stop.
+2. If `Worktree` is present: **store `worktree_path` as the execution root for all acceptance test commands**.
 
-3. If `Branch` is present: verify and switch if needed:
+   > **Claude Code — CWD does NOT persist between Bash tool calls.**  
+   > A standalone `cd <worktree_path>` affects only that single call and has no effect on subsequent calls.  
+   > Do NOT use a bare `cd` to set context.  
+   > Instead, prefix **every** acceptance test shell command in Step 4 with:  
+   > `cd <worktree_path> && <command>`
+
+   Verify the path is accessible before proceeding:
    ```bash
-   git checkout <branch>
+   ls <worktree_path>
    ```
+   If the path is inaccessible, warn and stop.
+
+3. If `Branch` is present: verify the checked-out branch matches (do not switch — worktrees are already on a specific branch):
+   ```bash
+   cd <worktree_path> && git branch --show-current
+   ```
+   If branch doesn't match, warn the user but continue; do not run `git checkout`.
 
 4. **Skip** Step 1 (load active feature from file) and Step 2 (validate workflow state from file) — trust the inline `Phase: execution_complete`.
 
@@ -97,7 +106,7 @@ Return an actionable message:
 Before running acceptance, validate plan path and required sections:
 
 ```bash
-plugins/progress-tracker/prog validate-plan
+plugins/progress-tracker/prog --project-root <project_root> validate-plan
 ```
 
 - If validation fails: stop completion and request plan recovery.
@@ -109,6 +118,8 @@ Use `feature.test_steps` as source of truth.
 - Execute command-based checks where possible.
 - For manual checks, collect explicit pass/fail evidence.
 - Keep output concise but audit-friendly.
+- **If `worktree_path` is set (from inline context):** prefix every shell command with `cd <worktree_path> && ` so it runs in the correct branch directory.  
+  Example: `cd /path/to/worktree && pytest tests/`
 
 If user provides acceptance notes or test docs, format/report via `testing-standards`.
 
@@ -147,7 +158,7 @@ Skill("progress-tracker:git-auto",
 5. Mark feature complete using the `CommitHash` extracted in step 4:
 
 ```bash
-plugins/progress-tracker/prog complete <feature_id> --commit <CommitHash_from_step4>
+plugins/progress-tracker/prog --project-root <project_root> complete <feature_id> --commit <CommitHash_from_step4>
 ```
 
 This step will automatically:
@@ -168,7 +179,7 @@ This step will automatically:
 - Persist via:
 
 ```bash
-plugins/progress-tracker/prog memory append --payload-json '<capability_json>'
+plugins/progress-tracker/prog --project-root <project_root> memory append --payload-json '<capability_json>'
 ```
 
 Legacy CLI equivalent: `project_memory.py append`.
@@ -181,13 +192,13 @@ Legacy CLI equivalent: `project_memory.py append`.
 7. Finalize AI metrics:
 
 ```bash
-plugins/progress-tracker/prog complete-feature-ai-metrics <feature_id>
+plugins/progress-tracker/prog --project-root <project_root> complete-feature-ai-metrics <feature_id>
 ```
 
 8. Clear workflow state:
 
 ```bash
-plugins/progress-tracker/prog clear-workflow-state
+plugins/progress-tracker/prog --project-root <project_root> clear-workflow-state
 ```
 
 9. Show next step and output a Context Handoff Block:
@@ -238,7 +249,7 @@ If all features are complete: output project completion summary instead (no hand
 
 - Keep feature in progress.
 - Provide failed checks, observed symptoms, and immediate remediation path.
-- Recommend `/prog-fix "<issue>"` when failure is bug-like.
+- Recommend `/progress-tracker:prog-fix "<issue>"` when failure is bug-like.
 
 ### Step 6: Optional Quality and Debt Capture
 
