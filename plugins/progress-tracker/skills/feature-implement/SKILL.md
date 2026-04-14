@@ -60,11 +60,16 @@ If the invocation includes inline context lines (`Feature:`, `Phase:`, `Plan:`, 
    ```
    If the path is inaccessible, warn the user and stop.
 
-3. If `Branch` is present: verify the checked-out branch in the worktree (do not switch — worktrees are already on a specific branch):
-   ```bash
-   cd <worktree_path> && git branch --show-current
-   ```
-   If branch doesn't match, warn the user but continue; do not run `git checkout`.
+3. If `Branch` is present: verify the checked-out branch matches.
+   - If `worktree_path` is present:
+     ```bash
+     cd <worktree_path> && git branch --show-current
+     ```
+   - If `worktree_path` is absent (in-place session):
+     ```bash
+     git branch --show-current
+     ```
+   If branch doesn't match, stop and ask the user to switch to `<branch>` first; do not run `git checkout` automatically.
 
 4. **Skip entirely** (do not run): Steps 1 full re-read, Step 2.4 memory overlap check, Step 2.5 git preflight, complexity re-scoring.
 

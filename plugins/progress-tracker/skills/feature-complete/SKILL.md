@@ -47,11 +47,16 @@ If the invocation includes inline context lines (`Feature:`, `Phase:`, `Plan:`, 
    ```
    If the path is inaccessible, warn and stop.
 
-3. If `Branch` is present: verify the checked-out branch matches (do not switch — worktrees are already on a specific branch):
-   ```bash
-   cd <worktree_path> && git branch --show-current
-   ```
-   If branch doesn't match, warn the user but continue; do not run `git checkout`.
+3. If `Branch` is present: verify the checked-out branch matches.
+   - If `worktree_path` is present:
+     ```bash
+     cd <worktree_path> && git branch --show-current
+     ```
+   - If `worktree_path` is absent (in-place session):
+     ```bash
+     git branch --show-current
+     ```
+   If branch doesn't match, stop and ask the user to switch to `<branch>` first; do not run acceptance or completion. Do not run `git checkout` automatically.
 
 4. **Skip** Step 1 (load active feature from file) and Step 2 (validate workflow state from file) — trust the inline `Phase: execution_complete`.
 
