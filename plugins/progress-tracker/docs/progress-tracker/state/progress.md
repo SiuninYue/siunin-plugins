@@ -17,8 +17,14 @@
 - [x] 状态展示与文档更新（父级总览+子项目明细+归档历史）
 - [x] 清理 /prog-start 残留并锁定 /prog-next 为唯一 start path
 
-## Pending
+## In Progress
 - [ ] [RouteV1] 新增 route-status/route-select 命令
+  **Test steps**:
+  - 实现: prog route-status 输出当前路由与冲突摘要
+  - 实现: prog route-select --project <code> [--feature-ref <code-Fn>]
+  - 运行: pytest -q plugins/progress-tracker/tests/test_status_linked_summary.py
+
+## Pending
 - [ ] [RouteV1] mutating 命令统一 route_preflight fail-closed
 - [ ] [RouteV1] worktree/branch 一致性校验（next/done fail-closed）
 - [ ] [RouteV1] 并行 active_routes 冲突策略（允许执行+强告警）

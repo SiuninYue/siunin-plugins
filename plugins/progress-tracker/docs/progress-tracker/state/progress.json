@@ -2,7 +2,7 @@
   "schema_version": "2.0",
   "project_name": "prog-parent-coordination-archive",
   "created_at": "2026-04-09T01:12:55.289861Z",
-  "updated_at": "2026-04-15T00:06:34.870153Z",
+  "updated_at": "2026-04-15T00:13:16.679082Z",
   "features": [
     {
       "id": 1,
@@ -1159,21 +1159,21 @@
       ]
     }
   ],
-  "current_feature_id": null,
+  "current_feature_id": 17,
   "updates": [],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-04-15T00:06:32.192338Z",
-    "source": "complete_feature",
+    "recorded_at": "2026-04-15T00:13:16.668881Z",
+    "source": "set_current",
     "workspace_mode": "in_place",
     "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
     "project_root": "/Users/siunin/Projects/Claude-Plugins",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
     "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
     "branch": "main",
     "upstream": "origin/main",
     "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
-    "current_feature_id": null,
+    "current_feature_id": 17,
     "workflow_phase": null,
     "current_task": null,
     "total_tasks": null,
