@@ -258,7 +258,7 @@ If project defines `quality_gates.pre_commit_checks`, run them before completion
 If user identifies technical debt during verification, record it in bug system:
 
 ```bash
-plugins/progress-tracker/prog add-bug \
+plugins/progress-tracker/prog --project-root <project_root> add-bug \
   --description "<technical debt item>" \
   --status pending_investigation \
   --priority medium \
