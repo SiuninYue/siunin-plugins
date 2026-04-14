@@ -2,7 +2,7 @@
   "schema_version": "2.0",
   "project_name": "prog-parent-coordination-archive",
   "created_at": "2026-04-09T01:12:55.289861Z",
-  "updated_at": "2026-04-14T23:27:27.019505Z",
+  "updated_at": "2026-04-15T00:06:34.870153Z",
   "features": [
     {
       "id": 1,
@@ -517,7 +517,7 @@
         "两个子项目各有 F2 时展示为 PT-F2 / NO-F2",
         "运行: pytest -q plugins/progress-tracker/tests/test_linked_status_collector.py"
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -527,7 +527,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "approved",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-018"
       ],
@@ -547,7 +547,20 @@
         "Scenario: 父级 snapshot/UI/日志展示 active_feature_ref 而不是裸 F<number>",
         "Scenario: 两个子项目各有 F2 时展示为 PT-F2 / NO-F2",
         "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_linked_status_collector.py"
-      ]
+      ],
+      "ai_metrics": {
+        "started_at": "2026-04-15T00:06:32.174486+08:00",
+        "finished_at": "2026-04-15T00:06:34.870103+08:00",
+        "duration_seconds": 2
+      },
+      "development_stage": "completed",
+      "completed_at": "2026-04-15T00:06:32.175497Z",
+      "commit_hash": "85a32c3064cd7a8330fea08c796b7e38c5a5aa8b",
+      "archive_info": {
+        "archived_at": "2026-04-15T00:06:32.193773Z",
+        "files_moved": 0,
+        "files": []
+      }
     },
     {
       "id": 19,
@@ -1146,22 +1159,22 @@
       ]
     }
   ],
-  "current_feature_id": 17,
+  "current_feature_id": null,
   "updates": [],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-04-14T23:27:24.423088Z",
-    "source": "set_workflow_state",
+    "recorded_at": "2026-04-15T00:06:32.192338Z",
+    "source": "complete_feature",
     "workspace_mode": "in_place",
     "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
     "project_root": "/Users/siunin/Projects/Claude-Plugins",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins",
     "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
-    "branch": "fix/bug-001-worktree-cwd-feature-complete",
-    "upstream": "origin/fix/bug-001-worktree-cwd-feature-complete",
+    "branch": "main",
+    "upstream": "origin/main",
     "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
-    "current_feature_id": 17,
-    "workflow_phase": "execution_complete",
+    "current_feature_id": null,
+    "workflow_phase": null,
     "current_task": null,
     "total_tasks": null,
     "next_action": null
@@ -1195,21 +1208,5 @@
       "fixed_at": "2026-04-14T08:12:46.429667Z"
     }
   ],
-  "current_bug_id": null,
-  "workflow_state": {
-    "phase": "execution_complete",
-    "updated_at": "2026-04-14T23:27:24.376176Z",
-    "execution_context": {
-      "recorded_at": "2026-04-14T23:27:24.399762Z",
-      "source": "set_workflow_state",
-      "workspace_mode": "in_place",
-      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
-      "project_root": "/Users/siunin/Projects/Claude-Plugins",
-      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
-      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
-      "branch": "fix/bug-001-worktree-cwd-feature-complete",
-      "upstream": "origin/fix/bug-001-worktree-cwd-feature-complete"
-    },
-    "plan_path": "docs/plans/2026-04-14-route-status-route-select.md"
-  }
+  "current_bug_id": null
 }
