@@ -848,6 +848,24 @@ class TestDevelopmentStage:
         result = progress_manager.set_development_stage("developing")
         assert result is False
 
+    def test_preserves_existing_started_at(self, in_progress_file):
+        """Should not overwrite existing started_at timestamp when already set."""
+        # Load current state
+        data = progress_manager.load_progress_json()
+        feature = [f for f in data["features"] if f["id"] == data["current_feature_id"]][0]
+        original_time = "2026-02-20T10:00:00Z"
+        feature["started_at"] = original_time
+        progress_manager.save_progress_json(data)
+
+        # Re-call set_development_stage
+        result = progress_manager.set_development_stage("developing")
+        assert result is True
+
+        # Verify started_at is preserved
+        data = progress_manager.load_progress_json()
+        feature = [f for f in data["features"] if f["id"] == data["current_feature_id"]][0]
+        assert feature["started_at"] == original_time
+
 
 class TestDeferResume:
     """Test defer/resume feature lifecycle helpers."""
