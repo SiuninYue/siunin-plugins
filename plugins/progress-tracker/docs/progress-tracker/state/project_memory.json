@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "created_at": "2026-04-12T09:38:02.910760Z",
-  "updated_at": "2026-04-13T17:15:59.882330Z",
-  "next_capability_seq": 4,
+  "updated_at": "2026-04-14T16:40:17.289124Z",
+  "next_capability_seq": 5,
   "last_synced_commit": null,
   "capabilities": [
     {
@@ -65,6 +65,27 @@
       },
       "created_at": "2026-04-13T17:15:59.863312Z",
       "updated_at": "2026-04-13T17:15:59.863312Z"
+    },
+    {
+      "cap_id": "CAP-004",
+      "fingerprint": "da814d45fc1856c9",
+      "title": "RouteV1 Preflight Fail-Closed Enforcement",
+      "summary": "Unified route_preflight gate for child tracker mutating commands with fail-closed policy for route ownership mismatches. Includes parent discovery, multi-parent ambiguity detection, and deterministic recovery guidance.",
+      "tags": [
+        "route-v1",
+        "preflight",
+        "fail-closed",
+        "child-tracker"
+      ],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": "19",
+        "commit_hash": "04fba4bdb47d34da83f5cece8446e3f23a728d5e",
+        "commit_range": ""
+      },
+      "created_at": "2026-04-14T16:40:17.280693Z",
+      "updated_at": "2026-04-14T16:40:17.280693Z"
     }
   ],
   "rejected_fingerprints": [],
