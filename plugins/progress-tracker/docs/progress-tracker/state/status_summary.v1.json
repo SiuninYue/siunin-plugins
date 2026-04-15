@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-04-15T00:13:24.280971Z",
+  "updated_at": "2026-04-15T00:40:35.634414Z",
   "source": {
     "generator": "progress_manager.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,27 +11,27 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1776183196679649243,
-      "size": 46994
+      "mtime_ns": 1776184814320743911,
+      "size": 47716
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
       "exists": true,
-      "mtime_ns": 1776182504046949072,
+      "mtime_ns": 1776183994008578335,
       "size": 2203
     }
   },
   "progress": {
-    "completed": 11,
+    "completed": 12,
     "total": 24,
-    "percentage": 45
+    "percentage": 50
   },
   "next_action": {
     "type": "feature",
-    "feature_id": 17,
-    "feature_name": "[RouteV1] 新增 route-status/route-select 命令",
-    "development_stage": "developing",
-    "stage_label": "开发中"
+    "feature_id": 9,
+    "feature_name": "实现 set-finish-state 显式解锁器并固化 finish_pending 阻断链路",
+    "development_stage": "pending",
+    "stage_label": "待开始"
   },
   "plan_health": {
     "status": "N/A",
