@@ -330,15 +330,15 @@ class TestWorkflowStateTimestamps:
 class TestWorkflowStateWithCompleteFeature:
     """Test workflow state behavior when completing features."""
 
-    def test_complete_feature_preserves_workflow_state(self, in_progress_file):
-        """Should preserve workflow state when completing feature."""
-        original_phase = progress_manager.load_progress_json()["workflow_state"]["phase"]
+    def test_complete_feature_clears_workflow_state(self, in_progress_file):
+        """Should clear workflow state when completing feature."""
+        assert "workflow_state" in progress_manager.load_progress_json()
 
         progress_manager.complete_feature(2)
 
-        # Workflow state should still exist
         data = progress_manager.load_progress_json()
-        # Note: current implementation clears current_feature_id but keeps workflow_state
+        assert data["current_feature_id"] is None
+        assert "workflow_state" not in data
 
 
 class TestWorkflowStateScenarios:
