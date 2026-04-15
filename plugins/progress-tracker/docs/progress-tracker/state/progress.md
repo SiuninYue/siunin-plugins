@@ -39,6 +39,11 @@
 - [ ] 落地 wf_state_machine + wf_auto_driver + hook 自动推进
 - [ ] prog done 后自动清理已合并的 feature 分支和 worktree
 
+## Workflow Context
+- Phase: execution_complete
+- Execution context: feature/f20-parallel-active-routes-conflict @ f20-parallel-active-routes-conflict [worktree]
+- Current session context: feature/f20-parallel-active-routes-conflict @ f20-parallel-active-routes-conflict [worktree]
+
 ### Fixed (✅)
 - [x] [BUG-001] [DEBT] /prog done 应该自动切换到内联上下文中指定的工作树进行验收测试验证，避免在错误分支上运行测试导致误判
   Fix: Fix applied: feature-complete + feature-implement SKILL.md CWD persistence bug fixed, all prog CLI calls use --project-root (commits: 8f887ca, 1c6332e). PR: SiuninYue/siunin-plugins#16
