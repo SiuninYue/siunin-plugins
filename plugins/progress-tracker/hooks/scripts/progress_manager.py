@@ -22,6 +22,7 @@ Usage:
     python3 progress_manager.py set-development-stage <planning|developing|completed> [--feature-id <id>]
     python3 progress_manager.py complete <feature_id>
     python3 progress_manager.py done [--commit <hash>] [--run-all] [--skip-archive]
+    python3 progress_manager.py set-finish-state --feature-id <id> --status <merged_and_cleaned|pr_open|kept_with_reason> [--reason <text>]
     python3 progress_manager.py set-feature-ai-metrics <feature_id> --complexity-score <score> --selected-model <model> --workflow-path <path>
     python3 progress_manager.py complete-feature-ai-metrics <feature_id>
     python3 progress_manager.py auto-checkpoint
@@ -74,6 +75,10 @@ from prog_paths import (
     resolve_target_project_root,
 )
 from contract_importer import ContractImporter, ContractImportError
+try:
+    import audit_log
+except ImportError:  # pragma: no cover - defensive import
+    audit_log = None
 
 # Import git_validator for secure Git operations
 try:
@@ -123,6 +128,8 @@ TRACKER_ROLES = ("standalone", "parent", "child")
 DEFAULT_TRACKER_ROLE = "standalone"
 DEVELOPMENT_STAGES = ("planning", "developing", "completed")
 LIFECYCLE_STATES = ("approved", "implementing", "verified", "archived")
+VALID_FINISH_STATES = ("merged_and_cleaned", "pr_open", "kept_with_reason")
+FINISH_PENDING_STATE = "finish_pending"
 OWNER_ROLES = ("architecture", "coding", "testing")
 UPDATE_CATEGORIES = ("status", "decision", "risk", "handoff", "assignment", "meeting")
 UPDATE_SOURCES = ("prog_update", "spm_meeting", "spm_assign", "spm_planning", "manual")
@@ -161,6 +168,7 @@ MUTATING_COMMANDS = {
     "set-development-stage",
     "complete",
     "done",
+    "set-finish-state",
     "add-feature",
     "update-feature",
     "defer",
@@ -2215,6 +2223,32 @@ def load_progress_json():
 def _iso_now() -> str:
     """Return current local timestamp with trailing Z for compatibility."""
     return datetime.now().isoformat() + "Z"
+
+
+def _append_audit_event(
+    *,
+    event_type: str,
+    feature_id: Optional[int] = None,
+    details: Optional[Dict[str, Any]] = None,
+) -> None:
+    """Best-effort append for non-FSM audit events."""
+    if audit_log is None:
+        return
+
+    try:
+        project_root = str(find_project_root())
+        record: Dict[str, Any] = {
+            "id": audit_log.generate_audit_id(project_root=project_root),
+            "tx_id": audit_log.generate_tx_id(),
+            "timestamp": _iso_now(),
+            "event_type": event_type,
+            "details": details or {},
+        }
+        if feature_id is not None:
+            record["feature_id"] = feature_id
+        audit_log.append_audit_record(record, project_root=project_root)
+    except Exception as exc:  # pragma: no cover - defensive branch
+        logger.warning("Failed to append audit record for %s: %s", event_type, exc)
 
 
 def save_progress_json(data, touch_updated_at: bool = True):
@@ -4647,6 +4681,39 @@ def next_feature(output_json: bool = False, ack_planning_risk: bool = False) -> 
     """Print the next actionable feature (skipping completed/deferred)."""
     data = load_progress_json()
     if data:
+        features = data.get("features", [])
+        pending_finish_feature = next(
+            (
+                feature
+                for feature in features
+                if isinstance(feature, dict)
+                and feature.get("integration_status") == FINISH_PENDING_STATE
+            ),
+            None,
+        )
+        if pending_finish_feature:
+            pending_id = pending_finish_feature.get("id")
+            message = (
+                f"Feature {pending_id} is in finish_pending. "
+                f"Run `prog set-finish-state --feature-id {pending_id} "
+                "--status <merged_and_cleaned|pr_open|kept_with_reason>` first."
+            )
+            payload = {
+                "status": "blocked",
+                "reason": "finish_pending",
+                "feature_id": pending_id,
+                "message": message,
+                "recommended_next_step": (
+                    f"prog set-finish-state --feature-id {pending_id} "
+                    "--status <merged_and_cleaned|pr_open|kept_with_reason>"
+                ),
+            }
+            if output_json:
+                print(json.dumps(payload, ensure_ascii=False))
+            else:
+                print(payload["message"])
+            return False
+
         reconcile_report = analyze_reconcile_state(data)
         diagnosis = reconcile_report.get("diagnosis")
         if diagnosis == "implementation_ahead_of_tracker":
@@ -5307,8 +5374,11 @@ def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False
                 None,
             )
             if current_feature:
+                current_feature["integration_status"] = FINISH_PENDING_STATE
                 current_feature["finish_pending_reason"] = _format_failure_reason(results)
                 current_feature["last_done_attempt_at"] = _iso_now()
+                current_feature.pop("finish_state_resolved_at", None)
+                current_feature.pop("finish_state_resolved_reason", None)
                 save_progress_json(refreshed)
 
         passed_count = sum(1 for result in results if result.success)
@@ -5342,6 +5412,61 @@ def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False
         except ValueError:
             relative_report = report_path
         print(f"[DONE] Report: {relative_report}")
+    return 0
+
+
+def cmd_set_finish_state(feature_id: int, status: str, reason: Optional[str] = None) -> int:
+    """Resolve explicit finish_pending state for a feature."""
+    if status not in VALID_FINISH_STATES:
+        print(
+            f"Invalid status: {status}. "
+            f"Expected one of: {', '.join(VALID_FINISH_STATES)}",
+            file=sys.stderr,
+        )
+        return 2
+
+    data = load_progress_json()
+    if not data:
+        print("No progress tracking found", file=sys.stderr)
+        return 1
+
+    features = data.get("features", [])
+    feature = next((item for item in features if item.get("id") == feature_id), None)
+    if feature is None:
+        print(f"Feature ID {feature_id} not found", file=sys.stderr)
+        return 3
+
+    current_status = feature.get("integration_status")
+    if current_status != FINISH_PENDING_STATE:
+        print(
+            f"Feature {feature_id} is not in finish_pending (current: {current_status})",
+            file=sys.stderr,
+        )
+        return 4
+
+    normalized_reason = _normalize_optional_string(reason)
+    feature["integration_status"] = status
+    _clear_feature_finish_pending(feature)
+    feature["finish_state_resolved_at"] = _iso_now()
+    if normalized_reason is None:
+        feature.pop("finish_state_resolved_reason", None)
+    else:
+        feature["finish_state_resolved_reason"] = normalized_reason
+
+    save_progress_json(data)
+    save_progress_md(generate_progress_md(data))
+
+    _append_audit_event(
+        event_type="set_finish_state",
+        feature_id=feature_id,
+        details={
+            "from_status": FINISH_PENDING_STATE,
+            "to_status": status,
+            "reason": normalized_reason,
+        },
+    )
+
+    print(f"Feature {feature_id} finish state resolved: {status}")
     return 0
 
 
@@ -5397,6 +5522,9 @@ def complete_feature(feature_id, commit_hash=None, skip_archive=False):
     feature["completed_at"] = _iso_now()
     _clear_feature_defer_state(feature)
     _clear_feature_finish_pending(feature)
+    feature["integration_status"] = "merged_and_cleaned"
+    feature["finish_state_resolved_at"] = _iso_now()
+    feature.pop("finish_state_resolved_reason", None)
     if commit_hash:
         feature["commit_hash"] = commit_hash
 
@@ -7211,6 +7339,26 @@ def main():
         action="store_true",
         help="Skip document archiving",
     )
+    set_finish_state_parser = subparsers.add_parser(
+        "set-finish-state",
+        help="Resolve explicit finish_pending integration status for a feature",
+    )
+    set_finish_state_parser.add_argument(
+        "--feature-id",
+        type=int,
+        required=True,
+        help="Feature ID in finish_pending state",
+    )
+    set_finish_state_parser.add_argument(
+        "--status",
+        required=True,
+        choices=VALID_FINISH_STATES,
+        help="Target integration status",
+    )
+    set_finish_state_parser.add_argument(
+        "--reason",
+        help="Optional reason for resolution",
+    )
 
     # Add feature command
     add_parser = subparsers.add_parser("add-feature", help="Add a new feature")
@@ -7537,6 +7685,12 @@ def main():
                 commit_hash=args.commit,
                 run_all=args.run_all,
                 skip_archive=args.skip_archive,
+            )
+        if args.command == "set-finish-state":
+            return cmd_set_finish_state(
+                feature_id=args.feature_id,
+                status=args.status,
+                reason=args.reason,
             )
         if args.command == "add-feature":
             return add_feature(args.name, args.test_steps)

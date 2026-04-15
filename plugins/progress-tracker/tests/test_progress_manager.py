@@ -2214,6 +2214,7 @@ class TestDoneCommand:
         data = json.loads((state_dir / "progress.json").read_text(encoding="utf-8"))
         feature = data["features"][0]
         assert feature["completed"] is False
+        assert feature.get("integration_status") == "finish_pending"
         assert feature.get("finish_pending_reason")
         assert feature.get("last_done_attempt_at")
 
@@ -2227,7 +2228,8 @@ class TestDoneCommand:
         assert next_result.returncode == 1
         payload = json.loads(next_result.stdout.strip().splitlines()[-1])
         assert payload["status"] == "blocked"
-        assert payload["reason"] == "implementation_ahead_of_tracker"
+        assert payload["reason"] == "finish_pending"
+        assert "set-finish-state" in payload["message"]
 
 
 class TestAiMetricsAndCheckpoints:

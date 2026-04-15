@@ -115,6 +115,25 @@ def test_set_development_stage_developing_requires_readiness(temp_dir):
     assert progress_manager.set_development_stage("developing") is False
 
 
+def test_prog_next_blocks_when_any_feature_has_finish_pending(temp_dir, capsys):
+    """`/prog-next` should refuse to advance while any feature is in finish_pending."""
+    progress_manager.init_tracking("Block Next", force=True)
+    progress_manager.add_feature("Feature A", ["step 1"])
+
+    data = progress_manager.load_progress_json()
+    data["features"][0]["integration_status"] = "finish_pending"
+    data["features"][0]["finish_pending_reason"] = "manual test"
+    progress_manager.save_progress_json(data)
+
+    result = progress_manager.next_feature(output_json=True)
+    assert result is False
+
+    payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert payload["status"] == "blocked"
+    assert payload["reason"] == "finish_pending"
+    assert "set-finish-state" in payload["message"]
+
+
 def test_lifecycle_transitions_from_start_to_complete(temp_dir):
     """Feature lifecycle should move approved -> implementing -> verified."""
     progress_manager.init_tracking("Lifecycle", force=True)
