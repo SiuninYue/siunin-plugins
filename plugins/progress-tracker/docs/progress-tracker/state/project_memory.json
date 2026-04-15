@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "created_at": "2026-04-12T09:38:02.910760Z",
-  "updated_at": "2026-04-15T09:05:44.808548Z",
-  "next_capability_seq": 6,
+  "updated_at": "2026-04-15T16:27:47.620979Z",
+  "next_capability_seq": 7,
   "last_synced_commit": null,
   "capabilities": [
     {
@@ -107,6 +107,26 @@
       },
       "created_at": "2026-04-15T09:05:44.789960Z",
       "updated_at": "2026-04-15T09:05:44.789960Z"
+    },
+    {
+      "cap_id": "CAP-006",
+      "fingerprint": "5b45b2b20db0bedd",
+      "title": "[RouteV1] 并行 active_routes 冲突策略（允许执行+强告警）",
+      "summary": "Implemented Type C conflict detection in progress tracker for parallel active routes. Displays [WARNING] Parallel Active Routes in status output and route_select command when multiple project_codes are active, but allows operations to continue (non-blocking). Added regression tests for both CLI outputs and internal logic.",
+      "tags": [
+        "routing",
+        "conflict-strategy",
+        "warning-only"
+      ],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 20,
+        "commit_hash": "dcc283cda176a30d902ba260e5fd2aa3e3b34c71",
+        "commit_range": ""
+      },
+      "created_at": "2026-04-15T16:27:47.612985Z",
+      "updated_at": "2026-04-15T16:27:47.612985Z"
     }
   ],
   "rejected_fingerprints": [],

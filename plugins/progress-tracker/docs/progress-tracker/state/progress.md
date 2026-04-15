@@ -2,7 +2,7 @@
 
 **Created**: 2026-04-09T01:12:55.289861Z
 
-**Status**: 15/25 completed
+**Status**: 16/25 completed
 
 ## Completed
 - [x] 定义父级协调追踪器 Schema（linked_projects + snapshot 元数据）
@@ -17,22 +17,22 @@
 - [x] [RouteV1] feature_ref 命名空间化（<project_code>-F<number>）
 - [x] [RouteV1] mutating 命令统一 route_preflight fail-closed
 - [x] [RouteV1] worktree/branch 一致性校验（next/done fail-closed）
+- [x] [RouteV1] 并行 active_routes 冲突策略（允许执行+强告警）
 - [x] 状态展示与文档更新（父级总览+子项目明细+归档历史）
 - [x] 清理 /prog-start 残留并锁定 /prog-next 为唯一 start path
 - [x] 实现 set-finish-state 显式解锁器并固化 finish_pending 阻断链路
 
 ## In Progress
-- [ ] [RouteV1] 并行 active_routes 冲突策略（允许执行+强告警）
+- [ ] 落地 evaluator_gate 与 quality_gates.evaluator 独立评估门
   **Test steps**:
-  - 当多个 active_routes 并行时输出冲突告警与上下文摘要
-  - 不阻断写操作但要求显示当前 route 与其他 active 项目
-  - 运行: pytest -q plugins/progress-tracker/tests/test_status_linked_summary.py -k Linked
+  - 新增 hooks/scripts/evaluator_gate.py 并接入 /prog-done 评估流
+  - 运行: pytest -q plugins/progress-tracker/tests/test_evaluator_gate.py
+  - 验证 gate 输出 pass|retry|required_reviews 与 defects 持久化
 
 ## Pending
 - [ ] [RouteV1] 父级顺序调度：/prog-next 按 routing_queue 选首个可执行子项目
 - [ ] [RouteV1] sync-linked 升级为父级统一同步入口
 - [ ] [RouteV1] 在 prog-init/prog-plan 与子项目完成时回写父级备案
-- [ ] 落地 evaluator_gate 与 quality_gates.evaluator 独立评估门
 - [ ] 落地 review_router 智能分流并持久化 review lanes
 - [ ] 落地 ship_check 统一门禁与 docs-sync 证据校验
 - [ ] 落地 sprint_ledger 与 schema 2.1 的 sprint_contract/handoff 持久化
@@ -41,6 +41,7 @@
 
 ## Workflow Context
 - Phase: execution_complete
+- Next action: 运行 /prog done 完成 Feature 10
 - Execution context: feature/f20-parallel-active-routes-conflict @ f20-parallel-active-routes-conflict [worktree]
 - Current session context: feature/f20-parallel-active-routes-conflict @ f20-parallel-active-routes-conflict [worktree]
 

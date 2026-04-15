@@ -1,8 +1,8 @@
 {
-  "schema_version": "2.0",
+  "schema_version": "2.1",
   "project_name": "prog-parent-coordination-archive",
   "created_at": "2026-04-09T01:12:55.289861Z",
-  "updated_at": "2026-04-16T00:21:26.212908Z",
+  "updated_at": "2026-04-16T00:56:05.668668Z",
   "features": [
     {
       "id": 1,
@@ -56,6 +56,38 @@
         "archived_at": "2026-04-12T10:48:19.106691Z",
         "files_moved": 0,
         "files": []
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
       }
     },
     {
@@ -114,6 +146,38 @@
         "archived_at": "2026-04-12T16:27:07.764542Z",
         "files_moved": 0,
         "files": []
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
       }
     },
     {
@@ -172,6 +236,38 @@
         "archived_at": "2026-04-12T16:45:59.934774Z",
         "files_moved": 0,
         "files": []
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
       }
     },
     {
@@ -230,6 +326,38 @@
         "archived_at": "2026-04-12T17:10:56.802243Z",
         "files_moved": 0,
         "files": []
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
       }
     },
     {
@@ -288,6 +416,38 @@
         "archived_at": "2026-04-12T17:37:22.977119Z",
         "files_moved": 0,
         "files": []
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
       }
     },
     {
@@ -346,6 +506,38 @@
         "archived_at": "2026-04-12T21:59:45.511138Z",
         "files_moved": 0,
         "files": []
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
       }
     },
     {
@@ -400,6 +592,38 @@
         "archived_at": "2026-04-14T00:53:47.261447Z",
         "files_moved": 0,
         "files": []
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
       }
     },
     {
@@ -458,6 +682,38 @@
         "archived_at": "2026-04-14T01:15:21.872848Z",
         "files_moved": 0,
         "files": []
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
       }
     },
     {
@@ -516,6 +772,38 @@
         "archived_at": "2026-04-15T00:19:24.963018Z",
         "files_moved": 0,
         "files": []
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
       }
     },
     {
@@ -569,6 +857,38 @@
         "archived_at": "2026-04-15T00:06:32.193773Z",
         "files_moved": 0,
         "files": []
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
       }
     },
     {
@@ -625,6 +945,38 @@
         "archived_at": "2026-04-15T17:05:33.196463Z",
         "files_moved": 0,
         "files": []
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
       }
     },
     {
@@ -691,6 +1043,38 @@
             "to": "docs/archive/plans/2026-04-15-f21-route-consistency.md"
           }
         ]
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
       }
     },
     {
@@ -701,7 +1085,7 @@
         "不阻断写操作但要求显示当前 route 与其他 active 项目",
         "运行: pytest -q plugins/progress-tracker/tests/test_status_linked_summary.py -k Linked"
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -711,7 +1095,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "implementing",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-020"
       ],
@@ -732,14 +1116,57 @@
         "Scenario: 不阻断写操作但要求显示当前 route 与其他 active 项目",
         "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_status_linked_summary.py -k Linked"
       ],
-      "development_stage": "developing",
+      "development_stage": "completed",
       "started_at": "2026-04-15T23:41:03.136631Z",
       "ai_metrics": {
         "complexity_score": 12,
         "complexity_bucket": "simple",
         "selected_model": "haiku",
         "workflow_path": "direct_tdd",
-        "started_at": "2026-04-16T00:08:52.824609Z"
+        "started_at": "2026-04-16T00:08:52.824609Z",
+        "finished_at": "2026-04-16T00:27:50.856527+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-16T00:27:02.048965Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-16T00:27:02.048982Z",
+      "commit_hash": "dcc283cda176a30d902ba260e5fd2aa3e3b34c71",
+      "archive_info": {
+        "archived_at": "2026-04-16T00:27:02.110457Z",
+        "files_moved": 0,
+        "files": []
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
       }
     },
     {
@@ -780,7 +1207,39 @@
         "Scenario: 实现 /prog-next 从 routing_queue 选首个可执行项目与首个 pending feature",
         "Scenario: 子项目显式执行时允许局部推进并回写父级快照",
         "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_prog_start_behavior.py"
-      ]
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
     },
     {
       "id": 23,
@@ -820,7 +1279,39 @@
         "Scenario: linked_snapshot.projects[] 增加 project_code/active_feature_ref/workspace/route_status",
         "Scenario: 执行: plugins/progress-tracker/prog --project-root plugins/progress-tracker sync-linked --json",
         "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_sync_linked_command.py"
-      ]
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
     },
     {
       "id": 24,
@@ -860,7 +1351,39 @@
         "Scenario: prog-init/prog-plan 产出的拆解 feature 同步到父级 progress.json",
         "Scenario: 子项目 /prog-done 完成后同步父级完成率与 active_feature_ref",
         "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_integration.py"
-      ]
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
     },
     {
       "id": 7,
@@ -918,6 +1441,38 @@
         "archived_at": "2026-04-13T23:29:11.927259Z",
         "files_moved": 0,
         "files": []
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
       }
     },
     {
@@ -976,6 +1531,38 @@
         "archived_at": "2026-04-14T01:43:07.067416Z",
         "files_moved": 0,
         "files": []
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
       }
     },
     {
@@ -1031,6 +1618,38 @@
         "archived_at": "2026-04-15T15:05:56.650885Z",
         "files_moved": 0,
         "files": []
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
       }
     },
     {
@@ -1051,7 +1670,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "approved",
+      "lifecycle_state": "implementing",
       "requirement_ids": [
         "REQ-010"
       ],
@@ -1071,7 +1690,48 @@
         "Scenario: 新增 hooks/scripts/evaluator_gate.py 并接入 /prog-done 评估流",
         "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_evaluator_gate.py",
         "Scenario: 验证 gate 输出 pass|retry|required_reviews 与 defects 持久化"
-      ]
+      ],
+      "development_stage": "developing",
+      "started_at": "2026-04-16T00:34:55.739323Z",
+      "ai_metrics": {
+        "complexity_score": 21,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-16T00:34:59.885974Z"
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
     },
     {
       "id": 11,
@@ -1111,7 +1771,39 @@
         "Scenario: 新增 hooks/scripts/review_router.py，按 change categories 计算 required/pending/passed",
         "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_review_router.py",
         "Scenario: 验证 design/devex 可选，eng/qa/docs 按规则强制"
-      ]
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
     },
     {
       "id": 12,
@@ -1151,7 +1843,39 @@
         "Scenario: 新增 hooks/scripts/ship_check.py 并在 closeout 前执行",
         "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_ship_check.py",
         "Scenario: 验证 failures[] 明确记录测试覆盖与文档不同步问题"
-      ]
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
     },
     {
       "id": 13,
@@ -1191,7 +1915,39 @@
         "Scenario: 在 _apply_schema_defaults 注入 sprint_contract/quality_gates/handoff 默认值",
         "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_schema_2_1_migration.py",
         "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_sprint_ledger.py"
-      ]
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
     },
     {
       "id": 14,
@@ -1231,7 +1987,39 @@
         "Scenario: 新增 wf_state_machine.py 纯函数 compute_next_action 与 wf_auto_driver.py hook 入口",
         "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_wf_state_machine.py",
         "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_wf_auto_driver.py"
-      ]
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
     },
     {
       "id": 25,
@@ -1277,28 +2065,60 @@
         "Scenario: worktree 有未提交改动时报警并跳过清理，不回滚 feature 完成状态",
         "Scenario: in-place 模式（非 worktree）下仅清理分支，跳过 worktree 清理",
         "Scenario: 清理失败时输出警告但不阻断 prog done 后续步骤（非阻塞）"
-      ]
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
     }
   ],
-  "current_feature_id": 20,
+  "current_feature_id": 10,
   "updates": [],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-04-16T00:21:26.212713Z",
+    "recorded_at": "2026-04-16T00:56:05.659632Z",
     "source": "set_workflow_state",
     "workspace_mode": "worktree",
     "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f20-parallel-active-routes-conflict",
     "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f20-parallel-active-routes-conflict",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f20-parallel-active-routes-conflict",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f20-parallel-active-routes-conflict/plugins/progress-tracker",
     "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/f20-parallel-active-routes-conflict",
     "branch": "feature/f20-parallel-active-routes-conflict",
-    "upstream": null,
+    "upstream": "origin/feature/f20-parallel-active-routes-conflict",
     "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f20-parallel-active-routes-conflict/plugins/progress-tracker",
-    "current_feature_id": 20,
+    "current_feature_id": 10,
     "workflow_phase": "execution_complete",
     "current_task": null,
     "total_tasks": null,
-    "next_action": null
+    "next_action": "运行 /prog done 完成 Feature 10"
   },
   "linked_projects": [],
   "linked_snapshot": {
@@ -1332,9 +2152,9 @@
   "current_bug_id": null,
   "workflow_state": {
     "phase": "execution_complete",
-    "updated_at": "2026-04-16T00:21:26.179255Z",
+    "updated_at": "2026-04-16T00:56:05.611898Z",
     "execution_context": {
-      "recorded_at": "2026-04-16T00:21:26.196577Z",
+      "recorded_at": "2026-04-16T00:56:05.636064Z",
       "source": "set_workflow_state",
       "workspace_mode": "worktree",
       "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f20-parallel-active-routes-conflict",
@@ -1342,7 +2162,9 @@
       "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f20-parallel-active-routes-conflict/plugins/progress-tracker",
       "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/f20-parallel-active-routes-conflict",
       "branch": "feature/f20-parallel-active-routes-conflict",
-      "upstream": null
-    }
+      "upstream": "origin/feature/f20-parallel-active-routes-conflict"
+    },
+    "plan_path": "docs/plans/2026-04-09-mellow-roaming-puppy.md",
+    "next_action": "运行 /prog done 完成 Feature 10"
   }
 }
