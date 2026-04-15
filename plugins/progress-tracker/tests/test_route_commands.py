@@ -124,7 +124,8 @@ def test_route_status_json_output(temp_dir, capsys):
     assert result is True
     payload = json.loads(capsys.readouterr().out)
     assert payload["routing_queue"] == ["NO"]
-    assert payload["active_routes"] == [{"project_code": "NO", "feature_ref": "NO-F1"}]
+    assert payload["active_routes"][0]["project_code"] == "NO"
+    assert payload["active_routes"][0]["feature_ref"] == "NO-F1"
     assert "conflicts" in payload
     assert isinstance(payload["conflicts"], list)
 

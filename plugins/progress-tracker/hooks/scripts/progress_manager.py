@@ -1543,6 +1543,11 @@ def route_select(
         merged["feature_ref"] = final_ref
         upserted_entry = merged
 
+    # Record current worktree_path and branch for scope consistency checks (F21)
+    _git_ctx = collect_git_context()
+    upserted_entry["worktree_path"] = _git_ctx.get("worktree_path")
+    upserted_entry["branch"] = _git_ctx.get("branch")
+
     new_routes = other_routes + [upserted_entry]
     data["active_routes"] = new_routes
 
@@ -5097,16 +5102,12 @@ def _clear_feature_finish_pending(feature: Dict[str, Any]) -> None:
 
 def _is_executable_test_step(step: str) -> bool:
     """Return whether a test step should be executed as a shell command."""
-    normalized = step.strip()
-    if not normalized:
-        return False
-    if normalized.startswith("DoD:"):
-        return False
-    if normalized.startswith("#") or normalized.startswith("//"):
+    command = _extract_test_step_command(step)
+    if not command:
         return False
 
     try:
-        tokens = shlex.split(normalized, posix=True)
+        tokens = shlex.split(command, posix=True)
     except ValueError:
         return False
 
@@ -5132,6 +5133,24 @@ def _is_executable_test_step(step: str) -> bool:
     return shutil.which(command_token) is not None
 
 
+def _extract_test_step_command(step: str) -> Optional[str]:
+    """Normalize a test step into an executable command string when possible."""
+    normalized = step.strip()
+    if not normalized:
+        return None
+    if normalized.startswith("DoD:"):
+        return None
+    if normalized.startswith("#") or normalized.startswith("//"):
+        return None
+
+    for prefix in ("运行:", "运行：", "Run:", "run:"):
+        if normalized.startswith(prefix):
+            normalized = normalized[len(prefix) :].strip()
+            break
+
+    return normalized or None
+
+
 def _run_acceptance_tests(
     feature: Dict[str, Any],
     run_all: bool = False,
@@ -5148,11 +5167,11 @@ def _run_acceptance_tests(
     for raw_step in steps:
         if not isinstance(raw_step, str):
             continue
-        if not _is_executable_test_step(raw_step):
+        command = _extract_test_step_command(raw_step)
+        if not command or not _is_executable_test_step(raw_step):
             print(f"[DONE][SKIP] {raw_step}")
             continue
 
-        command = raw_step.strip()
         print(f"[DONE][RUN] {command}")
         started_at = time.monotonic()
 
@@ -5539,6 +5558,7 @@ def complete_feature(feature_id, commit_hash=None, skip_archive=False):
         feature["plan_path"] = plan_path
 
     data["current_feature_id"] = None
+    data.pop("workflow_state", None)
     _update_runtime_context(data, source="complete_feature")
 
     save_progress_json(data)
@@ -7432,6 +7452,61 @@ def enforce_route_preflight(command: str, argv: Sequence[str]) -> bool:
     return True
 
 
+def check_worktree_branch_consistency(command: str) -> bool:
+    """
+    Fail-closed check: verify current worktree/branch matches workflow_state.execution_context.
+
+    Returns True if context matches or no constraint is recorded.
+    Returns False (and prints recovery guidance) on mismatch.
+    """
+    data = load_progress_json()
+    if not isinstance(data, dict):
+        return True
+
+    workflow_state = data.get("workflow_state")
+    if not isinstance(workflow_state, dict):
+        return True
+
+    execution_context = workflow_state.get("execution_context")
+    if not isinstance(execution_context, dict):
+        return True
+
+    expected_branch = execution_context.get("branch")
+    expected_path = execution_context.get("worktree_path")
+
+    # No constraint recorded yet — pass through
+    if not expected_branch and not expected_path:
+        return True
+
+    current_ctx = collect_git_context()
+    comparison = compare_contexts(
+        expected=execution_context,
+        current=current_ctx,
+    )
+
+    mismatch_statuses = {"mismatch", "path_mismatch", "branch_mismatch", "unknown"}
+    comparison_status = comparison.get("status")
+    current_branch = current_ctx.get("branch")
+    current_path = current_ctx.get("worktree_path")
+    missing_required_current = bool(
+        (expected_branch and not current_branch) or (expected_path and not current_path)
+    )
+    if comparison_status not in mismatch_statuses and not missing_required_current:
+        return True
+
+    # Hard block — print actionable recovery guidance
+    print(f"[Scope Consistency] BLOCKED: {command} denied — worktree/branch mismatch.")
+    print(f"  Expected branch:       {expected_branch or '(any)'}")
+    print(f"  Current branch:        {current_ctx.get('branch') or '(unknown)'}")
+    print(f"  Expected worktree:     {expected_path or '(any)'}")
+    print(f"  Current worktree:      {current_ctx.get('worktree_path') or '(unknown)'}")
+    print("Recovery:")
+    print("  1. Switch to the correct worktree/branch, OR")
+    print("  2. Re-register this session as the active route:")
+    print("       plugins/progress-tracker/prog route-select --project <PROJECT_CODE>")
+    return False
+
+
 def main():
     parser = argparse.ArgumentParser(description="Progress Tracker Manager")
     parser.add_argument(
@@ -8052,6 +8127,11 @@ def main():
             return remove_bug(args.bug_id)
         parser.print_help()
         return 1
+
+    # F21: fail-closed scope consistency check for next-feature and done
+    if args.command in {"next-feature", "done"}:
+        if not check_worktree_branch_consistency(args.command):
+            return 1
 
     if args.command in MUTATING_COMMANDS:
         if not enforce_route_preflight(args.command, sys.argv):
