@@ -287,3 +287,117 @@ class TestRouteSelectRecordsWorktreeAndBranch:
         assert entry["project_code"] == "MYPROJ"
         assert entry["worktree_path"] == "/repo/.worktrees/feat-1"
         assert entry["branch"] == "feature/1-test"
+
+
+class TestCheckWorktreeBranchConsistency:
+    """check_worktree_branch_consistency() 的单元测试。"""
+
+    def _make_with_exec_context(self, tmp_path, branch, worktree_path):
+        """构建含 execution_context 的 progress.json。"""
+        return _make_progress(tmp_path, extra={
+            "workflow_state": {
+                "phase": "execution",
+                "execution_context": {
+                    "branch": branch,
+                    "worktree_path": worktree_path,
+                    "source": "set_workflow_state",
+                },
+            }
+        })
+
+    def test_returns_true_when_no_execution_context(self, tmp_path):
+        """workflow_state 无 execution_context 时不阻断。"""
+        _make_progress(tmp_path)
+        with patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE",
+                          tmp_path):
+            result = progress_manager.check_worktree_branch_consistency("next-feature")
+        assert result is True
+
+    def test_returns_true_when_context_matches(self, tmp_path):
+        """worktree_path 和 branch 都匹配时不阻断。"""
+        self._make_with_exec_context(tmp_path, "feature/21-test", "/repo/.worktrees/feat-21")
+        fake_git = {
+            "worktree_path": "/repo/.worktrees/feat-21",
+            "branch": "feature/21-test",
+        }
+        with (
+            patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE",
+                         tmp_path),
+            patch.object(progress_manager, "collect_git_context", return_value=fake_git),
+        ):
+            result = progress_manager.check_worktree_branch_consistency("next-feature")
+        assert result is True
+
+    def test_returns_false_when_branch_mismatches(self, tmp_path, capsys):
+        """branch 不匹配时阻断并打印错误。"""
+        self._make_with_exec_context(tmp_path, "feature/21-test", "/repo/.worktrees/feat-21")
+        fake_git = {
+            "worktree_path": "/repo/.worktrees/feat-21",
+            "branch": "main",   # 错误的 branch
+        }
+        with (
+            patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE",
+                         tmp_path),
+            patch.object(progress_manager, "collect_git_context", return_value=fake_git),
+        ):
+            result = progress_manager.check_worktree_branch_consistency("next-feature")
+        assert result is False
+        captured = capsys.readouterr()
+        assert "route-select" in captured.out
+        assert "BLOCKED" in captured.out or "branch" in captured.out.lower()
+
+    def test_returns_false_when_worktree_path_mismatches(self, tmp_path, capsys):
+        """worktree_path 不匹配时阻断并打印错误。"""
+        self._make_with_exec_context(tmp_path, "feature/21-test", "/repo/.worktrees/feat-21")
+        fake_git = {
+            "worktree_path": "/repo",   # 错误路径（非 worktree）
+            "branch": "feature/21-test",
+        }
+        with (
+            patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE",
+                         tmp_path),
+            patch.object(progress_manager, "collect_git_context", return_value=fake_git),
+        ):
+            result = progress_manager.check_worktree_branch_consistency("done")
+        assert result is False
+        captured = capsys.readouterr()
+        assert "route-select" in captured.out
+
+    def test_returns_false_when_both_mismatch(self, tmp_path, capsys):
+        """branch 和 worktree_path 都不匹配时阻断。"""
+        self._make_with_exec_context(tmp_path, "feature/21-test", "/repo/.worktrees/feat-21")
+        fake_git = {
+            "worktree_path": "/repo",
+            "branch": "main",
+        }
+        with (
+            patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE",
+                         tmp_path),
+            patch.object(progress_manager, "collect_git_context", return_value=fake_git),
+        ):
+            result = progress_manager.check_worktree_branch_consistency("done")
+        assert result is False
+
+    def test_returns_false_when_expected_context_exists_but_current_context_missing(self, tmp_path):
+        """expected 有 branch/worktree 约束，但 current 缺失上下文时也应 fail-closed。"""
+        self._make_with_exec_context(tmp_path, "feature/21-test", "/repo/.worktrees/feat-21")
+        fake_git = {"worktree_path": None, "branch": None}
+        with (
+            patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE", tmp_path),
+            patch.object(progress_manager, "collect_git_context", return_value=fake_git),
+        ):
+            result = progress_manager.check_worktree_branch_consistency("done")
+        assert result is False
+
+    def test_returns_true_when_execution_context_empty(self, tmp_path):
+        """execution_context 存在但 branch/worktree_path 都为空时不阻断。"""
+        _make_progress(tmp_path, extra={
+            "workflow_state": {
+                "phase": "planning",
+                "execution_context": {},
+            }
+        })
+        with patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE",
+                          tmp_path):
+            result = progress_manager.check_worktree_branch_consistency("next-feature")
+        assert result is True

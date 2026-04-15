@@ -7437,6 +7437,61 @@ def enforce_route_preflight(command: str, argv: Sequence[str]) -> bool:
     return True
 
 
+def check_worktree_branch_consistency(command: str) -> bool:
+    """
+    Fail-closed check: verify current worktree/branch matches workflow_state.execution_context.
+
+    Returns True if context matches or no constraint is recorded.
+    Returns False (and prints recovery guidance) on mismatch.
+    """
+    data = load_progress_json()
+    if not isinstance(data, dict):
+        return True
+
+    workflow_state = data.get("workflow_state")
+    if not isinstance(workflow_state, dict):
+        return True
+
+    execution_context = workflow_state.get("execution_context")
+    if not isinstance(execution_context, dict):
+        return True
+
+    expected_branch = execution_context.get("branch")
+    expected_path = execution_context.get("worktree_path")
+
+    # No constraint recorded yet — pass through
+    if not expected_branch and not expected_path:
+        return True
+
+    current_ctx = collect_git_context()
+    comparison = compare_contexts(
+        expected=execution_context,
+        current=current_ctx,
+    )
+
+    mismatch_statuses = {"mismatch", "path_mismatch", "branch_mismatch"}
+    comparison_status = comparison.get("status")
+    current_branch = current_ctx.get("branch")
+    current_path = current_ctx.get("worktree_path")
+    missing_required_current = bool(
+        (expected_branch and not current_branch) or (expected_path and not current_path)
+    )
+    if comparison_status not in mismatch_statuses and not missing_required_current:
+        return True
+
+    # Hard block — print actionable recovery guidance
+    print(f"[Scope Consistency] BLOCKED: {command} denied — worktree/branch mismatch.")
+    print(f"  Expected branch:       {expected_branch or '(any)'}")
+    print(f"  Current branch:        {current_ctx.get('branch') or '(unknown)'}")
+    print(f"  Expected worktree:     {expected_path or '(any)'}")
+    print(f"  Current worktree:      {current_ctx.get('worktree_path') or '(unknown)'}")
+    print("Recovery:")
+    print("  1. Switch to the correct worktree/branch, OR")
+    print("  2. Re-register this session as the active route:")
+    print("       plugins/progress-tracker/prog route-select --project <PROJECT_CODE>")
+    return False
+
+
 def main():
     parser = argparse.ArgumentParser(description="Progress Tracker Manager")
     parser.add_argument(
