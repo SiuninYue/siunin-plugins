@@ -121,7 +121,7 @@ STATUS_SUMMARY_CORE_FIELDS = (
 )
 
 # Schema version - increment when breaking changes occur
-CURRENT_SCHEMA_VERSION = "2.0"
+CURRENT_SCHEMA_VERSION = "2.1"
 LINKED_SNAPSHOT_SCHEMA_VERSION = "1.0"
 DEFAULT_LINKED_STATUS_STALE_HOURS = 24
 TRACKER_ROLES = ("standalone", "parent", "child")
@@ -2223,8 +2223,81 @@ def reconcile(output_json: bool = False) -> bool:
     return True
 
 
+def _default_sprint_contract(feature: Dict[str, Any]) -> None:
+    """PR-3/schema-2.1: inject sprint_contract defaults if absent."""
+    if os.environ.get("PROG_DISABLE_V2") == "1" and "sprint_contract" in feature:
+        return
+    feature.setdefault(
+        "sprint_contract",
+        {
+            "scope": "",
+            "done_criteria": [],
+            "test_plan": [],
+            "accepted_by": None,
+            "accepted_at": None,
+        },
+    )
+
+
+def _default_quality_gates(feature: Dict[str, Any]) -> None:
+    """PR-3/schema-2.1: deep-merge quality_gates defaults (handles partial existing data)."""
+    if os.environ.get("PROG_DISABLE_V2") == "1" and "quality_gates" in feature:
+        return
+    default_evaluator = {
+        "status": "pending",
+        "score": None,
+        "defects": [],
+        "last_run_at": None,
+        "evaluator_model": None,
+    }
+    default_reviews = {"required": [], "passed": [], "pending": []}
+    default_ship_check = {"status": "pending", "failures": [], "last_run_at": None}
+
+    if "quality_gates" not in feature:
+        feature["quality_gates"] = {
+            "evaluator": default_evaluator,
+            "reviews": default_reviews,
+            "ship_check": default_ship_check,
+        }
+        return
+
+    # Deep merge: fill missing sub-keys without clobbering existing data
+    qg = feature["quality_gates"]
+    if "evaluator" not in qg:
+        qg["evaluator"] = default_evaluator
+    else:
+        for k, v in default_evaluator.items():
+            qg["evaluator"].setdefault(k, v)
+    if "reviews" not in qg:
+        qg["reviews"] = default_reviews
+    else:
+        for k, v in default_reviews.items():
+            qg["reviews"].setdefault(k, v)
+    if "ship_check" not in qg:
+        qg["ship_check"] = default_ship_check
+    else:
+        for k, v in default_ship_check.items():
+            qg["ship_check"].setdefault(k, v)
+
+
+def _default_handoff(feature: Dict[str, Any]) -> None:
+    """PR-3/schema-2.1: inject handoff defaults if absent."""
+    if os.environ.get("PROG_DISABLE_V2") == "1" and "handoff" in feature:
+        return
+    feature.setdefault(
+        "handoff",
+        {
+            "from_phase": None,
+            "to_phase": None,
+            "artifact_path": None,
+            "created_at": None,
+        },
+    )
+
+
 def _apply_schema_defaults(data: Dict[str, Any]) -> None:
     """Backfill backward-compatible defaults for evolving schema fields."""
+    old_version = data.get("schema_version")
     if "schema_version" not in data:
         data["schema_version"] = CURRENT_SCHEMA_VERSION
 
@@ -2237,6 +2310,19 @@ def _apply_schema_defaults(data: Dict[str, Any]) -> None:
             _normalize_feature_owners(feature)
             _normalize_feature_defer_state(feature)
             _normalize_feature_contract(feature)
+            _default_quality_gates(feature)
+            _default_sprint_contract(feature)
+            _default_handoff(feature)
+
+    # Upgrade schema version and emit audit event on first migration
+    if old_version == "2.0" and data.get("schema_version") != "2.1":
+        data["schema_version"] = "2.1"
+        _append_audit_event(
+            event_type="schema_migration",
+            details={"from": "2.0", "to": "2.1"},
+        )
+    elif old_version is None or old_version not in ("2.0", "2.1"):
+        data["schema_version"] = CURRENT_SCHEMA_VERSION
 
     _normalize_linked_schema(data)
     _normalize_route_schema(data)
