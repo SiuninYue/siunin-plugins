@@ -222,3 +222,68 @@ def test_child_mutating_allowed_when_parent_route_matches(temp_dir):
     assert result is True
     payload = _load_progress(child_root)
     assert any(feature["name"] == "Allowed Feature" for feature in payload.get("features", []))
+
+
+"""
+F21 验收测试：worktree/branch 一致性校验 (fail-closed)
+"""
+import json
+import sys
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+
+sys.path.insert(0, str(Path(__file__).parent.parent / "hooks" / "scripts"))
+import progress_manager
+
+
+# ── 共用 fixture ────────────────────────────────────────────────────────────
+
+def _make_progress(tmp_path, extra=None):
+    """在 tmp_path 写入最小 progress.json，返回路径。"""
+    data = {
+        "project_name": "TestProj",
+        "schema_version": "2.1",
+        "features": [],
+        "active_routes": [],
+        "workflow_state": {},
+        "tracker_role": "standalone",
+    }
+    if extra:
+        data.update(extra)
+    p = tmp_path / "docs" / "progress-tracker" / "state"
+    p.mkdir(parents=True)
+    (p / "progress.json").write_text(json.dumps(data))
+    return tmp_path
+
+
+# ── Task 1 测试 ─────────────────────────────────────────────────────────────
+
+class TestRouteSelectRecordsWorktreeAndBranch:
+    def test_route_select_stores_worktree_path_and_branch(self, tmp_path):
+        """route_select() 应将当前 worktree_path 和 branch 写入 active_routes 条目。"""
+        _make_progress(tmp_path)
+        fake_git = {
+            "workspace_mode": "worktree",
+            "worktree_path": "/repo/.worktrees/feat-1",
+            "project_root": "/repo",
+            "cwd": "/repo/.worktrees/feat-1",
+            "git_dir": None,
+            "branch": "feature/1-test",
+            "upstream": None,
+        }
+        with (
+            patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE", tmp_path),
+            patch.object(progress_manager, "collect_git_context", return_value=fake_git),
+        ):
+            result = progress_manager.route_select("MYPROJ")
+
+        assert result is True
+        data = json.loads((tmp_path / "docs" / "progress-tracker" / "state" / "progress.json").read_text())
+        routes = data["active_routes"]
+        assert len(routes) == 1
+        entry = routes[0]
+        assert entry["project_code"] == "MYPROJ"
+        assert entry["worktree_path"] == "/repo/.worktrees/feat-1"
+        assert entry["branch"] == "feature/1-test"

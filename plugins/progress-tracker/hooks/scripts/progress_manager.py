@@ -1543,6 +1543,11 @@ def route_select(
         merged["feature_ref"] = final_ref
         upserted_entry = merged
 
+    # Record current worktree_path and branch for scope consistency checks (F21)
+    _git_ctx = collect_git_context()
+    upserted_entry["worktree_path"] = _git_ctx.get("worktree_path")
+    upserted_entry["branch"] = _git_ctx.get("branch")
+
     new_routes = other_routes + [upserted_entry]
     data["active_routes"] = new_routes
 
