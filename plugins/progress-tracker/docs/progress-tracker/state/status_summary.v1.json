@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-04-15T00:40:35.634414Z",
+  "updated_at": "2026-04-15T23:07:03.384734Z",
   "source": {
     "generator": "progress_manager.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,25 +11,25 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1776184814320743911,
-      "size": 47716
+      "mtime_ns": 1776265615918812301,
+      "size": 51769
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
       "exists": true,
-      "mtime_ns": 1776183994008578335,
-      "size": 2203
+      "mtime_ns": 1776264356814450140,
+      "size": 4791
     }
   },
   "progress": {
-    "completed": 12,
-    "total": 24,
-    "percentage": 50
+    "completed": 15,
+    "total": 25,
+    "percentage": 60
   },
   "next_action": {
     "type": "feature",
-    "feature_id": 9,
-    "feature_name": "实现 set-finish-state 显式解锁器并固化 finish_pending 阻断链路",
+    "feature_id": 10,
+    "feature_name": "落地 evaluator_gate 与 quality_gates.evaluator 独立评估门",
     "development_stage": "pending",
     "stage_label": "待开始"
   },
@@ -46,7 +46,7 @@
   },
   "recent_snapshot": {
     "exists": true,
-    "timestamp": "2026-04-14T01:41:44.734403+08:00",
-    "relative_time": "22 小时前"
+    "timestamp": "2026-04-15T22:45:56.787713+08:00",
+    "relative_time": "21 分钟前"
   }
 }

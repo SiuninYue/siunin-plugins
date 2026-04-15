@@ -1,0 +1,7 @@
+{
+  "feature_id": 21,
+  "feature_name": "[RouteV1] worktree/branch 一致性校验（next/done fail-closed）",
+  "done_attempt_at": "2026-04-15T23:06:08.600598Z",
+  "overall_success": true,
+  "results": []
+}

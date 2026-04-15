@@ -2,7 +2,7 @@
 
 **Created**: 2026-04-09T01:12:55.289861Z
 
-**Status**: 13/24 completed
+**Status**: 15/25 completed
 
 ## Completed
 - [x] 定义父级协调追踪器 Schema（linked_projects + snapshot 元数据）
@@ -15,14 +15,20 @@
 - [x] [RouteV1] 新增 link-project 命令注册子项目与 project_code
 - [x] [RouteV1] 新增 route-status/route-select 命令
 - [x] [RouteV1] feature_ref 命名空间化（<project_code>-F<number>）
+- [x] [RouteV1] mutating 命令统一 route_preflight fail-closed
+- [x] [RouteV1] worktree/branch 一致性校验（next/done fail-closed）
 - [x] 状态展示与文档更新（父级总览+子项目明细+归档历史）
 - [x] 清理 /prog-start 残留并锁定 /prog-next 为唯一 start path
 - [x] 实现 set-finish-state 显式解锁器并固化 finish_pending 阻断链路
 
-## Pending
-- [ ] [RouteV1] mutating 命令统一 route_preflight fail-closed
-- [ ] [RouteV1] worktree/branch 一致性校验（next/done fail-closed）
+## In Progress
 - [ ] [RouteV1] 并行 active_routes 冲突策略（允许执行+强告警）
+  **Test steps**:
+  - 当多个 active_routes 并行时输出冲突告警与上下文摘要
+  - 不阻断写操作但要求显示当前 route 与其他 active 项目
+  - 运行: pytest -q plugins/progress-tracker/tests/test_status_linked_summary.py -k Linked
+
+## Pending
 - [ ] [RouteV1] 父级顺序调度：/prog-next 按 routing_queue 选首个可执行子项目
 - [ ] [RouteV1] sync-linked 升级为父级统一同步入口
 - [ ] [RouteV1] 在 prog-init/prog-plan 与子项目完成时回写父级备案
@@ -31,6 +37,7 @@
 - [ ] 落地 ship_check 统一门禁与 docs-sync 证据校验
 - [ ] 落地 sprint_ledger 与 schema 2.1 的 sprint_contract/handoff 持久化
 - [ ] 落地 wf_state_machine + wf_auto_driver + hook 自动推进
+- [ ] prog done 后自动清理已合并的 feature 分支和 worktree
 
 ### Fixed (✅)
 - [x] [BUG-001] [DEBT] /prog done 应该自动切换到内联上下文中指定的工作树进行验收测试验证，避免在错误分支上运行测试导致误判

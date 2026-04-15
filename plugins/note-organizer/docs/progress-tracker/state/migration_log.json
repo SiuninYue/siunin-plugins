@@ -1,5 +1,45 @@
 [
   {
+    "timestamp": "2026-03-03T12:10:16.116757Z",
+    "target_root": "/Users/siunin/Projects/Claude-Plugins",
+    "status": "migrated",
+    "operations": [
+      {
+        "from": "/Users/siunin/Projects/Claude-Plugins/.claude/progress.json",
+        "to": "/Users/siunin/Projects/Claude-Plugins/docs/progress-tracker/state/progress.json"
+      },
+      {
+        "from": "/Users/siunin/Projects/Claude-Plugins/.claude/progress.md",
+        "to": "/Users/siunin/Projects/Claude-Plugins/docs/progress-tracker/state/progress.md"
+      },
+      {
+        "from": "/Users/siunin/Projects/Claude-Plugins/.claude/checkpoints.json",
+        "to": "/Users/siunin/Projects/Claude-Plugins/docs/progress-tracker/state/checkpoints.json"
+      },
+      {
+        "from": "/Users/siunin/Projects/Claude-Plugins/.claude/project_memory.json",
+        "to": "/Users/siunin/Projects/Claude-Plugins/docs/progress-tracker/state/project_memory.json"
+      },
+      {
+        "from": "/Users/siunin/Projects/Claude-Plugins/docs/plans/2026-03-03-notebooklm-template-implementation.md",
+        "to": "/Users/siunin/Projects/Claude-Plugins/docs/progress-tracker/plans/2026-03-03-notebooklm-template-implementation.md"
+      },
+      {
+        "from": "/Users/siunin/Projects/Claude-Plugins/docs/testing/bug-001-fix-report.md",
+        "to": "/Users/siunin/Projects/Claude-Plugins/docs/progress-tracker/testing/bug-001-fix-report.md"
+      },
+      {
+        "from": "/Users/siunin/Projects/Claude-Plugins/docs/testing/bug-002-fix-report.md",
+        "to": "/Users/siunin/Projects/Claude-Plugins/docs/progress-tracker/testing/bug-002-fix-report.md"
+      },
+      {
+        "from": "/Users/siunin/Projects/Claude-Plugins/docs/testing/bug-003-fix-report.md",
+        "to": "/Users/siunin/Projects/Claude-Plugins/docs/progress-tracker/testing/bug-003-fix-report.md"
+      }
+    ],
+    "conflicts": []
+  },
+  {
     "timestamp": "2026-03-16T06:39:08.249813Z",
     "target_root": "/Users/siunin/Projects/claude-plugins-beta/plugins/note-organizer",
     "status": "noop",

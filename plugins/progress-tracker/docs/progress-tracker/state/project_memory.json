@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "created_at": "2026-04-12T09:38:02.910760Z",
-  "updated_at": "2026-04-14T16:40:17.289124Z",
-  "next_capability_seq": 5,
+  "updated_at": "2026-04-15T09:05:44.808548Z",
+  "next_capability_seq": 6,
   "last_synced_commit": null,
   "capabilities": [
     {
@@ -86,6 +86,27 @@
       },
       "created_at": "2026-04-14T16:40:17.280693Z",
       "updated_at": "2026-04-14T16:40:17.280693Z"
+    },
+    {
+      "cap_id": "CAP-005",
+      "fingerprint": "5a71a12cba675acc",
+      "title": "F19 RouteV1 route_preflight fail-closed",
+      "summary": "实现统一 route_preflight 机制：所有 mutating 命令（next/done/add-feature/update-feature/complete）在执行前调用 enforce_route_preflight()，路由不匹配时 fail-closed 并给出 cd + --project-root 恢复指令",
+      "tags": [
+        "route",
+        "preflight",
+        "fail-closed",
+        "mutating-commands"
+      ],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 19,
+        "commit_hash": "7d434092f8f560b5ca9b8ef5d0b68809d5bd9689",
+        "commit_range": ""
+      },
+      "created_at": "2026-04-15T09:05:44.789960Z",
+      "updated_at": "2026-04-15T09:05:44.789960Z"
     }
   ],
   "rejected_fingerprints": [],
