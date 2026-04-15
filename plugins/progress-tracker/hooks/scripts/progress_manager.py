@@ -7469,7 +7469,7 @@ def check_worktree_branch_consistency(command: str) -> bool:
         current=current_ctx,
     )
 
-    mismatch_statuses = {"mismatch", "path_mismatch", "branch_mismatch"}
+    mismatch_statuses = {"mismatch", "path_mismatch", "branch_mismatch", "unknown"}
     comparison_status = comparison.get("status")
     current_branch = current_ctx.get("branch")
     current_path = current_ctx.get("worktree_path")
