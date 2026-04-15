@@ -1,5 +1,5 @@
 {
-  "last_checkpoint_at": "2026-04-14T01:41:44.734403+08:00",
+  "last_checkpoint_at": "2026-04-15T14:32:43.114481+08:00",
   "max_entries": 50,
   "entries": [
     {
@@ -52,6 +52,21 @@
       "feature_id": 8,
       "feature_name": "清理 /prog-start 残留并锁定 /prog-next 为唯一 start path",
       "phase": "execution_complete",
+      "plan_path": null,
+      "current_task": null,
+      "total_tasks": null,
+      "next_action": null,
+      "workspace_mode": "in_place",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+      "branch": "main",
+      "upstream": "origin/main",
+      "reason": "auto_interval"
+    },
+    {
+      "timestamp": "2026-04-15T14:32:43.114481+08:00",
+      "feature_id": 19,
+      "feature_name": "[RouteV1] mutating 命令统一 route_preflight fail-closed",
+      "phase": "unknown",
       "plan_path": null,
       "current_task": null,
       "total_tasks": null,

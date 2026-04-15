@@ -2,7 +2,7 @@
 
 **Created**: 2026-04-09T01:12:55.289861Z
 
-**Status**: 11/24 completed
+**Status**: 13/24 completed
 
 ## Completed
 - [x] 定义父级协调追踪器 Schema（linked_projects + snapshot 元数据）
@@ -13,16 +13,11 @@
 - [x] prog init --force 归档与旧状态重命名策略标准化
 - [x] [RouteV1] 父级路由 Schema 扩展（tracker_role/project_code/routing_queue/active_routes）
 - [x] [RouteV1] 新增 link-project 命令注册子项目与 project_code
+- [x] [RouteV1] 新增 route-status/route-select 命令
 - [x] [RouteV1] feature_ref 命名空间化（<project_code>-F<number>）
 - [x] 状态展示与文档更新（父级总览+子项目明细+归档历史）
 - [x] 清理 /prog-start 残留并锁定 /prog-next 为唯一 start path
-
-## In Progress
-- [ ] [RouteV1] 新增 route-status/route-select 命令
-  **Test steps**:
-  - 实现: prog route-status 输出当前路由与冲突摘要
-  - 实现: prog route-select --project <code> [--feature-ref <code-Fn>]
-  - 运行: pytest -q plugins/progress-tracker/tests/test_status_linked_summary.py
+- [x] 实现 set-finish-state 显式解锁器并固化 finish_pending 阻断链路
 
 ## Pending
 - [ ] [RouteV1] mutating 命令统一 route_preflight fail-closed
@@ -31,7 +26,6 @@
 - [ ] [RouteV1] 父级顺序调度：/prog-next 按 routing_queue 选首个可执行子项目
 - [ ] [RouteV1] sync-linked 升级为父级统一同步入口
 - [ ] [RouteV1] 在 prog-init/prog-plan 与子项目完成时回写父级备案
-- [ ] 实现 set-finish-state 显式解锁器并固化 finish_pending 阻断链路
 - [ ] 落地 evaluator_gate 与 quality_gates.evaluator 独立评估门
 - [ ] 落地 review_router 智能分流并持久化 review lanes
 - [ ] 落地 ship_check 统一门禁与 docs-sync 证据校验
