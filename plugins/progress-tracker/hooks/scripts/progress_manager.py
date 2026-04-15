@@ -2390,6 +2390,24 @@ def _append_audit_event(
         logger.warning("Failed to append audit record for %s: %s", event_type, exc)
 
 
+def _store_evaluator_result(feature_id: int, result: Any) -> None:
+    """PR-3: persist evaluator assessment into quality_gates.evaluator."""
+    data = load_progress_json()
+    if data is None:
+        raise ValueError("progress.json not found")
+    feat = next((f for f in data.get("features", []) if f.get("id") == feature_id), None)
+    if feat is None:
+        raise ValueError(f"feature {feature_id} not found")
+    feat.setdefault("quality_gates", {})
+    feat["quality_gates"]["evaluator"] = result.to_quality_gate_payload()
+    save_progress_json(data)
+    _append_audit_event(
+        event_type="evaluator_assessment",
+        feature_id=feature_id,
+        details={"status": result.status, "score": result.score},
+    )
+
+
 def save_progress_json(data, touch_updated_at: bool = True):
     """Save data to progress.json file with optional updated_at touch and migration."""
     with progress_transaction():
@@ -5557,6 +5575,35 @@ def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False
         return 3
 
     print("[DONE] Acceptance passed")
+
+    # PR-3: evaluator gate — must pass before archiving (generator/evaluator separation)
+    # Gate is enforced only when evaluator was explicitly run (last_run_at is set).
+    # Features that predate the evaluator gate (last_run_at=None) are allowed through
+    # with a warning to maintain backward compatibility.
+    refreshed_for_gate = load_progress_json()
+    if refreshed_for_gate:
+        gate_feat = next(
+            (f for f in refreshed_for_gate.get("features", []) if f.get("id") == feature_id),
+            None,
+        )
+        if gate_feat is not None:
+            evaluator_payload = gate_feat.get("quality_gates", {}).get("evaluator", {})
+            eval_status = evaluator_payload.get("status")
+            eval_ran = evaluator_payload.get("last_run_at") is not None
+            if eval_ran and eval_status != "pass":
+                print(
+                    f"[DONE] BLOCKED: evaluator gate not passed "
+                    f"(status={eval_status!r}). "
+                    "Run evaluator subagent and call _store_evaluator_result before /prog-done.",
+                    file=sys.stderr,
+                )
+                return 6
+            elif not eval_ran:
+                print(
+                    "[DONE] WARNING: evaluator gate not run. "
+                    "Dispatch evaluator subagent before /prog-done in future sessions (ADR-009)."
+                )
+
     resolved_commit = commit_hash or _get_head_commit()
     success = complete_feature(
         feature_id=feature_id,
