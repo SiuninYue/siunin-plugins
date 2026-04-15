@@ -221,6 +221,82 @@ def test_status_handles_missing_linked_snapshot_key(temp_dir, capsys):
     assert "Linked Projects" not in output
 
 
+def test_status_shows_parallel_linked_route_conflict_warning(temp_dir, capsys):
+    """status() should warn when 2+ distinct project_codes exist in active_routes."""
+    data = _base_progress("Parent Project")
+    data["active_routes"] = [
+        {"project_code": "ALPHA", "feature_ref": "ALPHA-F1"},
+        {"project_code": "BETA", "feature_ref": "BETA-F2"},
+    ]
+    _write_progress(temp_dir, data)
+
+    with patch("progress_manager._PROJECT_ROOT_OVERRIDE", temp_dir):
+        result = progress_manager.status()
+
+    assert result is True
+    output = capsys.readouterr().out
+    assert "Parallel Active Routes" in output
+    assert "ALPHA" in output
+    assert "BETA" in output
+
+
+def test_status_no_parallel_warning_for_single_linked_route(temp_dir, capsys):
+    """status() should NOT warn when only one distinct project_code is in active_routes."""
+    data = _base_progress("Solo Project")
+    data["active_routes"] = [
+        {"project_code": "SOLO", "feature_ref": "SOLO-F1"},
+    ]
+    _write_progress(temp_dir, data)
+
+    with patch("progress_manager._PROJECT_ROOT_OVERRIDE", temp_dir):
+        result = progress_manager.status()
+
+    assert result is True
+    output = capsys.readouterr().out
+    assert "Parallel Active Routes" not in output
+
+
+def test_route_select_warns_on_parallel_linked_route_conflict(temp_dir, capsys):
+    """route_select() should warn after adding a 2nd distinct project_code to active_routes."""
+    data = _base_progress("Parent Project")
+    data["linked_projects"] = [
+        {"project_code": "ALPHA", "project_root": "/tmp/alpha"},
+        {"project_code": "BETA", "project_root": "/tmp/beta"},
+    ]
+    data["active_routes"] = [
+        {"project_code": "ALPHA", "feature_ref": "ALPHA-F1"},
+    ]
+    _write_progress(temp_dir, data)
+
+    with patch("progress_manager._PROJECT_ROOT_OVERRIDE", temp_dir):
+        with patch("progress_manager.collect_git_context", return_value={}):
+            result = progress_manager.route_select("BETA", feature_ref="BETA-F2")
+
+    assert result is True
+    output = capsys.readouterr().out
+    assert "Parallel" in output
+
+
+def test_route_select_no_parallel_warning_when_replacing_linked_route(temp_dir, capsys):
+    """route_select() should NOT warn when upserting an existing project_code (still only 1 code)."""
+    data = _base_progress("Parent Project")
+    data["linked_projects"] = [
+        {"project_code": "ALPHA", "project_root": "/tmp/alpha"},
+    ]
+    data["active_routes"] = [
+        {"project_code": "ALPHA", "feature_ref": "ALPHA-F1"},
+    ]
+    _write_progress(temp_dir, data)
+
+    with patch("progress_manager._PROJECT_ROOT_OVERRIDE", temp_dir):
+        with patch("progress_manager.collect_git_context", return_value={}):
+            result = progress_manager.route_select("ALPHA", feature_ref="ALPHA-F2")
+
+    assert result is True
+    output = capsys.readouterr().out
+    assert "Parallel" not in output
+
+
 def test_generate_prog_docs_check_passes() -> None:
     """generate_prog_docs.py --check must report docs are up to date."""
     root = Path(__file__).resolve().parents[1]

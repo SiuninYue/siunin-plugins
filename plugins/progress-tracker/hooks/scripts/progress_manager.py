@@ -1046,6 +1046,29 @@ def sync_linked(
     return True
 
 
+def _detect_parallel_active_routes(active_routes: List[Any]) -> List[Dict[str, Any]]:
+    """Return one entry per distinct project_code when 2+ distinct codes exist (F20).
+
+    Returns an empty list when there is no parallel conflict (0 or 1 distinct codes).
+    Duplicate entries for the same project_code are collapsed to the first seen.
+    """
+    if not isinstance(active_routes, list) or len(active_routes) < 2:
+        return []
+    seen: Dict[str, Dict[str, Any]] = {}
+    for route in active_routes:
+        if not isinstance(route, dict):
+            continue
+        code_raw = route.get("project_code")
+        if not isinstance(code_raw, str) or not code_raw.strip():
+            continue
+        code = code_raw.strip().upper()
+        if code not in seen:
+            seen[code] = route
+    if len(seen) >= 2:
+        return list(seen.values())
+    return []
+
+
 def _normalize_project_code(raw_code: str) -> Optional[str]:
     """Normalize and validate RouteV1 project code tokens."""
     token = str(raw_code or "").strip().upper()
@@ -1438,6 +1461,14 @@ def route_status(*, output_json: bool = False) -> bool:
                 {"type": "B", "code": code, "message": f"{code} in routing_queue but not in linked_projects"}
             )
 
+    # Type C: 2+ distinct project_codes in active_routes (parallel execution conflict) (F20)
+    parallel_routes = _detect_parallel_active_routes(active_routes)
+    if parallel_routes:
+        codes = [str(r.get("project_code", "?")) for r in parallel_routes]
+        conflicts.append(
+            {"type": "C", "codes": codes, "message": f"parallel active routes: {', '.join(codes)}"}
+        )
+
     if output_json:
         print(
             json.dumps(
@@ -1556,16 +1587,28 @@ def route_select(
     save_progress_md(generate_progress_md(data))
 
     action = "updated" if existing_entry is not None else "inserted"
+    parallel_routes = _detect_parallel_active_routes(new_routes)
     if output_json:
-        print(
-            json.dumps(
-                {"status": "ok", "project_code": normalized_code, "active_routes": new_routes},
-                ensure_ascii=False,
-            )
-        )
+        result_payload: Dict[str, Any] = {
+            "status": "ok",
+            "project_code": normalized_code,
+            "active_routes": new_routes,
+        }
+        if parallel_routes:
+            result_payload["warning"] = "parallel_active_routes"
+            result_payload["parallel_codes"] = [
+                r.get("project_code") for r in parallel_routes
+            ]
+        print(json.dumps(result_payload, ensure_ascii=False))
     else:
         ref_display = final_ref or "(empty)"
         print(f"route-select: {action} {normalized_code} -> {ref_display}")
+        if parallel_routes:
+            codes_str = ", ".join(
+                str(r.get("project_code", "?")) for r in parallel_routes
+            )
+            print(f"[WARNING] Parallel Active Routes detected: {codes_str}")
+            print("  Multiple projects executing simultaneously. Run 'prog route-status' for details.")
     return True
 
 
@@ -3734,6 +3777,17 @@ def status():
                     print(f"  [{proj_name}] missing{stale_marker}")
                 else:
                     print(f"  [{proj_name}] {proj_status}{stale_marker}")
+
+    # Display parallel active_routes conflict warning (F20)
+    active_routes_raw: List[Any] = data.get("active_routes") or []
+    parallel_routes = _detect_parallel_active_routes(active_routes_raw)
+    if parallel_routes:
+        print("\n### [WARNING] Parallel Active Routes:")
+        for route in parallel_routes:
+            code = route.get("project_code", "?")
+            ref = route.get("feature_ref") or "(no feature_ref)"
+            print(f"  {code} -> {ref}")
+        print("  Multiple projects executing simultaneously — run 'prog route-status' for details.")
 
     # Display archive history summary
     history = _load_progress_history()
