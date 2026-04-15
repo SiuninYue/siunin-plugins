@@ -2119,6 +2119,26 @@ class TestDoneCommand:
         assert "done-step-1" in result.stdout
         assert "done-step-2" in result.stdout
 
+    def test_done_command_runs_zh_run_prefix_steps(self, temp_dir):
+        """done should execute `运行:` prefixed steps as shell commands."""
+        self._write_done_state(
+            temp_dir,
+            test_steps=[
+                "运行: echo done-step-zh",
+                "运行：echo done-step-zh-fullwidth",
+            ],
+            phase="execution_complete",
+            current_feature_id=1,
+        )
+
+        result = self._run_done(temp_dir, "--run-all", "--skip-archive")
+
+        assert result.returncode == 0
+        assert "done-step-zh" in result.stdout
+        assert "done-step-zh-fullwidth" in result.stdout
+        assert "[DONE][RUN] echo done-step-zh" in result.stdout
+        assert "[DONE][RUN] echo done-step-zh-fullwidth" in result.stdout
+
     def test_done_command_skips_non_command_steps(self, temp_dir):
         """done should skip natural-language acceptance lines instead of shelling them."""
         self._write_done_state(

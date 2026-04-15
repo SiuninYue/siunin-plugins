@@ -5102,16 +5102,12 @@ def _clear_feature_finish_pending(feature: Dict[str, Any]) -> None:
 
 def _is_executable_test_step(step: str) -> bool:
     """Return whether a test step should be executed as a shell command."""
-    normalized = step.strip()
-    if not normalized:
-        return False
-    if normalized.startswith("DoD:"):
-        return False
-    if normalized.startswith("#") or normalized.startswith("//"):
+    command = _extract_test_step_command(step)
+    if not command:
         return False
 
     try:
-        tokens = shlex.split(normalized, posix=True)
+        tokens = shlex.split(command, posix=True)
     except ValueError:
         return False
 
@@ -5137,6 +5133,24 @@ def _is_executable_test_step(step: str) -> bool:
     return shutil.which(command_token) is not None
 
 
+def _extract_test_step_command(step: str) -> Optional[str]:
+    """Normalize a test step into an executable command string when possible."""
+    normalized = step.strip()
+    if not normalized:
+        return None
+    if normalized.startswith("DoD:"):
+        return None
+    if normalized.startswith("#") or normalized.startswith("//"):
+        return None
+
+    for prefix in ("运行:", "运行：", "Run:", "run:"):
+        if normalized.startswith(prefix):
+            normalized = normalized[len(prefix) :].strip()
+            break
+
+    return normalized or None
+
+
 def _run_acceptance_tests(
     feature: Dict[str, Any],
     run_all: bool = False,
@@ -5153,11 +5167,11 @@ def _run_acceptance_tests(
     for raw_step in steps:
         if not isinstance(raw_step, str):
             continue
-        if not _is_executable_test_step(raw_step):
+        command = _extract_test_step_command(raw_step)
+        if not command or not _is_executable_test_step(raw_step):
             print(f"[DONE][SKIP] {raw_step}")
             continue
 
-        command = raw_step.strip()
         print(f"[DONE][RUN] {command}")
         started_at = time.monotonic()
 
@@ -5544,6 +5558,7 @@ def complete_feature(feature_id, commit_hash=None, skip_archive=False):
         feature["plan_path"] = plan_path
 
     data["current_feature_id"] = None
+    data.pop("workflow_state", None)
     _update_runtime_context(data, source="complete_feature")
 
     save_progress_json(data)
@@ -8112,6 +8127,11 @@ def main():
             return remove_bug(args.bug_id)
         parser.print_help()
         return 1
+
+    # F21: fail-closed scope consistency check for next-feature and done
+    if args.command in {"next-feature", "done"}:
+        if not check_worktree_branch_consistency(args.command):
+            return 1
 
     if args.command in MUTATING_COMMANDS:
         if not enforce_route_preflight(args.command, sys.argv):
