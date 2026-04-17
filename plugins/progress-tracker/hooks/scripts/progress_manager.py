@@ -4855,7 +4855,8 @@ def next_feature(output_json: bool = False, ack_planning_risk: bool = False) -> 
                         print(f"F{fid}: {fname}")
                         print(f"Run: {action}")
                     return True
-            except Exception:
+            except Exception as exc:
+                logger.debug(f"Parent dispatch failed: {exc}")
                 pass  # Fall through to parent's own features
 
     feature = get_next_feature()

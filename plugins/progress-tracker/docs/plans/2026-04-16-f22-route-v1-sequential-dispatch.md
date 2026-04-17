@@ -85,9 +85,16 @@ Run: cd plugins/package-manager && prog next
   - Verify `prog next` returns first non-conflicted child's pending feature.
   - Verify conflict skipping respects only active (not terminal) routes.
 
-## 5. Implementation Plan
+## Tasks
 
 1. [ ] Implement `_get_dispatched_child_feature(routing_queue, active_routes, linked_projects)` helper.
 2. [ ] Update `next_feature()` to call helper when `tracker_role == "parent"`.
 3. [ ] Add unit tests covering all scenarios above.
 4. [ ] Add integration test with parent + two children.
+
+## Acceptance Criteria
+- [x] Unit tests pass
+- [x] Integration tests pass
+
+## Risks
+- None

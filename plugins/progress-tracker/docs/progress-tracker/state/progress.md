@@ -40,8 +40,8 @@
 - [ ] prog done 后自动清理已合并的 feature 分支和 worktree
 
 ## Workflow Context
-- Phase: planning:approved
-- Next action: Implement _get_dispatched_child_feature() helper
+- Phase: execution_complete
+- Next action: Run /prog done to complete F22
 - Execution context: feature/f22-route-v1-sequential-dispatch @ f22-route-v1-sequential-dispatch [worktree]
 - Current session context: feature/f22-route-v1-sequential-dispatch @ f22-route-v1-sequential-dispatch [worktree]
 
