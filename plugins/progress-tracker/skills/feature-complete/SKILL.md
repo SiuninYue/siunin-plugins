@@ -136,11 +136,36 @@ Before claiming pass, invoke:
 Skill("superpowers:verification-before-completion", args="Verify acceptance evidence for feature <feature_id>")
 ```
 
+### Step 4.5: Run Evaluator Gate in a Fresh Subagent (PR-3, ADR-009)
+
+**BEFORE calling `prog done`, dispatch a NEW subagent** to run the evaluator gate independently.
+
+```text
+Agent(
+  subagent_type="code-reviewer",   // or "security-auditor" for security-sensitive features
+  prompt="Run evaluator_gate.assess() for feature <feature_id>. "
+         "Read quality rubric from feature.acceptance_scenarios and test_steps. "
+         "Collect signals: test_coverage from pytest --cov output, defects from code review. "
+         "Persist result via progress_manager._store_evaluator_result(feature_id, result). "
+         "Pass evaluator_model=<model_id_used>. "
+         "Report status (pass/retry/required_reviews), score, and defect list."
+)
+```
+
+**Isolation requirement (ADR-009):** The evaluator subagent MUST run in a separate context from the generator that produced the feature code. Do not call `assess()` in the same session that ran the implementation — this defeats the generator/evaluator separation discipline.
+
+**Gate rule:**
+- `status == "pass"` → proceed to Step 5
+- `status == "retry"` → fix blocking defects, re-run evaluator subagent, do NOT call `prog done`
+- `status == "required_reviews"` → escalate to human review lane, do NOT call `prog done`
+
+If `quality_gates.evaluator.status != "pass"` when `prog done` is invoked, the CLI will exit with code 6 and block archiving.
+
 ### Step 5: Handle Verification Result
 
 #### Pass Path
 
-1. Confirm all required checks passed.
+1. Confirm all required checks passed (acceptance + evaluator gate).
 2. Run final code review if none was recorded during implementation:
 
 ```text
