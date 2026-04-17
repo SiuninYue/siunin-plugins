@@ -2,7 +2,7 @@
 
 **Created**: 2026-04-09T01:12:55.289861Z
 
-**Status**: 18/25 completed
+**Status**: 19/27 completed
 
 ## Completed
 - [x] 定义父级协调追踪器 Schema（linked_projects + snapshot 元数据）
@@ -20,18 +20,20 @@
 - [x] [RouteV1] 并行 active_routes 冲突策略（允许执行+强告警）
 - [x] [RouteV1] 父级顺序调度：/prog-next 按 routing_queue 选首个可执行子项目
 - [x] [RouteV1] sync-linked 升级为父级统一同步入口
+- [x] [RouteV1] 在 prog-init/prog-plan 与子项目完成时回写父级备案
 - [x] 状态展示与文档更新（父级总览+子项目明细+归档历史）
 - [x] 清理 /prog-start 残留并锁定 /prog-next 为唯一 start path
 - [x] 实现 set-finish-state 显式解锁器并固化 finish_pending 阻断链路
 
 ## Pending
-- [ ] [RouteV1] 在 prog-init/prog-plan 与子项目完成时回写父级备案
 - [ ] 落地 evaluator_gate 与 quality_gates.evaluator 独立评估门
 - [ ] 落地 review_router 智能分流并持久化 review lanes
 - [ ] 落地 ship_check 统一门禁与 docs-sync 证据校验
 - [ ] 落地 sprint_ledger 与 schema 2.1 的 sprint_contract/handoff 持久化
 - [ ] 落地 wf_state_machine + wf_auto_driver + hook 自动推进
 - [ ] prog done 后自动清理已合并的 feature 分支和 worktree
+- [ ] 让 /prog 状态页末尾输出详细 handoff 提示
+- [ ] 优化概念命名与映射：将 prog-sync 类比为 log，prog-update 类比为 note
 
 ### Fixed (✅)
 - [x] [BUG-001] [DEBT] /prog done 应该自动切换到内联上下文中指定的工作树进行验收测试验证，避免在错误分支上运行测试导致误判

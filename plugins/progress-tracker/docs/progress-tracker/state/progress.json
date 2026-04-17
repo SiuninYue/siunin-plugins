@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "prog-parent-coordination-archive",
   "created_at": "2026-04-09T01:12:55.289861Z",
-  "updated_at": "2026-04-17T14:57:21.174021Z",
+  "updated_at": "2026-04-17T16:52:35.207463Z",
   "features": [
     {
       "id": 1,
@@ -1357,7 +1357,7 @@
         "子项目 /prog-done 完成后同步父级完成率与 active_feature_ref",
         "运行: pytest -q plugins/progress-tracker/tests/test_integration.py"
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -1367,7 +1367,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "approved",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-024"
       ],
@@ -1419,6 +1419,32 @@
         "to_phase": null,
         "artifact_path": null,
         "created_at": null
+      },
+      "development_stage": "completed",
+      "started_at": "2026-04-17T15:07:39.992414Z",
+      "ai_metrics": {
+        "complexity_score": 21,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-17T15:10:18.891023Z",
+        "finished_at": "2026-04-17T16:52:35.141807+08:00",
+        "duration_seconds": 0
+      },
+      "integration_status": "merged_and_cleaned",
+      "completed_at": "2026-04-17T16:52:35.146690Z",
+      "finish_state_resolved_at": "2026-04-17T16:52:35.147129Z",
+      "commit_hash": "e9a95491619c23990617fa06440ff114669942",
+      "plan_path": "docs/plans/2026-04-17-f24-route-v1-parent-writeback.md",
+      "archive_info": {
+        "archived_at": "2026-04-17T16:52:35.206935Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-04-17-f24-route-v1-parent-writeback.md",
+            "to": "docs/archive/plans/2026-04-17-f24-route-v1-parent-writeback.md"
+          }
+        ]
       }
     },
     {
@@ -2134,14 +2160,158 @@
         "artifact_path": null,
         "created_at": null
       }
+    },
+    {
+      "id": 26,
+      "name": "让 /prog 状态页末尾输出详细 handoff 提示",
+      "test_steps": [
+        "运行 python3 hooks/scripts/progress_manager.py --project-root plugins/progress-tracker status，确认最后的 handoff block 使用与 /prog next /prog done 一致的详细模板",
+        "在存在 current_feature_id 的场景下再次运行 status，确认输出详细的 Feature/Plan/Branch/ProjectRoot/Next 或 verification and commit 提示",
+        "同步检查 progress-status skill 与 communication-templates 的模板内容保持一致"
+      ],
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-026"
+      ],
+      "change_spec": {
+        "why": "Deliver 让 /prog 状态页末尾输出详细 handoff 提示 with traceable acceptance coverage.",
+        "in_scope": [
+          "让 /prog 状态页末尾输出详细 handoff 提示"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 运行 python3 hooks/scripts/progress_manager.py --project-root plugins/progress-tracker status，确认最后的 handoff block 使用与 /prog next /prog done 一致的详细模板",
+        "Scenario: 在存在 current_feature_id 的场景下再次运行 status，确认输出详细的 Feature/Plan/Branch/ProjectRoot/Next 或 verification and commit 提示",
+        "Scenario: 同步检查 progress-status skill 与 communication-templates 的模板内容保持一致"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
+    },
+    {
+      "id": 27,
+      "name": "优化概念命名与映射：将 prog-sync 类比为 log，prog-update 类比为 note",
+      "test_steps": [
+        "评估是否为命令增加别名 (alias: log/note)",
+        "更新文档中的概念类比描述",
+        "验证用户认知门槛是否降低"
+      ],
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "change_spec": {
+        "why": "Deliver 优化概念命名与映射：将 prog-sync 类比为 log，prog-update 类比为 note with traceable acceptance coverage.",
+        "in_scope": [
+          "优化概念命名与映射：将 prog-sync 类比为 log，prog-update 类比为 note"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 评估是否为命令增加别名 (alias: log/note)",
+        "Scenario: 更新文档中的概念类比描述",
+        "Scenario: 验证用户认知门槛是否降低"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
     }
   ],
   "current_feature_id": null,
   "updates": [],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-04-17T14:54:53.015170Z",
-    "source": "sync_linked",
+    "recorded_at": "2026-04-17T16:52:35.198806Z",
+    "source": "complete_feature",
     "workspace_mode": "in_place",
     "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
     "project_root": "/Users/siunin/Projects/Claude-Plugins",

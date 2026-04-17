@@ -1,0 +1,17 @@
+{
+  "feature_id": 24,
+  "feature_name": "[RouteV1] 在 prog-init/prog-plan 与子项目完成时回写父级备案",
+  "done_attempt_at": "2026-04-17T16:51:53.479031Z",
+  "overall_success": false,
+  "results": [
+    {
+      "step": "运行: pytest -q plugins/progress-tracker/tests/test_integration.py",
+      "command": "pytest -q plugins/progress-tracker/tests/test_integration.py",
+      "success": false,
+      "output_summary": "no tests ran in 0.00s\nERROR: file or directory not found: plugins/progress-tracker/tests/test_integration.py",
+      "duration_ms": 291,
+      "exit_code": 4,
+      "error": "ERROR: file or directory not found: plugins/progress-tracker/tests/test_integration.py"
+    }
+  ]
+}

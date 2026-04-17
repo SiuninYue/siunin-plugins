@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-04-17T14:57:39.939872Z",
+  "updated_at": "2026-04-17T15:30:04.410338Z",
   "source": {
     "generator": "progress_manager.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,27 +11,27 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1776409057226976052,
-      "size": 73102
+      "mtime_ns": 1776409920879566499,
+      "size": 76730
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
       "exists": true,
-      "mtime_ns": 1776268984828611086,
-      "size": 4791
+      "mtime_ns": 1776409660892116036,
+      "size": 5304
     }
   },
   "progress": {
     "completed": 18,
-    "total": 25,
-    "percentage": 72
+    "total": 26,
+    "percentage": 69
   },
   "next_action": {
     "type": "feature",
-    "feature_id": 10,
-    "feature_name": "落地 evaluator_gate 与 quality_gates.evaluator 独立评估门",
-    "development_stage": "pending",
-    "stage_label": "待开始"
+    "feature_id": 24,
+    "feature_name": "[RouteV1] 在 prog-init/prog-plan 与子项目完成时回写父级备案",
+    "development_stage": "developing",
+    "stage_label": "开发中"
   },
   "plan_health": {
     "status": "N/A",
@@ -46,7 +46,7 @@
   },
   "recent_snapshot": {
     "exists": true,
-    "timestamp": "2026-04-15T22:45:56.787713+08:00",
-    "relative_time": "1 天前"
+    "timestamp": "2026-04-17T15:07:40.849509+08:00",
+    "relative_time": "22 分钟前"
   }
 }
