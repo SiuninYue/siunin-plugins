@@ -37,7 +37,7 @@ def _child_payload(features: list) -> dict:
 def _linked_entry(code: str, project_root: Path) -> dict:
     """Build a linked_projects entry with absolute path."""
     return {
-        "code": code,
+        "project_code": code,
         "project_root": str(project_root),
     }
 
@@ -85,8 +85,8 @@ class TestGetDispatchedChildFeature:
 
         routing_queue = ["PM", "NO"]
         # PM has a non-terminal route with no status (defaults to non-terminal).
-        # The function reads "child_project_code" or "code" from active_routes entries.
-        active_routes = [{"child_project_code": "PM", "assigned_at": None}]
+        # The function reads "project_code" from active_routes entries.
+        active_routes = [{"project_code": "PM", "assigned_at": None}]
         linked_projects = [
             _linked_entry("PM", child_pm),
             _linked_entry("NO", child_no),
@@ -113,7 +113,7 @@ class TestGetDispatchedChildFeature:
         child_pm.mkdir()
 
         routing_queue = ["PM"]
-        active_routes = [{"child_project_code": "PM", "status": "done"}]
+        active_routes = [{"project_code": "PM", "status": "done"}]
         linked_projects = [_linked_entry("PM", child_pm)]
         child_pm_data = _child_payload([{"id": 2, "name": "PM pending", "completed": False}])
 
@@ -135,7 +135,7 @@ class TestGetDispatchedChildFeature:
         child_pm.mkdir()
 
         routing_queue = ["PM"]
-        active_routes = [{"child_project_code": "PM", "assigned_at": "2020-01-01T00:00:00+00:00"}]
+        active_routes = [{"project_code": "PM", "assigned_at": "2020-01-01T00:00:00+00:00"}]
         linked_projects = [_linked_entry("PM", child_pm)]
         child_pm_data = _child_payload([{"id": 3, "name": "PM stale feature", "completed": False}])
 
@@ -209,8 +209,8 @@ class TestNextFeatureIntegration:
             "routing_queue": ["PM", "NO"],
             "active_routes": active_routes,
             "linked_projects": [
-                {"project_root": str(child_pm), "project_code": "PM", "code": "PM"},
-                {"project_root": str(child_no), "project_code": "NO", "code": "NO"},
+                {"project_root": str(child_pm), "project_code": "PM"},
+                {"project_root": str(child_no), "project_code": "NO"},
             ],
             "features": [],
             "current_feature_id": None,
@@ -224,10 +224,10 @@ class TestNextFeatureIntegration:
         child_no = temp_dir / "child_no"
         child_no.mkdir()
 
-        # PM active route is terminal (done); "child_project_code" is the key read by _get_dispatched_child_feature
+        # PM active route is terminal (done); "project_code" is the key read by _get_dispatched_child_feature
         self._write_parent(
             temp_dir, child_pm, child_no,
-            active_routes=[{"child_project_code": "PM", "status": "done"}],
+            active_routes=[{"project_code": "PM", "status": "done"}],
         )
         _write_progress(child_pm, _child_payload([
             {"id": 1, "name": "PM feature", "completed": True},
@@ -253,10 +253,10 @@ class TestNextFeatureIntegration:
         child_no = temp_dir / "child_no"
         child_no.mkdir()
 
-        # PM has an active (non-terminal) route; "child_project_code" is the key read by _get_dispatched_child_feature
+        # PM has an active (non-terminal) route; "project_code" is the key read by _get_dispatched_child_feature
         self._write_parent(
             temp_dir, child_pm, child_no,
-            active_routes=[{"child_project_code": "PM", "assigned_at": None}],
+            active_routes=[{"project_code": "PM", "assigned_at": None}],
         )
         _write_progress(child_pm, _child_payload([
             {"id": 1, "name": "PM pending feature", "completed": False},

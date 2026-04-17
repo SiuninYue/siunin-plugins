@@ -4699,8 +4699,8 @@ def _get_dispatched_child_feature(
     # Build lookup: code -> linked_project_entry
     lp_lookup: Dict[str, Any] = {}
     for entry in linked_projects:
-        if isinstance(entry, dict) and entry.get("code"):
-            lp_lookup[entry["code"]] = entry
+        if isinstance(entry, dict) and entry.get("project_code"):
+            lp_lookup[entry["project_code"]] = entry
 
     # Build set of conflicted codes from active_routes
     conflicted: set = set()
@@ -4721,7 +4721,7 @@ def _get_dispatched_child_feature(
                 if age_hours > stale_after_hours:
                     is_stale = True
         if not is_stale:
-            code = route.get("child_project_code") or route.get("code")
+            code = route.get("project_code")
             if code:
                 conflicted.add(code)
 
