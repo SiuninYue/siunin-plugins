@@ -698,3 +698,110 @@ def test_sync_linked_project_code_fallback_to_child_payload(temp_dir, capsys):
     assert project["project_code"] == "NO"
     assert project["child_project_code"] == "NO"
     assert project["route_status"] == "idle"
+
+
+def test_sync_linked_workspace_dirty_value_falls_back_to_unknown(temp_dir, capsys):
+    """workspace_mode with an invalid value should fall back to 'unknown'."""
+    import os as _os
+    _os.system(f"git -C {temp_dir} init >/dev/null 2>&1")
+
+    repo_root = temp_dir
+    parent_root = repo_root / "plugins" / "progress-tracker"
+    child_root = repo_root / "plugins" / "note-organizer"
+    parent_root.mkdir(parents=True, exist_ok=True)
+    child_root.mkdir(parents=True, exist_ok=True)
+
+    _write_progress(
+        parent_root,
+        {
+            "project_name": "Parent Tracker",
+            "created_at": "2026-04-12T00:00:00Z",
+            "features": [],
+            "current_feature_id": None,
+            "linked_projects": [
+                {"project_root": "plugins/note-organizer", "project_code": "NO", "label": "Note Organizer"}
+            ],
+            "linked_snapshot": {"projects": []},
+            "active_routes": [],
+        },
+    )
+    _write_progress(
+        child_root,
+        {
+            "project_name": "Note Organizer",
+            "updated_at": "2026-04-12T09:30:00Z",
+            "features": [{"id": 1, "name": "A", "completed": False}],
+            "current_feature_id": None,
+            "project_code": "NO",
+            "runtime_context": {"workspace_mode": "INVALID_MODE"},  # dirty value
+        },
+    )
+
+    import os
+    os.chdir(repo_root)
+    with patch(
+        "sys.argv",
+        ["progress_manager.py", "--project-root", "plugins/progress-tracker", "sync-linked", "--json"],
+    ):
+        assert progress_manager.main() is True
+
+    parent_progress = json.loads(
+        (parent_root / "docs" / "progress-tracker" / "state" / "progress.json").read_text(encoding="utf-8")
+    )
+    project = parent_progress["linked_snapshot"]["projects"][0]
+    assert project["workspace"] == "unknown"
+
+
+def test_sync_linked_route_status_unknown_when_no_project_code(temp_dir, capsys):
+    """route_status should be 'unknown' when neither spec nor child has project_code."""
+    import os as _os
+    _os.system(f"git -C {temp_dir} init >/dev/null 2>&1")
+
+    repo_root = temp_dir
+    parent_root = repo_root / "plugins" / "progress-tracker"
+    child_root = repo_root / "plugins" / "note-organizer"
+    parent_root.mkdir(parents=True, exist_ok=True)
+    child_root.mkdir(parents=True, exist_ok=True)
+
+    _write_progress(
+        parent_root,
+        {
+            "project_name": "Parent Tracker",
+            "created_at": "2026-04-12T00:00:00Z",
+            "features": [],
+            "current_feature_id": None,
+            "linked_projects": [
+                # No project_code in spec
+                {"project_root": "plugins/note-organizer", "label": "Note Organizer"}
+            ],
+            "linked_snapshot": {"projects": []},
+            "active_routes": [],
+        },
+    )
+    _write_progress(
+        child_root,
+        {
+            "project_name": "Note Organizer",
+            "updated_at": "2026-04-12T09:30:00Z",
+            "features": [{"id": 1, "name": "A", "completed": False}],
+            "current_feature_id": None,
+            # No project_code in child either
+            "runtime_context": {"workspace_mode": "in_place"},
+        },
+    )
+
+    import os
+    os.chdir(repo_root)
+    with patch(
+        "sys.argv",
+        ["progress_manager.py", "--project-root", "plugins/progress-tracker", "sync-linked", "--json"],
+    ):
+        assert progress_manager.main() is True
+
+    parent_progress = json.loads(
+        (parent_root / "docs" / "progress-tracker" / "state" / "progress.json").read_text(encoding="utf-8")
+    )
+    project = parent_progress["linked_snapshot"]["projects"][0]
+    assert project["project_code"] is None
+    assert project["child_project_code"] is None
+    assert project["route_status"] == "unknown"

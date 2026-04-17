@@ -958,6 +958,13 @@ def collect_linked_project_statuses(
         }
 
         if not progress_path.exists():
+            # spec_project_code still available; route_status unknown (no child data)
+            status["project_code"] = spec_project_code
+            if spec_project_code is None:
+                status["route_status"] = "unknown"
+            elif spec_project_code in _active_route_codes:
+                status["route_status"] = "active"
+            # else: keep "idle"
             statuses.append(status)
             continue
 
@@ -968,6 +975,12 @@ def collect_linked_project_statuses(
         except (OSError, json.JSONDecodeError, ValueError) as exc:
             status["status"] = "invalid"
             status["error"] = str(exc)
+            status["project_code"] = spec_project_code
+            if spec_project_code is None:
+                status["route_status"] = "unknown"
+            elif spec_project_code in _active_route_codes:
+                status["route_status"] = "active"
+            # else: keep "idle"
             statuses.append(status)
             continue
 
