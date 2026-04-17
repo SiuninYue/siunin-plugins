@@ -4693,7 +4693,7 @@ def _get_dispatched_child_feature(
     linked_projects: List[Any],
     project_root: Path,
     repo_root: Path,
-    stale_threshold_hours: float = DEFAULT_LINKED_STATUS_STALE_HOURS,
+    stale_after_hours: int = DEFAULT_LINKED_STATUS_STALE_HOURS,
 ) -> Optional[Dict[str, Any]]:
     """Scan routing_queue and return the first dispatched child feature, or None."""
     # Build lookup: code -> linked_project_entry
@@ -4704,7 +4704,6 @@ def _get_dispatched_child_feature(
 
     # Build set of conflicted codes from active_routes
     conflicted: set = set()
-    now = datetime.now(tz=timezone.utc)
     for route in active_routes:
         if not isinstance(route, dict):
             continue
@@ -4715,15 +4714,12 @@ def _get_dispatched_child_feature(
         assigned_at = route.get("assigned_at")
         is_stale = False
         if assigned_at:
-            try:
-                ts = datetime.fromisoformat(assigned_at)
-                if ts.tzinfo is None:
-                    ts = ts.replace(tzinfo=timezone.utc)
+            ts = _parse_iso_timestamp(assigned_at)
+            if ts is not None:
+                now = datetime.now(tz=timezone.utc)
                 age_hours = (now - ts).total_seconds() / 3600
-                if age_hours > stale_threshold_hours:
+                if age_hours > stale_after_hours:
                     is_stale = True
-            except (ValueError, TypeError):
-                pass  # Cannot parse; assume not stale
         if not is_stale:
             code = route.get("child_project_code") or route.get("code")
             if code:
