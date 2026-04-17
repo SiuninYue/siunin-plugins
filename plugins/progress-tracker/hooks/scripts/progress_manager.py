@@ -4687,6 +4687,86 @@ def get_next_feature():
     return None
 
 
+def _get_dispatched_child_feature(
+    routing_queue: List[str],
+    active_routes: List[Any],
+    linked_projects: List[Any],
+    project_root: Path,
+    repo_root: Path,
+    stale_threshold_hours: float = DEFAULT_LINKED_STATUS_STALE_HOURS,
+) -> Optional[Dict[str, Any]]:
+    """Scan routing_queue and return the first dispatched child feature, or None."""
+    # Build lookup: code -> linked_project_entry
+    lp_lookup: Dict[str, Any] = {}
+    for entry in linked_projects:
+        if isinstance(entry, dict) and entry.get("code"):
+            lp_lookup[entry["code"]] = entry
+
+    # Build set of conflicted codes from active_routes
+    conflicted: set = set()
+    now = datetime.now(tz=timezone.utc)
+    for route in active_routes:
+        if not isinstance(route, dict):
+            continue
+        status = route.get("status")
+        if status in {"done", "cancelled"}:
+            continue
+        # Non-terminal route: check if stale
+        assigned_at = route.get("assigned_at")
+        is_stale = False
+        if assigned_at:
+            try:
+                ts = datetime.fromisoformat(assigned_at)
+                if ts.tzinfo is None:
+                    ts = ts.replace(tzinfo=timezone.utc)
+                age_hours = (now - ts).total_seconds() / 3600
+                if age_hours > stale_threshold_hours:
+                    is_stale = True
+            except (ValueError, TypeError):
+                pass  # Cannot parse; assume not stale
+        if not is_stale:
+            code = route.get("child_project_code") or route.get("code")
+            if code:
+                conflicted.add(code)
+
+    # Scan routing_queue for the first dispatchable child
+    for code in routing_queue:
+        if code not in lp_lookup:
+            continue
+        if code in conflicted:
+            continue
+        entry = lp_lookup[code]
+        raw_project_root = (
+            entry.get("project_root") or entry.get("path") or entry.get("root")
+        )
+        if not raw_project_root:
+            continue
+        child_root = _resolve_linked_project_root(raw_project_root, project_root, repo_root)
+        child_data, error = _load_progress_payload_at_root(child_root)
+        if error or not child_data:
+            continue
+        # Find first pending, non-deferred feature in child
+        feature = None
+        for f in child_data.get("features", []):
+            if not isinstance(f, dict):
+                continue
+            if not f.get("completed", False) and not _is_feature_deferred(f):
+                feature = f
+                break
+        if feature is None:
+            continue
+        return {
+            "dispatched_to": "child",
+            "child_project_code": code,
+            "child_project_root": str(child_root),
+            "next_feature_id": feature.get("id"),
+            "next_feature_name": feature.get("name"),
+            "action_required": f"cd {child_root} && prog next",
+        }
+
+    return None
+
+
 def next_feature(output_json: bool = False, ack_planning_risk: bool = False) -> bool:
     """Print the next actionable feature (skipping completed/deferred)."""
     data = load_progress_json()
@@ -4756,6 +4836,31 @@ def next_feature(output_json: bool = False, ack_planning_risk: bool = False) -> 
             else:
                 print(payload["message"])
             return False
+
+    # RouteV1: parent dispatching
+    if data and data.get("tracker_role") == "parent":
+        rq = data.get("routing_queue") or []
+        ar = data.get("active_routes") or []
+        lp = data.get("linked_projects") or []
+        if rq:
+            try:
+                project_root = find_project_root()
+                repo_root = _REPO_ROOT or project_root
+                child_result = _get_dispatched_child_feature(rq, ar, lp, project_root, repo_root)
+                if child_result:
+                    if output_json:
+                        print(json.dumps(child_result, ensure_ascii=False))
+                    else:
+                        code = child_result["child_project_code"]
+                        fid = child_result["next_feature_id"]
+                        fname = child_result["next_feature_name"]
+                        action = child_result["action_required"]
+                        print(f"[NEXT] Parent project complete. Found next feature in child [{code}]:")
+                        print(f"F{fid}: {fname}")
+                        print(f"Run: {action}")
+                    return True
+            except Exception:
+                pass  # Fall through to parent's own features
 
     feature = get_next_feature()
     if not feature:
