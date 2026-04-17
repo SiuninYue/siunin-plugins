@@ -22,14 +22,14 @@
 - [x] 实现 set-finish-state 显式解锁器并固化 finish_pending 阻断链路
 
 ## In Progress
-- [ ] [RouteV1] 并行 active_routes 冲突策略（允许执行+强告警）
+- [ ] [RouteV1] 父级顺序调度：/prog-next 按 routing_queue 选首个可执行子项目
   **Test steps**:
-  - 当多个 active_routes 并行时输出冲突告警与上下文摘要
-  - 不阻断写操作但要求显示当前 route 与其他 active 项目
-  - 运行: pytest -q plugins/progress-tracker/tests/test_status_linked_summary.py -k Linked
+  - 实现 /prog-next 从 routing_queue 选首个可执行项目与首个 pending feature
+  - 子项目显式执行时允许局部推进并回写父级快照
+  - 运行: pytest -q plugins/progress-tracker/tests/test_prog_start_behavior.py
 
 ## Pending
-- [ ] [RouteV1] 父级顺序调度：/prog-next 按 routing_queue 选首个可执行子项目
+- [ ] [RouteV1] 并行 active_routes 冲突策略（允许执行+强告警）
 - [ ] [RouteV1] sync-linked 升级为父级统一同步入口
 - [ ] [RouteV1] 在 prog-init/prog-plan 与子项目完成时回写父级备案
 - [ ] 落地 evaluator_gate 与 quality_gates.evaluator 独立评估门
@@ -38,6 +38,12 @@
 - [ ] 落地 sprint_ledger 与 schema 2.1 的 sprint_contract/handoff 持久化
 - [ ] 落地 wf_state_machine + wf_auto_driver + hook 自动推进
 - [ ] prog done 后自动清理已合并的 feature 分支和 worktree
+
+## Workflow Context
+- Phase: planning:approved
+- Next action: Implement _get_dispatched_child_feature() helper
+- Execution context: feature/f22-route-v1-sequential-dispatch @ f22-route-v1-sequential-dispatch [worktree]
+- Current session context: feature/f22-route-v1-sequential-dispatch @ f22-route-v1-sequential-dispatch [worktree]
 
 ### Fixed (✅)
 - [x] [BUG-001] [DEBT] /prog done 应该自动切换到内联上下文中指定的工作树进行验收测试验证，避免在错误分支上运行测试导致误判

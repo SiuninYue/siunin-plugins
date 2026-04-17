@@ -2,7 +2,7 @@
   "schema_version": "2.0",
   "project_name": "prog-parent-coordination-archive",
   "created_at": "2026-04-09T01:12:55.289861Z",
-  "updated_at": "2026-04-15T23:41:03.153319Z",
+  "updated_at": "2026-04-17T08:31:53.913112Z",
   "features": [
     {
       "id": 1,
@@ -753,7 +753,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "approved",
+      "lifecycle_state": "implementing",
       "requirement_ids": [
         "REQ-022"
       ],
@@ -1273,25 +1273,25 @@
       ]
     }
   ],
-  "current_feature_id": 20,
+  "current_feature_id": 22,
   "updates": [],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-04-15T23:41:03.153154Z",
-    "source": "set_current",
-    "workspace_mode": "in_place",
-    "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
-    "project_root": "/Users/siunin/Projects/Claude-Plugins",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins",
-    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
-    "branch": "main",
-    "upstream": "origin/main",
-    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
-    "current_feature_id": 20,
-    "workflow_phase": null,
+    "recorded_at": "2026-04-17T08:31:53.912914Z",
+    "source": "set_workflow_state",
+    "workspace_mode": "worktree",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f22-route-v1-sequential-dispatch",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f22-route-v1-sequential-dispatch",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f22-route-v1-sequential-dispatch",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/f22-route-v1-sequential-dispatch",
+    "branch": "feature/f22-route-v1-sequential-dispatch",
+    "upstream": null,
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f22-route-v1-sequential-dispatch/plugins/progress-tracker",
+    "current_feature_id": 22,
+    "workflow_phase": "planning:approved",
     "current_task": null,
     "total_tasks": null,
-    "next_action": null
+    "next_action": "Implement _get_dispatched_child_feature() helper"
   },
   "linked_projects": [],
   "linked_snapshot": {
@@ -1322,5 +1322,22 @@
       "fixed_at": "2026-04-14T08:12:46.429667Z"
     }
   ],
-  "current_bug_id": null
+  "current_bug_id": null,
+  "workflow_state": {
+    "phase": "planning:approved",
+    "plan_path": "docs/plans/2026-04-16-f22-route-v1-sequential-dispatch.md",
+    "next_action": "Implement _get_dispatched_child_feature() helper",
+    "updated_at": "2026-04-17T08:31:53.880355Z",
+    "execution_context": {
+      "recorded_at": "2026-04-17T08:31:53.896911Z",
+      "source": "set_workflow_state",
+      "workspace_mode": "worktree",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f22-route-v1-sequential-dispatch",
+      "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f22-route-v1-sequential-dispatch",
+      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f22-route-v1-sequential-dispatch/plugins/progress-tracker",
+      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/f22-route-v1-sequential-dispatch",
+      "branch": "feature/f22-route-v1-sequential-dispatch",
+      "upstream": null
+    }
+  }
 }
