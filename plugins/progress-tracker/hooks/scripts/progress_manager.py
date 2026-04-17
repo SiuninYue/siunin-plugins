@@ -1182,6 +1182,53 @@ def _save_progress_payload_at_root(
     _atomic_write_text(get_progress_md_path(project_root), generate_progress_md(data))
 
 
+def _notify_parent_sync() -> None:
+    """Trigger parent linked_snapshot refresh after child state changes.
+
+    Reads parent_project_root from the current child tracker.
+    On any error (missing parent, invalid data), prints WARNING and returns.
+    Never raises — always warn-only.
+    """
+    try:
+        child_data = load_progress_json()
+        if not isinstance(child_data, dict):
+            return
+        parent_raw = child_data.get("parent_project_root")
+        if not parent_raw or not str(parent_raw).strip():
+            return
+
+        child_root = find_project_root().resolve()
+        repo_root = Path(_REPO_ROOT or child_root).resolve()
+        parent_root = _resolve_linked_project_root(str(parent_raw).strip(), child_root, repo_root)
+
+        parent_data, err = _load_progress_payload_at_root(parent_root)
+        if parent_data is None:
+            print(
+                f"[WARNING] Parent writeback skipped: cannot load parent tracker "
+                f"at {parent_root}: {err}"
+            )
+            return
+
+        active_routes = parent_data.get("active_routes") or []
+        statuses = collect_linked_project_statuses(
+            parent_data,
+            project_root=parent_root,
+            active_routes=active_routes,
+        )
+
+        linked_snapshot = parent_data.get("linked_snapshot")
+        if not isinstance(linked_snapshot, dict):
+            linked_snapshot = {}
+        linked_snapshot["schema_version"] = LINKED_SNAPSHOT_SCHEMA_VERSION
+        linked_snapshot["updated_at"] = _iso_now()
+        linked_snapshot["projects"] = statuses
+        parent_data["linked_snapshot"] = linked_snapshot
+
+        _save_progress_payload_at_root(parent_root, parent_data)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[WARNING] Parent writeback failed: {exc}")
+
+
 def link_project(
     child_project_root: Optional[str],
     code: str,
@@ -1303,6 +1350,7 @@ def link_project(
 
     child_data["tracker_role"] = "child"
     child_data["project_code"] = normalized_code
+    child_data["parent_project_root"] = _serialize_project_root_for_config(parent_root, repo_root)
     _save_progress_payload_at_root(child_root, child_data)
 
     child_name = child_data.get("project_name")
@@ -3691,7 +3739,13 @@ def init_tracking(project_name, features=None, force=False):
             return False
 
     archived_entry = None
+    existing_parent_root: Optional[str] = None
     if force:
+        existing = load_progress_json()
+        if isinstance(existing, dict):
+            raw = existing.get("parent_project_root")
+            if isinstance(raw, str) and raw.strip():
+                existing_parent_root = raw.strip()
         archived_entry = archive_current_progress(reason="reinitialize")
 
     # Create initial progress structure
@@ -3704,6 +3758,8 @@ def init_tracking(project_name, features=None, force=False):
         "features": features or [],
         "current_feature_id": None,
     }
+    if existing_parent_root:
+        data["parent_project_root"] = existing_parent_root
 
     save_progress_json(data)
 
@@ -3721,6 +3777,7 @@ def init_tracking(project_name, features=None, force=False):
         )
     if features:
         print(f"Added {len(features)} features")
+    _notify_parent_sync()
     return True
 
 
@@ -5786,6 +5843,7 @@ def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False
         except ValueError:
             relative_report = report_path
         print(f"[DONE] Report: {relative_report}")
+    _notify_parent_sync()
     return 0
 
 
@@ -6498,6 +6556,7 @@ def add_feature(name, test_steps):
     save_progress_md(md_content)
 
     print(f"Added feature: {name} (ID: {new_id})")
+    _notify_parent_sync()
     return True
 
 
