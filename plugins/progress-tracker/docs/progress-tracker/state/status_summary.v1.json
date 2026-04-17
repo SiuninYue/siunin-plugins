@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-04-16T00:27:53.713151Z",
+  "updated_at": "2026-04-17T08:31:57.197153Z",
   "source": {
     "generator": "progress_manager.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,13 +11,13 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1776270470864894465,
-      "size": 52896
+      "mtime_ns": 1776385913913542334,
+      "size": 53168
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
       "exists": true,
-      "mtime_ns": 1776269103335982244,
+      "mtime_ns": 1776385692702532198,
       "size": 4791
     }
   },
@@ -28,15 +28,15 @@
   },
   "next_action": {
     "type": "feature",
-    "feature_id": 10,
-    "feature_name": "落地 evaluator_gate 与 quality_gates.evaluator 独立评估门",
-    "development_stage": "pending",
-    "stage_label": "待开始"
+    "feature_id": 22,
+    "feature_name": "[RouteV1] 父级顺序调度：/prog-next 按 routing_queue 选首个可执行子项目",
+    "development_stage": "developing",
+    "stage_label": "开发中"
   },
   "plan_health": {
-    "status": "N/A",
-    "plan_path": null,
-    "message": "无活跃计划"
+    "status": "INVALID",
+    "plan_path": "docs/plans/2026-04-16-f22-route-v1-sequential-dispatch.md",
+    "message": "缺少必需章节: tasks, acceptance_mapping, risks"
   },
   "risk_blocker": {
     "has_risk": false,
@@ -47,6 +47,6 @@
   "recent_snapshot": {
     "exists": true,
     "timestamp": "2026-04-15T22:45:56.787713+08:00",
-    "relative_time": "1 小时前"
+    "relative_time": "1 天前"
   }
 }

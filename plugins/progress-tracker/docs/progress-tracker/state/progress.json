@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "prog-parent-coordination-archive",
   "created_at": "2026-04-09T01:12:55.289861Z",
-  "updated_at": "2026-04-16T00:56:05.668668Z",
+  "updated_at": "2026-04-17T09:58:50.187321Z",
   "features": [
     {
       "id": 1,
@@ -1187,7 +1187,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "approved",
+      "lifecycle_state": "implementing",
       "requirement_ids": [
         "REQ-022"
       ],
@@ -2100,25 +2100,25 @@
       }
     }
   ],
-  "current_feature_id": 10,
+  "current_feature_id": 22,
   "updates": [],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-04-16T00:56:05.659632Z",
+    "recorded_at": "2026-04-17T09:58:50.179167Z",
     "source": "set_workflow_state",
     "workspace_mode": "worktree",
-    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f20-parallel-active-routes-conflict",
-    "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f20-parallel-active-routes-conflict",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f20-parallel-active-routes-conflict/plugins/progress-tracker",
-    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/f20-parallel-active-routes-conflict",
-    "branch": "feature/f20-parallel-active-routes-conflict",
-    "upstream": "origin/feature/f20-parallel-active-routes-conflict",
-    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f20-parallel-active-routes-conflict/plugins/progress-tracker",
-    "current_feature_id": 10,
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f22-route-v1-sequential-dispatch",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f22-route-v1-sequential-dispatch",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f22-route-v1-sequential-dispatch/plugins/progress-tracker",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/f22-route-v1-sequential-dispatch",
+    "branch": "feature/f22-route-v1-sequential-dispatch",
+    "upstream": null,
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f22-route-v1-sequential-dispatch/plugins/progress-tracker",
+    "current_feature_id": 22,
     "workflow_phase": "execution_complete",
     "current_task": null,
     "total_tasks": null,
-    "next_action": "运行 /prog done 完成 Feature 10"
+    "next_action": "Run /prog done to complete F22"
   },
   "linked_projects": [],
   "linked_snapshot": {
@@ -2152,19 +2152,19 @@
   "current_bug_id": null,
   "workflow_state": {
     "phase": "execution_complete",
-    "updated_at": "2026-04-16T00:56:05.611898Z",
+    "updated_at": "2026-04-17T09:58:50.130809Z",
     "execution_context": {
-      "recorded_at": "2026-04-16T00:56:05.636064Z",
+      "recorded_at": "2026-04-17T09:58:50.154841Z",
       "source": "set_workflow_state",
       "workspace_mode": "worktree",
-      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f20-parallel-active-routes-conflict",
-      "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f20-parallel-active-routes-conflict",
-      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f20-parallel-active-routes-conflict/plugins/progress-tracker",
-      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/f20-parallel-active-routes-conflict",
-      "branch": "feature/f20-parallel-active-routes-conflict",
-      "upstream": "origin/feature/f20-parallel-active-routes-conflict"
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f22-route-v1-sequential-dispatch",
+      "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f22-route-v1-sequential-dispatch",
+      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f22-route-v1-sequential-dispatch/plugins/progress-tracker",
+      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/f22-route-v1-sequential-dispatch",
+      "branch": "feature/f22-route-v1-sequential-dispatch",
+      "upstream": null
     },
-    "plan_path": "docs/plans/2026-04-09-mellow-roaming-puppy.md",
-    "next_action": "运行 /prog done 完成 Feature 10"
+    "plan_path": "docs/plans/2026-04-16-f22-route-v1-sequential-dispatch.md",
+    "next_action": "Run /prog done to complete F22"
   }
 }

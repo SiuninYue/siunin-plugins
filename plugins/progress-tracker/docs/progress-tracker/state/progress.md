@@ -23,14 +23,14 @@
 - [x] 实现 set-finish-state 显式解锁器并固化 finish_pending 阻断链路
 
 ## In Progress
-- [ ] 落地 evaluator_gate 与 quality_gates.evaluator 独立评估门
+- [ ] [RouteV1] 父级顺序调度：/prog-next 按 routing_queue 选首个可执行子项目
   **Test steps**:
-  - 新增 hooks/scripts/evaluator_gate.py 并接入 /prog-done 评估流
-  - 运行: pytest -q plugins/progress-tracker/tests/test_evaluator_gate.py
-  - 验证 gate 输出 pass|retry|required_reviews 与 defects 持久化
+  - 实现 /prog-next 从 routing_queue 选首个可执行项目与首个 pending feature
+  - 子项目显式执行时允许局部推进并回写父级快照
+  - 运行: pytest -q plugins/progress-tracker/tests/test_prog_start_behavior.py
 
 ## Pending
-- [ ] [RouteV1] 父级顺序调度：/prog-next 按 routing_queue 选首个可执行子项目
+- [ ] [RouteV1] 并行 active_routes 冲突策略（允许执行+强告警）
 - [ ] [RouteV1] sync-linked 升级为父级统一同步入口
 - [ ] [RouteV1] 在 prog-init/prog-plan 与子项目完成时回写父级备案
 - [ ] 落地 review_router 智能分流并持久化 review lanes
@@ -41,9 +41,9 @@
 
 ## Workflow Context
 - Phase: execution_complete
-- Next action: 运行 /prog done 完成 Feature 10
-- Execution context: feature/f20-parallel-active-routes-conflict @ f20-parallel-active-routes-conflict [worktree]
-- Current session context: feature/f20-parallel-active-routes-conflict @ f20-parallel-active-routes-conflict [worktree]
+- Next action: Run /prog done to complete F22
+- Execution context: feature/f22-route-v1-sequential-dispatch @ f22-route-v1-sequential-dispatch [worktree]
+- Current session context: feature/f22-route-v1-sequential-dispatch @ f22-route-v1-sequential-dispatch [worktree]
 
 ### Fixed (✅)
 - [x] [BUG-001] [DEBT] /prog done 应该自动切换到内联上下文中指定的工作树进行验收测试验证，避免在错误分支上运行测试导致误判
