@@ -2,7 +2,7 @@
 
 **Created**: 2026-04-09T01:12:55.289861Z
 
-**Status**: 17/25 completed
+**Status**: 18/25 completed
 
 ## Completed
 - [x] 定义父级协调追踪器 Schema（linked_projects + snapshot 元数据）
@@ -19,12 +19,12 @@
 - [x] [RouteV1] worktree/branch 一致性校验（next/done fail-closed）
 - [x] [RouteV1] 并行 active_routes 冲突策略（允许执行+强告警）
 - [x] [RouteV1] 父级顺序调度：/prog-next 按 routing_queue 选首个可执行子项目
+- [x] [RouteV1] sync-linked 升级为父级统一同步入口
 - [x] 状态展示与文档更新（父级总览+子项目明细+归档历史）
 - [x] 清理 /prog-start 残留并锁定 /prog-next 为唯一 start path
 - [x] 实现 set-finish-state 显式解锁器并固化 finish_pending 阻断链路
 
 ## Pending
-- [ ] [RouteV1] sync-linked 升级为父级统一同步入口
 - [ ] [RouteV1] 在 prog-init/prog-plan 与子项目完成时回写父级备案
 - [ ] 落地 evaluator_gate 与 quality_gates.evaluator 独立评估门
 - [ ] 落地 review_router 智能分流并持久化 review lanes
