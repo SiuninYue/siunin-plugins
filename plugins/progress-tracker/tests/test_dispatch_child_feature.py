@@ -48,11 +48,11 @@ def _linked_entry(code: str, project_root: Path) -> dict:
 
 class TestGetDispatchedChildFeature:
 
-    def test_dispatch_first_in_queue(self, tmp_path):
+    def test_dispatch_first_in_queue(self, temp_dir):
         """First entry in routing_queue with pending feature is dispatched."""
-        child_pm = tmp_path / "child_pm"
+        child_pm = temp_dir / "child_pm"
         child_pm.mkdir()
-        child_no = tmp_path / "child_no"
+        child_no = temp_dir / "child_no"
         child_no.mkdir()
 
         routing_queue = ["PM", "NO"]
@@ -69,18 +69,19 @@ class TestGetDispatchedChildFeature:
         ):
             result = _get_dispatched_child_feature(
                 routing_queue, active_routes, linked_projects,
-                project_root=tmp_path, repo_root=tmp_path,
+                project_root=temp_dir, repo_root=temp_dir,
             )
 
         assert result is not None
         assert result["child_project_code"] == "PM"
         assert result["next_feature_id"] == 1
+        assert result["next_feature_name"] == "F1 name"
 
-    def test_dispatch_skips_active_routes(self, tmp_path):
+    def test_dispatch_skips_active_routes(self, temp_dir):
         """PM with non-terminal active route is skipped; NO is dispatched."""
-        child_pm = tmp_path / "child_pm"
+        child_pm = temp_dir / "child_pm"
         child_pm.mkdir()
-        child_no = tmp_path / "child_no"
+        child_no = temp_dir / "child_no"
         child_no.mkdir()
 
         routing_queue = ["PM", "NO"]
@@ -101,15 +102,15 @@ class TestGetDispatchedChildFeature:
         with patch("progress_manager._load_progress_payload_at_root", side_effect=_mock_load):
             result = _get_dispatched_child_feature(
                 routing_queue, active_routes, linked_projects,
-                project_root=tmp_path, repo_root=tmp_path,
+                project_root=temp_dir, repo_root=temp_dir,
             )
 
         assert result is not None
         assert result["child_project_code"] == "NO"
 
-    def test_dispatch_skips_only_active_not_done(self, tmp_path):
+    def test_dispatch_skips_only_active_not_done(self, temp_dir):
         """PM route with status 'done' (terminal) is NOT skipped."""
-        child_pm = tmp_path / "child_pm"
+        child_pm = temp_dir / "child_pm"
         child_pm.mkdir()
 
         routing_queue = ["PM"]
@@ -123,18 +124,19 @@ class TestGetDispatchedChildFeature:
         ):
             result = _get_dispatched_child_feature(
                 routing_queue, active_routes, linked_projects,
-                project_root=tmp_path, repo_root=tmp_path,
+                project_root=temp_dir, repo_root=temp_dir,
             )
 
         assert result is not None
         assert result["child_project_code"] == "PM"
 
-    def test_dispatch_stale_route_unblocks(self, tmp_path):
+    def test_dispatch_stale_route_unblocks(self, temp_dir):
         """PM route with a very old assigned_at (stale) does NOT block dispatching."""
-        child_pm = tmp_path / "child_pm"
+        child_pm = temp_dir / "child_pm"
         child_pm.mkdir()
 
         routing_queue = ["PM"]
+        # Depends on _parse_iso_timestamp correctly handling +00:00-suffixed ISO strings
         active_routes = [{"project_code": "PM", "assigned_at": "2020-01-01T00:00:00+00:00"}]
         linked_projects = [_linked_entry("PM", child_pm)]
         child_pm_data = _child_payload([{"id": 3, "name": "PM stale feature", "completed": False}])
@@ -145,16 +147,16 @@ class TestGetDispatchedChildFeature:
         ):
             result = _get_dispatched_child_feature(
                 routing_queue, active_routes, linked_projects,
-                project_root=tmp_path, repo_root=tmp_path,
+                project_root=temp_dir, repo_root=temp_dir,
                 stale_after_hours=1,  # 1 hour threshold → 2020 timestamp is definitely stale
             )
 
         assert result is not None
         assert result["child_project_code"] == "PM"
 
-    def test_dispatch_empty_queue_fallback(self, tmp_path):
+    def test_dispatch_empty_queue_fallback(self, temp_dir):
         """Empty routing_queue returns None."""
-        child_pm = tmp_path / "child_pm"
+        child_pm = temp_dir / "child_pm"
         child_pm.mkdir()
 
         routing_queue = []
@@ -168,14 +170,14 @@ class TestGetDispatchedChildFeature:
         ):
             result = _get_dispatched_child_feature(
                 routing_queue, active_routes, linked_projects,
-                project_root=tmp_path, repo_root=tmp_path,
+                project_root=temp_dir, repo_root=temp_dir,
             )
 
         assert result is None
 
-    def test_dispatch_all_children_done_fallback(self, tmp_path):
+    def test_dispatch_all_children_done_fallback(self, temp_dir):
         """All child features completed → returns None."""
-        child_pm = tmp_path / "child_pm"
+        child_pm = temp_dir / "child_pm"
         child_pm.mkdir()
 
         routing_queue = ["PM"]
@@ -189,7 +191,7 @@ class TestGetDispatchedChildFeature:
         ):
             result = _get_dispatched_child_feature(
                 routing_queue, active_routes, linked_projects,
-                project_root=tmp_path, repo_root=tmp_path,
+                project_root=temp_dir, repo_root=temp_dir,
             )
 
         assert result is None
