@@ -3371,7 +3371,7 @@ def _determine_next_action_for_summary(
         f for f in features if isinstance(f, dict) and not f.get("completed", False)
     ]
     if pending:
-        next_feature = min(pending, key=lambda item: item.get("id", float("inf")))
+        next_feature = pending[0]
         return {
             "type": "feature",
             "feature_id": next_feature.get("id"),
@@ -5796,10 +5796,8 @@ def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False
 
     print("[DONE] Acceptance passed")
 
-    # PR-3: evaluator gate — must pass before archiving (generator/evaluator separation)
-    # Gate is enforced only when evaluator was explicitly run (last_run_at is set).
-    # Features that predate the evaluator gate (last_run_at=None) are allowed through
-    # with a warning to maintain backward compatibility.
+    # PR-3: evaluator gate — must pass before archiving (generator/evaluator separation).
+    # Strict mode: evaluator status must be explicit "pass" before /prog done can close.
     refreshed_for_gate = load_progress_json()
     if refreshed_for_gate:
         gate_feat = next(
@@ -5809,8 +5807,7 @@ def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False
         if gate_feat is not None:
             evaluator_payload = gate_feat.get("quality_gates", {}).get("evaluator", {})
             eval_status = evaluator_payload.get("status")
-            eval_ran = evaluator_payload.get("last_run_at") is not None
-            if eval_ran and eval_status != "pass":
+            if eval_status != "pass":
                 print(
                     f"[DONE] BLOCKED: evaluator gate not passed "
                     f"(status={eval_status!r}). "
@@ -5818,11 +5815,6 @@ def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False
                     file=sys.stderr,
                 )
                 return 6
-            elif not eval_ran:
-                print(
-                    "[DONE] WARNING: evaluator gate not run. "
-                    "Dispatch evaluator subagent before /prog-done in future sessions (ADR-009)."
-                )
 
     resolved_commit = commit_hash or _get_head_commit()
     success = complete_feature(

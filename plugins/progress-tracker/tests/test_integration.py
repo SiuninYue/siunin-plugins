@@ -133,14 +133,27 @@ class TestFullWorkflow:
         )
         assert result.returncode == 0, f"Set workflow state failed: {result.stderr}"
 
+        progress_file = Path('docs/progress-tracker/state/progress.json')
+        with open(progress_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        feature = data['features'][0]
+        feature.setdefault('quality_gates', {})
+        feature['quality_gates']['evaluator'] = {
+            'status': 'pass',
+            'score': 95,
+            'defects': [],
+            'last_run_at': '2026-04-17T00:00:00Z',
+            'evaluator_model': 'test-evaluator',
+        }
+        with open(progress_file, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
         result = subprocess.run(
             ['python3', self.progress_manager, 'done', '--skip-archive'],
             capture_output=True,
             text=True,
         )
         assert result.returncode == 0, f"Done failed: {result.stdout}\n{result.stderr}"
-
-        progress_file = Path('docs/progress-tracker/state/progress.json')
         with open(progress_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
 

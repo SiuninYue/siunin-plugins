@@ -1,0 +1,17 @@
+{
+  "feature_id": 10,
+  "feature_name": "落地 evaluator_gate 与 quality_gates.evaluator 独立评估门",
+  "done_attempt_at": "2026-04-17T21:46:01.247075Z",
+  "overall_success": true,
+  "results": [
+    {
+      "step": "运行: pytest -q tests/test_evaluator_gate.py",
+      "command": "pytest -q tests/test_evaluator_gate.py",
+      "success": true,
+      "output_summary": "........                                                                 [100%]\n8 passed in 0.23s",
+      "duration_ms": 346,
+      "exit_code": 0,
+      "error": null
+    }
+  ]
+}

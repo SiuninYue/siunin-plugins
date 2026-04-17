@@ -4,7 +4,7 @@
 
 **Goal:** 完成整个 progress-tracker 插件的 Hybrid Phase-1 大更新——在现有 `progress_manager.py` 架构之上落地 generator/evaluator 分离、review 分流、ship 前统一门禁、sprint 契约 + handoff artifact 长跑可恢复四大能力，清理 `/prog-start` 残留语义，并以 **FSM kernel + hook 驱动的 Auto-Driver**（PR-7）把 WF 从"用户每步发指令"升级为"feature 从 approved 一路自动跑到 archived"，对应 GSD V1→V2 那次"主调度从 LLM 移到程序"的根本性更新。
 
-**Architecture:** 保持 `progress_manager.py` 作为状态内核与事实总线（ADR-001），在其周围新增 7 个独立模块（`evaluator_gate.py` / `review_router.py` / `ship_check.py` / `sprint_ledger.py` / `wf_state_machine.py` / `wf_auto_driver.py` / CLI 增量），全部通过现有 `progress_transaction()` + `_atomic_write_text()` 事务路径写 `progress.json`。Schema 从 2.0 升到 2.1，新增三个 feature 级字段（`sprint_contract` / `quality_gates` / `handoff`），通过 `_apply_schema_defaults()` 向下兼容。PR-7 引入 hook（PreToolUse + Stop + UserPromptSubmit）作为 WF 自动 tick 入口，FSM kernel 是纯函数 `compute_next_action(feature)` 推断下一步动作，hook 通过 `additionalContext` 把指令注入 LLM 上下文实现自动 dispatch。
+**Architecture:** 保持 `progress_manager.py` 作为状态内核与事实总线（ADR-001），但把“规则判定”“证据产出”“副作用执行”三层明确拆开：`evaluator_gate.py` / `review_router.py` / `ship_check.py` 只负责产出 gate evidence，`wf_state_machine.py` 只负责纯规则判定，`wf_auto_driver.py` 只负责基于判定结果做 hook gate / dispatch 建议，所有持久化仍统一经过 `progress_transaction()` + `_atomic_write_text()`。Schema 保持 `2.1` 并继续沿用 `sprint_contract` / `quality_gates` / `handoff`；`pending` 一类可推导字段按“读模型优先、存储兼容”处理。PR-7 的 FSM kernel 不再以 `compute_next_action(feature)` 为目标形态，而是以 `compute_next_action(rule_context)` 为准，避免只看单个 feature 而丢失 workflow phase、触发源、command intent、active feature 等判定条件。
 
 **Tech Stack:** Python 3（无新增外部依赖）、pytest、argparse CLI（延续现有 `prog` 入口）、Claude Code subagent isolation 作为 generator/evaluator context 隔离机制、Claude Code hooks 作为 WF auto-driver 调度入口。
 
@@ -14,12 +14,148 @@
 
 ---
 
+## 2026-04-17 架构审查结论（覆盖性增补）
+
+> 本节是对原计划的架构校准。若与后文分 PR 实施细节冲突，以本节为准。
+
+### 当前仓库状态校准
+
+- `progress_manager.py` 当前已是 `schema 2.1`，不是本计划前文假设的 `2.0`。
+- `quality_gates` / `sprint_contract` / `handoff` 默认注入与 `test_schema_2_1_migration.py` 已存在。
+- `evaluator_gate.py` 与 `_store_evaluator_result()` 已落地；`review_router.py` / `ship_check.py` / `sprint_ledger.py` / `wf_state_machine.py` / `wf_auto_driver.py` 仍未落地。
+- 因此，本计划后续应被视为“从 evaluator gate 已落地状态继续演进”的架构方案，而不是从零开始的七连 PR 剧本。
+
+### 主要架构问题
+
+1. **规则、状态、执行混层**
+   - 原方案默认每个模块都可直接写 `progress.json`，会把 `progress_manager.py` 退化成共享事务工具，而不是唯一状态内核。
+2. **FSM 输入过窄**
+   - `compute_next_action(feature)` 只看 feature 快照，不足以判断 hook source、当前 command、workflow phase、active feature、一致性异常等真正的调度前提。
+3. **`quality_gates.reviews` 过度存储派生态**
+   - `required` / `passed` / `pending` 三份数据同时落盘，天然存在漂移风险。`pending` 应视为从规则与 evidence 推导出的读模型，而不是事实源。
+4. **hook 自动推进缺少幂等约束**
+   - 只靠 `additionalContext` 注入 “dispatch X” 容易重复派发 evaluator/review 子任务，也无法稳定区分“建议动作”和“已发出未完成动作”。
+5. **gate verdict 与 orchestration intent 耦合**
+   - `required_reviews` 既像 evaluator 结论，又像工作流下一步动作。规则引擎应把“事实结论”和“建议执行动作”拆成两个层次。
+
+### 优化后的目标架构
+
+#### 1. Facts Layer: 只有 `progress_manager.py` 持久化
+
+- `progress_manager.py` 继续作为唯一事实写入口。
+- 其他模块返回结构化结果，由 `progress_manager.py` 统一写入 feature、workflow_state、audit.log。
+- 允许模块内有 `to_payload()` / `to_event()`，不允许模块自己决定生命周期推进。
+
+#### 2. Evidence Layer: 评估模块只产出证据
+
+- `evaluator_gate.py` 输出 evaluator evidence：`status`、`score`、`defects[]`、`evaluator_model`、`last_run_at`。
+- `review_router.py` 输出 required lanes 与 review evidence 规范，但不直接驱动状态迁移。
+- `ship_check.py` 输出 typed check results；`pass/fail` 是聚合结果，不是唯一有效信息。
+- 这三层模块都不直接计算“下一步该 dispatch 谁”，它们只报告事实。
+- `progress_manager.py` 应补一个统一的 `_collect_feature_signals(feature_id)` 入口，集中采集 coverage、test results、lint/docs drift 等信号，避免 evaluator 与 ship-check 各自读取不同事实源。
+
+#### 3. Rule Layer: `wf_state_machine.py` 做纯判定
+
+- 目标签名：
+
+```python
+compute_next_action(rule_context) -> WorkflowDecision
+```
+
+- `rule_context` 至少包含：
+  - `feature`
+  - `workflow_state`
+  - `current_feature_id`
+  - `trigger_source` (`pre_tool_use` / `stop` / `user_prompt_submit` / `cli_drive`)
+  - `requested_command`
+  - `pending_action`
+- `WorkflowDecision` 至少区分：
+  - `verdict`: `allow` | `block` | `nudge`
+  - `action_kind`: `request_sprint_contract` | `dispatch_evaluator` | `dispatch_review_lane` | `run_ship_check` | `complete_done` | `await_user` | `noop`
+  - `reason`
+  - `idempotency_key`
+
+#### 4. Orchestration Layer: `wf_auto_driver.py` 只解释 decision
+
+- PreToolUse: 只负责 block/allow，不做隐式状态变更。
+- Stop/UserPromptSubmit: 只负责发出下一步建议，且必须检查 `pending_action.idempotency_key`，避免重复建议同一动作。
+- `wf_auto_driver.py` 不直接“相信” LLM 会完成动作；它只根据事实源检查动作是否已经完成，未完成才再次提示。
+- `wf_auto_driver.py` 入口必须全局 `try/except` 并采用 fail-open：若 driver 自身崩溃，记录 `driver_crashed` 审计事件后放行工具，而不是卡死整个 CLI / hook 链。
+
+### 数据契约优化
+
+- `quality_gates.evaluator`
+  - 保留当前结构。
+  - `status` 只表达 evaluator 结论，不隐含 review dispatch 语义。
+- `quality_gates.reviews`
+  - 兼容保留 `required/passed/pending`。
+  - 但引擎层把 `pending` 视为派生字段，读时由 `required - passed` 重建；后续如需扩展，优先新增 `evidence[]` 而不是继续堆派生列表。
+- `quality_gates.ship_check`
+  - `failures[]` 应逐步演进成 typed `checks[]`，每项含 `check_id` / `status` / `detail` / `evidence_ref`。
+- `workflow_state`
+  - 应新增 `pending_action` 作为幂等锚点：
+
+```python
+"pending_action": {
+  "idempotency_key": None,
+  "kind": None,
+  "lane": None,
+  "issued_at": None,
+  "source": None
+}
+```
+
+- `pending_action.idempotency_key`
+  - 不应只由 `feature_id + lifecycle_state + quality_gate_status` 组成。
+  - 推荐至少包含：`feature_id`、`action_kind`、`lane`、`trigger_source`、与当前 gate 直接相关的 evidence digest。
+  - 目标是“同一事实状态下重复触发，得到同一 decision；事实一旦变化，自动生成新 key”。
+
+### 设计约束
+
+- 规则函数必须纯函数，不做 IO，不读写文件，不直接调 subagent。
+- 任何 lifecycle 推进必须由 `progress_manager.py` 根据 evidence + decision 显式落盘。
+- 任一 gate 模块只能写“我看到了什么”，不能写“接下来必须调用谁”。
+- hook 必须幂等；同一 `idempotency_key` 未消费前不能重复派发相同动作。
+- 对 `pending`、`next_action` 这类派生态，优先即时重建，避免把缓存态写成事实源。
+- Stop hook 默认应保持静默；仅在 gate 未通过、状态刚变化、或存在明确下一步动作时才注入 `additionalContext`。
+- 自动推进的主保护应是 `pending_action` 幂等与事实校验；`trace_id` / `depth` 仅作为辅助熔断，限制单个 feature 在一次自动链路中的连续跳段次数。
+- `evaluator_gate` 需要显式检查隔离上下文；若检测到 evaluator 与当前 implementation 使用同类上下文，应至少输出强警告并写审计事件。
+
+### 性能与鲁棒性说明
+
+- **Schema lazy migration**
+  - 不建议仅凭 `schema_version == CURRENT_SCHEMA_VERSION` 就直接跳过 `_apply_schema_defaults()`。
+  - 当前 backfill 还承担“深度补默认值”和“修复部分缺字段对象”的职责；只看版本号会漏掉手工编辑或旧 fixture。
+  - 可接受的优化方向是：增加 cheap-path 检查，仅在结构完整时快速返回；否则仍进入深度补全。
+
+- **Sprint ledger 读路径**
+  - `sprint_ledger.jsonl` 继续作为 append-only 审计源。
+  - `feature.handoff.artifact_path` 应明确视为 latest artifact 一级缓存；常规 resume 读取这里，只有回溯历史或缓存缺失时才扫描 ledger。
+
+- **UI 渲染**
+  - `quality_gates` 紧凑矩阵展示有价值，例如 `[E:✅] [R:⏳] [S:❌]`。
+  - 但优先级低于 rule engine、hook 幂等、signal collection；建议作为 PR-5 之后的跟进项，而不是阻塞内核落地。
+
+### 配置扩展策略
+
+- `review_router` 第一阶段仍以代码内显式规则表为主，先把默认 lane discipline 跑稳。
+- 项目级 override 值得支持，但应以“可选配置覆盖”方式进入后续阶段，而不是在 PR-4 初版就把路由规则外置到任意 JSON 配置。
+
+### 对后续 PR 的直接影响
+
+- PR-4 `review_router` 可以继续存在，但其职责应收窄为“lane rules + review evidence helper”，不是 workflow driver。
+- PR-5 `ship_check` 应先产出 typed check evidence，再由 rule engine 决定是否阻断 `/prog-done`。
+- PR-7 的核心不再是“让 LLM 看起来会自动跑完整流程”，而是“让程序稳定判断当前唯一允许的下一步，并保持幂等”。
+- PR-7 实现时必须优先完成三项保护：fail-open hook、`pending_action` 幂等锚点、自动链路熔断。
+
+---
+
 ## Context
 
 ### 问题陈述
 
 当前 progress-tracker 插件已经具备：
-- `progress_manager.py` 状态内核（6274 行），含 `progress_transaction()` 原子写、POSIX `fcntl` 锁、`audit.log` append-only 审计、`_apply_schema_defaults()` 向下兼容（schema 2.0）。
+- `progress_manager.py` 状态内核（当前已增长，本文不再依赖固定行数估算），含 `progress_transaction()` 原子写、POSIX `fcntl` 锁、`audit.log` append-only 审计、`_apply_schema_defaults()` 向下兼容（schema 2.1）。
 - `lifecycle_state_machine.py` 状态转换门。
 - `feature-implement`、`feature-complete` 等 skills 覆盖 `/prog-next`、`/prog-done` 全流程。
 - `validate_feature_readiness` 只读前置门禁。
@@ -38,7 +174,7 @@
 
 - architecture.md Phase-1 Scope（line 829-835）明确“2 weeks”窗口，已经给出 6 项可拆 PR 的工作包。
 - `/prog-start` 清理是其他 5 个 PR 的前置脏债——test_command_discovery_contract.py 红测阻塞 CI，必须先解。
-- schema 2.1 升级是一次性契约窗口；后续 PR 如果各自升 schema 会造成多次迁移。
+- schema 2.1 已经落地；后续 PR 的重点不再是 schema bump，而是避免在既有 2.1 数据契约之上继续扩散职责耦合。
 - gstack 已经在 Y Combinator 内部验证过 review 分流 + ship 门禁 + docs-sync 的可行性，我们直接借鉴而不是重新设计。
 
 ### 预期产出

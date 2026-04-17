@@ -1,0 +1,17 @@
+{
+  "feature_id": 10,
+  "feature_name": "落地 evaluator_gate 与 quality_gates.evaluator 独立评估门",
+  "done_attempt_at": "2026-04-17T21:45:42.161101Z",
+  "overall_success": false,
+  "results": [
+    {
+      "step": "运行: pytest -q plugins/progress-tracker/tests/test_evaluator_gate.py",
+      "command": "pytest -q plugins/progress-tracker/tests/test_evaluator_gate.py",
+      "success": false,
+      "output_summary": "no tests ran in 0.00s\nERROR: file or directory not found: plugins/progress-tracker/tests/test_evaluator_gate.py",
+      "duration_ms": 108,
+      "exit_code": 4,
+      "error": "ERROR: file or directory not found: plugins/progress-tracker/tests/test_evaluator_gate.py"
+    }
+  ]
+}

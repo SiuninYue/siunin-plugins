@@ -2,7 +2,7 @@
 
 **Created**: 2026-04-09T01:12:55.289861Z
 
-**Status**: 19/27 completed
+**Status**: 20/28 completed
 
 ## Completed
 - [x] 定义父级协调追踪器 Schema（linked_projects + snapshot 元数据）
@@ -24,9 +24,10 @@
 - [x] 状态展示与文档更新（父级总览+子项目明细+归档历史）
 - [x] 清理 /prog-start 残留并锁定 /prog-next 为唯一 start path
 - [x] 实现 set-finish-state 显式解锁器并固化 finish_pending 阻断链路
+- [x] 落地 evaluator_gate 与 quality_gates.evaluator 独立评估门
 
 ## Pending
-- [ ] 落地 evaluator_gate 与 quality_gates.evaluator 独立评估门
+- [ ] 新增 evaluator 补偿机制命令（排队实现）
 - [ ] 落地 review_router 智能分流并持久化 review lanes
 - [ ] 落地 ship_check 统一门禁与 docs-sync 证据校验
 - [ ] 落地 sprint_ledger 与 schema 2.1 的 sprint_contract/handoff 持久化

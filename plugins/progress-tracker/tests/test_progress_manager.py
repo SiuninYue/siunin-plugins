@@ -2034,6 +2034,8 @@ class TestDoneCommand:
         phase: Optional[str],
         current_feature_id: Optional[int],
         feature_completed: bool = False,
+        evaluator_status: str = "pass",
+        evaluator_last_run_at: Optional[str] = "2026-03-17T00:00:00Z",
     ) -> Path:
         state_dir = temp_dir / "docs" / "progress-tracker" / "state"
         state_dir.mkdir(parents=True, exist_ok=True)
@@ -2048,6 +2050,17 @@ class TestDoneCommand:
                     "completed": feature_completed,
                     "development_stage": "developing",
                     "lifecycle_state": "implementing",
+                    "quality_gates": {
+                        "evaluator": {
+                            "status": evaluator_status,
+                            "score": 95 if evaluator_status == "pass" else None,
+                            "defects": [],
+                            "last_run_at": evaluator_last_run_at,
+                            "evaluator_model": "test-evaluator",
+                        },
+                        "reviews": {"required": [], "passed": [], "pending": []},
+                        "ship_check": {"status": "pending", "failures": [], "last_run_at": None},
+                    },
                 }
             ],
             "current_feature_id": current_feature_id,
@@ -2099,6 +2112,23 @@ class TestDoneCommand:
         assert result.returncode == 2
         assert "workflow phase" in result.stdout
         assert "execution_complete" in result.stdout
+
+    def test_done_command_blocks_when_evaluator_not_passed(self, temp_dir):
+        """done should fail with exit code 6 when evaluator gate status != pass."""
+        self._write_done_state(
+            temp_dir,
+            test_steps=["true"],
+            phase="execution_complete",
+            current_feature_id=1,
+            evaluator_status="pending",
+            evaluator_last_run_at=None,
+        )
+
+        result = self._run_done(temp_dir, "--skip-archive")
+
+        assert result.returncode == 6
+        assert "evaluator gate not passed" in result.stderr
+        assert "status='pending'" in result.stderr
 
     def test_done_command_runs_acceptance_tests(self, temp_dir):
         """done should execute command test_steps and skip manual DoD lines."""

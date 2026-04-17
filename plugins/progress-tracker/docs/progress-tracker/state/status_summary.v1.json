@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-04-17T15:30:04.410338Z",
+  "updated_at": "2026-04-17T22:36:06.926335Z",
   "source": {
     "generator": "progress_manager.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,8 +11,8 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1776409920879566499,
-      "size": 76730
+      "mtime_ns": 1776436553554247914,
+      "size": 81630
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
@@ -22,16 +22,16 @@
     }
   },
   "progress": {
-    "completed": 18,
-    "total": 26,
-    "percentage": 69
+    "completed": 20,
+    "total": 28,
+    "percentage": 71
   },
   "next_action": {
     "type": "feature",
-    "feature_id": 24,
-    "feature_name": "[RouteV1] 在 prog-init/prog-plan 与子项目完成时回写父级备案",
-    "development_stage": "developing",
-    "stage_label": "开发中"
+    "feature_id": 28,
+    "feature_name": "新增 evaluator 补偿机制命令（排队实现）",
+    "development_stage": "pending",
+    "stage_label": "待开始"
   },
   "plan_health": {
     "status": "N/A",
@@ -47,6 +47,6 @@
   "recent_snapshot": {
     "exists": true,
     "timestamp": "2026-04-17T15:07:40.849509+08:00",
-    "relative_time": "22 分钟前"
+    "relative_time": "7 小时前"
   }
 }
