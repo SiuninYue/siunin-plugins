@@ -497,3 +497,204 @@ def test_link_project_fails_when_child_has_conflicting_code(temp_dir, capsys):
 
     output = capsys.readouterr().out
     assert "already linked with project_code=LEGACY" in output
+
+
+def test_sync_linked_includes_new_route_fields(temp_dir, capsys):
+    """sync-linked snapshot projects include project_code/child_project_code/workspace/route_status."""
+    import os as _os
+    _os.system(f"git -C {temp_dir} init >/dev/null 2>&1")
+
+    repo_root = temp_dir
+    parent_root = repo_root / "plugins" / "progress-tracker"
+    child_root = repo_root / "plugins" / "note-organizer"
+    parent_root.mkdir(parents=True, exist_ok=True)
+    child_root.mkdir(parents=True, exist_ok=True)
+
+    _write_progress(
+        parent_root,
+        {
+            "project_name": "Parent Tracker",
+            "created_at": "2026-04-12T00:00:00Z",
+            "features": [],
+            "current_feature_id": None,
+            "linked_projects": [
+                {
+                    "project_root": "plugins/note-organizer",
+                    "project_code": "NO",
+                    "label": "Note Organizer",
+                }
+            ],
+            "linked_snapshot": {"projects": []},
+            "active_routes": [{"project_code": "NO", "feature_ref": "NO-F1"}],
+        },
+    )
+    _write_progress(
+        child_root,
+        {
+            "project_name": "Note Organizer",
+            "updated_at": "2026-04-12T09:30:00Z",
+            "features": [
+                {"id": 1, "name": "A", "completed": True},
+                {"id": 2, "name": "B", "completed": False},
+            ],
+            "current_feature_id": 2,
+            "project_code": "NO",
+            "runtime_context": {"workspace_mode": "worktree"},
+        },
+    )
+
+    import os
+    os.chdir(repo_root)
+    with patch(
+        "sys.argv",
+        [
+            "progress_manager.py",
+            "--project-root",
+            "plugins/progress-tracker",
+            "sync-linked",
+            "--json",
+        ],
+    ):
+        assert progress_manager.main() is True
+
+    parent_progress = json.loads(
+        (parent_root / "docs" / "progress-tracker" / "state" / "progress.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    project = parent_progress["linked_snapshot"]["projects"][0]
+    assert project["project_code"] == "NO"
+    assert project["child_project_code"] == "NO"
+    assert project["workspace"] == "worktree"
+    assert project["route_status"] == "active"
+
+
+def test_sync_linked_route_status_idle_when_not_in_active_routes(temp_dir, capsys):
+    """route_status should be 'idle' when project_code is not in parent active_routes."""
+    import os as _os
+    _os.system(f"git -C {temp_dir} init >/dev/null 2>&1")
+
+    repo_root = temp_dir
+    parent_root = repo_root / "plugins" / "progress-tracker"
+    child_root = repo_root / "plugins" / "note-organizer"
+    parent_root.mkdir(parents=True, exist_ok=True)
+    child_root.mkdir(parents=True, exist_ok=True)
+
+    _write_progress(
+        parent_root,
+        {
+            "project_name": "Parent Tracker",
+            "created_at": "2026-04-12T00:00:00Z",
+            "features": [],
+            "current_feature_id": None,
+            "linked_projects": [
+                {
+                    "project_root": "plugins/note-organizer",
+                    "project_code": "NO",
+                    "label": "Note Organizer",
+                }
+            ],
+            "linked_snapshot": {"projects": []},
+            "active_routes": [],  # NO is NOT in active_routes
+        },
+    )
+    _write_progress(
+        child_root,
+        {
+            "project_name": "Note Organizer",
+            "updated_at": "2026-04-12T09:30:00Z",
+            "features": [{"id": 1, "name": "A", "completed": False}],
+            "current_feature_id": None,
+            "project_code": "NO",
+            "runtime_context": {"workspace_mode": "in_place"},
+        },
+    )
+
+    import os
+    os.chdir(repo_root)
+    with patch(
+        "sys.argv",
+        [
+            "progress_manager.py",
+            "--project-root",
+            "plugins/progress-tracker",
+            "sync-linked",
+            "--json",
+        ],
+    ):
+        assert progress_manager.main() is True
+
+    parent_progress = json.loads(
+        (parent_root / "docs" / "progress-tracker" / "state" / "progress.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    project = parent_progress["linked_snapshot"]["projects"][0]
+    assert project["project_code"] == "NO"
+    assert project["child_project_code"] == "NO"
+    assert project["workspace"] == "in_place"
+    assert project["route_status"] == "idle"
+
+
+def test_sync_linked_project_code_fallback_to_child_payload(temp_dir, capsys):
+    """project_code should fall back to child payload when linked_projects entry has none."""
+    import os as _os
+    _os.system(f"git -C {temp_dir} init >/dev/null 2>&1")
+
+    repo_root = temp_dir
+    parent_root = repo_root / "plugins" / "progress-tracker"
+    child_root = repo_root / "plugins" / "note-organizer"
+    parent_root.mkdir(parents=True, exist_ok=True)
+    child_root.mkdir(parents=True, exist_ok=True)
+
+    _write_progress(
+        parent_root,
+        {
+            "project_name": "Parent Tracker",
+            "created_at": "2026-04-12T00:00:00Z",
+            "features": [],
+            "current_feature_id": None,
+            "linked_projects": [
+                # No project_code in this entry — only project_root + label
+                {"project_root": "plugins/note-organizer", "label": "Note Organizer"}
+            ],
+            "linked_snapshot": {"projects": []},
+            "active_routes": [],
+        },
+    )
+    _write_progress(
+        child_root,
+        {
+            "project_name": "Note Organizer",
+            "updated_at": "2026-04-12T09:30:00Z",
+            "features": [{"id": 1, "name": "A", "completed": True}],
+            "current_feature_id": None,
+            "project_code": "NO",  # child has code even though parent entry does not
+            "runtime_context": {"workspace_mode": "in_place"},
+        },
+    )
+
+    import os
+    os.chdir(repo_root)
+    with patch(
+        "sys.argv",
+        [
+            "progress_manager.py",
+            "--project-root",
+            "plugins/progress-tracker",
+            "sync-linked",
+            "--json",
+        ],
+    ):
+        assert progress_manager.main() is True
+
+    parent_progress = json.loads(
+        (parent_root / "docs" / "progress-tracker" / "state" / "progress.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    project = parent_progress["linked_snapshot"]["projects"][0]
+    # Falls back to child payload project_code
+    assert project["project_code"] == "NO"
+    assert project["child_project_code"] == "NO"
+    assert project["route_status"] == "idle"

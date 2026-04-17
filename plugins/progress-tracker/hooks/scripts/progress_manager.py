@@ -904,6 +904,7 @@ def collect_linked_project_statuses(
     repo_root: Optional[Path] = None,
     now: Optional[datetime] = None,
     stale_after_hours: int = DEFAULT_LINKED_STATUS_STALE_HOURS,
+    active_routes: Optional[List[Dict[str, Any]]] = None,
 ) -> List[Dict[str, Any]]:
     """
     Collect linked project progress snapshots in read-only mode.
@@ -918,8 +919,21 @@ def collect_linked_project_statuses(
     effective_repo_root = Path(repo_root or _REPO_ROOT or effective_project_root).resolve()
     reference_time = now or datetime.now(timezone.utc)
 
+    _active_route_codes: Set[str] = set()
+    if isinstance(active_routes, list):
+        for _r in active_routes:
+            if isinstance(_r, dict):
+                _code = _r.get("project_code")
+                if isinstance(_code, str) and _code.strip():
+                    _active_route_codes.add(_code.strip().upper())
+
     statuses: List[Dict[str, Any]] = []
     for spec in _iter_linked_project_specs(progress_data):
+        spec_project_code: Optional[str] = None
+        _raw_code = spec.get("entry", {}).get("project_code")
+        if isinstance(_raw_code, str) and _raw_code.strip():
+            spec_project_code = _raw_code.strip().upper()
+
         linked_root = _resolve_linked_project_root(
             spec["raw_project_root"], effective_project_root, effective_repo_root
         )
@@ -937,6 +951,10 @@ def collect_linked_project_statuses(
             "updated_at": None,
             "is_stale": True,
             "active_feature_ref": None,
+            "project_code": None,
+            "child_project_code": None,
+            "workspace": "unknown",
+            "route_status": "idle",
         }
 
         if not progress_path.exists():
@@ -973,6 +991,35 @@ def collect_linked_project_statuses(
             stale_after_hours,
         )
 
+        # --- F23: new fields ---
+        # child_project_code: always from child payload
+        child_code_raw = payload.get("project_code")
+        child_code: Optional[str] = None
+        if isinstance(child_code_raw, str) and child_code_raw.strip():
+            child_code = child_code_raw.strip().upper()
+        status["child_project_code"] = child_code
+
+        # project_code: spec (linked_projects entry) → fallback child payload
+        resolved_code = spec_project_code or child_code
+        status["project_code"] = resolved_code
+
+        # workspace: from child runtime_context.workspace_mode, whitelist only
+        _VALID_WORKSPACE_MODES = {"worktree", "in_place", "unknown"}
+        rt_ctx = payload.get("runtime_context")
+        if isinstance(rt_ctx, dict):
+            wm = rt_ctx.get("workspace_mode")
+            if isinstance(wm, str) and wm.strip() in _VALID_WORKSPACE_MODES:
+                status["workspace"] = wm.strip()
+        # else: keep default "unknown"
+
+        # route_status: "unknown" when no project_code; "active"/"idle" from active_routes
+        if resolved_code is None:
+            status["route_status"] = "unknown"
+        elif resolved_code in _active_route_codes:
+            status["route_status"] = "active"
+        # else: keep default "idle"
+        # --- end F23 ---
+
         # Compute active_feature_ref from project_code and current_feature_id
         project_code = payload.get("project_code")
         current_feature_id = payload.get("current_feature_id")
@@ -1002,6 +1049,7 @@ def sync_linked(
     statuses = collect_linked_project_statuses(
         data,
         stale_after_hours=stale_window_hours,
+        active_routes=data.get("active_routes") or [],
     )
 
     linked_snapshot = data.get("linked_snapshot")
