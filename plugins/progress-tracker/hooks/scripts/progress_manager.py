@@ -2600,7 +2600,13 @@ def reconcile_evaluator(
         if not candidates:
             _emit({"error": f"Feature {feature_id} not found"}, output_json)
             return 2
+        # Track whether this is a forced overwrite of existing evaluator data.
+        # Unlike the full-scan path, --feature-id always evaluates (for re-evaluation).
+        forced_overwrite_ids = {
+            f["id"] for f in candidates if not _needs_backfill(f)
+        }
     else:
+        forced_overwrite_ids: set = set()  # full-scan never forces overwrites
         # Collect completed features: archived ones plus the current feature
         # if its workflow phase is execution_complete (implementation done but
         # /prog done not yet run — still a valid backfill target).
@@ -2653,6 +2659,9 @@ def reconcile_evaluator(
                     "score": result.score,
                     "backfill_reason": backfill_reason,
                     "source": "reconcile-evaluator CLI",
+                    "synthetic": True,
+                    "score_source": "backfill_default",
+                    **({"forced_overwrite": True} if fid in forced_overwrite_ids else {}),
                 },
             )
             backfilled.append(fid)
