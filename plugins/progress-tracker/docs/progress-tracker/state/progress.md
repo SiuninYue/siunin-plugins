@@ -26,8 +26,14 @@
 - [x] 实现 set-finish-state 显式解锁器并固化 finish_pending 阻断链路
 - [x] 落地 evaluator_gate 与 quality_gates.evaluator 独立评估门
 
-## Pending
+## In Progress
 - [ ] 新增 evaluator 补偿机制命令（排队实现）
+  **Test steps**:
+  - 新增 prog reconcile-evaluator 命令，支持 feature 级 evaluator 结果回填
+  - 运行: pytest -q tests/test_reconcile_evaluator_cli.py
+  - 验证已完成 feature 可回填 evaluator 且写入审计事件 evaluator_backfill
+
+## Pending
 - [ ] 落地 review_router 智能分流并持久化 review lanes
 - [ ] 落地 ship_check 统一门禁与 docs-sync 证据校验
 - [ ] 落地 sprint_ledger 与 schema 2.1 的 sprint_contract/handoff 持久化
@@ -35,6 +41,11 @@
 - [ ] prog done 后自动清理已合并的 feature 分支和 worktree
 - [ ] 让 /prog 状态页末尾输出详细 handoff 提示
 - [ ] 优化概念命名与映射：将 prog-sync 类比为 log，prog-update 类比为 note
+
+## Workflow Context
+- Phase: execution_complete
+- Execution context: feature/f28-evaluator-backfill-cmd @ f28-evaluator-backfill-cmd [worktree]
+- Current session context: feature/f28-evaluator-backfill-cmd @ f28-evaluator-backfill-cmd [worktree]
 
 ### Fixed (✅)
 - [x] [BUG-001] [DEBT] /prog done 应该自动切换到内联上下文中指定的工作树进行验收测试验证，避免在错误分支上运行测试导致误判
