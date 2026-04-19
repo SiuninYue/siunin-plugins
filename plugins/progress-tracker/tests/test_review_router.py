@@ -321,3 +321,92 @@ def test_set_current_does_not_reset_existing_reviews(tmp_path):
     reviews2 = feat2["quality_gates"]["reviews"]
     assert "eng" in reviews2["passed"]   # preserved
     assert "eng" not in reviews2["pending"]  # preserved
+
+
+# --- progress_manager integration: cmd_done blocked by pending reviews ---
+
+def _make_progress_with_execution_complete(tmp_path: Path, reviews: dict) -> Path:
+    """Write progress.json with feature in execution_complete phase, configurable reviews."""
+    feature = {
+        "id": 55,
+        "name": "feature for done gate test",
+        "completed": False,
+        "deferred": False,
+        "lifecycle_state": "implementing",
+        "development_stage": "developing",
+        "change_spec": {
+            "why": "test", "in_scope": [], "out_of_scope": [], "risks": [],
+        },
+        "requirement_ids": ["REQ-055"],
+        "acceptance_scenarios": [],
+        "integration_status": None,
+        "quality_gates": {
+            "evaluator": {"status": "pass", "score": 100, "defects": [], "last_run_at": "2026-01-01T00:00:00Z", "evaluator_model": None},
+            "reviews": reviews,
+            "ship_check": {"status": "pending", "failures": [], "last_run_at": None},
+        },
+        "sprint_contract": {"scope": "", "done_criteria": [], "test_plan": [], "accepted_by": None, "accepted_at": None},
+        "handoff": {"from_phase": None, "to_phase": None, "artifact_path": None, "created_at": None},
+    }
+    data = {
+        "schema_version": "2.1",
+        "project_name": "test",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "features": [feature],
+        "current_feature_id": 55,
+        "updates": [],
+        "retrospectives": [],
+        "runtime_context": {},
+        "linked_projects": [],
+        "linked_snapshot": {},
+        "tracker_role": "standalone",
+        "project_code": None,
+        "routing_queue": [],
+        "active_routes": [],
+        "bugs": [],
+        "current_bug_id": None,
+        "workflow_state": {"phase": "execution_complete"},
+    }
+    state_dir = tmp_path / "docs" / "progress-tracker" / "state"
+    state_dir.mkdir(parents=True)
+    (state_dir / "progress.json").write_text(json.dumps(data))
+    return tmp_path
+
+
+def test_cmd_done_blocked_when_reviews_pending(tmp_path):
+    reviews = {
+        "required": ["eng", "qa", "docs"],
+        "passed": ["eng"],
+        "pending": ["qa", "docs"],
+    }
+    proj_root = _make_progress_with_execution_complete(tmp_path, reviews)
+    with patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE", proj_root):
+        rc = progress_manager.cmd_done()
+    assert rc != 0, "cmd_done should return non-zero when reviews are pending"
+
+
+def test_cmd_done_not_blocked_when_all_reviews_passed(tmp_path, capsys):
+    reviews = {
+        "required": ["eng", "qa", "docs"],
+        "passed": ["eng", "qa", "docs"],
+        "pending": [],
+    }
+    proj_root = _make_progress_with_execution_complete(tmp_path, reviews)
+    with patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE", proj_root):
+        # cmd_done may fail for other reasons (no test steps etc) but should NOT
+        # be blocked specifically by the review gate
+        progress_manager.cmd_done()
+    captured = capsys.readouterr()
+    assert "BLOCKED: pending reviews" not in captured.out
+    assert "BLOCKED: pending reviews" not in captured.err
+
+
+def test_cmd_done_not_blocked_when_no_reviews_configured(tmp_path, capsys):
+    reviews = {"required": [], "passed": [], "pending": []}
+    proj_root = _make_progress_with_execution_complete(tmp_path, reviews)
+    with patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE", proj_root):
+        progress_manager.cmd_done()
+    captured = capsys.readouterr()
+    assert "BLOCKED: pending reviews" not in captured.out
+    assert "BLOCKED: pending reviews" not in captured.err

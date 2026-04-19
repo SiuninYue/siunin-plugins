@@ -5994,6 +5994,18 @@ def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False
                 )
                 return 6
 
+    # F-11: review gate — all required review lanes must be passed before archiving
+    if REVIEW_ROUTER_AVAILABLE and gate_feat is not None:
+        from review_router import get_pending_lanes as _get_pending_lanes
+        pending_lanes = _get_pending_lanes(gate_feat)
+        if pending_lanes:
+            print(
+                f"[DONE] BLOCKED: pending reviews: {pending_lanes}. "
+                "Mark all required lanes passed via mark_review_passed() before /prog-done.",
+                file=sys.stderr,
+            )
+            return 7
+
     resolved_commit = commit_hash or _get_head_commit()
     success = complete_feature(
         feature_id=feature_id,
