@@ -57,7 +57,10 @@ _KEYWORD_MAP: Dict[str, str] = {
 # ---------------------------------------------------------------------------
 
 def _infer_categories_from_text(feature: Dict[str, Any]) -> List[str]:
-    """Fallback: infer categories from feature name and in_scope keywords."""
+    """Fallback: infer categories from feature name and in_scope keywords.
+
+    Note: keyword matching uses substring search (e.g. "api" matches inside "capability").
+    """
     text = " ".join([
         feature.get("name", ""),
         *feature.get("change_spec", {}).get("in_scope", []),
@@ -84,15 +87,16 @@ def required_reviews(feature: Dict[str, Any]) -> List[str]:
         categories = _infer_categories_from_text(feature)
 
     lanes: Set[str] = set()
-    has_known = False
     for cat in categories:
         extra = _LANE_RULES.get(cat)
         if extra:
             lanes.update(extra)
-            has_known = True
-        # unknown category: fail-closed — will add _ALWAYS_REQUIRED below
+        else:
+            # unknown category: fail-closed — add always-required lanes
+            lanes.update(_ALWAYS_REQUIRED)
 
-    if not has_known:
+    if not lanes:
+        # no categories (or all produced nothing) — default to always-required
         lanes.update(_ALWAYS_REQUIRED)
 
     return sorted(lanes)

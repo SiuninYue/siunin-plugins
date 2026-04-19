@@ -107,3 +107,18 @@ def test_required_reviews_devex_not_in_backend():
     feat = _make_feature(categories=["backend"])
     lanes = required_reviews(feat)
     assert "devex" not in lanes
+
+
+def test_required_reviews_mixed_known_and_unknown_categories_fail_closed():
+    """Unknown category alongside docs-only category must still add eng/qa."""
+    feat = _make_feature(categories=["docs", "totally_unknown"])
+    lanes = required_reviews(feat)
+    assert {"eng", "qa"}.issubset(set(lanes)), \
+        "fail-closed: unknown category should trigger eng/qa even alongside docs"
+
+
+def test_required_reviews_in_scope_keyword_inference():
+    """in_scope keywords should also drive inference when name has no match."""
+    feat = _make_feature(name="general refactor", in_scope=["sdk integration"])
+    lanes = required_reviews(feat)
+    assert "devex" in lanes
