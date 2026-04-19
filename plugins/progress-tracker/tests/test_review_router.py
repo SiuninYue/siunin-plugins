@@ -2,7 +2,14 @@
 """review_router contract tests (F-11)."""
 
 import pytest
-from review_router import _LANE_RULES, required_reviews, initialize_reviews, mark_review_passed, get_pending_lanes
+# _LANE_RULES tested here; other symbols used in Tasks 2-5 tests below
+from review_router import (  # noqa: F401
+    _LANE_RULES,
+    required_reviews,
+    initialize_reviews,
+    mark_review_passed,
+    get_pending_lanes,
+)
 
 def test_lane_rules_defines_backend():
     assert "backend" in _LANE_RULES
