@@ -122,3 +122,97 @@ def test_required_reviews_in_scope_keyword_inference():
     feat = _make_feature(name="general refactor", in_scope=["sdk integration"])
     lanes = required_reviews(feat)
     assert "devex" in lanes
+
+
+# --- initialize_reviews() ---
+
+def test_initialize_reviews_writes_required_and_pending():
+    feat = _make_feature(categories=["backend"])
+    initialize_reviews(feat)
+    reviews = feat["quality_gates"]["reviews"]
+    assert set(reviews["required"]) == {"eng", "qa", "docs"}
+    assert set(reviews["pending"]) == {"eng", "qa", "docs"}
+    assert reviews["passed"] == []
+
+
+def test_initialize_reviews_idempotent_does_not_overwrite():
+    feat = _make_feature(categories=["backend"])
+    initialize_reviews(feat)
+    feat["quality_gates"]["reviews"]["passed"].append("eng")
+    feat["quality_gates"]["reviews"]["pending"].remove("eng")
+    initialize_reviews(feat)  # second call must NOT reset
+    reviews = feat["quality_gates"]["reviews"]
+    assert "eng" in reviews["passed"]
+    assert "eng" not in reviews["pending"]
+
+
+def test_initialize_reviews_creates_quality_gates_if_absent():
+    feat = _make_feature(categories=["backend"])
+    # No quality_gates at all
+    initialize_reviews(feat)
+    assert "quality_gates" in feat
+    assert "reviews" in feat["quality_gates"]
+
+
+def test_initialize_reviews_frontend_includes_design():
+    feat = _make_feature(categories=["frontend"])
+    initialize_reviews(feat)
+    reviews = feat["quality_gates"]["reviews"]
+    assert "design" in reviews["required"]
+    assert "design" in reviews["pending"]
+
+
+# --- mark_review_passed() ---
+
+def test_mark_review_passed_moves_lane_from_pending_to_passed():
+    feat = _make_feature(categories=["backend"])
+    initialize_reviews(feat)
+    mark_review_passed(feat, "eng")
+    reviews = feat["quality_gates"]["reviews"]
+    assert "eng" in reviews["passed"]
+    assert "eng" not in reviews["pending"]
+
+
+def test_mark_review_passed_idempotent_on_double_pass():
+    feat = _make_feature(categories=["backend"])
+    initialize_reviews(feat)
+    mark_review_passed(feat, "eng")
+    mark_review_passed(feat, "eng")  # second call: no duplicate
+    reviews = feat["quality_gates"]["reviews"]
+    assert reviews["passed"].count("eng") == 1
+
+
+def test_mark_review_passed_ignores_unknown_lane():
+    feat = _make_feature(categories=["backend"])
+    initialize_reviews(feat)
+    # Should not raise; unknown lane is silently ignored
+    mark_review_passed(feat, "nonexistent_lane")
+    reviews = feat["quality_gates"]["reviews"]
+    assert "nonexistent_lane" not in reviews["passed"]
+
+
+# --- get_pending_lanes() ---
+
+def test_get_pending_lanes_returns_required_minus_passed():
+    feat = _make_feature(categories=["backend"])
+    initialize_reviews(feat)
+    mark_review_passed(feat, "eng")
+    pending = get_pending_lanes(feat)
+    assert "eng" not in pending
+    assert "qa" in pending
+    assert "docs" in pending
+
+
+def test_get_pending_lanes_empty_when_all_passed():
+    feat = _make_feature(categories=["backend"])
+    initialize_reviews(feat)
+    for lane in ["eng", "qa", "docs"]:
+        mark_review_passed(feat, lane)
+    assert get_pending_lanes(feat) == []
+
+
+def test_get_pending_lanes_returns_empty_when_reviews_not_initialized():
+    feat = _make_feature()
+    # No initialize_reviews call — should return empty, not raise
+    result = get_pending_lanes(feat)
+    assert result == []

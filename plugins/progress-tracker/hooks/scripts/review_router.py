@@ -102,15 +102,57 @@ def required_reviews(feature: Dict[str, Any]) -> List[str]:
     return sorted(lanes)
 
 
-# ---------------------------------------------------------------------------
-# Stubs — to be implemented in subsequent tasks
-# ---------------------------------------------------------------------------
-
 def initialize_reviews(feature: Dict[str, Any]) -> None:
-    raise NotImplementedError
+    """Populate quality_gates.reviews with required/pending/passed lanes.
+
+    Idempotent: if quality_gates.reviews.required is already non-empty,
+    this function does nothing (prevents overwriting in-progress review state).
+    """
+    feature.setdefault("quality_gates", {})
+    reviews = feature["quality_gates"].setdefault(
+        "reviews", {"required": [], "passed": [], "pending": []}
+    )
+    reviews.setdefault("required", [])
+    reviews.setdefault("passed", [])
+    reviews.setdefault("pending", [])
+
+    if reviews["required"]:
+        # Already initialized — do not overwrite existing state.
+        return
+
+    lanes = required_reviews(feature)
+    reviews["required"] = lanes
+    reviews["pending"] = [lane for lane in lanes if lane not in reviews["passed"]]
+
 
 def mark_review_passed(feature: Dict[str, Any], lane: str) -> None:
-    raise NotImplementedError
+    """Record that a review lane has been completed.
+
+    Updates both passed (append) and pending (remove) in-place.
+    Idempotent: calling twice with the same lane has no additional effect.
+    Unknown lanes (not in required) are silently ignored.
+    """
+    reviews = feature.get("quality_gates", {}).get("reviews", {})
+    required: List[str] = reviews.get("required", [])
+    if lane not in required:
+        return
+
+    passed: List[str] = reviews.setdefault("passed", [])
+    if lane not in passed:
+        passed.append(lane)
+
+    pending: List[str] = reviews.setdefault("pending", [])
+    if lane in pending:
+        pending.remove(lane)
+
 
 def get_pending_lanes(feature: Dict[str, Any]) -> List[str]:
-    raise NotImplementedError
+    """Return canonical pending lanes: required minus passed.
+
+    Always recomputes from source-of-truth fields; treats stored pending as cache.
+    Returns [] if reviews not initialized (safe default for gate checks).
+    """
+    reviews = feature.get("quality_gates", {}).get("reviews", {})
+    required: List[str] = reviews.get("required", [])
+    passed: List[str] = reviews.get("passed", [])
+    return [lane for lane in required if lane not in passed]
