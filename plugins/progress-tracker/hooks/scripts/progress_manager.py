@@ -85,6 +85,11 @@ try:
 except ImportError:  # pragma: no cover - optional module
     evaluator_gate_mod = None
 
+try:
+    from review_router import initialize_reviews as _initialize_reviews
+    REVIEW_ROUTER_AVAILABLE = True
+except ImportError:
+    REVIEW_ROUTER_AVAILABLE = False
 # Import git_validator for secure Git operations
 try:
     from git_validator import (
@@ -5051,6 +5056,10 @@ def set_current(feature_id):
     if previous_current_id != feature_id:
         data.pop("workflow_state", None)
 
+    # F-11: initialize review lanes when starting a new feature (idempotent)
+    if not feature.get("completed", False) and REVIEW_ROUTER_AVAILABLE:
+        _initialize_reviews(feature)
+
     _update_runtime_context(data, source="set_current")
     save_progress_json(data)
 
@@ -5983,6 +5992,18 @@ def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False
                     file=sys.stderr,
                 )
                 return 6
+
+    # F-11: review gate — all required review lanes must be passed before archiving
+    if REVIEW_ROUTER_AVAILABLE and gate_feat is not None:
+        from review_router import get_pending_lanes as _get_pending_lanes
+        pending_lanes = _get_pending_lanes(gate_feat)
+        if pending_lanes:
+            print(
+                f"[DONE] BLOCKED: pending reviews: {pending_lanes}. "
+                "Mark all required lanes passed via mark_review_passed() before /prog-done.",
+                file=sys.stderr,
+            )
+            return 7
 
     resolved_commit = commit_hash or _get_head_commit()
     success = complete_feature(

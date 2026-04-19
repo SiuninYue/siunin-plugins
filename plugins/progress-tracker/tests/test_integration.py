@@ -145,6 +145,12 @@ class TestFullWorkflow:
             'last_run_at': '2026-04-17T00:00:00Z',
             'evaluator_model': 'test-evaluator',
         }
+        # Clear pending reviews so the review gate does not block done in this integration test
+        reviews = feature['quality_gates'].get('reviews', {})
+        pending = reviews.get('pending', [])
+        reviews['passed'] = list(set(reviews.get('passed', [])) | set(pending))
+        reviews['pending'] = []
+        feature['quality_gates']['reviews'] = reviews
         with open(progress_file, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 

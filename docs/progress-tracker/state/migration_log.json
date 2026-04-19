@@ -5,5 +5,12 @@
     "status": "noop",
     "operations": [],
     "conflicts": []
+  },
+  {
+    "timestamp": "2026-04-19T22:41:13.263529Z",
+    "target_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f11-review-router",
+    "status": "noop",
+    "operations": [],
+    "conflicts": []
   }
 ]

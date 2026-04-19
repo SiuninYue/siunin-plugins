@@ -1,0 +1,9 @@
+[
+  {
+    "timestamp": "2026-04-17T14:45:59.045909Z",
+    "target_root": "/Users/siunin/Projects/Claude-Plugins/plugins/package-manager",
+    "status": "noop",
+    "operations": [],
+    "conflicts": []
+  }
+]
