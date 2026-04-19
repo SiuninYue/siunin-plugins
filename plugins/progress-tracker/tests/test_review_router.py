@@ -216,3 +216,108 @@ def test_get_pending_lanes_returns_empty_when_reviews_not_initialized():
     # No initialize_reviews call — should return empty, not raise
     result = get_pending_lanes(feat)
     assert result == []
+
+
+# --- progress_manager integration: set_current initializes reviews ---
+
+import sys
+import os
+import tempfile
+import json
+from pathlib import Path
+from unittest.mock import patch
+
+SCRIPT_DIR = Path(__file__).parent.parent / "hooks" / "scripts"
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+import progress_manager
+
+
+def _make_progress_json_with_feature(tmp_path: Path, categories=None) -> Path:
+    """Write a minimal progress.json with one pending feature."""
+    feature = {
+        "id": 42,
+        "name": "test feature for review router integration",
+        "completed": False,
+        "deferred": False,
+        "lifecycle_state": "approved",
+        "development_stage": "planning",
+        "change_spec": {
+            "why": "test",
+            "in_scope": ["test"],
+            "out_of_scope": [],
+            "risks": [],
+            **({"categories": categories} if categories is not None else {}),
+        },
+        "requirement_ids": ["REQ-042"],
+        "acceptance_scenarios": ["Scenario: passes"],
+        "quality_gates": {
+            "evaluator": {"status": "pending", "score": None, "defects": [], "last_run_at": None, "evaluator_model": None},
+            "reviews": {"required": [], "passed": [], "pending": []},
+            "ship_check": {"status": "pending", "failures": [], "last_run_at": None},
+        },
+        "sprint_contract": {"scope": "", "done_criteria": [], "test_plan": [], "accepted_by": None, "accepted_at": None},
+        "handoff": {"from_phase": None, "to_phase": None, "artifact_path": None, "created_at": None},
+    }
+    data = {
+        "schema_version": "2.1",
+        "project_name": "test",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "features": [feature],
+        "current_feature_id": None,
+        "updates": [],
+        "retrospectives": [],
+        "runtime_context": {},
+        "linked_projects": [],
+        "linked_snapshot": {},
+        "tracker_role": "standalone",
+        "project_code": None,
+        "routing_queue": [],
+        "active_routes": [],
+        "bugs": [],
+        "current_bug_id": None,
+    }
+    state_dir = tmp_path / "docs" / "progress-tracker" / "state"
+    state_dir.mkdir(parents=True)
+    progress_file = state_dir / "progress.json"
+    progress_file.write_text(json.dumps(data))
+    return tmp_path
+
+
+def test_set_current_initializes_reviews_when_empty(tmp_path):
+    proj_root = _make_progress_json_with_feature(tmp_path, categories=["backend"])
+    with patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE", proj_root):
+        progress_manager.set_current(42)
+
+    progress_file = proj_root / "docs" / "progress-tracker" / "state" / "progress.json"
+    data = json.loads(progress_file.read_text())
+    feat = next(f for f in data["features"] if f["id"] == 42)
+    reviews = feat["quality_gates"]["reviews"]
+    assert set(reviews["required"]) == {"eng", "qa", "docs"}
+    assert set(reviews["pending"]) == {"eng", "qa", "docs"}
+    assert reviews["passed"] == []
+
+
+def test_set_current_does_not_reset_existing_reviews(tmp_path):
+    proj_root = _make_progress_json_with_feature(tmp_path, categories=["backend"])
+    # Pre-populate reviews as if eng was already passed
+    progress_file = proj_root / "docs" / "progress-tracker" / "state" / "progress.json"
+    data = json.loads(progress_file.read_text())
+    feat = next(f for f in data["features"] if f["id"] == 42)
+    feat["quality_gates"]["reviews"] = {
+        "required": ["eng", "qa", "docs"],
+        "passed": ["eng"],
+        "pending": ["qa", "docs"],
+    }
+    progress_file.write_text(json.dumps(data))
+
+    with patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE", proj_root):
+        progress_manager.set_current(42)
+
+    data2 = json.loads(progress_file.read_text())
+    feat2 = next(f for f in data2["features"] if f["id"] == 42)
+    reviews2 = feat2["quality_gates"]["reviews"]
+    assert "eng" in reviews2["passed"]   # preserved
+    assert "eng" not in reviews2["pending"]  # preserved
