@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "prog-parent-coordination-archive",
   "created_at": "2026-04-09T01:12:55.289861Z",
-  "updated_at": "2026-04-22T02:00:43.921745Z",
+  "updated_at": "2026-04-22T02:09:28.592305Z",
   "features": [
     {
       "id": 1,
@@ -2164,6 +2164,13 @@
         "to_phase": null,
         "artifact_path": null,
         "created_at": null
+      },
+      "ai_metrics": {
+        "complexity_score": 18,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-22T02:09:28.592216Z"
       }
     },
     {
