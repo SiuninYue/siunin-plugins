@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "prog-parent-coordination-archive",
   "created_at": "2026-04-09T01:12:55.289861Z",
-  "updated_at": "2026-04-22T00:49:23.885400Z",
+  "updated_at": "2026-04-22T02:00:43.921745Z",
   "features": [
     {
       "id": 1,
@@ -1904,7 +1904,7 @@
         "运行: pytest -q plugins/progress-tracker/tests/test_review_router.py",
         "验证 design/devex 可选，eng/qa/docs 按规则强制"
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -1914,7 +1914,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "approved",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-011"
       ],
@@ -1937,15 +1937,23 @@
       ],
       "quality_gates": {
         "evaluator": {
-          "status": "pending",
-          "score": null,
+          "status": "pass",
+          "score": 97,
           "defects": [],
-          "last_run_at": null,
-          "evaluator_model": null
+          "last_run_at": "2026-04-21T14:18:26Z",
+          "evaluator_model": "claude-sonnet-4-6"
         },
         "reviews": {
-          "required": [],
-          "passed": [],
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [
+            "eng",
+            "qa",
+            "docs"
+          ],
           "pending": []
         },
         "ship_check": {
@@ -1966,6 +1974,26 @@
         "to_phase": null,
         "artifact_path": null,
         "created_at": null
+      },
+      "development_stage": "completed",
+      "started_at": "2026-04-20T07:49:32.916161Z",
+      "ai_metrics": {
+        "complexity_score": 13,
+        "complexity_bucket": "simple",
+        "selected_model": "haiku",
+        "workflow_path": "direct_tdd",
+        "started_at": "2026-04-20T07:49:40.340061Z",
+        "finished_at": "2026-04-21T22:19:13.752571+08:00",
+        "duration_seconds": 109773
+      },
+      "completed_at": "2026-04-21T22:19:13.753934Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-21T22:19:13.753939Z",
+      "commit_hash": "aaae345",
+      "archive_info": {
+        "archived_at": "2026-04-21T22:19:13.772085Z",
+        "files_moved": 0,
+        "files": []
       }
     },
     {

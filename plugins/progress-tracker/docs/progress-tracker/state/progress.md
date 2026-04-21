@@ -2,7 +2,7 @@
 
 **Created**: 2026-04-09T01:12:55.289861Z
 
-**Status**: 22/28 completed
+**Status**: 23/28 completed
 
 ## Completed
 - [x] 定义父级协调追踪器 Schema（linked_projects + snapshot 元数据）
@@ -26,10 +26,10 @@
 - [x] 实现 set-finish-state 显式解锁器并固化 finish_pending 阻断链路
 - [x] 落地 evaluator_gate 与 quality_gates.evaluator 独立评估门
 - [x] 新增 evaluator 补偿机制命令（排队实现）
+- [x] 落地 review_router 智能分流并持久化 review lanes
 - [x] 落地 ship_check 统一门禁与 docs-sync 证据校验
 
 ## Pending
-- [ ] 落地 review_router 智能分流并持久化 review lanes
 - [ ] 落地 sprint_ledger 与 schema 2.1 的 sprint_contract/handoff 持久化
 - [ ] 落地 wf_state_machine + wf_auto_driver + hook 自动推进
 - [ ] prog done 后自动清理已合并的 feature 分支和 worktree
