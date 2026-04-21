@@ -151,6 +151,12 @@ class TestFullWorkflow:
         reviews['passed'] = list(set(reviews.get('passed', [])) | set(pending))
         reviews['pending'] = []
         feature['quality_gates']['reviews'] = reviews
+        # Set ship_check to pass so the ship_check gate does not block done
+        feature['quality_gates']['ship_check'] = {
+            'status': 'pass',
+            'failures': [],
+            'last_run_at': '2026-04-17T00:00:00Z',
+        }
         with open(progress_file, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 
