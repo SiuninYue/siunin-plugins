@@ -72,6 +72,18 @@
 
 ---
 
+## 2026-04-22 收敛执行（本轮证据）
+
+- [x] Task 1~2 代码契约已就位：`review_router.py` 保持 lane 规则 + 词边界匹配 + docs-only 短路，并补齐 categories persist 行为测试。
+- [x] Task 3 SSOT 修正：`initialize_reviews()` 与 `mark_review_passed()` 不再写 `pending`，gate 统一依赖 `required - passed`。
+- [x] Task 4 集成链路保持有效：`set_current()` 初始化 reviews，`review-pass` 仍在 `MUTATING_COMMANDS` + dispatch。
+- [x] Task 5 done gate 契约收敛：`cmd_done()` 继续 fail-closed（空 required 先初始化），并统一提示 `prog review-pass --feature-id <id> --lane <lane>`。
+- [x] pending 展示缓存收敛：schema 默认化阶段自动同步 `reviews.pending = required - passed`，避免历史脏值造成展示与 gate 语义偏差。
+- [x] 测试证据：`pytest -q plugins/progress-tracker/tests/test_review_router.py`（48 passed）与 `pytest -q plugins/progress-tracker/tests/test_progress_manager.py -k TestDoneCommand`（10 passed）。
+- [x] 归档策略：active plan 作为执行真相源；完成收尾后归档到 archive 时采用“新增归档快照/迁移”方式，不覆盖历史 archive 快照。
+
+---
+
 ## Task 1: 创建 review_router.py 骨架与 _LANE_RULES 映射表
 
 **Files:**

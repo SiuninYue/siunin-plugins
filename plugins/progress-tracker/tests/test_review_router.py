@@ -143,26 +143,57 @@ def test_required_reviews_keyword_match_uses_boundaries():
     assert "devex" not in lanes
 
 
+def test_required_reviews_inference_persists_to_change_spec():
+    feat = _make_feature(name="update api handler")
+    required_reviews(feat, persist=True)
+    assert feat["change_spec"].get("categories") is not None
+    assert "api" in feat["change_spec"]["categories"]
+
+
+def test_required_reviews_explicit_categories_not_overwritten():
+    feat = _make_feature(categories=["backend"])
+    required_reviews(feat, persist=True)
+    assert feat["change_spec"]["categories"] == ["backend"]
+
+
+def test_required_reviews_persist_idempotent_no_json_drift():
+    feat = _make_feature(name="update api handler")
+    lanes_first = required_reviews(feat, persist=True)
+    cats_first = list(feat["change_spec"].get("categories", []))
+
+    lanes_second = required_reviews(feat, persist=True)
+    cats_second = list(feat["change_spec"].get("categories", []))
+
+    assert lanes_first == lanes_second
+    assert cats_first == cats_second
+
+
+def test_required_reviews_mixed_docs_and_backend_does_not_short_circuit():
+    feat = _make_feature(categories=["docs", "backend"])
+    lanes = required_reviews(feat)
+    assert {"eng", "qa", "docs"}.issubset(set(lanes))
+    assert "eng" in lanes
+    assert "docs" in lanes
+
+
 # --- initialize_reviews() ---
 
-def test_initialize_reviews_writes_required_and_pending():
+def test_initialize_reviews_writes_required_and_empty_passed():
     feat = _make_feature(categories=["backend"])
     initialize_reviews(feat)
     reviews = feat["quality_gates"]["reviews"]
     assert set(reviews["required"]) == {"eng", "qa", "docs"}
-    assert set(reviews["pending"]) == {"eng", "qa", "docs"}
     assert reviews["passed"] == []
+    assert reviews["pending"] == []
 
 
-def test_initialize_reviews_idempotent_does_not_overwrite():
+def test_initialize_reviews_idempotent_does_not_overwrite_passed():
     feat = _make_feature(categories=["backend"])
     initialize_reviews(feat)
     feat["quality_gates"]["reviews"]["passed"].append("eng")
-    feat["quality_gates"]["reviews"]["pending"].remove("eng")
     initialize_reviews(feat)  # second call must NOT reset
     reviews = feat["quality_gates"]["reviews"]
     assert "eng" in reviews["passed"]
-    assert "eng" not in reviews["pending"]
 
 
 def test_initialize_reviews_creates_quality_gates_if_absent():
@@ -178,18 +209,27 @@ def test_initialize_reviews_frontend_includes_design():
     initialize_reviews(feat)
     reviews = feat["quality_gates"]["reviews"]
     assert "design" in reviews["required"]
-    assert "design" in reviews["pending"]
+
+
+def test_initialize_reviews_scope_creep_does_not_auto_update():
+    feat = _make_feature(categories=["backend"])
+    initialize_reviews(feat)
+    assert "design" not in feat["quality_gates"]["reviews"]["required"]
+
+    feat["change_spec"]["categories"] = ["backend", "frontend"]
+    initialize_reviews(feat)
+
+    assert "design" not in feat["quality_gates"]["reviews"]["required"]
 
 
 # --- mark_review_passed() ---
 
-def test_mark_review_passed_moves_lane_from_pending_to_passed():
+def test_mark_review_passed_appends_to_passed():
     feat = _make_feature(categories=["backend"])
     initialize_reviews(feat)
     mark_review_passed(feat, "eng")
     reviews = feat["quality_gates"]["reviews"]
     assert "eng" in reviews["passed"]
-    assert "eng" not in reviews["pending"]
 
 
 def test_mark_review_passed_idempotent_on_double_pass():
@@ -237,11 +277,30 @@ def test_get_pending_lanes_returns_empty_when_reviews_not_initialized():
     assert result == []
 
 
+def test_get_pending_lanes_ignores_stored_pending_field():
+    feat = _make_feature(categories=["backend"])
+    initialize_reviews(feat)
+    mark_review_passed(feat, "eng")
+    feat["quality_gates"]["reviews"]["pending"] = []
+    pending = get_pending_lanes(feat)
+    assert "qa" in pending
+    assert "docs" in pending
+
+
+def test_get_pending_lanes_detects_partial_passed_with_empty_pending_field():
+    feat = _make_feature(categories=["backend"])
+    feat.setdefault("quality_gates", {})["reviews"] = {
+        "required": ["eng", "qa", "docs"],
+        "passed": ["eng"],
+        "pending": [],
+    }
+    pending = get_pending_lanes(feat)
+    assert set(pending) == {"qa", "docs"}
+
+
 # --- progress_manager integration: set_current initializes reviews ---
 
 import sys
-import os
-import tempfile
 import json
 from pathlib import Path
 from unittest.mock import patch
@@ -315,8 +374,8 @@ def test_set_current_initializes_reviews_when_empty(tmp_path):
     feat = next(f for f in data["features"] if f["id"] == 42)
     reviews = feat["quality_gates"]["reviews"]
     assert set(reviews["required"]) == {"eng", "qa", "docs"}
-    assert set(reviews["pending"]) == {"eng", "qa", "docs"}
     assert reviews["passed"] == []
+    assert set(reviews["pending"]) == {"eng", "qa", "docs"}
 
 
 def test_set_current_does_not_reset_existing_reviews(tmp_path):
@@ -339,7 +398,6 @@ def test_set_current_does_not_reset_existing_reviews(tmp_path):
     feat2 = next(f for f in data2["features"] if f["id"] == 42)
     reviews2 = feat2["quality_gates"]["reviews"]
     assert "eng" in reviews2["passed"]   # preserved
-    assert "eng" not in reviews2["pending"]  # preserved
 
 
 # --- progress_manager integration: review-pass command ---
@@ -381,7 +439,6 @@ def test_cmd_review_pass_marks_lane_and_returns_0(tmp_path):
     feat = next(f for f in data["features"] if f["id"] == 42)
     reviews = feat["quality_gates"]["reviews"]
     assert "eng" in reviews["passed"]
-    assert "eng" not in reviews["pending"]
 
 
 # --- progress_manager integration: cmd_done blocked by pending reviews ---
@@ -435,7 +492,21 @@ def _make_progress_with_execution_complete(tmp_path: Path, reviews: dict) -> Pat
     return tmp_path
 
 
-def test_cmd_done_blocked_when_reviews_pending(tmp_path):
+def test_load_progress_json_recomputes_reviews_pending_cache(tmp_path):
+    reviews = {
+        "required": ["eng", "qa", "docs"],
+        "passed": ["eng"],
+        "pending": [],
+    }
+    proj_root = _make_progress_with_execution_complete(tmp_path, reviews)
+    with patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE", proj_root):
+        data = progress_manager.load_progress_json()
+    assert data is not None
+    feat = next(f for f in data["features"] if f["id"] == 55)
+    assert set(feat["quality_gates"]["reviews"]["pending"]) == {"qa", "docs"}
+
+
+def test_cmd_done_returns_7_when_required_lanes_pending(tmp_path):
     reviews = {
         "required": ["eng", "qa", "docs"],
         "passed": ["eng"],
@@ -444,10 +515,10 @@ def test_cmd_done_blocked_when_reviews_pending(tmp_path):
     proj_root = _make_progress_with_execution_complete(tmp_path, reviews)
     with patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE", proj_root):
         rc = progress_manager.cmd_done()
-    assert rc != 0, "cmd_done should return non-zero when reviews are pending"
+    assert rc == 7, f"Expected 7 (review gate), got {rc}"
 
 
-def test_cmd_done_not_blocked_when_all_reviews_passed(tmp_path, capsys):
+def test_cmd_done_not_blocked_when_all_lanes_passed(tmp_path):
     reviews = {
         "required": ["eng", "qa", "docs"],
         "passed": ["eng", "qa", "docs"],
@@ -455,15 +526,26 @@ def test_cmd_done_not_blocked_when_all_reviews_passed(tmp_path, capsys):
     }
     proj_root = _make_progress_with_execution_complete(tmp_path, reviews)
     with patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE", proj_root):
-        # cmd_done may fail for other reasons (no test steps etc) but should NOT
-        # be blocked specifically by the review gate
-        progress_manager.cmd_done()
-    captured = capsys.readouterr()
-    assert "BLOCKED: pending reviews" not in captured.out
-    assert "BLOCKED: pending reviews" not in captured.err
+        rc = progress_manager.cmd_done()
+    assert rc != 7, f"Review gate must not block when all lanes passed (got rc={rc})"
 
 
-def test_cmd_done_blocks_when_no_reviews_configured_by_initializing_required(tmp_path):
+def test_cmd_done_returns_7_when_pending_field_corrupt_but_passed_incomplete(tmp_path):
+    reviews = {
+        "required": ["eng", "qa", "docs"],
+        "passed": ["eng"],
+        "pending": [],
+    }
+    proj_root = _make_progress_with_execution_complete(tmp_path, reviews)
+    with patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE", proj_root):
+        rc = progress_manager.cmd_done()
+    assert rc == 7, (
+        "Gate must detect pending lanes via required-passed, "
+        f"not stored pending field (got {rc})"
+    )
+
+
+def test_cmd_done_returns_7_when_no_reviews_configured(tmp_path):
     reviews = {"required": [], "passed": [], "pending": []}
     proj_root = _make_progress_with_execution_complete(tmp_path, reviews)
     with patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE", proj_root):

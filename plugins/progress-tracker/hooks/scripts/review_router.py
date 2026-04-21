@@ -7,12 +7,13 @@ change_categories, then persists the result into quality_gates.reviews.
 Lane types:
   Required (always): eng, qa, docs
   Optional (by category): design (frontend/ui), devex (sdk/api/cli)
+  Short-circuit: docs-only category -> ["docs"] only
 
 Public API:
   required_reviews(feature) -> list[str]
   initialize_reviews(feature) -> None          # idempotent; writes quality_gates.reviews
   mark_review_passed(feature, lane: str) -> None
-  get_pending_lanes(feature) -> list[str]      # canonical read model
+  get_pending_lanes(feature) -> list[str]      # canonical gate source: required - passed
 """
 
 from __future__ import annotations
@@ -85,6 +86,7 @@ def required_reviews(feature: Dict[str, Any], persist: bool = False) -> List[str
       3. fail-closed: always include eng, qa, docs
 
     design and devex are optional: included only when matching category present.
+    docs-only short-circuit: when all categories are "docs", only docs lane is required.
     """
     change_spec = feature.setdefault("change_spec", {})
     categories: List[str] = change_spec.get("categories") or []
@@ -95,6 +97,9 @@ def required_reviews(feature: Dict[str, Any], persist: bool = False) -> List[str
 
     if persist and inferred and categories and not change_spec.get("categories"):
         change_spec["categories"] = categories
+
+    if categories and all(cat == "docs" for cat in categories):
+        return ["docs"]
 
     lanes: Set[str] = set()
     for cat in categories:
@@ -113,10 +118,11 @@ def required_reviews(feature: Dict[str, Any], persist: bool = False) -> List[str
 
 
 def initialize_reviews(feature: Dict[str, Any]) -> None:
-    """Populate quality_gates.reviews with required/pending/passed lanes.
+    """Populate quality_gates.reviews with required lanes.
 
     Idempotent: if quality_gates.reviews.required is already non-empty,
     this function does nothing (prevents overwriting in-progress review state).
+    pending field remains a cache field and is not mutated by this function.
     """
     feature.setdefault("quality_gates", {})
     reviews = feature["quality_gates"].setdefault(
@@ -130,15 +136,14 @@ def initialize_reviews(feature: Dict[str, Any]) -> None:
         # Already initialized — do not overwrite existing state.
         return
 
-    lanes = required_reviews(feature)
+    lanes = required_reviews(feature, persist=True)
     reviews["required"] = lanes
-    reviews["pending"] = [lane for lane in lanes if lane not in reviews["passed"]]
 
 
 def mark_review_passed(feature: Dict[str, Any], lane: str) -> None:
     """Record that a review lane has been completed.
 
-    Updates both passed (append) and pending (remove) in-place.
+    Updates passed (append) in-place.
     Idempotent: calling twice with the same lane has no additional effect.
     Unknown lanes (not in required) are silently ignored.
     """
@@ -150,10 +155,6 @@ def mark_review_passed(feature: Dict[str, Any], lane: str) -> None:
     passed: List[str] = reviews.setdefault("passed", [])
     if lane not in passed:
         passed.append(lane)
-
-    pending: List[str] = reviews.setdefault("pending", [])
-    if lane in pending:
-        pending.remove(lane)
 
 
 def get_pending_lanes(feature: Dict[str, Any]) -> List[str]:

@@ -2,7 +2,7 @@
 
 **Created**: 2026-04-09T01:12:55.289861Z
 
-**Status**: 21/28 completed
+**Status**: 22/28 completed
 
 ## Completed
 - [x] 定义父级协调追踪器 Schema（linked_projects + snapshot 元数据）
@@ -26,15 +26,27 @@
 - [x] 实现 set-finish-state 显式解锁器并固化 finish_pending 阻断链路
 - [x] 落地 evaluator_gate 与 quality_gates.evaluator 独立评估门
 - [x] 新增 evaluator 补偿机制命令（排队实现）
+- [x] 落地 review_router 智能分流并持久化 review lanes
+
+## In Progress
+- [ ] 落地 ship_check 统一门禁与 docs-sync 证据校验
+  **Test steps**:
+  - 新增 hooks/scripts/ship_check.py 并在 closeout 前执行
+  - 运行: pytest -q plugins/progress-tracker/tests/test_ship_check.py
+  - 验证 failures[] 明确记录测试覆盖与文档不同步问题
 
 ## Pending
-- [ ] 落地 review_router 智能分流并持久化 review lanes
-- [ ] 落地 ship_check 统一门禁与 docs-sync 证据校验
 - [ ] 落地 sprint_ledger 与 schema 2.1 的 sprint_contract/handoff 持久化
 - [ ] 落地 wf_state_machine + wf_auto_driver + hook 自动推进
 - [ ] prog done 后自动清理已合并的 feature 分支和 worktree
 - [ ] 让 /prog 状态页末尾输出详细 handoff 提示
 - [ ] 优化概念命名与映射：将 prog-sync 类比为 log，prog-update 类比为 note
+
+## Workflow Context
+- Phase: execution_complete
+- Next action: /prog done
+- Execution context: main @ Claude-Plugins [in_place]
+- Current session context: main @ Claude-Plugins [in_place]
 
 ### Fixed (✅)
 - [x] [BUG-001] [DEBT] /prog done 应该自动切换到内联上下文中指定的工作树进行验收测试验证，避免在错误分支上运行测试导致误判

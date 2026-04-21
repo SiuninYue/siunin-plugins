@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "created_at": "2026-04-12T09:38:02.910760Z",
-  "updated_at": "2026-04-15T16:27:47.620979Z",
-  "next_capability_seq": 7,
+  "updated_at": "2026-04-21T14:19:18.717255Z",
+  "next_capability_seq": 8,
   "last_synced_commit": null,
   "capabilities": [
     {
@@ -127,6 +127,26 @@
       },
       "created_at": "2026-04-15T16:27:47.612985Z",
       "updated_at": "2026-04-15T16:27:47.612985Z"
+    },
+    {
+      "cap_id": "CAP-007",
+      "fingerprint": "47b81a4b15bdd145",
+      "title": "review_router 智能分流",
+      "summary": "实现 review_router.py，按 change_categories 计算 required/pending/passed lanes；design/devex 可选，eng/qa/docs 强制；集成到 set_current() 和 cmd_done() gate",
+      "tags": [
+        "review",
+        "routing",
+        "quality-gates"
+      ],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 11,
+        "commit_hash": "aaae345",
+        "commit_range": ""
+      },
+      "created_at": "2026-04-21T14:19:18.717222Z",
+      "updated_at": "2026-04-21T14:19:18.717222Z"
     }
   ],
   "rejected_fingerprints": [],

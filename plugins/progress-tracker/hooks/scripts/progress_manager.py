@@ -2405,6 +2405,26 @@ def _default_quality_gates(feature: Dict[str, Any]) -> None:
             qg["ship_check"].setdefault(k, v)
 
 
+def _sync_reviews_pending_cache(feature: Dict[str, Any]) -> None:
+    """Keep reviews.pending as a derived cache from required - passed.
+
+    This is display-oriented normalization only; gate decisions must still rely on
+    review_router.get_pending_lanes() and never trust persisted pending directly.
+    """
+    quality_gates = feature.get("quality_gates")
+    if not isinstance(quality_gates, dict):
+        return
+    reviews = quality_gates.get("reviews")
+    if not isinstance(reviews, dict):
+        return
+
+    required_raw = reviews.get("required")
+    passed_raw = reviews.get("passed")
+    required = required_raw if isinstance(required_raw, list) else []
+    passed = passed_raw if isinstance(passed_raw, list) else []
+    reviews["pending"] = [lane for lane in required if lane not in passed]
+
+
 def _default_handoff(feature: Dict[str, Any]) -> None:
     """PR-3/schema-2.1: inject handoff defaults if absent."""
     if os.environ.get("PROG_DISABLE_V2") == "1" and "handoff" in feature:
@@ -2436,6 +2456,7 @@ def _apply_schema_defaults(data: Dict[str, Any]) -> None:
             _normalize_feature_defer_state(feature)
             _normalize_feature_contract(feature)
             _default_quality_gates(feature)
+            _sync_reviews_pending_cache(feature)
             _default_sprint_contract(feature)
             _default_handoff(feature)
 
@@ -6013,7 +6034,7 @@ def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False
         if pending_lanes:
             print(
                 f"[DONE] BLOCKED: pending reviews: {pending_lanes}. "
-                "Mark all required lanes passed via mark_review_passed() before /prog-done.",
+                "Run: prog review-pass --feature-id <id> --lane <lane>",
                 file=sys.stderr,
             )
             return 7

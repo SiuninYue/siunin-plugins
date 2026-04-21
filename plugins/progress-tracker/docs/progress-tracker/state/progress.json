@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "prog-parent-coordination-archive",
   "created_at": "2026-04-09T01:12:55.289861Z",
-  "updated_at": "2026-04-20T07:19:05.600402Z",
+  "updated_at": "2026-04-22T01:49:06.125525Z",
   "features": [
     {
       "id": 1,
@@ -1904,7 +1904,7 @@
         "运行: pytest -q plugins/progress-tracker/tests/test_review_router.py",
         "验证 design/devex 可选，eng/qa/docs 按规则强制"
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -1914,7 +1914,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "approved",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-011"
       ],
@@ -1937,15 +1937,23 @@
       ],
       "quality_gates": {
         "evaluator": {
-          "status": "pending",
-          "score": null,
+          "status": "pass",
+          "score": 97,
           "defects": [],
-          "last_run_at": null,
-          "evaluator_model": null
+          "last_run_at": "2026-04-21T14:18:26Z",
+          "evaluator_model": "claude-sonnet-4-6"
         },
         "reviews": {
-          "required": [],
-          "passed": [],
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [
+            "eng",
+            "qa",
+            "docs"
+          ],
           "pending": []
         },
         "ship_check": {
@@ -1966,6 +1974,26 @@
         "to_phase": null,
         "artifact_path": null,
         "created_at": null
+      },
+      "development_stage": "completed",
+      "started_at": "2026-04-20T07:49:32.916161Z",
+      "ai_metrics": {
+        "complexity_score": 13,
+        "complexity_bucket": "simple",
+        "selected_model": "haiku",
+        "workflow_path": "direct_tdd",
+        "started_at": "2026-04-20T07:49:40.340061Z",
+        "finished_at": "2026-04-21T22:19:13.752571+08:00",
+        "duration_seconds": 109773
+      },
+      "completed_at": "2026-04-21T22:19:13.753934Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-21T22:19:13.753939Z",
+      "commit_hash": "aaae345",
+      "archive_info": {
+        "archived_at": "2026-04-21T22:19:13.772085Z",
+        "files_moved": 0,
+        "files": []
       }
     },
     {
@@ -1986,7 +2014,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "approved",
+      "lifecycle_state": "implementing",
       "requirement_ids": [
         "REQ-012"
       ],
@@ -2016,9 +2044,13 @@
           "evaluator_model": null
         },
         "reviews": {
-          "required": [],
+          "required": [
+            "docs"
+          ],
           "passed": [],
-          "pending": []
+          "pending": [
+            "docs"
+          ]
         },
         "ship_check": {
           "status": "pending",
@@ -2038,6 +2070,15 @@
         "to_phase": null,
         "artifact_path": null,
         "created_at": null
+      },
+      "development_stage": "developing",
+      "started_at": "2026-04-21T23:31:00.677664Z",
+      "ai_metrics": {
+        "complexity_score": 21,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-21T23:33:10.191753Z"
       }
     },
     {
@@ -2407,25 +2448,25 @@
       }
     }
   ],
-  "current_feature_id": null,
+  "current_feature_id": 12,
   "updates": [],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-04-20T07:19:05.597379Z",
-    "source": "complete_feature",
-    "workspace_mode": "worktree",
-    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f28-evaluator-backfill-cmd",
-    "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f28-evaluator-backfill-cmd",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f28-evaluator-backfill-cmd",
-    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/f28-evaluator-backfill-cmd",
-    "branch": "feature/f28-evaluator-backfill-cmd",
-    "upstream": null,
-    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/f28-evaluator-backfill-cmd/plugins/progress-tracker",
-    "current_feature_id": null,
-    "workflow_phase": null,
+    "recorded_at": "2026-04-21T23:43:04.179867Z",
+    "source": "set_workflow_state",
+    "workspace_mode": "in_place",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
+    "branch": "main",
+    "upstream": "origin/main",
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+    "current_feature_id": 12,
+    "workflow_phase": "execution_complete",
     "current_task": null,
     "total_tasks": null,
-    "next_action": null
+    "next_action": "/prog done"
   },
   "linked_projects": [],
   "linked_snapshot": {
@@ -2456,5 +2497,22 @@
       "fixed_at": "2026-04-14T08:12:46.429667Z"
     }
   ],
-  "current_bug_id": null
+  "current_bug_id": null,
+  "workflow_state": {
+    "phase": "execution_complete",
+    "updated_at": "2026-04-22T01:24:16.117237Z",
+    "execution_context": {
+      "recorded_at": "2026-04-22T01:24:16.142895Z",
+      "source": "set_workflow_state",
+      "workspace_mode": "in_place",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+      "project_root": "/Users/siunin/Projects/Claude-Plugins",
+      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
+      "branch": "main",
+      "upstream": "origin/main"
+    },
+    "plan_path": "docs/plans/2026-04-19-review-router.md",
+    "next_action": "/prog done"
+  }
 }
