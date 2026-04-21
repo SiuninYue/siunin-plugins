@@ -2038,6 +2038,7 @@ class TestDoneCommand:
         evaluator_last_run_at: Optional[str] = "2026-03-17T00:00:00Z",
         reviews_required: Optional[List[str]] = None,
         reviews_passed: Optional[List[str]] = None,
+        ship_check_status: str = "pass",
     ) -> Path:
         state_dir = temp_dir / "docs" / "progress-tracker" / "state"
         state_dir.mkdir(parents=True, exist_ok=True)
@@ -2068,7 +2069,7 @@ class TestDoneCommand:
                             "passed": passed,
                             "pending": pending,
                         },
-                        "ship_check": {"status": "pending", "failures": [], "last_run_at": None},
+                        "ship_check": {"status": ship_check_status, "failures": [], "last_run_at": None},
                     },
                 }
             ],

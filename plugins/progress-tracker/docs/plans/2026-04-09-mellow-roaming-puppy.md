@@ -14,6 +14,34 @@
 
 ---
 
+## 2026-04-21 执行基线（当前生效）
+
+> 本节优先级高于后文历史 PR-1~PR-7 细节。若冲突，以本节与 `2026-04-17-mellow-roaming-puppy-rebaseline.md` 为准。
+
+### 当前真实状态（worktree: `feature/f12-ship-check`）
+
+- F8（`/prog-start` cleanup）已完成。
+- F9（`set-finish-state`）已完成。
+- F10（`evaluator_gate` + schema 2.1）已完成。
+- F11（`review_router`）已落地。
+- F12（`ship_check`）在当前分支执行中（脚本与测试已存在，待验收收口）。
+- F13（`sprint_ledger`）未落地。
+- F14（`wf_state_machine` + `wf_auto_driver` + hooks）未落地。
+
+### 当前执行范围（Active Scope）
+
+- Active: F12 -> F13 -> F14。
+- Historical only: PR-1~PR-4（不重复实现）。
+
+### 命令执行约定（避免路径漂移）
+
+- 除非命令块显式 `cd`，默认在仓库根目录执行。
+- 测试路径统一写完整：`pytest -q plugins/progress-tracker/tests/...`。
+- hook 配置校验统一用完整路径：`plugins/progress-tracker/hooks/hooks.json`。
+- 若切到 `/tmp/*` 做 smoke，先定义 `REPO_ROOT="$(git rev-parse --show-toplevel)"`，再通过 `$REPO_ROOT/plugins/progress-tracker/...` 调脚本。
+
+---
+
 ## 2026-04-17 架构审查结论（覆盖性增补）
 
 > 本节是对原计划的架构校准。若与后文分 PR 实施细节冲突，以本节为准。
@@ -22,8 +50,8 @@
 
 - `progress_manager.py` 当前已是 `schema 2.1`，不是本计划前文假设的 `2.0`。
 - `quality_gates` / `sprint_contract` / `handoff` 默认注入与 `test_schema_2_1_migration.py` 已存在。
-- `evaluator_gate.py` 与 `_store_evaluator_result()` 已落地；`review_router.py` / `ship_check.py` / `sprint_ledger.py` / `wf_state_machine.py` / `wf_auto_driver.py` 仍未落地。
-- 因此，本计划后续应被视为“从 evaluator gate 已落地状态继续演进”的架构方案，而不是从零开始的七连 PR 剧本。
+- `evaluator_gate.py`、`review_router.py` 已落地；`ship_check.py` 在当前分支推进中；`sprint_ledger.py` / `wf_state_machine.py` / `wf_auto_driver.py` 仍未落地。
+- 因此，本计划后续应被视为“从 F12/F13/F14 基线继续演进”的架构方案，而不是从零开始的七连 PR 剧本。
 
 ### 主要架构问题
 
@@ -59,7 +87,7 @@
 - 目标签名：
 
 ```python
-compute_next_action(rule_context) -> WorkflowDecision
+compute_next_action(rule_context) -> Action
 ```
 
 - `rule_context` 至少包含：
@@ -69,11 +97,11 @@ compute_next_action(rule_context) -> WorkflowDecision
   - `trigger_source` (`pre_tool_use` / `stop` / `user_prompt_submit` / `cli_drive`)
   - `requested_command`
   - `pending_action`
-- `WorkflowDecision` 至少区分：
-  - `verdict`: `allow` | `block` | `nudge`
-  - `action_kind`: `request_sprint_contract` | `dispatch_evaluator` | `dispatch_review_lane` | `run_ship_check` | `complete_done` | `await_user` | `noop`
-  - `reason`
-  - `idempotency_key`
+- `Action` 至少包含：
+  - `kind`: `request_sprint_contract` | `dispatch_evaluator` | `dispatch_review_lane` | `run_ship_check` | `complete_done` | `await_user` | `noop`
+  - `feature_id`
+  - `subagent_type` / `lane`（可选）
+  - `prompt` / `blocked_reason`（可选）
 
 #### 4. Orchestration Layer: `wf_auto_driver.py` 只解释 decision
 
@@ -180,8 +208,8 @@ compute_next_action(rule_context) -> WorkflowDecision
 ### 预期产出
 
 - 7 个独立可合并的 PR（PR-1 ~ PR-7），按顺序执行。
-- Schema 从 2.0 升至 2.1，保持向下兼容。
-- 7 个新 Python 模块 + 2 个新 CLI 子命令（`set-finish-state`, `ship-check`, `drive`）+ 8 套测试文件。
+- Schema `2.1` 已落地；本计划不再做 `2.0 -> 2.1` 升级，只在 `2.1` 契约上继续演进。
+- 全量蓝图总计 7 个新 Python 模块 + 2 个新 CLI 子命令（`set-finish-state`, `ship-check`, `drive`）+ 8 套测试文件；当前批次聚焦 F12/F13/F14 收口与落地。
 - PR-7 把 WF 升级为**自动 tick 模式**：feature 一旦进入 implementing 后，每次 LLM Stop / 用户提交 prompt / 用户尝试跑 `prog done` 时，hook 都会自动判断"下一步该做什么"并通过 additionalContext 注入到 LLM 上下文，强制推进到下一阶段，直到 archived。
 - 零破坏性变更：所有现有命令契约（`/prog-init`, `/prog-next`, `/prog-done`, `/prog-update`, `/prog-sync`, `/prog-ui`, `/prog-fix`）保持行为兼容；`PROG_AUTO_DRIVER=0` 环境变量可关闭 PR-7 自动 tick，回退到 PR-6 终态的"半自动"模式。
 
@@ -191,14 +219,9 @@ compute_next_action(rule_context) -> WorkflowDecision
 
 ### In Scope
 
-- PR-1：清理 `/prog-start` 契约残留，锁定 `/prog-next` 为唯一 start path。
-- PR-2：新增 `prog set-finish-state --feature-id <id> --status <state>` CLI 作为 `finish_pending` 显式 resolver。
-- PR-3：新增 `evaluator_gate.py` 模块 + `quality_gates.evaluator` 数据契约 + 独立 subagent 调度约束。
-- PR-4：新增 `review_router.py` 模块 + `quality_gates.reviews` 数据契约 + 多 lane 路由（eng/qa/docs 强制，design/devex 可选）。
-- PR-5：新增 `ship_check.py` 模块 + `quality_gates.ship_check` 数据契约 + docs-sync 子检查。
-- PR-6：新增 `sprint_ledger.py` 模块 + `sprint_contract` + `handoff` 数据契约 + append-only sprint artifact 持久化。
-- PR-7：新增 `wf_state_machine.py`（纯函数 FSM kernel）+ `wf_auto_driver.py`（hook 入口 thin shell）+ `prog drive` CLI + 注册 PreToolUse / Stop / UserPromptSubmit hook + SKILL.md 加 `wf-auto-instruction` 协议，实现 WF 自动推进。
-- Schema 2.1 迁移逻辑（在 `_apply_schema_defaults` 内统一加）。
+- 历史完成项（不重复实现）：PR-1、PR-2、PR-3、PR-4。
+- 当前执行项：PR-5（F12 `ship_check` 收口）、PR-6（F13 `sprint_ledger`）、PR-7（F14 `wf_state_machine` + `wf_auto_driver` + hooks）。
+- Schema `2.1` 仅做兼容维护，不再新增升级任务。
 
 ### Out of Scope
 
@@ -256,7 +279,7 @@ Think → Plan → Build → Review → Test → Ship → Reflect
 **Modify:** `hooks/scripts/progress_manager.py` line 115 附近
 
 ```python
-CURRENT_SCHEMA_VERSION = "2.1"   # 从 "2.0" 升级
+CURRENT_SCHEMA_VERSION = "2.1"
 ```
 
 ### 新增 feature 级字段
@@ -343,7 +366,7 @@ CURRENT_SCHEMA_VERSION = "2.1"   # 从 "2.0" 升级
 | `hooks/scripts/review_router.py` | PR-4 | 根据变更类型选 review lane |
 | `hooks/scripts/ship_check.py` | PR-5 | 统一 ship 门禁（测试覆盖 + 回归 + docs-sync） |
 | `hooks/scripts/sprint_ledger.py` | PR-6 | append-only sprint artifact 记录 |
-| `hooks/scripts/wf_state_machine.py` | PR-7 | **纯函数** FSM kernel：`compute_next_action(feature) → Action` |
+| `hooks/scripts/wf_state_machine.py` | PR-7 | **纯函数** FSM kernel：`compute_next_action(rule_context) → Action` |
 | `hooks/scripts/wf_auto_driver.py` | PR-7 | hook 入口 thin shell：读 progress.json → call FSM → 输出 hook JSON |
 | `tests/test_schema_2_1_migration.py` | 共享 | 共享 schema 迁移契约 |
 | `tests/test_set_finish_state_cli.py` | PR-2 | `prog set-finish-state` CLI 契约 |
@@ -473,8 +496,8 @@ git commit -m "test(progress-tracker): align readiness docstring with /prog-next
 
 | 检查 | 命令 | 期望 |
 |---|---|---|
-| command discovery | `pytest -q tests/test_command_discovery_contract.py` | 3 passed |
-| readiness | `pytest -q tests/test_feature_contract_readiness.py` | all passed |
+| command discovery | `pytest -q plugins/progress-tracker/tests/test_command_discovery_contract.py` | 3 passed |
+| readiness | `pytest -q plugins/progress-tracker/tests/test_feature_contract_readiness.py` | all passed |
 | 契约 grep | `rg -n "/prog-start\|prog-start.md" plugins/progress-tracker/docs plugins/progress-tracker/tests docs/progress-tracker/architecture/architecture.md` | 命中仅在允许清单内 |
 
 ---
@@ -734,9 +757,9 @@ git commit -m "feat(progress-tracker): add `prog set-finish-state` resolver and 
 
 | 检查 | 命令 | 期望 |
 |---|---|---|
-| resolver CLI | `pytest -q tests/test_set_finish_state_cli.py` | 4 passed |
-| next 阻断 | `pytest -q tests/test_feature_contract_readiness.py -k finish_pending` | 1 passed |
-| 整体 readiness | `pytest -q tests/test_feature_contract_readiness.py` | all passed |
+| resolver CLI | `pytest -q plugins/progress-tracker/tests/test_set_finish_state_cli.py` | 4 passed |
+| next 阻断 | `pytest -q plugins/progress-tracker/tests/test_feature_contract_readiness.py -k finish_pending` | 1 passed |
+| 整体 readiness | `pytest -q plugins/progress-tracker/tests/test_feature_contract_readiness.py` | all passed |
 
 ---
 
@@ -1233,10 +1256,10 @@ git commit -m "feat(progress-tracker): add evaluator_gate module with quality_ga
 
 | 检查 | 命令 | 期望 |
 |---|---|---|
-| schema 迁移 | `pytest -q tests/test_schema_2_1_migration.py` | 5 passed |
-| evaluator 单元 | `pytest -q tests/test_evaluator_gate.py` | 6 passed |
+| schema 迁移 | `pytest -q plugins/progress-tracker/tests/test_schema_2_1_migration.py` | 5 passed |
+| evaluator 单元 | `pytest -q plugins/progress-tracker/tests/test_evaluator_gate.py` | 6 passed |
 | cmd_done 集成 | 手动端到端走一遍 init→add→set-current→_store_evaluator_result→done | `quality_gates.evaluator.status == "pass"` 才放行 |
-| 回归 | `pytest -q tests/` | 全绿 |
+| 回归 | `pytest -q plugins/progress-tracker/tests/` | 全绿 |
 
 ---
 
@@ -1505,10 +1528,10 @@ git commit -m "feat(progress-tracker): add review_router with gstack-inspired la
 
 | 检查 | 命令 | 期望 |
 |---|---|---|
-| review_router 单元 | `pytest -q tests/test_review_router.py` | 8 passed |
+| review_router 单元 | `pytest -q plugins/progress-tracker/tests/test_review_router.py` | 8 passed |
 | 集成 | `set_current` 自动初始化 lanes | 手动验证 |
 | cmd_done 阻断 | pending 非空时 `/prog-done` 返回 7 | 手动验证 |
-| 回归 | `pytest -q tests/` | 全绿 |
+| 回归 | `pytest -q plugins/progress-tracker/tests/` | 全绿 |
 
 ---
 
@@ -1803,10 +1826,10 @@ git commit -m "feat(progress-tracker): add ship_check with docs-sync gate (PR-5,
 
 | 检查 | 命令 | 期望 |
 |---|---|---|
-| ship_check 单元 | `pytest -q tests/test_ship_check.py` | 6 passed |
+| ship_check 单元 | `pytest -q plugins/progress-tracker/tests/test_ship_check.py` | 6 passed |
 | CLI 阻断 | `prog ship-check --feature-id N` 失败返回非 0 | 手动验证 |
 | cmd_done 阻断 | ship_check 非 pass 时 done 失败 | 手动验证 |
-| 回归 | `pytest -q tests/` | 全绿 |
+| 回归 | `pytest -q plugins/progress-tracker/tests/` | 全绿 |
 
 ---
 
@@ -2103,7 +2126,7 @@ git commit -m "feat(progress-tracker): add sprint_ledger with handoff artifacts 
 
 | 检查 | 命令 | 期望 |
 |---|---|---|
-| sprint_ledger 单元 | `pytest -q tests/test_sprint_ledger.py` | 6 passed |
+| sprint_ledger 单元 | `pytest -q plugins/progress-tracker/tests/test_sprint_ledger.py` | 6 passed |
 | append-only | 手动查 `sprint_ledger.jsonl` 只追不改 | 手动验证 |
 | handoff 原子 | `mark_handoff` 写 feature.handoff 和 ledger 在同一事务 | 手动验证 |
 | cmd_done 阻断 | sprint_contract 不全 done 失败 | 手动验证 |
@@ -2128,7 +2151,7 @@ git commit -m "feat(progress-tracker): add sprint_ledger with handoff artifacts 
 
 ### 设计原则
 
-1. **FSM kernel 必须是纯函数**——`compute_next_action(feature_dict) → Action`，零副作用、零 IO，方便单元测。所有副作用集中在 `wf_auto_driver.py` 的 hook shell 里。
+1. **FSM kernel 必须是纯函数**——`compute_next_action(rule_context) → Action`，零副作用、零 IO，方便单元测。所有副作用集中在 `wf_auto_driver.py` 的 hook shell 里。
 2. **hook 不直接 spawn subagent**——CC hook 的能力是返回 JSON `{decision, additionalContext}`；hook 通过把"DISPATCH X subagent"指令注入 LLM 上下文，由 LLM 在下一轮自动调用 Task tool 实现"看似自动"的 dispatch。
 3. **PreToolUse 是硬门禁，Stop 是软推进**——PreToolUse 对 `Bash(prog done)` 拦截 → 若 FSM 说不能 done → `decision: "block"` 强制走完前置门；Stop hook 软推进 → 在 LLM 准备结束 turn 时注入"还没跑完，继续 dispatch X"指令。
 4. **逃生门**：环境变量 `PROG_AUTO_DRIVER=0` 关闭 hook 自动 tick，回退到 PR-6 终态；`prog drive --once` 手动 tick 一次。
@@ -2185,17 +2208,28 @@ def _base_feature(**overrides):
     return feat
 
 
+def _ctx(feat, *, trigger_source: str = "cli_drive", requested_command: str | None = None):
+    return {
+        "feature": feat,
+        "workflow_state": {},
+        "current_feature_id": feat.get("id"),
+        "trigger_source": trigger_source,
+        "requested_command": requested_command,
+        "pending_action": {},
+    }
+
+
 def test_missing_sprint_contract_returns_request_sprint_contract():
     feat = _base_feature()
     feat["sprint_contract"] = {"scope": "", "done_criteria": [], "test_plan": []}
-    action = compute_next_action(feat)
+    action = compute_next_action(_ctx(feat))
     assert action.kind == "request_sprint_contract"
     assert action.feature_id == 1
 
 
 def test_implementing_with_pending_evaluator_returns_dispatch_evaluator():
     feat = _base_feature()
-    action = compute_next_action(feat)
+    action = compute_next_action(_ctx(feat))
     assert action.kind == "dispatch_evaluator"
     assert action.subagent_type in ("code-reviewer", "security-auditor")
 
@@ -2204,7 +2238,7 @@ def test_evaluator_pass_with_pending_review_lane_returns_dispatch_review_lane():
     feat = _base_feature()
     feat["quality_gates"]["evaluator"]["status"] = "pass"
     feat["quality_gates"]["evaluator"]["score"] = 92
-    action = compute_next_action(feat)
+    action = compute_next_action(_ctx(feat))
     assert action.kind == "dispatch_review_lane"
     assert action.lane == "eng"
     assert action.subagent_type == "code-reviewer"
@@ -2214,7 +2248,7 @@ def test_all_reviews_passed_returns_run_ship_check():
     feat = _base_feature()
     feat["quality_gates"]["evaluator"]["status"] = "pass"
     feat["quality_gates"]["reviews"] = {"required": ["eng"], "passed": ["eng"], "pending": []}
-    action = compute_next_action(feat)
+    action = compute_next_action(_ctx(feat))
     assert action.kind == "run_ship_check"
 
 
@@ -2223,7 +2257,7 @@ def test_ship_check_pass_returns_complete_done():
     feat["quality_gates"]["evaluator"]["status"] = "pass"
     feat["quality_gates"]["reviews"] = {"required": ["eng"], "passed": ["eng"], "pending": []}
     feat["quality_gates"]["ship_check"]["status"] = "pass"
-    action = compute_next_action(feat)
+    action = compute_next_action(_ctx(feat))
     assert action.kind == "complete_done"
 
 
@@ -2232,7 +2266,7 @@ def test_finish_pending_returns_await_user_with_resolver_hint():
     feat["lifecycle_state"] = "verified"
     feat["integration_status"] = "finish_pending"
     feat["finish_pending_reason"] = "manual"
-    action = compute_next_action(feat)
+    action = compute_next_action(_ctx(feat))
     assert action.kind == "await_user"
     assert "set-finish-state" in action.blocked_reason
 
@@ -2240,7 +2274,7 @@ def test_finish_pending_returns_await_user_with_resolver_hint():
 def test_evaluator_retry_returns_dispatch_evaluator_with_retry_flag():
     feat = _base_feature()
     feat["quality_gates"]["evaluator"]["status"] = "retry"
-    action = compute_next_action(feat)
+    action = compute_next_action(_ctx(feat))
     assert action.kind == "dispatch_evaluator"
     assert "retry" in (action.prompt or "").lower()
 
@@ -2248,13 +2282,13 @@ def test_evaluator_retry_returns_dispatch_evaluator_with_retry_flag():
 def test_archived_feature_returns_noop():
     feat = _base_feature()
     feat["lifecycle_state"] = "archived"
-    action = compute_next_action(feat)
+    action = compute_next_action(_ctx(feat))
     assert action.kind == "noop"
 
 
 def test_action_serializes_to_hook_additional_context_payload():
     feat = _base_feature()
-    action = compute_next_action(feat)
+    action = compute_next_action(_ctx(feat))
     payload = action.to_additional_context()
     assert "<wf-auto-instruction>" in payload
     assert "</wf-auto-instruction>" in payload
@@ -2336,9 +2370,16 @@ def _is_security_feature(feature: Dict[str, Any]) -> bool:
     return "security" in cats
 
 
-def compute_next_action(feature: Dict[str, Any]) -> Action:
-    """Pure function: decide what should happen next for this feature."""
+def compute_next_action(rule_context: Dict[str, Any]) -> Action:
+    """Pure function: decide what should happen next from rule_context."""
+    feature = rule_context.get("feature") or {}
+    trigger_source = rule_context.get("trigger_source")
+    requested_command = rule_context.get("requested_command")
+    pending_action = rule_context.get("pending_action") or {}
     fid = feature.get("id", 0)
+
+    # placeholder reads to keep context contract explicit in v1
+    _ = (trigger_source, requested_command, pending_action)
 
     # Terminal state
     if feature.get("lifecycle_state") == "archived":
@@ -2598,6 +2639,22 @@ def _emit(payload: Dict[str, Any]) -> None:
     sys.stdout.flush()
 
 
+def _rule_context(
+    feature: Dict[str, Any],
+    *,
+    trigger_source: str,
+    requested_command: str | None = None,
+) -> Dict[str, Any]:
+    return {
+        "feature": feature,
+        "workflow_state": {},
+        "current_feature_id": feature.get("id"),
+        "trigger_source": trigger_source,
+        "requested_command": requested_command,
+        "pending_action": {},
+    }
+
+
 def cmd_tick() -> int:
     if _disabled():
         _emit({})
@@ -2606,7 +2663,9 @@ def cmd_tick() -> int:
     if not feat:
         _emit({})
         return 0
-    action = wf_state_machine.compute_next_action(feat)
+    action = wf_state_machine.compute_next_action(
+        _rule_context(feat, trigger_source="stop")
+    )
     if action.kind == "noop":
         _emit({})
         return 0
@@ -2644,7 +2703,9 @@ def cmd_gate() -> int:
     if not feat:
         _emit({})
         return 0
-    action = wf_state_machine.compute_next_action(feat)
+    action = wf_state_machine.compute_next_action(
+        _rule_context(feat, trigger_source="pre_tool_use", requested_command=cmd)
+    )
 
     # Allow only when FSM says complete_done and command is `prog done`,
     # or when FSM says run_ship_check and command is `prog ship-check`.
@@ -2673,7 +2734,9 @@ def cmd_print_action() -> int:
     if not feat:
         print("no current feature")
         return 0
-    action = wf_state_machine.compute_next_action(feat)
+    action = wf_state_machine.compute_next_action(
+        _rule_context(feat, trigger_source="cli_drive")
+    )
     print(json.dumps({
         "kind": action.kind,
         "feature_id": action.feature_id,
@@ -2816,21 +2879,22 @@ python3 -c "import json; json.load(open('plugins/progress-tracker/hooks/hooks.js
 - [ ] **Step 7.7.1: smoke 步骤**
 
 ```bash
-mkdir /tmp/wf-smoke && cd /tmp/wf-smoke
-python3 plugins/progress-tracker/hooks/scripts/progress_manager.py init "WF Smoke"
-python3 plugins/progress-tracker/hooks/scripts/progress_manager.py add-feature "Feature X" --test-steps "echo done"
-python3 plugins/progress-tracker/hooks/scripts/progress_manager.py set-current 1
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+mkdir -p /tmp/wf-smoke && cd /tmp/wf-smoke
+python3 "$REPO_ROOT/plugins/progress-tracker/hooks/scripts/progress_manager.py" init "WF Smoke"
+python3 "$REPO_ROOT/plugins/progress-tracker/hooks/scripts/progress_manager.py" add-feature "Feature X" --test-steps "echo done"
+python3 "$REPO_ROOT/plugins/progress-tracker/hooks/scripts/progress_manager.py" set-current 1
 
 # 手动填 sprint_contract（端到端时由 LLM 看到 wf-auto-instruction 后自动填）
 # ...
 
 # 手动 tick FSM 看下一步
-python3 plugins/progress-tracker/hooks/scripts/progress_manager.py drive --once
+python3 "$REPO_ROOT/plugins/progress-tracker/hooks/scripts/progress_manager.py" drive --once
 # 期望输出: {"kind":"dispatch_evaluator", ...}
 
 # 模拟 hook input gate `prog done`
 echo '{"tool_name":"Bash","tool_input":{"command":"prog done"}}' | \
-  python3 plugins/progress-tracker/hooks/scripts/wf_auto_driver.py gate
+  python3 "$REPO_ROOT/plugins/progress-tracker/hooks/scripts/wf_auto_driver.py" gate
 # 期望: {"hookSpecificOutput":{"permissionDecision":"deny", ...}}
 ```
 
@@ -2855,13 +2919,13 @@ git commit -m "feat(progress-tracker): add WF auto-driver with FSM kernel and ho
 
 | 检查 | 命令 | 期望 |
 |---|---|---|
-| FSM 单元 | `pytest -q tests/test_wf_state_machine.py` | 9 passed |
-| auto_driver 单元 | `pytest -q tests/test_wf_auto_driver.py` | 5 passed |
-| hooks.json 合法 | `python3 -c "import json;json.load(open('hooks/hooks.json'))"` | 无报错 |
+| FSM 单元 | `pytest -q plugins/progress-tracker/tests/test_wf_state_machine.py` | 9 passed |
+| auto_driver 单元 | `pytest -q plugins/progress-tracker/tests/test_wf_auto_driver.py` | 5 passed |
+| hooks.json 合法 | `python3 -c "import json;json.load(open('plugins/progress-tracker/hooks/hooks.json'))"` | 无报错 |
 | `prog drive --once` | 当前 feature 应输出对应 Action | 手动 |
 | 自动 WF 端到端 | 在新 CC session 内启动 feature 后不发指令，feature 自动跑到 archived | 手动 |
 | 逃生门 | `PROG_AUTO_DRIVER=0` 时 `prog done` 不被 hook 拦截 | 手动 |
-| 回归 | `pytest -q tests/` | 全绿 |
+| 回归 | `pytest -q plugins/progress-tracker/tests/` | 全绿 |
 
 ---
 
@@ -2890,24 +2954,33 @@ pytest -q plugins/progress-tracker/tests/
 
 ```bash
 # 在临时目录
-cd /tmp/prog-smoke && python -m progress_manager init "Smoke"
-python -m progress_manager add-feature "Auth rewrite" --test-steps "pytest tests/auth"
-python -m progress_manager set-current 1
+export REPO_ROOT="$(git rev-parse --show-toplevel)"
+mkdir -p /tmp/prog-smoke
+cd /tmp/prog-smoke
+python3 "$REPO_ROOT/plugins/progress-tracker/hooks/scripts/progress_manager.py" init "Smoke"
+python3 "$REPO_ROOT/plugins/progress-tracker/hooks/scripts/progress_manager.py" add-feature "Auth rewrite" --test-steps "pytest tests/auth"
+python3 "$REPO_ROOT/plugins/progress-tracker/hooks/scripts/progress_manager.py" set-current 1
 # 期望：features[0].quality_gates.reviews.required 已被 review_router 初始化
 
 # 模拟 generator 完成，跑独立 evaluator subagent
-python -c "
+python3 - <<'PY'
+import os
+import sys
+from pathlib import Path
+
+repo_root = Path(os.environ["REPO_ROOT"])
+sys.path.insert(0, str(repo_root / "plugins/progress-tracker/hooks/scripts"))
 from evaluator_gate import assess
 from progress_manager import _store_evaluator_result
 r = assess(feature={'id':1,'name':'Auth rewrite'},
            rubric={'test_coverage_min':0.8,'require_changelog':False},
            signals={'test_coverage':0.95,'defects':[]})
 _store_evaluator_result(1, r)
-"
+PY
 # 跑 ship_check
-python -m progress_manager ship-check --feature-id 1
+python3 "$REPO_ROOT/plugins/progress-tracker/hooks/scripts/progress_manager.py" ship-check --feature-id 1
 # 只有 ship_check pass 才能进 done
-python -m progress_manager done
+python3 "$REPO_ROOT/plugins/progress-tracker/hooks/scripts/progress_manager.py" done
 ```
 
 ### 契约 grep（PR-1 锁定）
