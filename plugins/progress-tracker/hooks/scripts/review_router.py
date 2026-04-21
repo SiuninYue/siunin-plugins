@@ -17,6 +17,7 @@ Public API:
 
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, List, Set
 
 # ---------------------------------------------------------------------------
@@ -57,34 +58,43 @@ _KEYWORD_MAP: Dict[str, str] = {
 # ---------------------------------------------------------------------------
 
 def _infer_categories_from_text(feature: Dict[str, Any]) -> List[str]:
-    """Fallback: infer categories from feature name and in_scope keywords.
+    """Fallback: infer categories from feature text fields.
 
-    Note: keyword matching uses substring search (e.g. "api" matches inside "capability").
+    Scans feature name, description, and change_spec.in_scope.
+    Keyword matching uses word boundaries to avoid false positives such as
+    matching "api" inside "capability".
     """
     text = " ".join([
         feature.get("name", ""),
+        feature.get("description", ""),
         *feature.get("change_spec", {}).get("in_scope", []),
     ]).lower()
-    found = set()
+    found: Set[str] = set()
     for keyword, category in _KEYWORD_MAP.items():
-        if keyword in text:
+        if re.search(rf"(?<![a-z0-9_]){re.escape(keyword)}(?![a-z0-9_])", text):
             found.add(category)
-    return list(found)
+    return sorted(found)
 
 
-def required_reviews(feature: Dict[str, Any]) -> List[str]:
+def required_reviews(feature: Dict[str, Any], persist: bool = False) -> List[str]:
     """Return sorted list of required review lane IDs for the given feature.
 
     Source priority:
       1. feature.change_spec.categories (explicit — no inference)
-      2. keyword inference from feature.name + change_spec.in_scope
+      2. keyword inference from feature.name + feature.description + change_spec.in_scope
       3. fail-closed: always include eng, qa, docs
 
     design and devex are optional: included only when matching category present.
     """
-    categories: List[str] = feature.get("change_spec", {}).get("categories") or []
+    change_spec = feature.setdefault("change_spec", {})
+    categories: List[str] = change_spec.get("categories") or []
+    inferred = False
     if not categories:
         categories = _infer_categories_from_text(feature)
+        inferred = True
+
+    if persist and inferred and categories and not change_spec.get("categories"):
+        change_spec["categories"] = categories
 
     lanes: Set[str] = set()
     for cat in categories:

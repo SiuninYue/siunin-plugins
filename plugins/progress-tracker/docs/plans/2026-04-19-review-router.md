@@ -54,6 +54,24 @@
 
 ---
 
+## 2026-04-21 审查后修订（P1/P2 补丁）
+
+- [x] **P1 修订：`cmd_done()` 对空 reviews fail-closed**  
+  当 `quality_gates.reviews.required == []` 时，先执行 `initialize_reviews()` 再做 gate 判定；若仍有 pending lanes，`return 7` 阻断。  
+  目标：防止历史/异常数据因未初始化 reviews 绕过 F-11 gate。
+
+- [x] **P1 修订：移除不存在命令指引**  
+  scope creep 场景不再引用 `prog review-add-lane`（该命令不在本 feature 范围内）。  
+  改为：手动变更 `quality_gates.reviews.required/passed/pending`（或后续独立 feature 提供显式命令）。
+
+- [x] **P2 修订：关键词推断改词边界匹配**  
+  禁止 `if keyword in text` 子串匹配，改为正则词边界匹配，避免 `api` 命中 `capability` 等误判。
+
+- [x] **P2 修订：补 `cmd_review_pass()` 行为测试**  
+  补齐成功路径与错误码路径（feature 不存在、required 为空、lane 非 required）。
+
+---
+
 ## Task 1: 创建 review_router.py 骨架与 _LANE_RULES 映射表
 
 **Files:**
@@ -363,7 +381,7 @@ def _infer_categories_from_text(feature: Dict[str, Any]) -> List[str]:
     ]).lower()
     found: Set[str] = set()
     for keyword, category in _KEYWORD_MAP.items():
-        if keyword in text:
+        if re.search(rf"(?<![a-z0-9_]){re.escape(keyword)}(?![a-z0-9_])", text):
             found.add(category)
     return sorted(found)
 
@@ -495,7 +513,7 @@ def test_initialize_reviews_scope_creep_does_not_auto_update():
 
     assert "design" not in feat["quality_gates"]["reviews"]["required"], (
         "initialize_reviews() is idempotent: scope changes after first init "
-        "do NOT auto-expand required lanes. Use manual prog review-add-lane if needed."
+        "do NOT auto-expand required lanes. Manual update to reviews payload is required."
     )
 
 
@@ -1081,13 +1099,13 @@ def test_cmd_done_returns_7_when_pending_field_corrupt_but_passed_incomplete(tmp
     assert rc == 7, f"Gate must detect pending lanes via required-passed, not stored pending field (got {rc})"
 
 
-def test_cmd_done_not_blocked_by_review_gate_when_no_reviews_configured(tmp_path, capsys):
-    """Empty required lanes: review gate is not triggered."""
+def test_cmd_done_returns_7_when_no_reviews_configured(tmp_path, capsys):
+    """Empty required lanes: cmd_done must initialize reviews then block with return 7."""
     reviews = {"required": [], "passed": [], "pending": []}
     proj_root = _make_progress_with_execution_complete(tmp_path, reviews)
     with patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE", proj_root):
         rc = progress_manager.cmd_done()
-    assert rc != 7
+    assert rc == 7
 ```
 
 - [ ] **Step 5.2: 运行测试，确认失败**
@@ -1172,6 +1190,20 @@ git commit -m "feat(f11): add review gate to cmd_done() with SSOT check and retu
 ---
 
 ## Self-Review
+
+## Acceptance Mapping
+
+- `review_router.py` 新增并提供 `required_reviews / initialize_reviews / mark_review_passed / get_pending_lanes`。
+- `set_current()` 集成 `initialize_reviews()`，确保 feature 启动时初始化 lane。
+- `cmd_done()` 在 evaluator gate 后执行 review gate；空 `required` 先初始化再判定，pending 则 `return 7`。
+- `prog review-pass` 提供解除 review gate 的 CLI 出口，并注册到 `MUTATING_COMMANDS`。
+- 测试覆盖关键词推断、docs-only、SSOT 计算、空 `required` 自愈阻断、`cmd_review_pass()` 退出码契约。
+
+## Risks
+
+- 历史数据中 `change_spec` 信息不足会导致 fail-closed（`eng/qa/docs`），可能增加人工通过成本。
+- 关键词推断为启发式规则，虽已改为词边界匹配，仍可能存在语义误判；需结合后续真实样本调整词表。
+- scope creep 后 `required` 不自动扩展是有意契约，若流程期望自动扩展需单独 feature 设计与迁移。
 
 ### Spec coverage
 

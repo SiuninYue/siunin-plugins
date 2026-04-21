@@ -27,10 +27,16 @@ def test_lane_rules_docs_only_has_docs():
 
 # --- required_reviews() ---
 
-def _make_feature(name: str = "test feature", categories=None, in_scope=None) -> dict:
+def _make_feature(
+    name: str = "test feature",
+    categories=None,
+    in_scope=None,
+    description: str = "",
+) -> dict:
     return {
         "id": 99,
         "name": name,
+        "description": description,
         "change_spec": {
             "why": "test",
             "in_scope": in_scope or [],
@@ -122,6 +128,19 @@ def test_required_reviews_in_scope_keyword_inference():
     feat = _make_feature(name="general refactor", in_scope=["sdk integration"])
     lanes = required_reviews(feat)
     assert "devex" in lanes
+
+
+def test_required_reviews_description_keyword_inference():
+    feat = _make_feature(name="general refactor", description="update api boundary")
+    lanes = required_reviews(feat)
+    assert "devex" in lanes
+
+
+def test_required_reviews_keyword_match_uses_boundaries():
+    """Avoid false-positive 'api' match inside 'capability'."""
+    feat = _make_feature(name="capability uplift only")
+    lanes = required_reviews(feat)
+    assert "devex" not in lanes
 
 
 # --- initialize_reviews() ---
@@ -323,6 +342,48 @@ def test_set_current_does_not_reset_existing_reviews(tmp_path):
     assert "eng" not in reviews2["pending"]  # preserved
 
 
+# --- progress_manager integration: review-pass command ---
+
+def test_review_pass_is_in_mutating_commands():
+    assert "review-pass" in progress_manager.MUTATING_COMMANDS
+
+
+def test_cmd_review_pass_returns_3_when_feature_not_found(tmp_path):
+    proj_root = _make_progress_json_with_feature(tmp_path, categories=["backend"])
+    with patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE", proj_root):
+        rc = progress_manager.cmd_review_pass(999, "eng")
+    assert rc == 3
+
+
+def test_cmd_review_pass_returns_4_when_required_lanes_empty(tmp_path):
+    proj_root = _make_progress_json_with_feature(tmp_path, categories=["backend"])
+    with patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE", proj_root):
+        rc = progress_manager.cmd_review_pass(42, "eng")
+    assert rc == 4
+
+
+def test_cmd_review_pass_returns_5_when_lane_not_required(tmp_path):
+    proj_root = _make_progress_json_with_feature(tmp_path, categories=["backend"])
+    with patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE", proj_root):
+        progress_manager.set_current(42)
+        rc = progress_manager.cmd_review_pass(42, "design")
+    assert rc == 5
+
+
+def test_cmd_review_pass_marks_lane_and_returns_0(tmp_path):
+    proj_root = _make_progress_json_with_feature(tmp_path, categories=["backend"])
+    progress_file = proj_root / "docs" / "progress-tracker" / "state" / "progress.json"
+    with patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE", proj_root):
+        progress_manager.set_current(42)
+        rc = progress_manager.cmd_review_pass(42, "eng")
+    assert rc == 0
+    data = json.loads(progress_file.read_text())
+    feat = next(f for f in data["features"] if f["id"] == 42)
+    reviews = feat["quality_gates"]["reviews"]
+    assert "eng" in reviews["passed"]
+    assert "eng" not in reviews["pending"]
+
+
 # --- progress_manager integration: cmd_done blocked by pending reviews ---
 
 def _make_progress_with_execution_complete(tmp_path: Path, reviews: dict) -> Path:
@@ -402,11 +463,15 @@ def test_cmd_done_not_blocked_when_all_reviews_passed(tmp_path, capsys):
     assert "BLOCKED: pending reviews" not in captured.err
 
 
-def test_cmd_done_not_blocked_when_no_reviews_configured(tmp_path, capsys):
+def test_cmd_done_blocks_when_no_reviews_configured_by_initializing_required(tmp_path):
     reviews = {"required": [], "passed": [], "pending": []}
     proj_root = _make_progress_with_execution_complete(tmp_path, reviews)
     with patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE", proj_root):
-        progress_manager.cmd_done()
-    captured = capsys.readouterr()
-    assert "BLOCKED: pending reviews" not in captured.out
-    assert "BLOCKED: pending reviews" not in captured.err
+        rc = progress_manager.cmd_done()
+    assert rc == 7
+    data = json.loads(
+        (proj_root / "docs" / "progress-tracker" / "state" / "progress.json").read_text()
+    )
+    feat = next(f for f in data["features"] if f["id"] == 55)
+    required = feat["quality_gates"]["reviews"]["required"]
+    assert {"eng", "qa", "docs"}.issubset(set(required))

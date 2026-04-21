@@ -2036,9 +2036,14 @@ class TestDoneCommand:
         feature_completed: bool = False,
         evaluator_status: str = "pass",
         evaluator_last_run_at: Optional[str] = "2026-03-17T00:00:00Z",
+        reviews_required: Optional[List[str]] = None,
+        reviews_passed: Optional[List[str]] = None,
     ) -> Path:
         state_dir = temp_dir / "docs" / "progress-tracker" / "state"
         state_dir.mkdir(parents=True, exist_ok=True)
+        required = reviews_required if reviews_required is not None else ["eng", "qa", "docs"]
+        passed = reviews_passed if reviews_passed is not None else list(required)
+        pending = [lane for lane in required if lane not in passed]
         data = {
             "project_name": "Done Test",
             "created_at": "2026-03-17T00:00:00Z",
@@ -2058,7 +2063,11 @@ class TestDoneCommand:
                             "last_run_at": evaluator_last_run_at,
                             "evaluator_model": "test-evaluator",
                         },
-                        "reviews": {"required": [], "passed": [], "pending": []},
+                        "reviews": {
+                            "required": required,
+                            "passed": passed,
+                            "pending": pending,
+                        },
                         "ship_check": {"status": "pending", "failures": [], "last_run_at": None},
                     },
                 }

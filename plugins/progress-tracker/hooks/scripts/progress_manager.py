@@ -86,7 +86,11 @@ except ImportError:  # pragma: no cover - optional module
     evaluator_gate_mod = None
 
 try:
-    from review_router import initialize_reviews as _initialize_reviews
+    from review_router import (
+        get_pending_lanes as _get_pending_lanes,
+        initialize_reviews as _initialize_reviews,
+        mark_review_passed as _mark_review_passed,
+    )
     REVIEW_ROUTER_AVAILABLE = True
 except ImportError:
     REVIEW_ROUTER_AVAILABLE = False
@@ -202,6 +206,7 @@ MUTATING_COMMANDS = {
     "update-bug",
     "remove-bug",
     "reconcile-evaluator",
+    "review-pass",
 }
 ROUTE_PREFLIGHT_EXEMPT_COMMANDS = {
     "init",
@@ -5975,6 +5980,7 @@ def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False
 
     # PR-3: evaluator gate — must pass before archiving (generator/evaluator separation).
     # Strict mode: evaluator status must be explicit "pass" before /prog done can close.
+    gate_feat = None
     refreshed_for_gate = load_progress_json()
     if refreshed_for_gate:
         gate_feat = next(
@@ -5995,7 +6001,14 @@ def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False
 
     # F-11: review gate — all required review lanes must be passed before archiving
     if REVIEW_ROUTER_AVAILABLE and gate_feat is not None:
-        from review_router import get_pending_lanes as _get_pending_lanes
+        reviews_payload = gate_feat.setdefault("quality_gates", {}).setdefault(
+            "reviews",
+            {"required": [], "passed": [], "pending": []},
+        )
+        if not reviews_payload.get("required"):
+            _initialize_reviews(gate_feat)
+            save_progress_json(refreshed_for_gate)
+            save_progress_md(generate_progress_md(refreshed_for_gate))
         pending_lanes = _get_pending_lanes(gate_feat)
         if pending_lanes:
             print(
@@ -6080,6 +6093,58 @@ def cmd_set_finish_state(feature_id: int, status: str, reason: Optional[str] = N
     )
 
     print(f"Feature {feature_id} finish state resolved: {status}")
+    return 0
+
+
+def cmd_review_pass(feature_id: int, lane: str) -> int:
+    """Mark one review lane as passed for a feature.
+
+    Exit codes:
+      0 — lane marked passed
+      1 — no tracking / review_router unavailable
+      3 — feature not found
+      4 — feature has no required review lanes
+      5 — lane not in required lanes
+    """
+    if not REVIEW_ROUTER_AVAILABLE:
+        print("[REVIEW] review_router not available", file=sys.stderr)
+        return 1
+
+    data = load_progress_json()
+    if not data:
+        print("[REVIEW] No progress tracking found", file=sys.stderr)
+        return 1
+
+    features = data.get("features", [])
+    feature = next((f for f in features if f.get("id") == feature_id), None)
+    if feature is None:
+        print(f"[REVIEW] Feature {feature_id} not found", file=sys.stderr)
+        return 3
+
+    reviews = feature.get("quality_gates", {}).get("reviews", {})
+    required = reviews.get("required", [])
+    if not required:
+        print(f"[REVIEW] Feature {feature_id} has no required review lanes", file=sys.stderr)
+        return 4
+
+    if lane not in required:
+        print(
+            f"[REVIEW] Lane '{lane}' is not in required lanes {required}",
+            file=sys.stderr,
+        )
+        return 5
+
+    _mark_review_passed(feature, lane)
+    pending = _get_pending_lanes(feature)
+
+    save_progress_json(data)
+    save_progress_md(generate_progress_md(data))
+
+    print(f"[REVIEW] Lane '{lane}' marked passed for feature {feature_id}")
+    if pending:
+        print(f"[REVIEW] Remaining pending: {pending}")
+    else:
+        print("[REVIEW] All required lanes passed. /prog done will no longer be blocked by review gate.")
     return 0
 
 
@@ -8266,6 +8331,21 @@ def main():
         "--reason",
         help="Optional reason for resolution",
     )
+    review_pass_parser = subparsers.add_parser(
+        "review-pass",
+        help="Mark a review lane as passed for a feature",
+    )
+    review_pass_parser.add_argument(
+        "--feature-id",
+        type=int,
+        required=True,
+        help="Feature ID",
+    )
+    review_pass_parser.add_argument(
+        "--lane",
+        required=True,
+        help="Review lane to mark passed (eng, qa, docs, design, devex)",
+    )
 
     # Add feature command
     add_parser = subparsers.add_parser("add-feature", help="Add a new feature")
@@ -8624,6 +8704,8 @@ def main():
                 status=args.status,
                 reason=args.reason,
             )
+        if args.command == "review-pass":
+            return cmd_review_pass(args.feature_id, args.lane)
         if args.command == "add-feature":
             return add_feature(args.name, args.test_steps)
         if args.command == "update-feature":
