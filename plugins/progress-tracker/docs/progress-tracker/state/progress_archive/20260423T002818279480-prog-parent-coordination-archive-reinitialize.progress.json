@@ -1,0 +1,2686 @@
+{
+  "schema_version": "2.1",
+  "project_name": "prog-parent-coordination-archive",
+  "created_at": "2026-04-09T01:12:55.289861Z",
+  "updated_at": "2026-04-22T22:31:41.814945Z",
+  "features": [
+    {
+      "id": 1,
+      "name": "定义父级协调追踪器 Schema（linked_projects + snapshot 元数据）",
+      "test_steps": [
+        "新增 linked_projects 与 linked_snapshot 字段默认值并保持向下兼容",
+        "运行: pytest -q plugins/progress-tracker/tests/test_linked_projects_schema.py",
+        "校验 progress.json 中 schema/backfill 与未知字段保留行为"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-001"
+      ],
+      "change_spec": {
+        "why": "Deliver 定义父级协调追踪器 Schema（linked_projects + snapshot 元数据） with traceable acceptance coverage.",
+        "in_scope": [
+          "定义父级协调追踪器 Schema（linked_projects + snapshot 元数据）"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 新增 linked_projects 与 linked_snapshot 字段默认值并保持向下兼容",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_linked_projects_schema.py",
+        "Scenario: 校验 progress.json 中 schema/backfill 与未知字段保留行为"
+      ],
+      "development_stage": "completed",
+      "started_at": "2026-04-09T01:42:14.597819Z",
+      "ai_metrics": {
+        "started_at": "2026-04-12T10:48:19.010454+08:00",
+        "finished_at": "2026-04-12T10:48:26.171116+08:00",
+        "duration_seconds": 7
+      },
+      "completed_at": "2026-04-12T10:48:19.042476Z",
+      "commit_hash": "021236a97d77c30913da5cd320a870cc9d5cd19a",
+      "archive_info": {
+        "archived_at": "2026-04-12T10:48:19.106691Z",
+        "files_moved": 0,
+        "files": []
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
+    },
+    {
+      "id": 2,
+      "name": "实现子项目 progress.json 发现与只读聚合采集器",
+      "test_steps": [
+        "实现子项目路径发现与 progress.json 读取（无写入）",
+        "运行: pytest -q plugins/progress-tracker/tests/test_linked_status_collector.py",
+        "校验采集结果包含项目名、完成率、更新时间、stale 标记"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "change_spec": {
+        "why": "Deliver 实现子项目 progress.json 发现与只读聚合采集器 with traceable acceptance coverage.",
+        "in_scope": [
+          "实现子项目 progress.json 发现与只读聚合采集器"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 实现子项目路径发现与 progress.json 读取（无写入）",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_linked_status_collector.py",
+        "Scenario: 校验采集结果包含项目名、完成率、更新时间、stale 标记"
+      ],
+      "development_stage": "completed",
+      "started_at": "2026-04-12T16:17:52.505747Z",
+      "ai_metrics": {
+        "complexity_score": 21,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-12T16:22:01.694896Z",
+        "finished_at": "2026-04-12T16:27:07.737544+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-12T16:27:07.739237Z",
+      "commit_hash": "24704d348b00a54e15fe98ed7511f1ff9fccff5f",
+      "archive_info": {
+        "archived_at": "2026-04-12T16:27:07.764542Z",
+        "files_moved": 0,
+        "files": []
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
+    },
+    {
+      "id": 3,
+      "name": "实现 monorepo 根目录歧义 fail-closed 与显式 scope 选择",
+      "test_steps": [
+        "在多候选 tracker 情况下阻断 mutating 命令并给出修复提示",
+        "运行: pytest -q plugins/progress-tracker/tests/test_scope_fail_closed.py",
+        "校验 --project-root 显式指定后同命令可继续执行"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-003"
+      ],
+      "change_spec": {
+        "why": "Deliver 实现 monorepo 根目录歧义 fail-closed 与显式 scope 选择 with traceable acceptance coverage.",
+        "in_scope": [
+          "实现 monorepo 根目录歧义 fail-closed 与显式 scope 选择"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 在多候选 tracker 情况下阻断 mutating 命令并给出修复提示",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_scope_fail_closed.py",
+        "Scenario: 校验 --project-root 显式指定后同命令可继续执行"
+      ],
+      "development_stage": "completed",
+      "started_at": "2026-04-12T16:34:07.493935Z",
+      "ai_metrics": {
+        "complexity_score": 21,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-12T16:37:52.500946Z",
+        "finished_at": "2026-04-12T16:45:59.799554+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-12T16:45:59.852530Z",
+      "commit_hash": "4fcb3832e454e794e13ca242449f07f15dfdf3e7",
+      "archive_info": {
+        "archived_at": "2026-04-12T16:45:59.934774Z",
+        "files_moved": 0,
+        "files": []
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
+    },
+    {
+      "id": 4,
+      "name": "新增父级同步命令 sync-linked（刷新子项目最新快照）",
+      "test_steps": [
+        "新增命令将子项目状态写入父级 linked_snapshot",
+        "运行: pytest -q plugins/progress-tracker/tests/test_sync_linked_command.py",
+        "执行: plugins/progress-tracker/prog --project-root plugins/progress-tracker sync-linked --json"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "change_spec": {
+        "why": "Deliver 新增父级同步命令 sync-linked（刷新子项目最新快照） with traceable acceptance coverage.",
+        "in_scope": [
+          "新增父级同步命令 sync-linked（刷新子项目最新快照）"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 新增命令将子项目状态写入父级 linked_snapshot",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_sync_linked_command.py",
+        "Scenario: 执行: plugins/progress-tracker/prog --project-root plugins/progress-tracker sync-linked --json"
+      ],
+      "development_stage": "completed",
+      "started_at": "2026-04-12T16:52:08.217560Z",
+      "ai_metrics": {
+        "complexity_score": 16,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-12T16:56:22.524909Z",
+        "finished_at": "2026-04-12T17:10:56.680159+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-12T17:10:56.727362Z",
+      "commit_hash": "4fcb3832e454e794e13ca242449f07f15dfdf3e7",
+      "archive_info": {
+        "archived_at": "2026-04-12T17:10:56.802243Z",
+        "files_moved": 0,
+        "files": []
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
+    },
+    {
+      "id": 5,
+      "name": "全部功能完成时自动归档当前 run 并写入归档索引",
+      "test_steps": [
+        "当最后一个 feature 完成后触发 run 归档与索引更新",
+        "运行: pytest -q plugins/progress-tracker/tests/test_auto_archive_on_completion.py",
+        "校验归档产物命名包含项目名、时间戳与完成标识"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-005"
+      ],
+      "change_spec": {
+        "why": "Deliver 全部功能完成时自动归档当前 run 并写入归档索引 with traceable acceptance coverage.",
+        "in_scope": [
+          "全部功能完成时自动归档当前 run 并写入归档索引"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 当最后一个 feature 完成后触发 run 归档与索引更新",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_auto_archive_on_completion.py",
+        "Scenario: 校验归档产物命名包含项目名、时间戳与完成标识"
+      ],
+      "development_stage": "completed",
+      "started_at": "2026-04-12T17:22:09.776631Z",
+      "ai_metrics": {
+        "complexity_score": 18,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-12T17:28:55.222590Z",
+        "finished_at": "2026-04-12T17:37:22.955597+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-12T17:37:22.957332Z",
+      "commit_hash": "c6ea51a57d8bf0e6b2fe9bb48a7808e16671cffb",
+      "archive_info": {
+        "archived_at": "2026-04-12T17:37:22.977119Z",
+        "files_moved": 0,
+        "files": []
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
+    },
+    {
+      "id": 6,
+      "name": "prog init --force 归档与旧状态重命名策略标准化",
+      "test_steps": [
+        "在 re-init 时统一归档旧 progress 文件并保留可追溯元信息",
+        "运行: pytest -q plugins/progress-tracker/tests/test_reinit_archive_naming.py",
+        "校验重复 re-init 不会覆盖历史归档"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "change_spec": {
+        "why": "Deliver prog init --force 归档与旧状态重命名策略标准化 with traceable acceptance coverage.",
+        "in_scope": [
+          "prog init --force 归档与旧状态重命名策略标准化"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 在 re-init 时统一归档旧 progress 文件并保留可追溯元信息",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_reinit_archive_naming.py",
+        "Scenario: 校验重复 re-init 不会覆盖历史归档"
+      ],
+      "development_stage": "completed",
+      "started_at": "2026-04-12T20:58:07.377277Z",
+      "ai_metrics": {
+        "complexity_score": 21,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-12T21:42:38.021400Z",
+        "finished_at": "2026-04-12T21:59:48.532402+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-12T21:59:45.441840Z",
+      "commit_hash": "a155998",
+      "archive_info": {
+        "archived_at": "2026-04-12T21:59:45.511138Z",
+        "files_moved": 0,
+        "files": []
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
+    },
+    {
+      "id": 15,
+      "name": "[RouteV1] 父级路由 Schema 扩展（tracker_role/project_code/routing_queue/active_routes）",
+      "test_steps": [
+        "在 progress.json 新增并回填 tracker_role/project_code/routing_queue/active_routes",
+        "运行: pytest -q plugins/progress-tracker/tests/test_linked_projects_schema.py",
+        "校验旧仓库未启用父级时行为不变"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-015"
+      ],
+      "change_spec": {
+        "why": "Deliver [RouteV1] 父级路由 Schema 扩展（tracker_role/project_code/routing_queue/active_routes） with traceable acceptance coverage.",
+        "in_scope": [
+          "[RouteV1] 父级路由 Schema 扩展（tracker_role/project_code/routing_queue/active_routes）"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 在 progress.json 新增并回填 tracker_role/project_code/routing_queue/active_routes",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_linked_projects_schema.py",
+        "Scenario: 校验旧仓库未启用父级时行为不变"
+      ],
+      "development_stage": "completed",
+      "started_at": "2026-04-13T23:30:35.705756Z",
+      "ai_metrics": {
+        "started_at": "2026-04-14T00:53:47.211186+08:00",
+        "finished_at": "2026-04-14T00:53:47.211186+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-14T00:53:47.217115Z",
+      "commit_hash": "d2f232d1770e039853a9e23c134f682e2322e320",
+      "archive_info": {
+        "archived_at": "2026-04-14T00:53:47.261447Z",
+        "files_moved": 0,
+        "files": []
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
+    },
+    {
+      "id": 16,
+      "name": "[RouteV1] 新增 link-project 命令注册子项目与 project_code",
+      "test_steps": [
+        "实现: prog link-project --project-root <path> --code <code>",
+        "运行: pytest -q plugins/progress-tracker/tests/test_sync_linked_command.py -k linked",
+        "校验注册后 linked_projects 与 routing_queue 一致"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-016"
+      ],
+      "change_spec": {
+        "why": "Deliver [RouteV1] 新增 link-project 命令注册子项目与 project_code with traceable acceptance coverage.",
+        "in_scope": [
+          "[RouteV1] 新增 link-project 命令注册子项目与 project_code"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 实现: prog link-project --project-root <path> --code <code>",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_sync_linked_command.py -k linked",
+        "Scenario: 校验注册后 linked_projects 与 routing_queue 一致"
+      ],
+      "development_stage": "completed",
+      "started_at": "2026-04-14T01:10:36.939374Z",
+      "ai_metrics": {
+        "complexity_score": 21,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-14T01:10:51.546306Z",
+        "finished_at": "2026-04-14T01:15:21.674678+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-14T01:15:21.734719Z",
+      "commit_hash": "d2f232d1770e039853a9e23c134f682e2322e320",
+      "archive_info": {
+        "archived_at": "2026-04-14T01:15:21.872848Z",
+        "files_moved": 0,
+        "files": []
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
+    },
+    {
+      "id": 17,
+      "name": "[RouteV1] 新增 route-status/route-select 命令",
+      "test_steps": [
+        "实现: prog route-status 输出当前路由与冲突摘要",
+        "实现: prog route-select --project <code> [--feature-ref <code-Fn>]",
+        "运行: pytest -q plugins/progress-tracker/tests/test_status_linked_summary.py"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-017"
+      ],
+      "change_spec": {
+        "why": "Deliver [RouteV1] 新增 route-status/route-select 命令 with traceable acceptance coverage.",
+        "in_scope": [
+          "[RouteV1] 新增 route-status/route-select 命令"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 实现: prog route-status 输出当前路由与冲突摘要",
+        "Scenario: 实现: prog route-select --project <code> [--feature-ref <code-Fn>]",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_status_linked_summary.py"
+      ],
+      "development_stage": "completed",
+      "started_at": "2026-04-14T23:00:18.766284Z",
+      "ai_metrics": {
+        "complexity_score": 12,
+        "complexity_bucket": "simple",
+        "selected_model": "haiku",
+        "workflow_path": "direct_tdd",
+        "started_at": "2026-04-14T23:03:36.379745Z",
+        "finished_at": "2026-04-15T00:19:24.944490+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-15T00:19:24.945463Z",
+      "commit_hash": "877ba36b8c99e3c55321b9fa444926a53d487263",
+      "archive_info": {
+        "archived_at": "2026-04-15T00:19:24.963018Z",
+        "files_moved": 0,
+        "files": []
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
+    },
+    {
+      "id": 18,
+      "name": "[RouteV1] feature_ref 命名空间化（<project_code>-F<number>）",
+      "test_steps": [
+        "父级 snapshot/UI/日志展示 active_feature_ref 而不是裸 F<number>",
+        "两个子项目各有 F2 时展示为 PT-F2 / NO-F2",
+        "运行: pytest -q plugins/progress-tracker/tests/test_linked_status_collector.py"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-018"
+      ],
+      "change_spec": {
+        "why": "Deliver [RouteV1] feature_ref 命名空间化（<project_code>-F<number>） with traceable acceptance coverage.",
+        "in_scope": [
+          "[RouteV1] feature_ref 命名空间化（<project_code>-F<number>）"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 父级 snapshot/UI/日志展示 active_feature_ref 而不是裸 F<number>",
+        "Scenario: 两个子项目各有 F2 时展示为 PT-F2 / NO-F2",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_linked_status_collector.py"
+      ],
+      "ai_metrics": {
+        "started_at": "2026-04-15T00:06:32.174486+08:00",
+        "finished_at": "2026-04-15T00:06:34.870103+08:00",
+        "duration_seconds": 2
+      },
+      "development_stage": "completed",
+      "completed_at": "2026-04-15T00:06:32.175497Z",
+      "commit_hash": "85a32c3064cd7a8330fea08c796b7e38c5a5aa8b",
+      "archive_info": {
+        "archived_at": "2026-04-15T00:06:32.193773Z",
+        "files_moved": 0,
+        "files": []
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
+    },
+    {
+      "id": 19,
+      "name": "[RouteV1] mutating 命令统一 route_preflight fail-closed",
+      "test_steps": [
+        "对 next/done/add-feature/update-feature/complete 等 mutating 命令执行 preflight",
+        "未注册子项目或路由不一致时阻断并给出 cd + --project-root 指令",
+        "运行: pytest -q plugins/progress-tracker/tests/test_scope_fail_closed.py"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-019"
+      ],
+      "change_spec": {
+        "why": "Deliver [RouteV1] mutating 命令统一 route_preflight fail-closed with traceable acceptance coverage.",
+        "in_scope": [
+          "[RouteV1] mutating 命令统一 route_preflight fail-closed"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 对 next/done/add-feature/update-feature/complete 等 mutating 命令执行 preflight",
+        "Scenario: 未注册子项目或路由不一致时阻断并给出 cd + --project-root 指令",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_scope_fail_closed.py"
+      ],
+      "development_stage": "completed",
+      "started_at": "2026-04-15T00:26:01.629604Z",
+      "ai_metrics": {
+        "started_at": "2026-04-15T17:05:33.005104+08:00",
+        "finished_at": "2026-04-15T17:05:52.636362+08:00",
+        "duration_seconds": 19
+      },
+      "completed_at": "2026-04-15T17:05:33.063537Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-15T17:05:33.063573Z",
+      "commit_hash": "7d434092f8f560b5ca9b8ef5d0b68809d5bd9689",
+      "archive_info": {
+        "archived_at": "2026-04-15T17:05:33.196463Z",
+        "files_moved": 0,
+        "files": []
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
+    },
+    {
+      "id": 21,
+      "name": "[RouteV1] worktree/branch 一致性校验（next/done fail-closed）",
+      "test_steps": [
+        "active_routes 记录 worktree_path/branch",
+        "在错误 worktree 执行 /prog-next /prog-done 时阻断并提示 route-select",
+        "运行: pytest -q plugins/progress-tracker/tests/test_scope_fail_closed.py"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-021"
+      ],
+      "change_spec": {
+        "why": "Deliver [RouteV1] worktree/branch 一致性校验（next/done fail-closed） with traceable acceptance coverage.",
+        "in_scope": [
+          "[RouteV1] worktree/branch 一致性校验（next/done fail-closed）"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: active_routes 记录 worktree_path/branch",
+        "Scenario: 在错误 worktree 执行 /prog-next /prog-done 时阻断并提示 route-select",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_scope_fail_closed.py"
+      ],
+      "development_stage": "completed",
+      "started_at": "2026-04-15T17:08:30.715563Z",
+      "ai_metrics": {
+        "complexity_score": 21,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-15T17:11:29.398401Z",
+        "finished_at": "2026-04-15T23:06:08.637108+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-15T23:06:08.638897Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-15T23:06:08.638972Z",
+      "commit_hash": "724e29f4d11e0fdf2289470a5a24df260eb3406a",
+      "plan_path": "docs/plans/2026-04-15-f21-route-consistency.md",
+      "archive_info": {
+        "archived_at": "2026-04-15T23:06:08.656618Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-04-15-f21-route-consistency.md",
+            "to": "docs/archive/plans/2026-04-15-f21-route-consistency.md"
+          }
+        ]
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
+    },
+    {
+      "id": 20,
+      "name": "[RouteV1] 并行 active_routes 冲突策略（允许执行+强告警）",
+      "test_steps": [
+        "当多个 active_routes 并行时输出冲突告警与上下文摘要",
+        "不阻断写操作但要求显示当前 route 与其他 active 项目",
+        "运行: pytest -q plugins/progress-tracker/tests/test_status_linked_summary.py -k Linked"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-020"
+      ],
+      "change_spec": {
+        "why": "Deliver [RouteV1] 并行 active_routes 冲突策略（允许执行+强告警） with traceable acceptance coverage.",
+        "in_scope": [
+          "[RouteV1] 并行 active_routes 冲突策略（允许执行+强告警）"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 当多个 active_routes 并行时输出冲突告警与上下文摘要",
+        "Scenario: 不阻断写操作但要求显示当前 route 与其他 active 项目",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_status_linked_summary.py -k Linked"
+      ],
+      "development_stage": "completed",
+      "started_at": "2026-04-15T23:41:03.136631Z",
+      "ai_metrics": {
+        "complexity_score": 12,
+        "complexity_bucket": "simple",
+        "selected_model": "haiku",
+        "workflow_path": "direct_tdd",
+        "started_at": "2026-04-16T00:08:52.824609Z",
+        "finished_at": "2026-04-16T00:27:50.856527+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-16T00:27:02.048965Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-16T00:27:02.048982Z",
+      "commit_hash": "dcc283cda176a30d902ba260e5fd2aa3e3b34c71",
+      "archive_info": {
+        "archived_at": "2026-04-16T00:27:02.110457Z",
+        "files_moved": 0,
+        "files": []
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
+    },
+    {
+      "id": 22,
+      "name": "[RouteV1] 父级顺序调度：/prog-next 按 routing_queue 选首个可执行子项目",
+      "test_steps": [
+        "实现 /prog-next 从 routing_queue 选首个可执行项目与首个 pending feature",
+        "子项目显式执行时允许局部推进并回写父级快照",
+        "运行: pytest -q tests/test_dispatch_child_feature.py"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-022"
+      ],
+      "change_spec": {
+        "why": "Deliver [RouteV1] 父级顺序调度：/prog-next 按 routing_queue 选首个可执行子项目 with traceable acceptance coverage.",
+        "in_scope": [
+          "[RouteV1] 父级顺序调度：/prog-next 按 routing_queue 选首个可执行子项目"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 实现 /prog-next 从 routing_queue 选首个可执行项目与首个 pending feature",
+        "Scenario: 子项目显式执行时允许局部推进并回写父级快照",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_prog_start_behavior.py"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "integration_status": "merged_and_cleaned",
+      "ai_metrics": {
+        "started_at": "2026-04-17T10:24:20.309616+08:00",
+        "finished_at": "2026-04-17T10:24:20.309616+08:00",
+        "duration_seconds": 0
+      },
+      "development_stage": "completed",
+      "completed_at": "2026-04-17T10:24:20.311727Z",
+      "finish_state_resolved_at": "2026-04-17T10:24:20.311814Z",
+      "commit_hash": "27d9f4f030a20fd3819d8503f8980f131ab056be",
+      "plan_path": "docs/plans/2026-04-16-f22-route-v1-sequential-dispatch.md",
+      "archive_info": {
+        "archived_at": "2026-04-17T10:24:20.335160Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-04-16-f22-route-v1-sequential-dispatch.md",
+            "to": "docs/archive/plans/2026-04-16-f22-route-v1-sequential-dispatch.md"
+          }
+        ]
+      }
+    },
+    {
+      "id": 23,
+      "name": "[RouteV1] sync-linked 升级为父级统一同步入口",
+      "test_steps": [
+        "linked_snapshot.projects[] 增加 project_code/child_project_code/active_feature_ref/workspace/route_status",
+        "执行: plugins/progress-tracker/prog --project-root plugins/progress-tracker sync-linked --json",
+        "运行: pytest -q plugins/progress-tracker/tests/test_sync_linked_command.py"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-023"
+      ],
+      "change_spec": {
+        "why": "Deliver [RouteV1] sync-linked 升级为父级统一同步入口 with traceable acceptance coverage.",
+        "in_scope": [
+          "[RouteV1] sync-linked 升级为父级统一同步入口"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: linked_snapshot.projects[] 增加 project_code/child_project_code/active_feature_ref/workspace/route_status",
+        "Scenario: 执行: plugins/progress-tracker/prog --project-root plugins/progress-tracker sync-linked --json",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_sync_linked_command.py"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "ai_metrics": {
+        "complexity_score": 18,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-17T11:00:43.604487Z",
+        "finished_at": "2026-04-17T14:14:24.751255+08:00",
+        "duration_seconds": 0
+      },
+      "development_stage": "completed",
+      "started_at": "2026-04-17T13:18:10.321996Z",
+      "integration_status": "merged_and_cleaned",
+      "completed_at": "2026-04-17T14:14:24.754450Z",
+      "finish_state_resolved_at": "2026-04-17T14:14:24.754464Z",
+      "commit_hash": "d8da3984930bbb6b880b74e8f070271a7f4a31dd"
+    },
+    {
+      "id": 24,
+      "name": "[RouteV1] 在 prog-init/prog-plan 与子项目完成时回写父级备案",
+      "test_steps": [
+        "prog-init/prog-plan 产出的拆解 feature 同步到父级 progress.json",
+        "子项目 /prog-done 完成后同步父级完成率与 active_feature_ref",
+        "运行: pytest -q plugins/progress-tracker/tests/test_integration.py"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-024"
+      ],
+      "change_spec": {
+        "why": "Deliver [RouteV1] 在 prog-init/prog-plan 与子项目完成时回写父级备案 with traceable acceptance coverage.",
+        "in_scope": [
+          "[RouteV1] 在 prog-init/prog-plan 与子项目完成时回写父级备案"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: prog-init/prog-plan 产出的拆解 feature 同步到父级 progress.json",
+        "Scenario: 子项目 /prog-done 完成后同步父级完成率与 active_feature_ref",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_integration.py"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "development_stage": "completed",
+      "started_at": "2026-04-17T15:07:39.992414Z",
+      "ai_metrics": {
+        "complexity_score": 21,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-17T15:10:18.891023Z",
+        "finished_at": "2026-04-17T16:52:35.141807+08:00",
+        "duration_seconds": 0
+      },
+      "integration_status": "merged_and_cleaned",
+      "completed_at": "2026-04-17T16:52:35.146690Z",
+      "finish_state_resolved_at": "2026-04-17T16:52:35.147129Z",
+      "commit_hash": "e9a95491619c23990617fa06440ff114669942",
+      "plan_path": "docs/plans/2026-04-17-f24-route-v1-parent-writeback.md",
+      "archive_info": {
+        "archived_at": "2026-04-17T16:52:35.206935Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-04-17-f24-route-v1-parent-writeback.md",
+            "to": "docs/archive/plans/2026-04-17-f24-route-v1-parent-writeback.md"
+          }
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "name": "状态展示与文档更新（父级总览+子项目明细+归档历史）",
+      "test_steps": [
+        "更新 status/README/PROG_COMMANDS 以展示 linked 项目矩阵与归档摘要",
+        "运行: python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check",
+        "运行: pytest -q plugins/progress-tracker/tests/test_status_linked_summary.py"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "change_spec": {
+        "why": "Deliver 状态展示与文档更新（父级总览+子项目明细+归档历史） with traceable acceptance coverage.",
+        "in_scope": [
+          "状态展示与文档更新（父级总览+子项目明细+归档历史）"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 更新 status/README/PROG_COMMANDS 以展示 linked 项目矩阵与归档摘要",
+        "Scenario: 运行: python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_status_linked_summary.py"
+      ],
+      "development_stage": "completed",
+      "started_at": "2026-04-12T22:58:26.161499Z",
+      "ai_metrics": {
+        "complexity_score": 20,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-12T22:59:22.152638Z",
+        "finished_at": "2026-04-13T23:29:11.874521+08:00",
+        "duration_seconds": 59389
+      },
+      "completed_at": "2026-04-13T23:29:11.877187Z",
+      "commit_hash": "3af74f987033ea8de2f13743d53ddacfff6651fb",
+      "archive_info": {
+        "archived_at": "2026-04-13T23:29:11.927259Z",
+        "files_moved": 0,
+        "files": []
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
+    },
+    {
+      "id": 8,
+      "name": "清理 /prog-start 残留并锁定 /prog-next 为唯一 start path",
+      "test_steps": [
+        "更新 command-discovery/readiness 相关契约测试，移除 prog-start 期望",
+        "运行: pytest -q plugins/progress-tracker/tests/test_command_discovery_contract.py",
+        "校验帮助文档与命令包装不再引用 /prog-start"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "change_spec": {
+        "why": "Deliver 清理 /prog-start 残留并锁定 /prog-next 为唯一 start path with traceable acceptance coverage.",
+        "in_scope": [
+          "清理 /prog-start 残留并锁定 /prog-next 为唯一 start path"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 更新 command-discovery/readiness 相关契约测试，移除 prog-start 期望",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_command_discovery_contract.py",
+        "Scenario: 校验帮助文档与命令包装不再引用 /prog-start"
+      ],
+      "development_stage": "completed",
+      "started_at": "2026-04-14T01:18:16.082517Z",
+      "ai_metrics": {
+        "complexity_score": 10,
+        "complexity_bucket": "simple",
+        "selected_model": "haiku",
+        "workflow_path": "direct_tdd",
+        "started_at": "2026-04-14T01:18:45.555676Z",
+        "finished_at": "2026-04-14T01:43:09.879053+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-14T01:43:06.924781Z",
+      "commit_hash": "0aa7954fc787a7e07a4e7c0e3f51a1a025c5c22c",
+      "archive_info": {
+        "archived_at": "2026-04-14T01:43:07.067416Z",
+        "files_moved": 0,
+        "files": []
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
+    },
+    {
+      "id": 9,
+      "name": "实现 set-finish-state 显式解锁器并固化 finish_pending 阻断链路",
+      "test_steps": [
+        "新增 CLI: prog set-finish-state --feature-id <id> --status <state>",
+        "运行: pytest -q plugins/progress-tracker/tests/test_set_finish_state_cli.py",
+        "验证 /prog-next 在未解锁 finish_pending 时稳定阻断"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "change_spec": {
+        "why": "Deliver 实现 set-finish-state 显式解锁器并固化 finish_pending 阻断链路 with traceable acceptance coverage.",
+        "in_scope": [
+          "实现 set-finish-state 显式解锁器并固化 finish_pending 阻断链路"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 新增 CLI: prog set-finish-state --feature-id <id> --status <state>",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_set_finish_state_cli.py",
+        "Scenario: 验证 /prog-next 在未解锁 finish_pending 时稳定阻断"
+      ],
+      "ai_metrics": {
+        "started_at": "2026-04-15T15:05:56.592857+08:00",
+        "finished_at": "2026-04-15T15:05:56.592857+08:00",
+        "duration_seconds": 0
+      },
+      "development_stage": "completed",
+      "completed_at": "2026-04-15T15:05:56.596818Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-15T15:05:56.597005Z",
+      "commit_hash": "4239446f87af8942cfb887601419ed2b838d9d75",
+      "archive_info": {
+        "archived_at": "2026-04-15T15:05:56.650885Z",
+        "files_moved": 0,
+        "files": []
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
+    },
+    {
+      "id": 10,
+      "name": "落地 evaluator_gate 与 quality_gates.evaluator 独立评估门",
+      "test_steps": [
+        "新增 hooks/scripts/evaluator_gate.py 并接入 /prog-done 评估流",
+        "运行: pytest -q tests/test_evaluator_gate.py",
+        "验证 gate 输出 pass|retry|required_reviews 与 defects 持久化"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "verified",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "change_spec": {
+        "why": "Deliver 落地 evaluator_gate 与 quality_gates.evaluator 独立评估门 with traceable acceptance coverage.",
+        "in_scope": [
+          "落地 evaluator_gate 与 quality_gates.evaluator 独立评估门"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 新增 hooks/scripts/evaluator_gate.py 并接入 /prog-done 评估流",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_evaluator_gate.py",
+        "Scenario: 验证 gate 输出 pass|retry|required_reviews 与 defects 持久化"
+      ],
+      "development_stage": "completed",
+      "started_at": "2026-04-16T00:34:55.739323Z",
+      "ai_metrics": {
+        "complexity_score": 21,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-16T00:34:59.885974Z",
+        "finished_at": "2026-04-17T21:46:01.282321+08:00",
+        "duration_seconds": 133861
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "integration_status": "merged_and_cleaned",
+      "completed_at": "2026-04-17T21:46:01.284263Z",
+      "finish_state_resolved_at": "2026-04-17T21:46:01.284363Z",
+      "commit_hash": "97b5ec566d40c7152fd6abdbfdc07cf10ba5c510",
+      "plan_path": "docs/plans/2026-04-09-mellow-roaming-puppy.md"
+    },
+    {
+      "id": 28,
+      "name": "新增 evaluator 补偿机制命令（排队实现）",
+      "test_steps": [
+        "新增 prog reconcile-evaluator 命令，支持 feature 级 evaluator 结果回填",
+        "运行: pytest -q tests/test_reconcile_evaluator_cli.py",
+        "验证已完成 feature 可回填 evaluator 且写入审计事件 evaluator_backfill"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-028"
+      ],
+      "change_spec": {
+        "why": "Deliver 新增 evaluator 补偿机制命令（排队实现） with traceable acceptance coverage.",
+        "in_scope": [
+          "新增 evaluator 补偿机制命令（排队实现）"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 新增 prog reconcile-evaluator 命令，支持 feature 级 evaluator 结果回填",
+        "Scenario: 运行: pytest -q tests/test_reconcile_evaluator_cli.py",
+        "Scenario: 验证已完成 feature 可回填 evaluator 且写入审计事件 evaluator_backfill"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 100,
+          "defects": [],
+          "last_run_at": "2026-04-19T23:18:52Z",
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "development_stage": "completed",
+      "started_at": "2026-04-17T23:31:07.173327Z",
+      "ai_metrics": {
+        "started_at": "2026-04-20T07:19:05.572954+08:00",
+        "finished_at": "2026-04-20T07:19:05.572954+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-20T07:19:05.575401Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-20T07:19:05.575487Z",
+      "commit_hash": "6736c61",
+      "plan_path": "docs/plans/2026-04-17-f28-reconcile-evaluator-cmd.md",
+      "archive_info": {
+        "archived_at": "2026-04-20T07:19:05.600175Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-04-17-f28-reconcile-evaluator-cmd.md",
+            "to": "docs/archive/plans/2026-04-17-f28-reconcile-evaluator-cmd.md"
+          }
+        ]
+      }
+    },
+    {
+      "id": 11,
+      "name": "落地 review_router 智能分流并持久化 review lanes",
+      "test_steps": [
+        "新增 hooks/scripts/review_router.py，按 change categories 计算 required/pending/passed",
+        "运行: pytest -q plugins/progress-tracker/tests/test_review_router.py",
+        "验证 design/devex 可选，eng/qa/docs 按规则强制"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-011"
+      ],
+      "change_spec": {
+        "why": "Deliver 落地 review_router 智能分流并持久化 review lanes with traceable acceptance coverage.",
+        "in_scope": [
+          "落地 review_router 智能分流并持久化 review lanes"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 新增 hooks/scripts/review_router.py，按 change categories 计算 required/pending/passed",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_review_router.py",
+        "Scenario: 验证 design/devex 可选，eng/qa/docs 按规则强制"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 97,
+          "defects": [],
+          "last_run_at": "2026-04-21T14:18:26Z",
+          "evaluator_model": "claude-sonnet-4-6"
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [
+            "eng",
+            "qa",
+            "docs"
+          ],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "development_stage": "completed",
+      "started_at": "2026-04-20T07:49:32.916161Z",
+      "ai_metrics": {
+        "complexity_score": 13,
+        "complexity_bucket": "simple",
+        "selected_model": "haiku",
+        "workflow_path": "direct_tdd",
+        "started_at": "2026-04-20T07:49:40.340061Z",
+        "finished_at": "2026-04-21T22:19:13.752571+08:00",
+        "duration_seconds": 109773
+      },
+      "completed_at": "2026-04-21T22:19:13.753934Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-21T22:19:13.753939Z",
+      "commit_hash": "aaae345",
+      "archive_info": {
+        "archived_at": "2026-04-21T22:19:13.772085Z",
+        "files_moved": 0,
+        "files": []
+      }
+    },
+    {
+      "id": 12,
+      "name": "落地 ship_check 统一门禁与 docs-sync 证据校验",
+      "test_steps": [
+        "新增 hooks/scripts/ship_check.py 并在 closeout 前执行",
+        "运行: pytest -q plugins/progress-tracker/tests/test_ship_check.py",
+        "验证 failures[] 明确记录测试覆盖与文档不同步问题"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-012"
+      ],
+      "change_spec": {
+        "why": "Deliver 落地 ship_check 统一门禁与 docs-sync 证据校验 with traceable acceptance coverage.",
+        "in_scope": [
+          "落地 ship_check 统一门禁与 docs-sync 证据校验"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 新增 hooks/scripts/ship_check.py 并在 closeout 前执行",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_ship_check.py",
+        "Scenario: 验证 failures[] 明确记录测试覆盖与文档不同步问题"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 100,
+          "defects": [],
+          "last_run_at": "2026-04-21T16:46:20Z",
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [
+            "docs"
+          ],
+          "passed": [
+            "docs"
+          ],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pass",
+          "failures": [],
+          "last_run_at": "2026-04-21T16:46:59Z"
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "development_stage": "completed",
+      "started_at": "2026-04-22T00:46:20.069627Z",
+      "ai_metrics": {
+        "started_at": "2026-04-22T00:49:17.564415+08:00",
+        "finished_at": "2026-04-22T00:49:23.884935+08:00",
+        "duration_seconds": 6
+      },
+      "completed_at": "2026-04-22T00:49:17.566969Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-22T00:49:17.567071Z",
+      "commit_hash": "51bad927490b86597ff5e6397a849e48f653ce59",
+      "plan_path": "docs/plans/2026-04-09-mellow-roaming-puppy.md",
+      "archive_info": {
+        "archived_at": "2026-04-22T00:49:17.594654Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-04-09-mellow-roaming-puppy.md",
+            "to": "docs/archive/plans/2026-04-09-mellow-roaming-puppy.md"
+          }
+        ]
+      }
+    },
+    {
+      "id": 13,
+      "name": "落地 sprint_ledger 与 schema 2.1 的 sprint_contract/handoff 持久化",
+      "test_steps": [
+        "pytest -q tests/test_schema_2_1_migration.py",
+        "pytest -q tests/test_sprint_ledger.py"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "verified",
+      "requirement_ids": [
+        "REQ-013"
+      ],
+      "change_spec": {
+        "why": "Deliver 落地 sprint_ledger 与 schema 2.1 的 sprint_contract/handoff 持久化 with traceable acceptance coverage.",
+        "in_scope": [
+          "落地 sprint_ledger 与 schema 2.1 的 sprint_contract/handoff 持久化"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ],
+        "categories": [
+          "schema"
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 在 _apply_schema_defaults 注入 sprint_contract/quality_gates/handoff 默认值",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_schema_2_1_migration.py",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_sprint_ledger.py"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 96,
+          "defects": [],
+          "last_run_at": "2026-04-22T08:20:00Z",
+          "evaluator_model": "manual-verification"
+        },
+        "reviews": {
+          "required": [
+            "eng",
+            "qa",
+            "docs"
+          ],
+          "passed": [
+            "eng",
+            "qa",
+            "docs"
+          ],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pass",
+          "failures": [],
+          "last_run_at": "2026-04-22T08:24:00Z"
+        }
+      },
+      "sprint_contract": {
+        "scope": "deliver sprint_ledger persistence with serialized consistency",
+        "done_criteria": [
+          "tests/test_sprint_ledger.py passes",
+          "tests/test_schema_2_1_migration.py passes",
+          "cmd_done writes evaluation artifact to sprint_ledger"
+        ],
+        "test_plan": [
+          "pytest -q tests/test_sprint_ledger.py",
+          "pytest -q tests/test_schema_2_1_migration.py",
+          "pytest -q tests/test_progress_manager.py -k done_command"
+        ],
+        "accepted_by": "codex",
+        "accepted_at": "2026-04-22T08:20:00Z"
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "ai_metrics": {
+        "complexity_score": 18,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-22T02:09:28.592216Z",
+        "finished_at": "2026-04-22T09:45:11.408717+08:00",
+        "duration_seconds": 0
+      },
+      "development_stage": "completed",
+      "started_at": "2026-04-22T09:37:55.501026Z",
+      "completed_at": "2026-04-22T09:45:11.410598Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-22T09:45:11.410692Z",
+      "commit_hash": "7ef6c61c67cbd584e3077f9ac57916475a4c8e9a"
+    },
+    {
+      "id": 14,
+      "name": "落地 wf_state_machine + wf_auto_driver + hook 自动推进",
+      "test_steps": [
+        "新增 wf_state_machine.py 纯函数 compute_next_action 与 wf_auto_driver.py hook 入口",
+        "运行: pytest -q tests/test_wf_state_machine.py",
+        "运行: pytest -q tests/test_wf_auto_driver.py"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-014"
+      ],
+      "change_spec": {
+        "why": "Deliver 落地 wf_state_machine + wf_auto_driver + hook 自动推进 with traceable acceptance coverage.",
+        "in_scope": [
+          "落地 wf_state_machine + wf_auto_driver + hook 自动推进"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 新增 wf_state_machine.py 纯函数 compute_next_action 与 wf_auto_driver.py hook 入口",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_wf_state_machine.py",
+        "Scenario: 运行: pytest -q plugins/progress-tracker/tests/test_wf_auto_driver.py"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 100,
+          "defects": [],
+          "last_run_at": "2026-04-22T05:41:54Z",
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [
+            "eng",
+            "docs",
+            "qa"
+          ],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pass",
+          "failures": [],
+          "last_run_at": "2026-04-22T05:43:37Z"
+        }
+      },
+      "sprint_contract": {
+        "scope": "落地 wf_state_machine + wf_auto_driver + hook 自动推进",
+        "done_criteria": [
+          "wf_state_machine 在 execution_complete 和 execution 场景下返回正确的 pending_action",
+          "wf_auto_driver 通过 hook 路径写回 pending_action",
+          "acceptance tests and ship-check pass"
+        ],
+        "test_plan": [
+          "pytest -q tests/test_wf_state_machine.py",
+          "pytest -q tests/test_wf_auto_driver.py",
+          "./prog --project-root . ship-check --feature-id 14"
+        ],
+        "accepted_by": "codex",
+        "accepted_at": "2026-04-22T05:43:19Z"
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "ai_metrics": {
+        "complexity_score": 20,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-22T10:11:39.824905Z",
+        "finished_at": "2026-04-22T13:47:00.988993+08:00",
+        "duration_seconds": 0
+      },
+      "development_stage": "completed",
+      "started_at": "2026-04-22T10:11:48.221262Z",
+      "integration_status": "merged_and_cleaned",
+      "completed_at": "2026-04-22T13:47:00.993430Z",
+      "finish_state_resolved_at": "2026-04-22T13:47:00.993578Z",
+      "commit_hash": "a415118",
+      "plan_path": "docs/plans/2026-04-22-f14-wf-state-machine-auto-driver.md",
+      "archive_info": {
+        "archived_at": "2026-04-22T13:47:01.044708Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-04-22-f14-wf-state-machine-auto-driver.md",
+            "to": "docs/archive/plans/2026-04-22-f14-wf-state-machine-auto-driver.md"
+          }
+        ]
+      }
+    },
+    {
+      "id": 25,
+      "name": "prog done 后自动清理已合并的 feature 分支和 worktree",
+      "test_steps": [
+        "merge 成功（git-auto Status: ok）后，自动执行 git worktree remove 清理 worktree 目录",
+        "自动执行 git branch -d 删除本地 feature 分支（安全删除，未合并会报错）",
+        "自动执行 git push origin --delete 删除远程 feature 分支",
+        "worktree 有未提交改动时报警并跳过清理，不回滚 feature 完成状态",
+        "in-place 模式（非 worktree）下仅清理分支，跳过 worktree 清理",
+        "清理失败时输出警告但不阻断 prog done 后续步骤（非阻塞）"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-025"
+      ],
+      "change_spec": {
+        "why": "Deliver prog done 后自动清理已合并的 feature 分支和 worktree with traceable acceptance coverage.",
+        "in_scope": [
+          "prog done 后自动清理已合并的 feature 分支和 worktree"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: merge 成功（git-auto Status: ok）后，自动执行 git worktree remove 清理 worktree 目录",
+        "Scenario: 自动执行 git branch -d 删除本地 feature 分支（安全删除，未合并会报错）",
+        "Scenario: 自动执行 git push origin --delete 删除远程 feature 分支",
+        "Scenario: worktree 有未提交改动时报警并跳过清理，不回滚 feature 完成状态",
+        "Scenario: in-place 模式（非 worktree）下仅清理分支，跳过 worktree 清理",
+        "Scenario: 清理失败时输出警告但不阻断 prog done 后续步骤（非阻塞）"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 100,
+          "defects": [],
+          "last_run_at": "2026-04-22T08:32:34Z",
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pass",
+          "failures": [],
+          "last_run_at": "2026-04-22T08:32:42Z"
+        }
+      },
+      "sprint_contract": {
+        "scope": "实现 /prog done 后自动清理已合并的 feature 分支和 worktree（含 worktree/in-place 与 dirty 保护）",
+        "done_criteria": [
+          "post-done cleanup 在 worktree 与 in-place 场景行为符合设计",
+          "dirty / unknown context 下仅 WARN 且不阻断完成",
+          "--no-cleanup 可跳过清理且输出明确提示"
+        ],
+        "test_plan": [
+          "pytest -q tests/test_cleanup_after_done.py",
+          "pytest -q tests/test_cmd_done_cleanup_integration.py",
+          "在 feature worktree 执行 prog done 验证 cleanup 输出路径"
+        ],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "ai_metrics": {
+        "complexity_score": 22,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-22T16:20:06.043633Z",
+        "finished_at": "2026-04-22T16:33:40.713624+08:00",
+        "duration_seconds": 0
+      },
+      "development_stage": "completed",
+      "started_at": "2026-04-22T16:20:20.009526Z",
+      "completed_at": "2026-04-22T16:33:40.718596Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-22T16:33:40.718740Z",
+      "commit_hash": "2cf711724fd2dd0c428d398fd5c9d465b6da2a47",
+      "plan_path": "docs/plans/2026-04-22-f25-cleanup-after-done.md",
+      "archive_info": {
+        "archived_at": "2026-04-22T16:33:40.768301Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-04-22-f25-cleanup-after-done.md",
+            "to": "docs/archive/plans/2026-04-22-f25-cleanup-after-done.md"
+          }
+        ]
+      }
+    },
+    {
+      "id": 26,
+      "name": "让 /prog 状态页末尾输出详细 handoff 提示",
+      "test_steps": [
+        "运行 python3 hooks/scripts/progress_manager.py --project-root plugins/progress-tracker status，确认最后的 handoff block 使用与 /prog next /prog done 一致的详细模板",
+        "在存在 current_feature_id 的场景下再次运行 status，确认输出详细的 Feature/Plan/Branch/ProjectRoot/Next 或 verification and commit 提示",
+        "同步检查 progress-status skill 与 communication-templates 的模板内容保持一致"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-026"
+      ],
+      "change_spec": {
+        "why": "Deliver 让 /prog 状态页末尾输出详细 handoff 提示 with traceable acceptance coverage.",
+        "in_scope": [
+          "让 /prog 状态页末尾输出详细 handoff 提示"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 运行 python3 hooks/scripts/progress_manager.py --project-root plugins/progress-tracker status，确认最后的 handoff block 使用与 /prog next /prog done 一致的详细模板",
+        "Scenario: 在存在 current_feature_id 的场景下再次运行 status，确认输出详细的 Feature/Plan/Branch/ProjectRoot/Next 或 verification and commit 提示",
+        "Scenario: 同步检查 progress-status skill 与 communication-templates 的模板内容保持一致"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 100,
+          "defects": [],
+          "last_run_at": "2026-04-22T09:18:57Z",
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [
+            "eng",
+            "docs",
+            "qa"
+          ],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pass",
+          "failures": [],
+          "last_run_at": "2026-04-22T09:19:17Z"
+        }
+      },
+      "sprint_contract": {
+        "scope": "让 /prog 状态页末尾输出详细 handoff 提示",
+        "done_criteria": [
+          "Status handoff block includes Feature/Plan/Branch/ProjectRoot/next-step context",
+          "execution_complete phase renders prog-done handoff with verification-and-commit prompt",
+          "No regression for no-current-feature and all-complete status outputs"
+        ],
+        "test_plan": [
+          "运行 python3 hooks/scripts/progress_manager.py --project-root plugins/progress-tracker status，确认最后的 handoff block 使用与 /prog next /prog done 一致的详细模板",
+          "在存在 current_feature_id 的场景下再次运行 status，确认输出详细的 Feature/Plan/Branch/ProjectRoot/Next 或 verification and commit 提示",
+          "同步检查 progress-status skill 与 communication-templates 的模板内容保持一致"
+        ],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "development_stage": "completed",
+      "started_at": "2026-04-22T17:04:21.412265Z",
+      "ai_metrics": {
+        "started_at": "2026-04-22T17:19:30.345268+08:00",
+        "finished_at": "2026-04-22T17:19:30.345268+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-22T17:19:30.350166Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-22T17:19:30.350313Z",
+      "commit_hash": "d7cd42ae46304d1ed03d8253d7422b3bfb7b3e6d",
+      "archive_info": {
+        "archived_at": "2026-04-22T17:19:30.400177Z",
+        "files_moved": 0,
+        "files": []
+      }
+    },
+    {
+      "id": 27,
+      "name": "优化概念命名与映射：将 prog-sync 类比为 log，prog-update 类比为 note",
+      "test_steps": [
+        "评估是否为命令增加别名 (alias: log/note)",
+        "更新文档中的概念类比描述",
+        "验证用户认知门槛是否降低"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "change_spec": {
+        "why": "Deliver 优化概念命名与映射：将 prog-sync 类比为 log，prog-update 类比为 note with traceable acceptance coverage.",
+        "in_scope": [
+          "优化概念命名与映射：将 prog-sync 类比为 log，prog-update 类比为 note"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 评估是否为命令增加别名 (alias: log/note)",
+        "Scenario: 更新文档中的概念类比描述",
+        "Scenario: 验证用户认知门槛是否降低"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [],
+          "pending": [
+            "docs",
+            "eng",
+            "qa"
+          ]
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "development_stage": "completed",
+      "started_at": "2026-04-22T18:02:25.491955Z",
+      "ai_metrics": {
+        "started_at": "2026-04-22T22:31:41.784012+08:00",
+        "finished_at": "2026-04-22T22:31:41.784012+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-22T22:31:41.786835Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-22T22:31:41.786945Z",
+      "archive_info": {
+        "archived_at": "2026-04-22T22:31:41.814093Z",
+        "files_moved": 0,
+        "files": []
+      }
+    }
+  ],
+  "current_feature_id": null,
+  "updates": [],
+  "retrospectives": [],
+  "runtime_context": {
+    "recorded_at": "2026-04-22T22:31:41.809368Z",
+    "source": "complete_feature",
+    "workspace_mode": "in_place",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
+    "branch": "main",
+    "upstream": "origin/main",
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+    "current_feature_id": null,
+    "workflow_phase": null,
+    "current_task": null,
+    "total_tasks": null,
+    "next_action": null
+  },
+  "linked_projects": [],
+  "linked_snapshot": {
+    "schema_version": "1.0",
+    "updated_at": "2026-04-17T14:54:52.968553Z",
+    "projects": []
+  },
+  "tracker_role": "standalone",
+  "project_code": null,
+  "routing_queue": [],
+  "active_routes": [],
+  "bugs": [
+    {
+      "id": "BUG-001",
+      "description": "/prog done 应该自动切换到内联上下文中指定的工作树进行验收测试验证，避免在错误分支上运行测试导致误判",
+      "status": "fixed",
+      "priority": "medium",
+      "category": "technical_debt",
+      "created_at": "2026-04-14T07:59:00.827777Z",
+      "quick_verification": {},
+      "updated_at": "2026-04-14T08:10:42.770255Z",
+      "root_cause": "feature-complete/SKILL.md 的 Inline Context Fast Path 步骤 2 使用了 cd <worktree_path>，但 Claude Code 的 Bash tool 每次调用都在独立 shell 中，CWD 不会持久化。导致步骤 4 验收测试在错误目录运行，且 prog CLI 命令没有传 --project-root。",
+      "investigation": {
+        "root_cause": "feature-complete/SKILL.md 的 Inline Context Fast Path 步骤 2 使用了 cd <worktree_path>，但 Claude Code 的 Bash tool 每次调用都在独立 shell 中，CWD 不会持久化。导致步骤 4 验收测试在错误目录运行，且 prog CLI 命令没有传 --project-root。",
+        "confirmed_at": "2026-04-14T08:09:02.103690Z"
+      },
+      "fix_summary": "Fix applied: feature-complete + feature-implement SKILL.md CWD persistence bug fixed, all prog CLI calls use --project-root (commits: 8f887ca, 1c6332e). PR: SiuninYue/siunin-plugins#16",
+      "fixed_at": "2026-04-14T08:12:46.429667Z"
+    }
+  ],
+  "current_bug_id": null
+}

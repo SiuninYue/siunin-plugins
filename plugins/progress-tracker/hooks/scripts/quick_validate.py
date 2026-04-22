@@ -31,6 +31,20 @@ REQUIRED_REFERENCE_FILES = [
     "skills/progress-recovery/references/communication-templates.md",
 ]
 
+PROHIBITED_FRONTMATTER_KEYS = ("scope", "inputs", "outputs", "evidence")
+ROUTABLE_DESCRIPTION_PREFIXES = (
+    "This skill should be used when",
+    "Use when",
+)
+
+
+def iter_skill_files(root: Path) -> list[Path]:
+    skills_root = root / "skills"
+    if not skills_root.exists():
+        return []
+    return sorted(skills_root.rglob("SKILL.md"))
+
+
 def plugin_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
@@ -66,6 +80,40 @@ def check_description_tokens(root: Path, errors: list[str]) -> None:
         for token in tokens:
             if token not in description:
                 errors.append(f"Missing description token '{token}' in {path}")
+
+
+def check_skill_frontmatter_contract(root: Path, errors: list[str]) -> None:
+    for path in iter_skill_files(root):
+        frontmatter = extract_frontmatter(path)
+        if not frontmatter:
+            errors.append(f"Missing YAML frontmatter in {path}")
+            continue
+
+        keys = set(
+            re.findall(r"^([A-Za-z_][A-Za-z0-9_-]*):", frontmatter, re.MULTILINE)
+        )
+        for key in PROHIBITED_FRONTMATTER_KEYS:
+            if key in keys:
+                errors.append(f"Prohibited frontmatter key '{key}' in {path}")
+
+        if "name" not in keys:
+            errors.append(f"Missing frontmatter key 'name' in {path}")
+
+        description_match = re.search(r"^description:\s*(.+)$", frontmatter, re.MULTILINE)
+        if not description_match:
+            errors.append(f"Missing frontmatter key 'description' in {path}")
+            continue
+
+        description = description_match.group(1).strip()
+        if (
+            len(description) >= 2
+            and description[0] == description[-1]
+            and description[0] in {"'", '"'}
+        ):
+            description = description[1:-1].strip()
+
+        if not any(description.startswith(prefix) for prefix in ROUTABLE_DESCRIPTION_PREFIXES):
+            errors.append(f"Non-routable description in {path}: {description}")
 
 
 def check_bug_fix_contract(root: Path, errors: list[str]) -> None:
@@ -133,6 +181,7 @@ def check_generated_docs_sync(root: Path, errors: list[str]) -> None:
 def run_checks(root: Path, *, run_docs_check: bool = True) -> list[str]:
     errors: list[str] = []
 
+    check_skill_frontmatter_contract(root, errors)
     check_bug_fix_contract(root, errors)
     check_description_tokens(root, errors)
     check_main_skill_word_counts(root, errors)
