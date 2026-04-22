@@ -33,8 +33,17 @@
 - [x] prog done 后自动清理已合并的 feature 分支和 worktree
 - [x] 让 /prog 状态页末尾输出详细 handoff 提示
 
-## Pending
+## In Progress
 - [ ] 优化概念命名与映射：将 prog-sync 类比为 log，prog-update 类比为 note
+  **Test steps**:
+  - 评估是否为命令增加别名 (alias: log/note)
+  - 更新文档中的概念类比描述
+  - 验证用户认知门槛是否降低
+
+## Workflow Context
+- Phase: execution_complete
+- Execution context: feature/feature-27-naming-alias @ feature-27 [worktree]
+- Current session context: feature/feature-27-naming-alias @ feature-27 [worktree]
 
 ### Fixed (✅)
 - [x] [BUG-001] [DEBT] /prog done 应该自动切换到内联上下文中指定的工作树进行验收测试验证，避免在错误分支上运行测试导致误判
