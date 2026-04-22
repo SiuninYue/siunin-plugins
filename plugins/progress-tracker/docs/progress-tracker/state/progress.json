@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "prog-parent-coordination-archive",
   "created_at": "2026-04-09T01:12:55.289861Z",
-  "updated_at": "2026-04-22T13:43:38.000998Z",
+  "updated_at": "2026-04-22T13:47:01.045189Z",
   "features": [
     {
       "id": 1,
@@ -77,19 +77,11 @@
         }
       },
       "sprint_contract": {
-        "scope": "落地 wf_state_machine + wf_auto_driver + hook 自动推进",
-        "done_criteria": [
-          "wf_state_machine 在 execution_complete 和 execution 场景下返回正确的 pending_action",
-          "wf_auto_driver 通过 hook 路径写回 pending_action",
-          "acceptance tests and ship-check pass"
-        ],
-        "test_plan": [
-          "pytest -q plugins/progress-tracker/tests/test_wf_state_machine.py",
-          "pytest -q plugins/progress-tracker/tests/test_wf_auto_driver.py",
-          "plugins/progress-tracker/prog --project-root plugins/progress-tracker ship-check --feature-id 14"
-        ],
-        "accepted_by": "codex",
-        "accepted_at": "2026-04-22T05:43:19Z"
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
       },
       "handoff": {
         "from_phase": null,
@@ -2212,10 +2204,10 @@
       "name": "落地 wf_state_machine + wf_auto_driver + hook 自动推进",
       "test_steps": [
         "新增 wf_state_machine.py 纯函数 compute_next_action 与 wf_auto_driver.py hook 入口",
-        "运行: pytest -q plugins/progress-tracker/tests/test_wf_state_machine.py",
-        "运行: pytest -q plugins/progress-tracker/tests/test_wf_auto_driver.py"
+        "运行: pytest -q tests/test_wf_state_machine.py",
+        "运行: pytest -q tests/test_wf_auto_driver.py"
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -2225,7 +2217,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "implementing",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-014"
       ],
@@ -2274,11 +2266,19 @@
         }
       },
       "sprint_contract": {
-        "scope": "",
-        "done_criteria": [],
-        "test_plan": [],
-        "accepted_by": null,
-        "accepted_at": null
+        "scope": "落地 wf_state_machine + wf_auto_driver + hook 自动推进",
+        "done_criteria": [
+          "wf_state_machine 在 execution_complete 和 execution 场景下返回正确的 pending_action",
+          "wf_auto_driver 通过 hook 路径写回 pending_action",
+          "acceptance tests and ship-check pass"
+        ],
+        "test_plan": [
+          "pytest -q tests/test_wf_state_machine.py",
+          "pytest -q tests/test_wf_auto_driver.py",
+          "./prog --project-root . ship-check --feature-id 14"
+        ],
+        "accepted_by": "codex",
+        "accepted_at": "2026-04-22T05:43:19Z"
       },
       "handoff": {
         "from_phase": null,
@@ -2291,10 +2291,27 @@
         "complexity_bucket": "standard",
         "selected_model": "sonnet",
         "workflow_path": "plan_execute",
-        "started_at": "2026-04-22T10:11:39.824905Z"
+        "started_at": "2026-04-22T10:11:39.824905Z",
+        "finished_at": "2026-04-22T13:47:00.988993+08:00",
+        "duration_seconds": 0
       },
-      "development_stage": "developing",
-      "started_at": "2026-04-22T10:11:48.221262Z"
+      "development_stage": "completed",
+      "started_at": "2026-04-22T10:11:48.221262Z",
+      "integration_status": "merged_and_cleaned",
+      "completed_at": "2026-04-22T13:47:00.993430Z",
+      "finish_state_resolved_at": "2026-04-22T13:47:00.993578Z",
+      "commit_hash": "a415118",
+      "plan_path": "docs/plans/2026-04-22-f14-wf-state-machine-auto-driver.md",
+      "archive_info": {
+        "archived_at": "2026-04-22T13:47:01.044708Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-04-22-f14-wf-state-machine-auto-driver.md",
+            "to": "docs/archive/plans/2026-04-22-f14-wf-state-machine-auto-driver.md"
+          }
+        ]
+      }
     },
     {
       "id": 25,
@@ -2519,12 +2536,12 @@
       }
     }
   ],
-  "current_feature_id": 14,
+  "current_feature_id": null,
   "updates": [],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-04-22T13:35:45.686435Z",
-    "source": "set_workflow_state",
+    "recorded_at": "2026-04-22T13:47:01.038203Z",
+    "source": "complete_feature",
     "workspace_mode": "worktree",
     "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-14",
     "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-14",
@@ -2533,11 +2550,11 @@
     "branch": "feature/feature-14",
     "upstream": null,
     "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-14/plugins/progress-tracker",
-    "current_feature_id": 14,
-    "workflow_phase": "execution_complete",
-    "current_task": 7,
+    "current_feature_id": null,
+    "workflow_phase": null,
+    "current_task": null,
     "total_tasks": null,
-    "next_action": "T1: 编写 test_wf_state_machine.py 失败测试"
+    "next_action": null
   },
   "linked_projects": [],
   "linked_snapshot": {
@@ -2568,32 +2585,5 @@
       "fixed_at": "2026-04-14T08:12:46.429667Z"
     }
   ],
-  "current_bug_id": null,
-  "workflow_state": {
-    "phase": "execution_complete",
-    "updated_at": "2026-04-22T13:35:45.599379Z",
-    "execution_context": {
-      "recorded_at": "2026-04-22T13:35:45.642790Z",
-      "source": "set_workflow_state",
-      "workspace_mode": "worktree",
-      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-14",
-      "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-14",
-      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-14/plugins/progress-tracker",
-      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-14",
-      "branch": "feature/feature-14",
-      "upstream": null
-    },
-    "plan_path": "docs/plans/2026-04-22-f14-wf-state-machine-auto-driver.md",
-    "next_action": "T1: 编写 test_wf_state_machine.py 失败测试",
-    "completed_tasks": [
-      1,
-      2,
-      3,
-      4,
-      5,
-      6
-    ],
-    "current_task": 7,
-    "pending_action": "run_prog_done"
-  }
+  "current_bug_id": null
 }
