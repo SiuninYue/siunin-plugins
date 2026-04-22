@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Bumped progress-tracker plugin version to `1.6.15` and `prog-done` command version to `2.4.0` to reflect the finalize/auto-gates update.
 - **BREAKING**: Plan paths now only accept `docs/plans/` (Superpowers standard). Legacy `docs/progress-tracker/plans/` paths are no longer supported. Users with plans in that location should move them to `docs/plans/`.
 
 ### Removed
