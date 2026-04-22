@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-04-23T00:40:23.764008Z",
+  "updated_at": "2026-04-23T02:14:30.512729Z",
   "features": [
     {
       "id": 1,
@@ -12,7 +12,7 @@
         "Run validation test: pytest -q plugins/progress-tracker/tests/test_quick_validate.py",
         "Confirm output reports prohibited fields and non-routable descriptions with file paths"
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -22,7 +22,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "implementing",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-001"
       ],
@@ -45,10 +45,10 @@
       ],
       "quality_gates": {
         "evaluator": {
-          "status": "pending",
-          "score": null,
+          "status": "pass",
+          "score": 100,
           "defects": [],
-          "last_run_at": null,
+          "last_run_at": "2026-04-22T18:13:55Z",
           "evaluator_model": null
         },
         "reviews": {
@@ -57,12 +57,112 @@
             "eng",
             "qa"
           ],
-          "passed": [],
-          "pending": [
+          "passed": [
             "docs",
             "eng",
             "qa"
-          ]
+          ],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pass",
+          "failures": [],
+          "last_run_at": "2026-04-22T18:13:55Z"
+        }
+      },
+      "sprint_contract": {
+        "scope": "Complete baseline compliance scan closure and tracker state sync",
+        "done_criteria": [
+          "Feature 1 marked completed with commit c7637ec",
+          "Evaluator, review lanes, and ship_check all pass"
+        ],
+        "test_plan": [
+          "prog reconcile-evaluator --feature-id 1",
+          "prog review-pass --feature-id 1 --lane docs/eng/qa",
+          "prog ship-check --feature-id 1",
+          "prog done --commit c7637ec --no-cleanup"
+        ],
+        "accepted_by": "tracker-recovery",
+        "accepted_at": "2026-04-23T00:00:00Z"
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "development_stage": "completed",
+      "started_at": "2026-04-23T00:36:50.582028Z",
+      "ai_metrics": {
+        "complexity_score": 9,
+        "complexity_bucket": "simple",
+        "selected_model": "haiku",
+        "workflow_path": "direct_tdd",
+        "started_at": "2026-04-23T00:37:43.483341Z",
+        "finished_at": "2026-04-23T02:14:30.355178+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-23T02:14:30.404285Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-23T02:14:30.404396Z",
+      "commit_hash": "c7637ec",
+      "archive_info": {
+        "archived_at": "2026-04-23T02:14:30.493722Z",
+        "files_moved": 0,
+        "files": []
+      }
+    },
+    {
+      "id": 9,
+      "name": "Refactor progress_manager into modular command helpers",
+      "test_steps": [
+        "Extract handoff and completion prompt builders into dedicated helper modules",
+        "Add regression tests for /prog done and /prog status handoff output",
+        "Run targeted regression tests: pytest -q plugins/progress-tracker/tests/test_progress_manager.py -k \"done_command_outputs_next_feature_handoff or done_command_outputs_completion_summary_when_all_complete or status_handoff_block_execution_complete\""
+      ],
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "change_spec": {
+        "why": "Deliver Refactor progress_manager into modular command helpers with traceable acceptance coverage.",
+        "in_scope": [
+          "Refactor progress_manager into modular command helpers"
+        ],
+        "out_of_scope": [
+          "Unrelated behavior changes outside the progress_manager structure refactor."
+        ],
+        "risks": [
+          "Potential regression in /prog done and /prog status output; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: Extract handoff and completion prompt builders into dedicated helper modules",
+        "Scenario: Add regression tests for /prog done and /prog status handoff output",
+        "Scenario: Run targeted regression tests: pytest -q plugins/progress-tracker/tests/test_progress_manager.py -k \"done_command_outputs_next_feature_handoff or done_command_outputs_completion_summary_when_all_complete or status_handoff_block_execution_complete\""
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
         },
         "ship_check": {
           "status": "pending",
@@ -82,15 +182,6 @@
         "to_phase": null,
         "artifact_path": null,
         "created_at": null
-      },
-      "development_stage": "developing",
-      "started_at": "2026-04-23T00:36:50.582028Z",
-      "ai_metrics": {
-        "complexity_score": 9,
-        "complexity_bucket": "simple",
-        "selected_model": "haiku",
-        "workflow_path": "direct_tdd",
-        "started_at": "2026-04-23T00:37:43.483341Z"
       }
     },
     {
@@ -598,7 +689,7 @@
       }
     }
   ],
-  "current_feature_id": 1,
+  "current_feature_id": null,
   "linked_projects": [],
   "linked_snapshot": {
     "schema_version": "1.0",
@@ -612,36 +703,20 @@
   "updates": [],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-04-23T00:40:23.763257Z",
-    "source": "set_workflow_state",
+    "recorded_at": "2026-04-23T02:14:30.431433Z",
+    "source": "complete_feature",
     "workspace_mode": "in_place",
     "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
     "project_root": "/Users/siunin/Projects/Claude-Plugins",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
     "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
     "branch": "main",
     "upstream": "origin/main",
     "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
-    "current_feature_id": 1,
-    "workflow_phase": "execution_complete",
+    "current_feature_id": null,
+    "workflow_phase": null,
     "current_task": null,
     "total_tasks": null,
-    "next_action": "verify_and_complete"
-  },
-  "workflow_state": {
-    "phase": "execution_complete",
-    "next_action": "verify_and_complete",
-    "updated_at": "2026-04-23T00:40:23.701170Z",
-    "execution_context": {
-      "recorded_at": "2026-04-23T00:40:23.733575Z",
-      "source": "set_workflow_state",
-      "workspace_mode": "in_place",
-      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
-      "project_root": "/Users/siunin/Projects/Claude-Plugins",
-      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
-      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
-      "branch": "main",
-      "upstream": "origin/main"
-    }
+    "next_action": null
   }
 }
