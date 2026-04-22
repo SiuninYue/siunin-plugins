@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "prog-parent-coordination-archive",
   "created_at": "2026-04-09T01:12:55.289861Z",
-  "updated_at": "2026-04-22T02:09:28.592305Z",
+  "updated_at": "2026-04-22T09:45:11.427494Z",
   "features": [
     {
       "id": 1,
@@ -2098,11 +2098,10 @@
       "id": 13,
       "name": "落地 sprint_ledger 与 schema 2.1 的 sprint_contract/handoff 持久化",
       "test_steps": [
-        "在 _apply_schema_defaults 注入 sprint_contract/quality_gates/handoff 默认值",
-        "运行: pytest -q plugins/progress-tracker/tests/test_schema_2_1_migration.py",
-        "运行: pytest -q plugins/progress-tracker/tests/test_sprint_ledger.py"
+        "pytest -q tests/test_schema_2_1_migration.py",
+        "pytest -q tests/test_sprint_ledger.py"
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -2112,7 +2111,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "approved",
+      "lifecycle_state": "verified",
       "requirement_ids": [
         "REQ-013"
       ],
@@ -2126,6 +2125,9 @@
         ],
         "risks": [
           "Potential regression in adjacent workflows; verify with listed test_steps."
+        ],
+        "categories": [
+          "schema"
         ]
       },
       "acceptance_scenarios": [
@@ -2135,29 +2137,45 @@
       ],
       "quality_gates": {
         "evaluator": {
-          "status": "pending",
-          "score": null,
+          "status": "pass",
+          "score": 96,
           "defects": [],
-          "last_run_at": null,
-          "evaluator_model": null
+          "last_run_at": "2026-04-22T08:20:00Z",
+          "evaluator_model": "manual-verification"
         },
         "reviews": {
-          "required": [],
-          "passed": [],
+          "required": [
+            "eng",
+            "qa",
+            "docs"
+          ],
+          "passed": [
+            "eng",
+            "qa",
+            "docs"
+          ],
           "pending": []
         },
         "ship_check": {
-          "status": "pending",
+          "status": "pass",
           "failures": [],
-          "last_run_at": null
+          "last_run_at": "2026-04-22T08:24:00Z"
         }
       },
       "sprint_contract": {
-        "scope": "",
-        "done_criteria": [],
-        "test_plan": [],
-        "accepted_by": null,
-        "accepted_at": null
+        "scope": "deliver sprint_ledger persistence with serialized consistency",
+        "done_criteria": [
+          "tests/test_sprint_ledger.py passes",
+          "tests/test_schema_2_1_migration.py passes",
+          "cmd_done writes evaluation artifact to sprint_ledger"
+        ],
+        "test_plan": [
+          "pytest -q tests/test_sprint_ledger.py",
+          "pytest -q tests/test_schema_2_1_migration.py",
+          "pytest -q tests/test_progress_manager.py -k done_command"
+        ],
+        "accepted_by": "codex",
+        "accepted_at": "2026-04-22T08:20:00Z"
       },
       "handoff": {
         "from_phase": null,
@@ -2170,8 +2188,16 @@
         "complexity_bucket": "standard",
         "selected_model": "sonnet",
         "workflow_path": "plan_execute",
-        "started_at": "2026-04-22T02:09:28.592216Z"
-      }
+        "started_at": "2026-04-22T02:09:28.592216Z",
+        "finished_at": "2026-04-22T09:45:11.408717+08:00",
+        "duration_seconds": 0
+      },
+      "development_stage": "completed",
+      "started_at": "2026-04-22T09:37:55.501026Z",
+      "completed_at": "2026-04-22T09:45:11.410598Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-22T09:45:11.410692Z",
+      "commit_hash": "7ef6c61c67cbd584e3077f9ac57916475a4c8e9a"
     },
     {
       "id": 14,
@@ -2472,16 +2498,16 @@
   "updates": [],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-04-22T00:49:17.592063Z",
+    "recorded_at": "2026-04-22T09:45:11.427066Z",
     "source": "complete_feature",
-    "workspace_mode": "worktree",
-    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-f12-ship-check",
-    "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-f12-ship-check",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-f12-ship-check",
-    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-f12-ship-check",
-    "branch": "feature/f12-ship-check",
+    "workspace_mode": "in_place",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
+    "branch": "f13-sprint-ledger-hardening",
     "upstream": null,
-    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-f12-ship-check/plugins/progress-tracker",
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
     "current_feature_id": null,
     "workflow_phase": null,
     "current_task": null,

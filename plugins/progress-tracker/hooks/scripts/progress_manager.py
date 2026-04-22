@@ -100,6 +100,28 @@ try:
     SHIP_CHECK_AVAILABLE = True
 except ImportError:  # pragma: no cover - optional module
     SHIP_CHECK_AVAILABLE = False
+
+try:
+    from sprint_ledger import (
+        SprintLedgerError,
+        record as record_sprint_artifact,
+        require_sprint_contract,
+    )
+    SPRINT_LEDGER_AVAILABLE = True
+except ImportError:  # pragma: no cover - optional module
+    SPRINT_LEDGER_AVAILABLE = False
+
+    class SprintLedgerError(Exception):
+        """Fallback sprint ledger error when module is unavailable."""
+
+    def require_sprint_contract(feature: Dict[str, Any]) -> None:
+        """No-op fallback when sprint_ledger module is not importable."""
+        return None
+
+    def record_sprint_artifact(**kwargs: Any) -> None:
+        """No-op fallback when sprint_ledger module is not importable."""
+        return None
+
 # Import git_validator for secure Git operations
 try:
     from git_validator import (
@@ -5965,6 +5987,17 @@ def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False
         print(f"[DONE] BLOCKED: {reason}")
         return code
 
+    if not SPRINT_LEDGER_AVAILABLE:
+        print("[DONE] BLOCKED: sprint_ledger module unavailable.", file=sys.stderr)
+        return 9
+
+    try:
+        assert feature is not None
+        require_sprint_contract(feature)
+    except SprintLedgerError as exc:
+        print(f"[DONE] BLOCKED: {exc}", file=sys.stderr)
+        return 9
+
     assert feature is not None  # preconditions guarantee feature presence
     feature_id = int(feature.get("id"))
     feature_name = feature.get("name", f"Feature {feature_id}")
@@ -5977,6 +6010,30 @@ def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False
         results=results,
         success=all_passed,
     )
+    if report_path:
+        try:
+            artifact_path = str(report_path.relative_to(find_project_root()))
+        except ValueError:
+            artifact_path = str(report_path)
+        try:
+            passed_count = sum(1 for result in results if result.success)
+            record_sprint_artifact(
+                feature_id=feature_id,
+                phase="evaluation",
+                artifact_path=artifact_path,
+                metadata={
+                    "success": bool(all_passed),
+                    "passed": passed_count,
+                    "total": len(results),
+                    "run_all": bool(run_all),
+                },
+            )
+        except SprintLedgerError as exc:
+            print(
+                f"[DONE] BLOCKED: failed to persist sprint ledger artifact: {exc}",
+                file=sys.stderr,
+            )
+            return 9
 
     if not all_passed:
         refreshed = load_progress_json()

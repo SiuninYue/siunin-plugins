@@ -335,7 +335,13 @@ def _make_progress_json_with_feature(tmp_path: Path, categories=None) -> Path:
             "reviews": {"required": [], "passed": [], "pending": []},
             "ship_check": {"status": "pending", "failures": [], "last_run_at": None},
         },
-        "sprint_contract": {"scope": "", "done_criteria": [], "test_plan": [], "accepted_by": None, "accepted_at": None},
+        "sprint_contract": {
+            "scope": "review-gate regression",
+            "done_criteria": ["all required lanes passed"],
+            "test_plan": ["pytest -q tests/test_review_router.py"],
+            "accepted_by": "test-suite",
+            "accepted_at": "2026-01-01T00:00:00Z",
+        },
         "handoff": {"from_phase": None, "to_phase": None, "artifact_path": None, "created_at": None},
     }
     data = {
@@ -463,7 +469,13 @@ def _make_progress_with_execution_complete(tmp_path: Path, reviews: dict) -> Pat
             "reviews": reviews,
             "ship_check": {"status": "pending", "failures": [], "last_run_at": None},
         },
-        "sprint_contract": {"scope": "", "done_criteria": [], "test_plan": [], "accepted_by": None, "accepted_at": None},
+        "sprint_contract": {
+            "scope": "done gate review routing",
+            "done_criteria": ["required review lanes passed"],
+            "test_plan": ["pytest -q tests/test_review_router.py"],
+            "accepted_by": "test-suite",
+            "accepted_at": "2026-01-01T00:00:00Z",
+        },
         "handoff": {"from_phase": None, "to_phase": None, "artifact_path": None, "created_at": None},
     }
     data = {

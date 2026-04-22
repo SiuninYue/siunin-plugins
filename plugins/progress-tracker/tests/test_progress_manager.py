@@ -2039,12 +2039,22 @@ class TestDoneCommand:
         reviews_required: Optional[List[str]] = None,
         reviews_passed: Optional[List[str]] = None,
         ship_check_status: str = "pass",
+        sprint_contract: Optional[dict] = None,
     ) -> Path:
         state_dir = temp_dir / "docs" / "progress-tracker" / "state"
         state_dir.mkdir(parents=True, exist_ok=True)
         required = reviews_required if reviews_required is not None else ["eng", "qa", "docs"]
         passed = reviews_passed if reviews_passed is not None else list(required)
         pending = [lane for lane in required if lane not in passed]
+        contract = sprint_contract
+        if contract is None:
+            contract = {
+                "scope": "deliver feature 1",
+                "done_criteria": ["acceptance checks pass"],
+                "test_plan": ["run test_steps"],
+                "accepted_by": "test-suite",
+                "accepted_at": "2026-03-17T00:00:00Z",
+            }
         data = {
             "project_name": "Done Test",
             "created_at": "2026-03-17T00:00:00Z",
@@ -2071,6 +2081,7 @@ class TestDoneCommand:
                         },
                         "ship_check": {"status": ship_check_status, "failures": [], "last_run_at": None},
                     },
+                    "sprint_contract": contract,
                 }
             ],
             "current_feature_id": current_feature_id,
@@ -2139,6 +2150,27 @@ class TestDoneCommand:
         assert result.returncode == 6
         assert "evaluator gate not passed" in result.stderr
         assert "status='pending'" in result.stderr
+
+    def test_done_command_blocks_when_sprint_contract_incomplete(self, temp_dir):
+        """done should fail with exit code 9 when sprint_contract is incomplete."""
+        self._write_done_state(
+            temp_dir,
+            test_steps=["true"],
+            phase="execution_complete",
+            current_feature_id=1,
+            sprint_contract={
+                "scope": "",
+                "done_criteria": [],
+                "test_plan": [],
+                "accepted_by": None,
+                "accepted_at": None,
+            },
+        )
+
+        result = self._run_done(temp_dir, "--skip-archive")
+
+        assert result.returncode == 9
+        assert "sprint_contract incomplete" in result.stderr
 
     def test_done_command_runs_acceptance_tests(self, temp_dir):
         """done should execute command test_steps and skip manual DoD lines."""
@@ -2237,6 +2269,30 @@ class TestDoneCommand:
         assert report["feature_id"] == 1
         assert report["overall_success"] is True
         assert report["results"]
+
+    def test_done_command_writes_evaluation_record_to_sprint_ledger(self, temp_dir):
+        """done should persist an evaluation artifact entry in sprint_ledger.jsonl."""
+        state_dir = self._write_done_state(
+            temp_dir,
+            test_steps=["echo done-ledger"],
+            phase="execution_complete",
+            current_feature_id=1,
+        )
+
+        result = self._run_done(temp_dir, "--skip-archive")
+        assert result.returncode == 0
+
+        ledger_path = state_dir / "sprint_ledger.jsonl"
+        assert ledger_path.exists()
+        entries = [json.loads(line) for line in ledger_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        assert entries
+        latest = entries[-1]
+        assert latest["feature_id"] == 1
+        assert latest["phase"] == "evaluation"
+        assert latest["artifact_path"].startswith(
+            "docs/progress-tracker/state/test_reports/feature-1-done-attempt-"
+        )
+        assert latest["metadata"]["success"] is True
 
     def test_done_command_completes_feature(self, temp_dir):
         """done should mark feature complete and clear current_feature_id on success."""

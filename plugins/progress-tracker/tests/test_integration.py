@@ -137,6 +137,13 @@ class TestFullWorkflow:
         with open(progress_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
         feature = data['features'][0]
+        feature['sprint_contract'] = {
+            'scope': 'integration done flow',
+            'done_criteria': ['done command returns 0'],
+            'test_plan': ['python3 progress_manager.py done --skip-archive'],
+            'accepted_by': 'integration-test',
+            'accepted_at': '2026-04-22T00:00:00Z',
+        }
         feature.setdefault('quality_gates', {})
         feature['quality_gates']['evaluator'] = {
             'status': 'pass',
