@@ -2,7 +2,7 @@
 
 **Created**: 2026-04-09T01:12:55.289861Z
 
-**Status**: 26/28 completed
+**Status**: 27/28 completed
 
 ## Completed
 - [x] 定义父级协调追踪器 Schema（linked_projects + snapshot 元数据）
@@ -31,22 +31,10 @@
 - [x] 落地 sprint_ledger 与 schema 2.1 的 sprint_contract/handoff 持久化
 - [x] 落地 wf_state_machine + wf_auto_driver + hook 自动推进
 - [x] prog done 后自动清理已合并的 feature 分支和 worktree
-
-## In Progress
-- [ ] 让 /prog 状态页末尾输出详细 handoff 提示
-  **Test steps**:
-  - 运行 python3 hooks/scripts/progress_manager.py --project-root plugins/progress-tracker status，确认最后的 handoff block 使用与 /prog next /prog done 一致的详细模板
-  - 在存在 current_feature_id 的场景下再次运行 status，确认输出详细的 Feature/Plan/Branch/ProjectRoot/Next 或 verification and commit 提示
-  - 同步检查 progress-status skill 与 communication-templates 的模板内容保持一致
+- [x] 让 /prog 状态页末尾输出详细 handoff 提示
 
 ## Pending
 - [ ] 优化概念命名与映射：将 prog-sync 类比为 log，prog-update 类比为 note
-
-## Workflow Context
-- Phase: execution_complete
-- Next action: run /prog done to finalize
-- Execution context: feature/26-handoff-template @ feature-26-handoff-template [worktree]
-- Current session context: feature/26-handoff-template @ feature-26-handoff-template [worktree]
 
 ### Fixed (✅)
 - [x] [BUG-001] [DEBT] /prog done 应该自动切换到内联上下文中指定的工作树进行验收测试验证，避免在错误分支上运行测试导致误判

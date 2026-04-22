@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "prog-parent-coordination-archive",
   "created_at": "2026-04-09T01:12:55.289861Z",
-  "updated_at": "2026-04-22T17:04:33.301775Z",
+  "updated_at": "2026-04-22T17:19:30.400579Z",
   "features": [
     {
       "id": 1,
@@ -2441,7 +2441,7 @@
         "在存在 current_feature_id 的场景下再次运行 status，确认输出详细的 Feature/Plan/Branch/ProjectRoot/Next 或 verification and commit 提示",
         "同步检查 progress-status skill 与 communication-templates 的模板内容保持一致"
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -2451,7 +2451,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "implementing",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-026"
       ],
@@ -2474,10 +2474,10 @@
       ],
       "quality_gates": {
         "evaluator": {
-          "status": "pending",
-          "score": null,
+          "status": "pass",
+          "score": 100,
           "defects": [],
-          "last_run_at": null,
+          "last_run_at": "2026-04-22T09:18:57Z",
           "evaluator_model": null
         },
         "reviews": {
@@ -2486,23 +2486,31 @@
             "eng",
             "qa"
           ],
-          "passed": [],
-          "pending": [
-            "docs",
+          "passed": [
             "eng",
+            "docs",
             "qa"
-          ]
+          ],
+          "pending": []
         },
         "ship_check": {
-          "status": "pending",
+          "status": "pass",
           "failures": [],
-          "last_run_at": null
+          "last_run_at": "2026-04-22T09:19:17Z"
         }
       },
       "sprint_contract": {
-        "scope": "",
-        "done_criteria": [],
-        "test_plan": [],
+        "scope": "让 /prog 状态页末尾输出详细 handoff 提示",
+        "done_criteria": [
+          "Status handoff block includes Feature/Plan/Branch/ProjectRoot/next-step context",
+          "execution_complete phase renders prog-done handoff with verification-and-commit prompt",
+          "No regression for no-current-feature and all-complete status outputs"
+        ],
+        "test_plan": [
+          "运行 python3 hooks/scripts/progress_manager.py --project-root plugins/progress-tracker status，确认最后的 handoff block 使用与 /prog next /prog done 一致的详细模板",
+          "在存在 current_feature_id 的场景下再次运行 status，确认输出详细的 Feature/Plan/Branch/ProjectRoot/Next 或 verification and commit 提示",
+          "同步检查 progress-status skill 与 communication-templates 的模板内容保持一致"
+        ],
         "accepted_by": null,
         "accepted_at": null
       },
@@ -2512,8 +2520,22 @@
         "artifact_path": null,
         "created_at": null
       },
-      "development_stage": "developing",
-      "started_at": "2026-04-22T17:04:21.412265Z"
+      "development_stage": "completed",
+      "started_at": "2026-04-22T17:04:21.412265Z",
+      "ai_metrics": {
+        "started_at": "2026-04-22T17:19:30.345268+08:00",
+        "finished_at": "2026-04-22T17:19:30.345268+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-22T17:19:30.350166Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-22T17:19:30.350313Z",
+      "commit_hash": "d7cd42ae46304d1ed03d8253d7422b3bfb7b3e6d",
+      "archive_info": {
+        "archived_at": "2026-04-22T17:19:30.400177Z",
+        "files_moved": 0,
+        "files": []
+      }
     },
     {
       "id": 27,
@@ -2588,12 +2610,12 @@
       }
     }
   ],
-  "current_feature_id": 26,
+  "current_feature_id": null,
   "updates": [],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-04-22T17:04:33.301261Z",
-    "source": "set_workflow_state",
+    "recorded_at": "2026-04-22T17:19:30.394823Z",
+    "source": "complete_feature",
     "workspace_mode": "worktree",
     "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-26-handoff-template",
     "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-26-handoff-template",
@@ -2602,11 +2624,11 @@
     "branch": "feature/26-handoff-template",
     "upstream": null,
     "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-26-handoff-template/plugins/progress-tracker",
-    "current_feature_id": 26,
-    "workflow_phase": "execution_complete",
+    "current_feature_id": null,
+    "workflow_phase": null,
     "current_task": null,
     "total_tasks": null,
-    "next_action": "run /prog done to finalize"
+    "next_action": null
   },
   "linked_projects": [],
   "linked_snapshot": {
@@ -2637,22 +2659,5 @@
       "fixed_at": "2026-04-14T08:12:46.429667Z"
     }
   ],
-  "current_bug_id": null,
-  "workflow_state": {
-    "phase": "execution_complete",
-    "plan_path": "",
-    "next_action": "run /prog done to finalize",
-    "updated_at": "2026-04-22T17:04:33.236039Z",
-    "execution_context": {
-      "recorded_at": "2026-04-22T17:04:33.269160Z",
-      "source": "set_workflow_state",
-      "workspace_mode": "worktree",
-      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-26-handoff-template",
-      "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-26-handoff-template",
-      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-26-handoff-template/plugins/progress-tracker",
-      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-26-handoff-template",
-      "branch": "feature/26-handoff-template",
-      "upstream": null
-    }
-  }
+  "current_bug_id": null
 }
