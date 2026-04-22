@@ -1,2 +1,1 @@
 {"timestamp": "2026-04-22T01:45:11.368190Z", "feature_id": 13, "phase": "evaluation", "artifact_path": "docs/progress-tracker/state/test_reports/feature-13-done-attempt-20260422T094511355970.json", "metadata": {"success": true, "passed": 2, "total": 2, "run_all": true}}
-{"timestamp": "2026-04-22T13:28:57.383345Z", "feature_id": 27, "phase": "evaluation", "artifact_path": "docs/progress-tracker/state/test_reports/feature-27-done-attempt-20260422T212857360264.json", "metadata": {"success": true, "passed": 0, "total": 0, "run_all": false}}

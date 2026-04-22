@@ -37,6 +37,7 @@ Usage:
 """
 
 import argparse
+import copy
 import json
 import os
 import re
@@ -2745,7 +2746,91 @@ def reconcile_evaluator(
     return 0
 
 
-def save_progress_json(data, touch_updated_at: bool = True):
+def _read_progress_json_snapshot(path: Path) -> Optional[Dict[str, Any]]:
+    """Best-effort reader for existing progress snapshots on disk."""
+    if not path.exists():
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    return payload
+
+
+def _prevent_completed_feature_regression(
+    data: Dict[str, Any],
+    json_path: Path,
+    *,
+    allow_completion_regression: bool = False,
+) -> List[Any]:
+    """
+    Preserve completed features against stale writes.
+
+    If the on-disk snapshot already marks a feature as completed, a normal save
+    cannot regress that same feature back to incomplete.
+    """
+    if allow_completion_regression:
+        return []
+
+    existing_data = _read_progress_json_snapshot(json_path)
+    if not existing_data:
+        return []
+
+    existing_features = existing_data.get("features")
+    incoming_features = data.get("features")
+    if not isinstance(existing_features, list) or not isinstance(incoming_features, list):
+        return []
+
+    incoming_by_id: Dict[Any, int] = {}
+    for index, feature in enumerate(incoming_features):
+        if not isinstance(feature, dict):
+            continue
+        feature_id = feature.get("id")
+        if feature_id is None:
+            continue
+        incoming_by_id.setdefault(feature_id, index)
+
+    regressed_ids: List[Any] = []
+    for existing_feature in existing_features:
+        if not isinstance(existing_feature, dict):
+            continue
+        if not bool(existing_feature.get("completed")):
+            continue
+        feature_id = existing_feature.get("id")
+        if feature_id not in incoming_by_id:
+            continue
+        incoming_feature = incoming_features[incoming_by_id[feature_id]]
+        if not isinstance(incoming_feature, dict):
+            continue
+        if bool(incoming_feature.get("completed")):
+            continue
+
+        incoming_features[incoming_by_id[feature_id]] = copy.deepcopy(existing_feature)
+        regressed_ids.append(feature_id)
+
+    if not regressed_ids:
+        return []
+
+    current_id = data.get("current_feature_id")
+    if current_id in regressed_ids:
+        data["current_feature_id"] = None
+        data.pop("workflow_state", None)
+
+    logger.warning(
+        "Prevented completion regression for features: %s",
+        ", ".join(str(fid) for fid in regressed_ids),
+    )
+    return regressed_ids
+
+
+def save_progress_json(
+    data,
+    touch_updated_at: bool = True,
+    allow_completion_regression: bool = False,
+):
     """Save data to progress.json file with optional updated_at touch and migration."""
     with progress_transaction():
         progress_dir = get_progress_dir()
@@ -2755,6 +2840,14 @@ def save_progress_json(data, touch_updated_at: bool = True):
         progress_dir.mkdir(parents=True, exist_ok=True)
 
         _apply_schema_defaults(data)
+
+        # Prevent accidental state regression from completed -> incomplete when
+        # callers save stale snapshots after /prog done.
+        _prevent_completed_feature_regression(
+            data=data,
+            json_path=json_path,
+            allow_completion_regression=allow_completion_regression,
+        )
 
         # Auto-update updated_at timestamp
         if touch_updated_at:
@@ -6841,8 +6934,8 @@ def undo_last_feature():
 
     # If nothing is currently in progress, we could optionally set this as current
     # But for safety, we'll leave current_feature_id as None or whatever it was
-
-    save_progress_json(data)
+    # Undo is an explicit regression path, so bypass monotonic completion guard.
+    save_progress_json(data, allow_completion_regression=True)
 
     # Update progress.md
     md_content = generate_progress_md(data)

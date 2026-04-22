@@ -22,8 +22,8 @@ Use this structure:
 - `/progress-tracker:prog-plan <project description>` (alias: `/prog-plan`): architecture planning and stack decisions.
 - `/progress-tracker:prog-init <goal description>` (alias: `/prog-init`): initialize tracking and feature decomposition.
 - `/progress-tracker:prog` (alias: `/prog`): show progress status and recommendations.
-- `/progress-tracker:prog-log` (alias: `/prog-log`): sync project capability memory from git history with batch confirmation.
-- `/progress-tracker:prog-note [category|summary]` (alias: `/prog-note`): record a structured progress update (status/decision/risk/handoff/assignment/meeting).
+- `/progress-tracker:prog-sync` (alias: `/prog-sync`): sync project capability memory from git history with batch confirmation.
+- `/progress-tracker:prog-update [category|summary]` (alias: `/prog-update`): record a structured progress update (status/decision/risk/handoff/assignment/meeting).
 - `/progress-tracker:prog-next` (alias: `/prog-next`): begin next feature using deterministic routing.
 - `/progress-tracker:prog-done` (alias: `/prog-done`): run acceptance checks and complete current feature.
 - `/progress-tracker:prog-fix [description|BUG-ID]` (alias: `/prog-fix`): report/list/fix bugs.

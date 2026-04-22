@@ -67,11 +67,11 @@ Initialize progress tracking and break goal into testable features.
 
 Show current project status and recommended next action. Includes linked project matrix (completion rate, stale markers) and archive history summary when available.
 
-### `/progress-tracker:prog-log` (alias: `/prog-log`)
+### `/progress-tracker:prog-sync` (alias: `/prog-sync`)
 
 Sync project capability memory from git history with batch confirmation.
 
-### `/progress-tracker:prog-note` (alias: `/prog-note`)
+### `/progress-tracker:prog-update` (alias: `/prog-update`)
 
 Record a structured progress update (status/decision/risk/handoff/assignment/meeting).
 

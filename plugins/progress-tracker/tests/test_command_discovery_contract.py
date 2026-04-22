@@ -17,9 +17,9 @@ def test_core_progress_commands_remain_discoverable():
         "prog.md",
         "prog-init.md",
         "prog-next.md",
-        "prog-note.md",
+        "prog-update.md",
         "prog-done.md",
-        "prog-log.md",
+        "prog-sync.md",
         "prog-ui.md",
         "help.md",
     }

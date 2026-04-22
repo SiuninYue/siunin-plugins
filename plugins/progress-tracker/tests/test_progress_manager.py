@@ -1234,6 +1234,49 @@ class TestUndo:
         assert [f for f in data["features"] if f["id"] == 3][0]["completed"] is False
 
 
+class TestCompletionRegressionGuard:
+    """Protect completed features from accidental stale overwrites."""
+
+    def test_save_progress_blocks_completed_to_incomplete_regression(self, progress_file):
+        """Default save path should preserve completed features and metadata."""
+        data = progress_manager.load_progress_json()
+        feature = next(f for f in data["features"] if f["id"] == 1)
+        assert feature["completed"] is True
+
+        data["current_feature_id"] = 1
+        data["workflow_state"] = {"phase": "execution"}
+        feature["completed"] = False
+        feature["development_stage"] = "developing"
+        feature.pop("completed_at", None)
+        feature.pop("commit_hash", None)
+
+        progress_manager.save_progress_json(data)
+
+        saved = progress_manager.load_progress_json()
+        restored = next(f for f in saved["features"] if f["id"] == 1)
+        assert restored["completed"] is True
+        assert restored["completed_at"] == "2024-01-02T00:00:00Z"
+        assert restored["commit_hash"] == "abc123"
+        assert saved["current_feature_id"] is None
+        assert "workflow_state" not in saved
+
+    def test_save_progress_allows_explicit_completion_regression(self, progress_file):
+        """Explicit regression flag should still allow controlled rollback flows."""
+        data = progress_manager.load_progress_json()
+        feature = next(f for f in data["features"] if f["id"] == 1)
+        feature["completed"] = False
+        feature.pop("completed_at", None)
+        feature.pop("commit_hash", None)
+
+        progress_manager.save_progress_json(data, allow_completion_regression=True)
+
+        saved = progress_manager.load_progress_json()
+        restored = next(f for f in saved["features"] if f["id"] == 1)
+        assert restored["completed"] is False
+        assert "completed_at" not in restored
+        assert "commit_hash" not in restored
+
+
 class TestPluginRoot:
     """Test plugin root detection."""
 

@@ -100,11 +100,11 @@ Progress Tracker 插件解决了 AI 辅助开发中的一个关键问题：**如
 
 显示项目当前进度与推荐下一步。包含 linked 子项目矩阵（完成率、stale 标记）与归档历史摘要（如有数据）。
 
-### `/progress-tracker:prog-log` (别名：`/prog-log`)
+### `/progress-tracker:prog-sync` (别名：`/prog-sync`)
 
 从增量 Git 历史同步项目能力记忆，并进行批量确认写入。
 
-### `/progress-tracker:prog-note` (别名：`/prog-note`)
+### `/progress-tracker:prog-update` (别名：`/prog-update`)
 
 记录结构化进度更新，并可选同步角色负责人。
 

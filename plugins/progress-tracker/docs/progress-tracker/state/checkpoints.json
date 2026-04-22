@@ -1,5 +1,5 @@
 {
-  "last_checkpoint_at": "2026-04-22T21:04:39.852998+08:00",
+  "last_checkpoint_at": "2026-04-22T20:51:33.727681+08:00",
   "max_entries": 50,
   "entries": [
     {
@@ -153,18 +153,18 @@
       "reason": "auto_interval"
     },
     {
-      "timestamp": "2026-04-22T21:04:39.852998+08:00",
+      "timestamp": "2026-04-22T20:51:33.727681+08:00",
       "feature_id": 27,
       "feature_name": "优化概念命名与映射：将 prog-sync 类比为 log，prog-update 类比为 note",
-      "phase": "planning",
+      "phase": "unknown",
       "plan_path": null,
       "current_task": null,
       "total_tasks": null,
       "next_action": null,
-      "workspace_mode": "worktree",
-      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/.worktrees/feature-27",
-      "branch": "feature/feature-27-naming-alias",
-      "upstream": null,
+      "workspace_mode": "in_place",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+      "branch": "main",
+      "upstream": "origin/main",
       "reason": "auto_interval"
     }
   ]

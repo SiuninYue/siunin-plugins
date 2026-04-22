@@ -1,6 +1,6 @@
 ---
-name: prog-note
-description: This skill should be used when the user asks to "/prog note", "/prog-note", "record a project update", "add status update", "log decision/risk/handoff", or needs to write structured update entries into progress tracking.
+name: progress-update
+description: This skill should be used when the user asks to "/prog-update", "record a project update", "add status update", "log decision/risk/handoff", or needs to write structured update entries into progress tracking.
 model: haiku
 version: "1.0.0"
 scope: skill
@@ -13,7 +13,7 @@ evidence: optional
 references: []
 ---
 
-# Prog Note Skill
+# Progress Update Skill
 
 Write structured updates into Progress Tracker through CLI commands only.
 
