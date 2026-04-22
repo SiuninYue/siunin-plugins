@@ -26,5 +26,12 @@
     "status": "noop",
     "operations": [],
     "conflicts": []
+  },
+  {
+    "timestamp": "2026-04-22T08:30:17.609454Z",
+    "target_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-25",
+    "status": "noop",
+    "operations": [],
+    "conflicts": []
   }
 ]

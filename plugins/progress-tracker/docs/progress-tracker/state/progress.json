@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "prog-parent-coordination-archive",
   "created_at": "2026-04-09T01:12:55.289861Z",
-  "updated_at": "2026-04-22T13:47:01.045189Z",
+  "updated_at": "2026-04-22T16:33:40.768697Z",
   "features": [
     {
       "id": 1,
@@ -2324,7 +2324,7 @@
         "in-place 模式（非 worktree）下仅清理分支，跳过 worktree 清理",
         "清理失败时输出警告但不阻断 prog done 后续步骤（非阻塞）"
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -2334,7 +2334,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "approved",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-025"
       ],
@@ -2360,27 +2360,43 @@
       ],
       "quality_gates": {
         "evaluator": {
-          "status": "pending",
-          "score": null,
+          "status": "pass",
+          "score": 100,
           "defects": [],
-          "last_run_at": null,
+          "last_run_at": "2026-04-22T08:32:34Z",
           "evaluator_model": null
         },
         "reviews": {
-          "required": [],
-          "passed": [],
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [
+            "docs",
+            "eng",
+            "qa"
+          ],
           "pending": []
         },
         "ship_check": {
-          "status": "pending",
+          "status": "pass",
           "failures": [],
-          "last_run_at": null
+          "last_run_at": "2026-04-22T08:32:42Z"
         }
       },
       "sprint_contract": {
-        "scope": "",
-        "done_criteria": [],
-        "test_plan": [],
+        "scope": "实现 /prog done 后自动清理已合并的 feature 分支和 worktree（含 worktree/in-place 与 dirty 保护）",
+        "done_criteria": [
+          "post-done cleanup 在 worktree 与 in-place 场景行为符合设计",
+          "dirty / unknown context 下仅 WARN 且不阻断完成",
+          "--no-cleanup 可跳过清理且输出明确提示"
+        ],
+        "test_plan": [
+          "pytest -q tests/test_cleanup_after_done.py",
+          "pytest -q tests/test_cmd_done_cleanup_integration.py",
+          "在 feature worktree 执行 prog done 验证 cleanup 输出路径"
+        ],
         "accepted_by": null,
         "accepted_at": null
       },
@@ -2389,6 +2405,32 @@
         "to_phase": null,
         "artifact_path": null,
         "created_at": null
+      },
+      "ai_metrics": {
+        "complexity_score": 22,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-22T16:20:06.043633Z",
+        "finished_at": "2026-04-22T16:33:40.713624+08:00",
+        "duration_seconds": 0
+      },
+      "development_stage": "completed",
+      "started_at": "2026-04-22T16:20:20.009526Z",
+      "completed_at": "2026-04-22T16:33:40.718596Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-22T16:33:40.718740Z",
+      "commit_hash": "2cf711724fd2dd0c428d398fd5c9d465b6da2a47",
+      "plan_path": "docs/plans/2026-04-22-f25-cleanup-after-done.md",
+      "archive_info": {
+        "archived_at": "2026-04-22T16:33:40.768301Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-04-22-f25-cleanup-after-done.md",
+            "to": "docs/archive/plans/2026-04-22-f25-cleanup-after-done.md"
+          }
+        ]
       }
     },
     {
@@ -2540,16 +2582,16 @@
   "updates": [],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-04-22T13:47:01.038203Z",
+    "recorded_at": "2026-04-22T16:33:40.762709Z",
     "source": "complete_feature",
     "workspace_mode": "worktree",
-    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-14",
-    "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-14",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-14",
-    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-14",
-    "branch": "feature/feature-14",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-25",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-25",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-25",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-25",
+    "branch": "feature/feature-25",
     "upstream": null,
-    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-14/plugins/progress-tracker",
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-25/plugins/progress-tracker",
     "current_feature_id": null,
     "workflow_phase": null,
     "current_task": null,

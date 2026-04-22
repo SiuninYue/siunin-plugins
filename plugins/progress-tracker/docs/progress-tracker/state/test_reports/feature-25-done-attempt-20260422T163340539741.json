@@ -1,0 +1,7 @@
+{
+  "feature_id": 25,
+  "feature_name": "prog done 后自动清理已合并的 feature 分支和 worktree",
+  "done_attempt_at": "2026-04-22T16:33:40.540102Z",
+  "overall_success": true,
+  "results": []
+}

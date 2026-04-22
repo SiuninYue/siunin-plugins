@@ -418,6 +418,17 @@ def test_cmd_done_completion_state_stable_before_cleanup_runs(seeded_done_env, m
 | 清理失败不阻断 done（退出码 + 状态不变量） | T3, T4 |
 | --no-cleanup 用户可发现性 | T5 |
 
+## Risks
+
+- 回归风险：`cmd_done` 调用链新增 cleanup，可能影响原有完成态落盘顺序。  
+  缓解：通过 T3 集成测试固定完成态不变量（`completed=true`、`current_feature_id=null`、archive 存在）。
+- 误删风险：in-place 模式下可能尝试删除当前分支。  
+  缓解：仅使用 `git branch -d` 安全删除；失败仅警告并提示手动处理，不阻断 done。
+- 远程清理风险：`git push <remote> --delete` 可能因权限/保护规则失败。  
+  缓解：远程删除保持非阻塞，失败仅 `WARN`，不回滚 feature 完成状态。
+- 状态漂移风险：worktree 脏状态下清理步骤与用户预期不一致。  
+  缓解：前置 dirty 检查并显式输出跳过原因，确保行为可解释且可重试。
+
 ## P1 修正对照
 
 | 审查 P1 | 修正方案 |

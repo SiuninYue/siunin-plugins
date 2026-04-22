@@ -21,7 +21,7 @@ Usage:
     python3 progress_manager.py fix-readiness <feature_id> [--add-requirement <REQ-ID>] [--set-why <text>] [--add-acceptance <text>]
     python3 progress_manager.py set-development-stage <planning|developing|completed> [--feature-id <id>]
     python3 progress_manager.py complete <feature_id>
-    python3 progress_manager.py done [--commit <hash>] [--run-all] [--skip-archive]
+    python3 progress_manager.py done [--commit <hash>] [--run-all] [--skip-archive] [--no-cleanup]
     python3 progress_manager.py set-finish-state --feature-id <id> --status <merged_and_cleaned|pr_open|kept_with_reason> [--reason <text>]
     python3 progress_manager.py set-feature-ai-metrics <feature_id> --complexity-score <score> --selected-model <model> --workflow-path <path>
     python3 progress_manager.py complete-feature-ai-metrics <feature_id>
@@ -6012,6 +6012,167 @@ def _validate_done_preconditions(
     return True, "", 0, feature
 
 
+def _is_worktree_dirty(worktree_path: Optional[str]) -> bool:
+    """Return True if the given path has uncommitted changes.
+
+    Falls back to the project root when worktree_path is None/empty.
+    """
+    cwd = worktree_path if worktree_path else str(find_project_root())
+    try:
+        result = subprocess.run(
+            ["git", "-C", cwd, "status", "--porcelain"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        return bool(result.returncode == 0 and result.stdout.strip())
+    except Exception:
+        return False
+
+
+def _resolve_upstream(branch: str) -> tuple:
+    """Return (remote, remote_branch) for *branch* before it is deleted.
+
+    Must be called while the local branch still exists so tracking metadata
+    is available.  Returns ("", "") when no upstream is configured.
+    """
+    if not branch:
+        return ("", "")
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", f"{branch}@{{u}}"],
+            capture_output=True,
+            text=True,
+            cwd=str(find_project_root()),
+            timeout=10,
+            check=False,
+        )
+        if result.returncode != 0 or not result.stdout.strip():
+            return ("", "")
+        upstream = result.stdout.strip()  # e.g. "origin/feature-25"
+        parts = upstream.split("/", 1)
+        if len(parts) == 2:
+            return (parts[0], parts[1])
+        return ("", "")
+    except Exception:
+        return ("", "")
+
+
+def _remove_worktree(worktree_path: str) -> bool:
+    """Remove a git worktree.  Must be run from the repo root, not the worktree itself."""
+    try:
+        result = subprocess.run(
+            ["git", "worktree", "remove", worktree_path],
+            capture_output=True,
+            text=True,
+            cwd=str(find_project_root()),
+            timeout=30,
+            check=False,
+        )
+        if result.returncode != 0:
+            print(f"[CLEANUP] WARN: could not remove worktree {worktree_path}: {result.stderr.strip()}")
+            return False
+        return True
+    except Exception as exc:
+        print(f"[CLEANUP] WARN: exception removing worktree {worktree_path}: {exc}")
+        return False
+
+
+def _delete_local_branch(branch: str) -> bool:
+    """Delete a local branch with git branch -d (safe; fails if unmerged)."""
+    if not branch:
+        return False
+    try:
+        result = subprocess.run(
+            ["git", "branch", "-d", branch],
+            capture_output=True,
+            text=True,
+            cwd=str(find_project_root()),
+            timeout=15,
+            check=False,
+        )
+        if result.returncode != 0:
+            print(
+                f"[CLEANUP] WARN: could not delete local branch '{branch}': "
+                f"{result.stderr.strip()}. "
+                f"Switch to main then run: git branch -d {branch}"
+            )
+            return False
+        return True
+    except Exception as exc:
+        print(f"[CLEANUP] WARN: exception deleting local branch '{branch}': {exc}")
+        return False
+
+
+def _delete_remote_branch(remote: str, remote_branch: str) -> bool:
+    """Push a delete to the remote.  No-op when remote or branch is empty.
+
+    Failures are non-blocking — only a warning is printed.
+    """
+    if not remote or not remote_branch:
+        return True
+    try:
+        result = subprocess.run(
+            ["git", "push", remote, "--delete", remote_branch],
+            capture_output=True,
+            text=True,
+            cwd=str(find_project_root()),
+            timeout=30,
+            check=False,
+        )
+        if result.returncode != 0:
+            print(
+                f"[CLEANUP] WARN: could not delete remote branch "
+                f"'{remote}/{remote_branch}': {result.stderr.strip()}"
+            )
+            return False
+        return True
+    except Exception as exc:
+        print(f"[CLEANUP] WARN: exception deleting remote branch '{remote}/{remote_branch}': {exc}")
+        return False
+
+
+def _run_post_done_cleanup(ctx: dict, skip: bool = False) -> None:
+    """Orchestrate post-done cleanup of worktree and feature branch.
+
+    Called after _notify_parent_sync().  All steps are non-blocking; no
+    exception propagates to cmd_done().
+
+    Args:
+        ctx: dict with keys branch, workspace_mode, worktree_path.
+        skip: when True (--no-cleanup), print a notice and return immediately.
+    """
+    if skip:
+        print("[DONE] --no-cleanup: skipping cleanup")
+        return
+
+    branch = ctx.get("branch", "")
+    workspace_mode = ctx.get("workspace_mode", "unknown")
+    worktree_path = ctx.get("worktree_path")
+
+    if workspace_mode == "unknown":
+        print("[CLEANUP] WARN: non-git context, skipping cleanup")
+        return
+
+    if _is_worktree_dirty(worktree_path if workspace_mode == "worktree" else None):
+        print("[CLEANUP] WARN: dirty worktree, skipping cleanup")
+        return
+
+    # Cache upstream info BEFORE deleting the local branch —
+    # tracking metadata disappears once the branch is removed.
+    remote, remote_branch = _resolve_upstream(branch)
+
+    if workspace_mode == "worktree":
+        _remove_worktree(worktree_path)
+        _delete_local_branch(branch)
+        _delete_remote_branch(remote, remote_branch)
+
+    elif workspace_mode == "in_place":
+        _delete_local_branch(branch)
+        _delete_remote_branch(remote, remote_branch)
+
+
 def _get_head_commit() -> Optional[str]:
     """Resolve current HEAD commit hash, if available."""
     try:
@@ -6040,7 +6201,8 @@ def _get_head_commit() -> Optional[str]:
     return None
 
 
-def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False) -> int:
+def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False,
+             no_cleanup: bool = False) -> int:
     """Close current feature through deterministic acceptance gatekeeping."""
     data = load_progress_json()
     if not data:
@@ -6180,6 +6342,14 @@ def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False
             )
             return 8
 
+    # Snapshot git context BEFORE complete_feature() clears workflow_state.
+    git_ctx = collect_git_context()
+    cleanup_ctx = {
+        "branch": git_ctx.get("branch", ""),
+        "workspace_mode": git_ctx.get("workspace_mode", "unknown"),
+        "worktree_path": git_ctx.get("worktree_path"),
+    }
+
     resolved_commit = commit_hash or _get_head_commit()
     success = complete_feature(
         feature_id=feature_id,
@@ -6200,6 +6370,10 @@ def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False
             relative_report = report_path
         print(f"[DONE] Report: {relative_report}")
     _notify_parent_sync()
+    try:
+        _run_post_done_cleanup(cleanup_ctx, skip=no_cleanup)
+    except Exception as exc:
+        print(f"[CLEANUP] WARN: unexpected cleanup error (feature still completed): {exc}")
     return 0
 
 
@@ -8529,6 +8703,12 @@ def main():
         action="store_true",
         help="Skip document archiving",
     )
+    done_parser.add_argument(
+        "--no-cleanup",
+        action="store_true",
+        dest="no_cleanup",
+        help="Skip automatic post-done cleanup of worktree and feature branch",
+    )
     set_finish_state_parser = subparsers.add_parser(
         "set-finish-state",
         help="Resolve explicit finish_pending integration status for a feature",
@@ -8923,6 +9103,7 @@ def main():
                 commit_hash=args.commit,
                 run_all=args.run_all,
                 skip_archive=args.skip_archive,
+                no_cleanup=args.no_cleanup,
             )
         if args.command == "set-finish-state":
             return cmd_set_finish_state(
