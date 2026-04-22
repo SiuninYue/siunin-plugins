@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "prog-parent-coordination-archive",
   "created_at": "2026-04-09T01:12:55.289861Z",
-  "updated_at": "2026-04-22T10:04:59.484683Z",
+  "updated_at": "2026-04-22T13:47:01.045189Z",
   "features": [
     {
       "id": 1,
@@ -2204,10 +2204,10 @@
       "name": "落地 wf_state_machine + wf_auto_driver + hook 自动推进",
       "test_steps": [
         "新增 wf_state_machine.py 纯函数 compute_next_action 与 wf_auto_driver.py hook 入口",
-        "运行: pytest -q plugins/progress-tracker/tests/test_wf_state_machine.py",
-        "运行: pytest -q plugins/progress-tracker/tests/test_wf_auto_driver.py"
+        "运行: pytest -q tests/test_wf_state_machine.py",
+        "运行: pytest -q tests/test_wf_auto_driver.py"
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -2217,7 +2217,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "implementing",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-014"
       ],
@@ -2240,10 +2240,10 @@
       ],
       "quality_gates": {
         "evaluator": {
-          "status": "pending",
-          "score": null,
+          "status": "pass",
+          "score": 100,
           "defects": [],
-          "last_run_at": null,
+          "last_run_at": "2026-04-22T05:41:54Z",
           "evaluator_model": null
         },
         "reviews": {
@@ -2252,25 +2252,33 @@
             "eng",
             "qa"
           ],
-          "passed": [],
-          "pending": [
-            "docs",
+          "passed": [
             "eng",
+            "docs",
             "qa"
-          ]
+          ],
+          "pending": []
         },
         "ship_check": {
-          "status": "pending",
+          "status": "pass",
           "failures": [],
-          "last_run_at": null
+          "last_run_at": "2026-04-22T05:43:37Z"
         }
       },
       "sprint_contract": {
-        "scope": "",
-        "done_criteria": [],
-        "test_plan": [],
-        "accepted_by": null,
-        "accepted_at": null
+        "scope": "落地 wf_state_machine + wf_auto_driver + hook 自动推进",
+        "done_criteria": [
+          "wf_state_machine 在 execution_complete 和 execution 场景下返回正确的 pending_action",
+          "wf_auto_driver 通过 hook 路径写回 pending_action",
+          "acceptance tests and ship-check pass"
+        ],
+        "test_plan": [
+          "pytest -q tests/test_wf_state_machine.py",
+          "pytest -q tests/test_wf_auto_driver.py",
+          "./prog --project-root . ship-check --feature-id 14"
+        ],
+        "accepted_by": "codex",
+        "accepted_at": "2026-04-22T05:43:19Z"
       },
       "handoff": {
         "from_phase": null,
@@ -2278,8 +2286,32 @@
         "artifact_path": null,
         "created_at": null
       },
-      "development_stage": "developing",
-      "started_at": "2026-04-22T10:04:59.467290Z"
+      "ai_metrics": {
+        "complexity_score": 20,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-22T10:11:39.824905Z",
+        "finished_at": "2026-04-22T13:47:00.988993+08:00",
+        "duration_seconds": 0
+      },
+      "development_stage": "completed",
+      "started_at": "2026-04-22T10:11:48.221262Z",
+      "integration_status": "merged_and_cleaned",
+      "completed_at": "2026-04-22T13:47:00.993430Z",
+      "finish_state_resolved_at": "2026-04-22T13:47:00.993578Z",
+      "commit_hash": "a415118",
+      "plan_path": "docs/plans/2026-04-22-f14-wf-state-machine-auto-driver.md",
+      "archive_info": {
+        "archived_at": "2026-04-22T13:47:01.044708Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-04-22-f14-wf-state-machine-auto-driver.md",
+            "to": "docs/archive/plans/2026-04-22-f14-wf-state-machine-auto-driver.md"
+          }
+        ]
+      }
     },
     {
       "id": 25,
@@ -2504,21 +2536,21 @@
       }
     }
   ],
-  "current_feature_id": 14,
+  "current_feature_id": null,
   "updates": [],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-04-22T10:04:59.484410Z",
-    "source": "set_current",
-    "workspace_mode": "in_place",
-    "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
-    "project_root": "/Users/siunin/Projects/Claude-Plugins",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins",
-    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
-    "branch": "main",
-    "upstream": "origin/main",
-    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
-    "current_feature_id": 14,
+    "recorded_at": "2026-04-22T13:47:01.038203Z",
+    "source": "complete_feature",
+    "workspace_mode": "worktree",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-14",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-14",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-14",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-14",
+    "branch": "feature/feature-14",
+    "upstream": null,
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-14/plugins/progress-tracker",
+    "current_feature_id": null,
     "workflow_phase": null,
     "current_task": null,
     "total_tasks": null,

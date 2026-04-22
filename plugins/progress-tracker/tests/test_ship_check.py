@@ -86,7 +86,7 @@ def test_ship_check_result_serializes_to_quality_gates_schema(tmp_path):
     assert set(payload.keys()) == {"status", "failures", "last_run_at"}
 
 
-def test_ship_check_cli_returns_nonzero_on_failure(tmp_path, monkeypatch):
+def test_ship_check_cli_overwrites_stale_failure_with_fresh_pass(tmp_path, monkeypatch):
     import subprocess, sys, json
     from pathlib import Path
     monkeypatch.chdir(tmp_path)
@@ -106,4 +106,34 @@ def test_ship_check_cli_returns_nonzero_on_failure(tmp_path, monkeypatch):
         [sys.executable, str(progress_manager), "ship-check", "--feature-id", "1"],
         cwd=tmp_path, capture_output=True, text=True,
     )
-    assert result.returncode != 0
+    assert result.returncode == 0
+    assert "[SHIP-CHECK] Feature 1: pass" in result.stdout
+
+    updated = json.loads(state.read_text())
+    assert updated["features"][0]["quality_gates"]["ship_check"]["status"] == "pass"
+
+
+def test_ship_check_cli_returns_zero_and_persists_result_on_success(tmp_path, monkeypatch):
+    import subprocess, sys, json
+    from pathlib import Path
+
+    monkeypatch.chdir(tmp_path)
+    progress_manager = Path(__file__).parent.parent / "hooks" / "scripts" / "progress_manager.py"
+    subprocess.run([sys.executable, str(progress_manager), "init", "Ship Test"], cwd=tmp_path, check=True)
+    subprocess.run([sys.executable, str(progress_manager), "add-feature", "F1", "echo"], cwd=tmp_path, check=True)
+
+    state = tmp_path / "docs" / "progress-tracker" / "state" / "progress.json"
+    result = subprocess.run(
+        [sys.executable, str(progress_manager), "ship-check", "--feature-id", "1"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert "[SHIP-CHECK] Feature 1: pass" in result.stdout
+
+    data = json.loads(state.read_text())
+    ship_check = data["features"][0]["quality_gates"]["ship_check"]
+    assert ship_check["status"] == "pass"
+    assert ship_check["failures"] == []

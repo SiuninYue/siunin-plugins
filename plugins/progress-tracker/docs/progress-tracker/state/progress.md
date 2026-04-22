@@ -2,7 +2,7 @@
 
 **Created**: 2026-04-09T01:12:55.289861Z
 
-**Status**: 24/28 completed
+**Status**: 25/28 completed
 
 ## Completed
 - [x] 定义父级协调追踪器 Schema（linked_projects + snapshot 元数据）
@@ -29,13 +29,7 @@
 - [x] 落地 review_router 智能分流并持久化 review lanes
 - [x] 落地 ship_check 统一门禁与 docs-sync 证据校验
 - [x] 落地 sprint_ledger 与 schema 2.1 的 sprint_contract/handoff 持久化
-
-## In Progress
-- [ ] 落地 wf_state_machine + wf_auto_driver + hook 自动推进
-  **Test steps**:
-  - 新增 wf_state_machine.py 纯函数 compute_next_action 与 wf_auto_driver.py hook 入口
-  - 运行: pytest -q plugins/progress-tracker/tests/test_wf_state_machine.py
-  - 运行: pytest -q plugins/progress-tracker/tests/test_wf_auto_driver.py
+- [x] 落地 wf_state_machine + wf_auto_driver + hook 自动推进
 
 ## Pending
 - [ ] prog done 后自动清理已合并的 feature 分支和 worktree

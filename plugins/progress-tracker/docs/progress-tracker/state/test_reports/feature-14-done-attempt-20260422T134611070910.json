@@ -1,0 +1,17 @@
+{
+  "feature_id": 14,
+  "feature_name": "落地 wf_state_machine + wf_auto_driver + hook 自动推进",
+  "done_attempt_at": "2026-04-22T13:46:11.071390Z",
+  "overall_success": false,
+  "results": [
+    {
+      "step": "运行: pytest -q plugins/progress-tracker/tests/test_wf_state_machine.py",
+      "command": "pytest -q plugins/progress-tracker/tests/test_wf_state_machine.py",
+      "success": false,
+      "output_summary": "no tests ran in 0.00s\nERROR: file or directory not found: plugins/progress-tracker/tests/test_wf_state_machine.py",
+      "duration_ms": 229,
+      "exit_code": 4,
+      "error": "ERROR: file or directory not found: plugins/progress-tracker/tests/test_wf_state_machine.py"
+    }
+  ]
+}
