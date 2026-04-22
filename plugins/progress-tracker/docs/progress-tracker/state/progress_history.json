@@ -1,0 +1,32 @@
+[
+  {
+    "archive_id": "20260422T223141816861-prog-parent-coordination-archive-completed",
+    "archived_at": "2026-04-22T22:31:41.818029Z",
+    "reason": "completed",
+    "project_name": "prog-parent-coordination-archive",
+    "total_features": 28,
+    "completed_features": 28,
+    "current_feature_id": null,
+    "progress_json": "progress_archive/20260422T223141816861-prog-parent-coordination-archive-completed.progress.json",
+    "progress_md": "progress_archive/20260422T223141816861-prog-parent-coordination-archive-completed.progress.md",
+    "status_summary_v1": "progress_archive/20260422T223141816861-prog-parent-coordination-archive-completed.status-summary.v1.json",
+    "status_summary_legacy": null,
+    "archived_artifacts": [
+      {
+        "kind": "progress_json",
+        "source_path": "docs/progress-tracker/state/progress.json",
+        "archive_path": "progress_archive/20260422T223141816861-prog-parent-coordination-archive-completed.progress.json"
+      },
+      {
+        "kind": "progress_md",
+        "source_path": "docs/progress-tracker/state/progress.md",
+        "archive_path": "progress_archive/20260422T223141816861-prog-parent-coordination-archive-completed.progress.md"
+      },
+      {
+        "kind": "status_summary_v1",
+        "source_path": "docs/progress-tracker/state/status_summary.v1.json",
+        "archive_path": "progress_archive/20260422T223141816861-prog-parent-coordination-archive-completed.status-summary.v1.json"
+      }
+    ]
+  }
+]

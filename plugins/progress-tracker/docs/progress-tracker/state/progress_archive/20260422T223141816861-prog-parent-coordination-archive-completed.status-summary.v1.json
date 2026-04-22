@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-04-22T22:31:56.710269Z",
+  "updated_at": "2026-04-22T22:31:32.069958Z",
   "source": {
     "generator": "progress_manager.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,8 +11,8 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1776868301815563051,
-      "size": 91231
+      "mtime_ns": 1776852145588149555,
+      "size": 90774
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
@@ -22,16 +22,16 @@
     }
   },
   "progress": {
-    "completed": 28,
+    "completed": 27,
     "total": 28,
-    "percentage": 100
+    "percentage": 96
   },
   "next_action": {
-    "type": "none",
-    "feature_id": null,
-    "feature_name": "无待办功能",
-    "development_stage": null,
-    "stage_label": null
+    "type": "feature",
+    "feature_id": 27,
+    "feature_name": "优化概念命名与映射：将 prog-sync 类比为 log，prog-update 类比为 note",
+    "development_stage": "developing",
+    "stage_label": "开发中"
   },
   "plan_health": {
     "status": "N/A",
