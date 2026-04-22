@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-04-22T09:43:41.666320Z",
+  "updated_at": "2026-04-22T13:23:34.446782Z",
   "source": {
     "generator": "progress_manager.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,8 +11,8 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1776822210741940161,
-      "size": 85235
+      "mtime_ns": 1776823499485201866,
+      "size": 85771
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
@@ -22,14 +22,14 @@
     }
   },
   "progress": {
-    "completed": 23,
+    "completed": 24,
     "total": 28,
-    "percentage": 82
+    "percentage": 85
   },
   "next_action": {
     "type": "feature",
-    "feature_id": 13,
-    "feature_name": "落地 sprint_ledger 与 schema 2.1 的 sprint_contract/handoff 持久化",
+    "feature_id": 14,
+    "feature_name": "落地 wf_state_machine + wf_auto_driver + hook 自动推进",
     "development_stage": "developing",
     "stage_label": "开发中"
   },
