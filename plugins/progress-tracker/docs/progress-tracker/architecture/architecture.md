@@ -1,857 +1,302 @@
-# Architecture: PROG Full Normalization
+# Architecture: Progress Tracker SOP Compliance Optimization (WF + Token + Bug)
 
-**Created**: 2026-03-16
-**Last Updated**: 2026-04-08
-**Sources**:
-- `/Users/siunin/Projects/Claude-Plugins/docs/plan/ds-plan-part1.md`
-- `/Users/siunin/Projects/Claude-Plugins/docs/plan/ds-plan-part2.md`
-- `/Users/siunin/Projects/Claude-Plugins/docs/plan/ds-plan-part3-v2.md`
-- `/Users/siunin/Projects/Claude-Plugins/docs/plan/ds-plan-part4.md`
-- `https://www.anthropic.com/engineering/harness-design-long-running-apps`
-- `https://github.com/shareAI-lab/learn-claude-code`
-- `https://github.com/garrytan/gstack`
-
-`ds-plan-part3-v2.md` is treated as the only valid Part 3 source. Any older Part 3 variant is superseded.
+**Created**: 2026-04-23
+**Last Updated**: 2026-04-23
+**Planning Source**: `/Users/siunin/.claude/plans/prancy-wandering-wren.md`
 
 ## Goals
 
-- Normalize Progress Tracker from schema `2.0` to `2.1` without breaking existing `/prog-*` command usage.
-- Make `lifecycle_state` and `integration_status` the canonical state model while preserving `development_stage` and `completed` as legacy mirrors.
-- Eliminate unsafe direct-write behavior by routing every mutating path through one transaction and audit pipeline.
-- Keep `/prog-next` as the only feature-start entrypoint; do not reintroduce `/prog-start`.
-- Fix the long-standing closeout gap: `/prog-done` must end in an explicit integration outcome or a persisted `finish_pending` state that blocks `/prog-next`.
-- Preserve worktree safety: dirty or current worktrees are never auto-deleted.
-- Keep status output fast and deterministic by introducing a derived summary projection with checksum-based drift detection.
-- Separate retrospectives from archive metadata so postmortem content does not overload feature archive bookkeeping.
-- Provide a machine-consumable downstream contract for `/prog-init`, `/prog-next`, and later implementation skills.
-- Make monorepo scope selection fail closed for mutating commands so `/prog-next` cannot silently resume the wrong project tracker.
-- Add a harness-grade delivery loop for long-running implementation: planner intent -> generator sprint -> independent evaluator gate.
-- Keep the core agent loop stable and layer mechanisms incrementally (readiness policy, context compaction, task graph, background jobs, worktree isolation).
-- Add role-routed review and release/documentation gates so quality checks are explicit before closeout.
+- Establish a stable primary workflow for Progress Tracker: `/prog plan -> /prog init -> /prog next -> /prog done -> /prog sync`.
+- Reduce routing ambiguity by standardizing skill `description` fields to trigger-oriented phrasing.
+- Reduce default token usage by applying progressive disclosure to oversized `SKILL.md` files.
+- Remove high-risk metadata and standards drift that causes repeated rollback loops.
+- Define machine-verifiable quality gates so execution can be batched and audited.
 
-Current repository baseline on 2026-04-08:
-
-- `/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/hooks/scripts/progress_manager.py` still declares `CURRENT_SCHEMA_VERSION = "2.0"` and mutating flows still write through `save_progress_json(...)`.
-- `pytest -q plugins/progress-tracker/tests/test_feature_contract_readiness.py` currently passes (`10 passed`).
-- `pytest -q plugins/progress-tracker/tests/test_feature_completion_state_transition.py` currently passes (`6 passed`), so legacy `planning -> developing -> completed` behavior must remain compatible.
-- `pytest -q plugins/progress-tracker/tests/test_command_discovery_contract.py` currently fails because it still expects `prog-start.md`, which has been intentionally removed.
+Assumptions:
+- This planning scope targets the `progress-tracker` plugin first, then applies to sibling plugins (`super-product-manager`, `package-manager`, `note-organizer`) through follow-up execution batches.
+- Current repository baseline counts in the source draft are treated as authoritative starting metrics for execution planning.
 
 ## Scope Boundaries
 
-### In Scope
+In scope:
+- Skill frontmatter and description normalization for routable command/skill invocation.
+- Plugin metadata completion in `.claude-plugin/plugin.json` (`homepage`, `repository`).
+- Progressive disclosure refactor for oversized skill documents.
+- Validation and drift-prevention gates for docs and sync paths.
+- Workflow definition and command-role boundary hardening.
 
-- `progress.json` schema `2.1` backfill, validation, and compatibility logic.
-- Centralized transactional write path for state, audit updates, and summary projection.
-- Closeout gate design for `/prog-done`, `/prog-next`, and worktree cleanup.
-- Contract import, readiness validation, lifecycle transitions, refs enrichment, retro separation, and summary projection.
-- Monorepo and linked-project scope rules for safe root-level invocation.
-- Command/help/doc updates required to keep public behavior and generated docs consistent.
-- Test expansion for migration, concurrency, finish-gate, worktree, and summary consistency risks.
+Out of scope:
+- Re-architecting runtime business logic inside `progress_manager.py` unrelated to SOP compliance and workflow consistency.
+- Migrating from file-based plugin/docs storage to external services.
+- UI redesign work outside command/help clarity and generated documentation consistency.
 
-### Out of Scope
-
-- Replacing the plugin's file-backed persistence with a database or remote service.
-- Rewriting command markdown wrappers into a different command architecture.
-- Redesigning unrelated plugins or non-PROG workflows.
-- Broad UI redesign beyond what is required for summary/status correctness.
-- Implicit cross-project mutation from a monorepo root without an explicit target scope.
-
-### Recommended System Shape
-
-Use a modular monolith: keep `/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/hooks/scripts/progress_manager.py` as the CLI facade, but extract new collaborators behind it:
-
-- `transaction_manager.py`
-- `schema_migration.py`
-- `state_reconciler.py`
-- `contract_importer.py`
-- `readiness_validator.py`
-- `lifecycle_service.py`
-- `finish_gate.py`
-- `summary_projector.py`
-- `sprint_ledger.py`
-- `evaluator_gate.py`
-- `review_router.py`
-
-This preserves command compatibility while isolating the highest-risk code paths.
-
-### Harness Overlay for Long-Running Work
-
-Apply the external harness patterns as delivery constraints, not as a rewrite of the plugin:
-
-- `planner` role: expands high-level intent into feature-level sprint goals and acceptance criteria.
-- `generator` role: executes one feature sprint at a time, updating durable artifacts.
-- `evaluator` role: independently grades output quality and blocks promotion when criteria fail.
-- Sprint handoff artifact is required between long-running sessions (state snapshot + next steps + unresolved risks).
-- Context management follows layered controls: selective knowledge injection, compaction, and explicit reset/handoff when quality drops.
-- Review and release routing is explicit (engineering/design/QA/doc readiness) and recorded in the tracker before archival.
-
-### Part 1 to Part 4 Mapping
-
-The Part 4 table contains a coarse mapping, but it conflates closeout MVP work with normalization-core work. The normalized mapping below is the recommended execution mapping for implementation.
-
-| Part 1 Macro Stage | Intent | Part 4 Execution Stages | Why |
-| --- | --- | --- | --- |
-| Stage 1: Migration Safety Foundation | Make old data safe to read/write before any workflow behavior changes | 1, 2, 3, 4 | These are all prerequisite safety rails: failing baseline, transaction layer, schema backfill, and compatibility repair |
-| Stage 2: Closeout Pain MVP | Fix `/prog-done` and unresolved integration tails | 8, 12 (closeout regression slice) | Only Stage 8 directly implements finish-gate behavior; Stage 12 validates it end-to-end before release |
-| Stage 3: Normalization Core | Make contracts, readiness, lifecycle, and audit data first-class | 5, 6, 7, 9 | Contract import, readiness gating, lifecycle transitions, and refs/audit enrichment are the core normalization behaviors |
-| Stage 4: Enhancement and Performance | Speed, docs, and release hardening | 10, 11, 12 (performance/docs slice) | Summary projection, doc/help sync, and final regression complete the release-quality layer |
-
-Inference from Part 1, Part 3 v2, and Part 4:
-
-- Stage 5-7 belong to the normalization core, not the closeout MVP, because they implement contract/readiness/lifecycle semantics rather than finish-gate resolution.
-- Stage 12 is shared validation capacity; it should be partitioned across Stage 2 and Stage 4 acceptance, not treated as a standalone business capability.
-
-### Critical Integration Points
-
-| Area | Primary Files | Integration Role |
-| --- | --- | --- |
-| State facade | `/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/hooks/scripts/progress_manager.py` | Stable CLI facade; delegates all mutating work to extracted services |
-| Commands | `/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/commands/prog-init.md`, `/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/commands/prog-done.md`, `/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/commands/prog-next.md`, `/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/commands/prog-plan.md`, `/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/commands/prog.md` | Preserve thin command wrappers while updating downstream skill and CLI expectations |
-| Tests | `/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/tests/` | Contract suite and risk-based regression harness |
-| Docs | `/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/README.md`, `/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/docs/PROG_COMMANDS.md`, `/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/docs/ARCHITECTURE.md`, `/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/hooks/scripts/generate_prog_docs.py`, `/Users/siunin/Projects/Claude-Plugins/docs/progress-tracker/architecture/architecture.md` | Public contract, generated help, and downstream architecture source for `/prog-init` |
+Boundary rule:
+- Architecture file is the master contract and must not be archived/mutated as part of feature closeout flows.
 
 ## Interface Contracts
 
-### State Contract: `progress.json` Schema 2.1
+### Contract A: Skill Metadata Contract
 
-Top-level fields:
+Input type:
+- `skills/*/SKILL.md` with YAML frontmatter.
 
-- `schema_version: "2.1"`
-- `validation_policy`
-- `features[]`
-- `retrospectives[]`
-- `updates[]`
-- existing legacy fields remain present for compatibility
+Output type:
+- SOP-compliant frontmatter with routable description.
 
-Feature contract:
+Required output fields:
+- `name: string`
+- `description: string` (must include trigger phrase such as `This skill should be used when ...` or `Use when ...`)
 
-- Required canonical fields:
-  - `id`
-  - `name`
-  - `lifecycle_state`
-  - `requirement_ids`
-  - `change_spec`
-  - `acceptance_scenarios`
-  - `acceptance_results`
-  - `integration_status`
-  - `cleanup_status`
-- Required legacy mirrors:
-  - `development_stage`
-  - `completed`
-- Optional but durable:
-  - `integration_ref`
-  - `finish_reason`
-  - `archive_info`
-  - `ai_metrics`
-  - `verification`
-  - `owners`
+Recommended output fields:
+- `model: string`
+- `version: string`
+- `references: string[]`
 
-Canonical truth rules:
+Prohibited output fields:
+- `scope`, `inputs`, `outputs`, `evidence`
 
-- `lifecycle_state` is the source of truth.
-- `development_stage` and `completed` are derived mirrors.
-- `integration_status` and `cleanup_status` are the source of truth for closeout state.
-- `archive_info` records archive operations only.
-- `retrospectives[]` stores retrospective narratives and action items; it must not be folded into `archive_info`.
+### Contract B: Plugin Metadata Contract
 
-### Command Contracts
+Input type:
+- `.claude-plugin/plugin.json`
 
-#### `/prog-init`
+Output type:
+- Plugin metadata object with traceability fields.
 
-- Input: project goal plus optional feature seed derived from this architecture.
-- Output: initialized `progress.json`, `progress.md`, feature list, and next-step recommendation.
-- Must read this file before feature generation when it exists.
+Required fields:
+- `homepage: string`
+- `repository: string`
 
-#### `/prog-done`
+### Contract C: Command Help Single-Source Contract
 
-- Input: active feature in execution-complete state and validated plan/test evidence.
-- Output:
-  - `verified` plus final integration outcome, or
-  - `verified + finish_pending` with an actionable next step.
-- Must not silently skip finish-gate persistence.
+Input type:
+- `docs/PROG_COMMANDS.md`
 
-#### `/prog-next`
+Output type:
+- Generated parity in:
+  - `README.md`
+  - `readme-zh.md`
+  - `docs/PROG_HELP.md`
 
-- Input: active project state.
-- Output:
-  - next feature selection only when no unresolved finish-gate block exists.
-  - readiness validation on the selected feature.
-  - transition to `implementing/developing` in the same flow when readiness passes.
-- Failure result: explicit remediation path for pending finish, cleanup, or readiness blockers.
-- Command contract: `/prog-start` is deprecated and must not be required by any wrapper/skill/doc.
-- Scope rule: in a monorepo root or any workspace with multiple candidate trackers, mutating `/prog-*` flows must require explicit target scope and must not resume whichever tracker is most recently active elsewhere.
+Validation interface:
+- `python3 hooks/scripts/generate_prog_docs.py --check` exits `0` on parity, non-zero on drift.
 
-#### `status` and UI summary
+### Contract D: Architecture Handoff Contract
 
-- Input: `progress.json` and optionally `progress_summary.json`.
-- Output: consistent summary view; if projection checksum mismatches, rebuild before display.
+Input type:
+- `/prog plan <goal>`
 
-### Workspace Scope Contract
+Output type:
+- `docs/progress-tracker/architecture/architecture.md` containing:
+  - Goals
+  - Scope Boundaries
+  - Interface Contracts
+  - State Flow
+  - Failure Handling
+  - Acceptance Criteria
+  - Key Architectural Decisions (ADR)
+  - Execution Constraints
 
-Supported scope modes:
-
-- `single-project mode`: current working directory already resolves to one project root; mutating and read-only commands may proceed.
-- `explicit child-scope mode`: command is run from a monorepo root with `--project-root plugins/<name>` (or equivalent explicit selector); mutating and read-only commands may proceed for that target only.
-- `coordination mode`: a root-level tracker or future workspace manifest coordinates several linked projects; cross-project work is explicit and never inferred from whichever child tracker happened to be active last.
-
-Required behavior:
-
-- Mutating commands fail closed on ambiguous scope.
-- Read-only commands may present an aggregated overview or a list of candidate scopes, but must not mutate state until a target scope is explicit.
-- Cross-project or linked-project work must be represented either as:
-  - one explicit coordination tracker at the root, or
-  - separate per-project trackers invoked with explicit scope.
-
-Inference:
-
-- This does not forbid using `prog` from the monorepo root.
-- It forbids implicit mutation from the monorepo root when more than one tracker could be targeted.
-- Linked projects remain supported, but the coordination boundary has to be explicit instead of inferred.
-
-### Internal Service Contracts
-
-#### `transaction_manager.atomic_update(mutation, reason, correlation_id=None) -> dict`
-
-- Reads, locks, mutates, validates, writes, and audits in one controlled path.
-- Writes `progress.json`, `progress_summary.json`, and `progress.md` in a deterministic order.
-
-#### `schema_migration.apply_defaults(data) -> dict`
-
-- Adds schema `2.1` defaults and preserves unknown fields.
-- Never destroys newer fields when `PROG_DISABLE_V2=1`.
-
-#### `readiness_validator.validate_feature_readiness(feature, policy) -> report`
-
-- Returns `{"valid": bool, "errors": [...], "warnings": [...]}`.
-- Blocking items gate `/prog-next` start transition; warnings do not.
-
-#### `finish_gate.apply(feature_id, requested_status=None, reason=None) -> result`
-
-- Enforces legal `lifecycle_state` and `integration_status` combinations.
-- Produces one of:
-  - `merged_and_cleaned`
-  - `pr_open`
-  - `kept_with_reason`
-  - `finish_pending`
-
-#### `summary_projector.rebuild_if_stale() -> summary`
-
-- Regenerates projection if checksum or transaction markers do not match the source state.
-
-#### `sprint_ledger.record(event) -> None`
-
-- Persists per-sprint artifacts (`plan`, `implementation`, `evaluation`, `handoff`) as append-only records.
-- Makes long-running sessions resumable without relying on implicit chat history.
-
-#### `evaluator_gate.assess(feature_id, rubric) -> gate_result`
-
-- Runs independent quality assessment after generator output.
-- Returns `pass|retry|required_reviews` plus structured defects.
-
-#### `review_router.required_reviews(feature) -> list[str]`
-
-- Selects review lanes (`eng`, `design`, `qa`, `docs`, optional `ceo/devex`) from feature metadata.
-- Enforces explicit review completion before release/archive transitions.
-
-### Test Contract Families
-
-- Backfill and lifecycle tests extend `/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/tests/test_feature_contract_readiness.py`.
-- Legacy compatibility tests preserve `/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/tests/test_feature_completion_state_transition.py`.
-- Transaction and write-path tests expand `/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/tests/test_progress_manager.py`.
-- UI summary correctness continues through `/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/tests/test_progress_ui_status.py`.
-- Command-discovery contract coverage must include `/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/tests/test_command_discovery_contract.py` and must not require `prog-start.md`.
+Downstream read contract:
+- `/prog init` and feature planning/execution skills must read this architecture file when present.
+- Downstream artifacts must reference at least one `CONSTRAINT-*` ID per implemented feature.
 
 ## State Flow
 
-### Feature Lifecycle Flow
+### Workflow State Machine (Command Level)
 
-Canonical feature flow:
+1. `planned`
+   - Trigger: `/prog plan`
+   - Exit to: `initialized`
+2. `initialized`
+   - Trigger: `/prog init`
+   - Exit to: `executing`
+3. `executing`
+   - Trigger: `/prog next`
+   - Exit to: `completed`
+4. `completed`
+   - Trigger: `/prog done`
+   - Exit to: `synced`
+5. `synced`
+   - Trigger: `/prog sync`
+   - Terminal for current execution batch.
 
-`proposed -> approved -> implementing -> verified -> archived`
+### Compliance State Machine (SOP Migration Level)
 
-Legacy mirrors:
+1. `baseline_scanned`
+   - Existing counts and hotspots captured.
+2. `normalized`
+   - Frontmatter/description/metadata corrected in target scope.
+3. `validated`
+   - Required checks pass (docs parity, metadata gates, sync dry-run).
+4. `released`
+   - Changes merged and documented.
 
-- `proposed|approved -> development_stage=planning, completed=false`
-- `implementing -> development_stage=developing, completed=false`
-- `verified|archived -> development_stage=completed, completed=true`
+Error states:
+- `blocked_standard_conflict`: standards source contradicts SOP contract.
+- `blocked_metadata_gap`: required metadata fields missing.
+- `blocked_docs_drift`: generated doc outputs are stale.
+- `blocked_sync`: sync dry-run reports blocking errors.
 
-### Integration Flow
-
-Allowed combinations:
-
-| `lifecycle_state` | `integration_status` | Meaning |
-| --- | --- | --- |
-| `proposed` | `finish_pending` | Not started, no closeout |
-| `approved` | `finish_pending` | Ready to start |
-| `implementing` | `finish_pending` | Work in progress |
-| `verified` | `finish_pending` | Feature passed verification but integration decision remains open |
-| `verified` | `merged_and_cleaned` | Merged and cleanup complete |
-| `verified` | `pr_open` | PR opened and tracked |
-| `verified` | `kept_with_reason` | Branch/worktree intentionally kept with explanation |
-| `archived` | `merged_and_cleaned` | Archive finalized after clean merge |
-| `archived` | `kept_with_reason` | Archive finalized with retained worktree/branch rationale |
-
-Illegal combinations are repaired or rejected:
-
-- `archived + finish_pending`
-- `implementing + merged_and_cleaned`
-- `proposed + merged_and_cleaned`
-
-### Command-Driven State Transitions
-
-1. `/prog-init`
-   - creates features in `approved + finish_pending`
-   - writes schema defaults and legacy mirrors
-2. `/prog-next`
-   - runs readiness validation
-   - selects current feature
-   - blocks if any feature remains `verified + finish_pending`
-   - transitions `approved -> implementing` in the same command when readiness passes
-   - emits actionable blockers when readiness fails
-3. `/prog-done`
-   - validates plan and acceptance evidence
-   - transitions `implementing -> verified`
-   - immediately applies finish-gate outcome or persists `finish_pending`
-4. `prog set-finish-state` (new internal CLI path in this plan)
-   - resolves `verified + finish_pending` to a terminal integration status
-5. review and release gates
-   - evaluator gate and routed reviews must pass before archival
-   - doc sync and release report are part of closeout evidence
-6. archive/retro flows
-   - archive writes remain separate from retrospectives
-   - successful archival may advance `verified -> archived`
-
-Inference from Part 1 and Part 3 v2:
-
-- `/prog-done` must persist `verified + finish_pending` when a closeout decision is unresolved. Part 3 v2 pseudo-code suggests returning a pending decision without persisting state, but that would break Part 1's requirement that `/prog-next` deterministically block unresolved closeout work. The persisted pending state is therefore the recommended normalized behavior.
-
-### Delivery Flow Across the 12 Execution Stages
-
-1. Baseline contract snapshot (capture current pass/fail and freeze expectations)
-2. Transaction layer and lock
-3. Schema 2.1 backfill
-4. Reconciler and downgrade safety
-5. Contract importer
-6. Readiness validator + `/prog-next` start gate
-7. Lifecycle API
-8. Finish gate + explicit finish-state resolver
-9. Refs enrichment
-10. Summary projection
-11. Command/doc sync (`/prog-start` removed, wrappers aligned)
-12. Full regression, review-route evidence, and release report
+Transition rule:
+- Any error state returns flow to `normalized` after correction; no direct transition to `released` is permitted from an error state.
 
 ## Failure Handling
 
-### Transaction Write Path
+| Failure mode | Detection | System response | User-visible behavior |
+|---|---|---|---|
+| SOP rule conflict (e.g., standards demand prohibited fields) | Contract lint or review checklist mismatch | Block merge and require standards source-of-truth reconciliation | Explicit blocker message with conflicting field names |
+| Non-routable skill description | Routing phrase scan fails | Mark skill as non-compliant; do not accept execution batch | Report exact file list and missing trigger phrases |
+| Missing `homepage/repository` in plugin metadata | JSON schema check or targeted scan | Block release until fields are added | Report plugin file path and missing keys |
+| Missing `model` in required skill set | Frontmatter scan | Mark as P0 metadata defect and halt batch | Report exact skills requiring `model` |
+| Generated docs drift | `generate_prog_docs.py --check` non-zero | Fail validation gate | Show command to regenerate docs and rerun check |
+| Sync compatibility failure | `codex-plugin-sync --dry-run` shows blocking errors | Stop release and create remediation task | Present dry-run failure summary and impacted plugin scope |
 
-Risk:
-
-- Partial writes, concurrent writes, corrupted JSON, or audit/state divergence.
-
-Design:
-
-- Lock file around every mutating operation.
-- Pre-commit backup or write-ahead snapshot.
-- `fsync(tmp) -> os.replace(...) -> fsync(parent_dir)` durability chain.
-- Audit update and summary projection happen inside the same transaction boundary or under the same transaction marker.
-
-User-visible behavior:
-
-- Mutating command fails with a readable error and no half-written state.
-- Recovery command can restore from latest pre-commit or daily backup.
-
-### Migration Compatibility
-
-Risk:
-
-- Legacy `development_stage/completed` states diverge from canonical `lifecycle_state`.
-- `PROG_DISABLE_V2=1` strips or corrupts 2.1 fields.
-
-Design:
-
-- Read path infers missing canonical fields from legacy fields.
-- Write path always writes canonical fields first, then mirrors.
-- Reconciler runs at every mutating entry point.
-- Downgrade mode preserves unknown/newer fields verbatim.
-
-User-visible behavior:
-
-- Conflict reports mention repaired fields and leave an audit trail.
-- Downgrade mode prints explicit warnings but does not destroy data.
-
-### `/prog-done` Closeout Gate
-
-Risk:
-
-- Feature marked complete while merge/PR/worktree status remains unresolved.
-- `/prog-next` advances and leaves integration debt behind.
-
-Design:
-
-- Verification completion and finish-gate persistence happen in one logical flow.
-- Missing final decision yields `verified + finish_pending`.
-- `/prog-next` hard-blocks on unresolved closeout.
-
-User-visible behavior:
-
-- Clear next command, for example `prog set-finish-state --feature-id <id> --status pr_open`.
-- No silent advancement to the next feature.
-
-### Worktree Cleanup
-
-Risk:
-
-- Deleting a dirty or current worktree causes irreversible loss.
-
-Design:
-
-- Only use `git worktree remove` or equivalent git-native flows.
-- Never auto-delete:
-  - dirty worktree
-  - current worktree
-  - worktree with unpushed commits
-- Persist `cleanup_status=pending` when human intervention is required.
-
-User-visible behavior:
-
-- Explicit cleanup instructions with path, reason, and safe retry steps.
-
-### Summary Consistency
-
-Risk:
-
-- `status`, UI, and markdown drift away from canonical JSON.
-
-Design:
-
-- `progress_summary.json` carries source checksum and transaction marker.
-- Reads validate checksum before trusting projection.
-- Rebuild projection on mismatch, then regenerate markdown if required.
-
-User-visible behavior:
-
-- Slightly slower first read after mismatch, but no stale summary output.
-
-### Scope Ambiguity and Linked Projects
-
-Risk:
-
-- Running `/prog-next` or `/prog-done` from a monorepo root can mutate the wrong tracker if scope is inferred implicitly.
-- Linked projects can accidentally bleed state into each other if root-level commands are treated as global by default.
-
-Design:
-
-- Mutating commands (`init`, `next`, `done`, `set-current`, `set-development-stage`, `complete`, `add-feature`, `update-feature`, `add-update`, bug mutations, workflow mutations) must fail closed when scope is ambiguous.
-- Read-only commands may show available project scopes from the root, but must request explicit selection before any mutation.
-- Linked projects should use one of two explicit patterns:
-  - a root-level coordination tracker that references child projects, or
-  - independent child trackers invoked with explicit `--project-root`.
-
-User-visible behavior:
-
-- From the root directory, `prog status` may summarize or ask the user to choose a target.
-- From the root directory, `prog next` must error with explicit scope guidance instead of resuming another project's active feature.
-- From linked-project setups, the user can still operate at the root, but only through explicit target selection or a defined coordination scope.
-
-### Contract Import and Readiness
-
-Risk:
-
-- Invalid JSON/Markdown contracts can wedge CLI or create partially valid features.
-
-Design:
-
-- JSON parser with structural validation.
-- Markdown line-state parser, not a backtracking-heavy regex strategy.
-- Blocking vs warning separation in readiness policy.
-
-User-visible behavior:
-
-- Precise error location and remediation hints.
-- Warning-only checks do not block normal flow until policy says they should.
-
-### Long-Running Harness Drift
-
-Risk:
-
-- Generator self-evaluation becomes overly optimistic and quality regresses over long runs.
-- Long sessions accumulate context noise and lose determinism across retries or resumes.
-
-Design:
-
-- Enforce independent evaluator gate (`evaluator_gate`) with explicit rubric before release-grade transitions.
-- Persist sprint artifacts (`plan`, `implementation`, `evaluation`, `handoff`) to `sprint_ledger` for resumability.
-- Keep core loop stable and additive: no ad hoc branch logic in the main loop; new behaviors attach as harness mechanisms.
-- Use layered context controls: selective injection -> compaction -> reset plus handoff artifact when thresholds are exceeded.
-- Route review lanes dynamically (`eng`, `design`, `qa`, `docs`, optional `ceo/devex`) and gate closeout on required lanes.
-
-User-visible behavior:
-
-- `/prog-done` can return evaluator-driven retry requirements with concrete defects.
-- `prog status` surfaces pending review lanes and missing handoff artifacts before release.
+Failure policy:
+- Fail closed for release gates.
+- Keep architecture document stable during execution; remediation is applied to implementation artifacts, not planning contract.
 
 ## Acceptance Criteria
 
-### System-Level Acceptance
+1. Non-standard frontmatter prohibited-field hits (`scope`, `inputs`, `outputs`, `evidence`) are reduced to `0` in target execution scope.
+2. Non-routable skill descriptions are reduced to `0` in target execution scope.
+3. `.claude-plugin/plugin.json` files missing `homepage` or `repository` are reduced to `0`.
+4. Skills that require explicit model selection (starting with `package-manager` scope in the source draft) have missing `model` count reduced to `0`.
+5. Progressive disclosure rollout is applied to identified oversized skills with target `SKILL.md` main-file size `<= 150` lines where feasible.
+6. `python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check` passes.
+7. `python3 plugins/progress-tracker/hooks/scripts/quick_validate.py` passes (or passes with documented waived checks approved in execution notes).
+8. `codex-plugin-sync --dry-run` has no blocking errors.
 
-- All mutating PROG flows use the transaction manager; no direct semantic writes bypass audit and summary projection.
-- Legacy users can still complete `planning -> developing -> completed` flows without data loss.
-- New schema 2.1 tests pass for lifecycle, readiness, retro separation, and automatic refs attachment.
-- No public command/help/doc requires `/prog-start`; `/prog-next` is the only start path.
-- `/prog-done` cannot leave an untracked closeout state.
-- Dirty/current worktrees are never auto-removed.
-- `status`, UI summary, and markdown stay consistent with canonical JSON after drift repair.
-- Ambiguous monorepo-root mutation attempts fail closed and provide explicit scope remediation.
-- Linked-project development remains supported through explicit child scope or an explicit coordination tracker.
-- Every release-ready feature has evaluator output and required review-lane evidence persisted.
-- Sprint handoff artifacts are present for long-running sessions and resume points.
-
-### High-Risk Acceptance Matrix
-
-| Risk Area | Acceptance Rule |
-| --- | --- |
-| Transaction write path | Concurrent writes do not lose updates or corrupt JSON |
-| Migration compatibility | `PROG_DISABLE_V2=1` reads/writes schema 2.1 safely without stripping fields |
-| `/prog-done` gate | Every completion ends as `finish_pending`, `merged_and_cleaned`, `pr_open`, or `kept_with_reason` |
-| Worktree cleanup | Dirty/current/unpushed worktrees remain intact and are surfaced as pending cleanup |
-| Summary consistency | Projection checksum mismatch triggers rebuild before status output |
-| Scope safety | Ambiguous root-level mutating commands error before touching state; explicit scope continues to work |
-| Harness quality gate | Evaluator gate can block release and produce actionable retry defects |
-| Long-run resumability | Sprint ledger contains plan/impl/eval/handoff artifacts for each completed sprint |
-
-### `/prog-init` Feature List Recommendation
-
-The list below is intentionally aligned to the 12 execution stages so it can seed a full normalization track directly.
-
-| # | Suggested Feature | Primary Goal | Seed Test Steps | Constraints | Contract Touchpoints |
-| --- | --- | --- | --- | --- | --- |
-| 1 | Establish normalization baseline snapshot | Freeze current behavior with explicit pass/fail contracts and fixtures | Run readiness/legacy/command-discovery suites; record current pass/fail (including removed `prog-start` expectations); add fixtures for legacy 2.0 payloads; add monorepo-root ambiguity reproducer for wrong-scope `/prog-next` | `CONSTRAINT-001`, `CONSTRAINT-011`, `CONSTRAINT-012`, `CONSTRAINT-013` | State contract, failure handling |
-| 2 | Add transaction manager and locked write pipeline | Centralize mutating writes behind one atomic path | Add concurrent write test; verify backup plus rollback behavior; verify update plus summary write share one transaction marker | `CONSTRAINT-001`, `CONSTRAINT-006`, `CONSTRAINT-008` | Internal service contracts, transaction path |
-| 3 | Backfill schema 2.1 defaults and validation policy | Upgrade load/save path to canonical schema | Load legacy 2.0 fixture and assert schema 2.1 defaults; verify IDs/timestamps; assert unknown fields survive save/load | `CONSTRAINT-002`, `CONSTRAINT-003` | State contract |
-| 4 | Reconcile legacy state and support downgrade mode | Repair mirror-field drift and preserve 2.1 under disable flag | Toggle `PROG_DISABLE_V2=1`; round-trip a 2.1 payload; assert canonical-to-legacy mirror repair; assert ambiguous monorepo-root mutation fails closed while explicit `--project-root` continues to work | `CONSTRAINT-002`, `CONSTRAINT-003`, `CONSTRAINT-013` | State flow, migration handling |
-| 5 | Implement contract importer for JSON and Markdown specs | Auto-populate feature contract fields from design inputs | Parse valid JSON spec; parse Markdown spec with heading variants; reject malformed input without CLI hang | `CONSTRAINT-010`, `CONSTRAINT-012` | Interface contracts, failure handling |
-| 6 | Add readiness validator and `/prog-next` start gating | Block invalid feature starts with precise reports while preserving one-step start flow | Assert blocking errors for empty `requirement_ids`; assert warnings stay non-blocking; assert `/prog-next` refuses transition when blocking checks exist | `CONSTRAINT-004`, `CONSTRAINT-012` | Command contracts, readiness |
-| 7 | Introduce lifecycle API with legal transition rules | Make `lifecycle_state` canonical and auditable | Assert `approved -> implementing -> verified`; reject illegal transitions; verify mirror fields update correctly | `CONSTRAINT-003`, `CONSTRAINT-005`, `CONSTRAINT-009` | State flow, audit |
-| 8 | Implement `/prog-done` finish gate and explicit closeout resolver | Close unresolved integration tails without deadlock | Complete a feature and assert `verified + finish_pending`; resolve via `prog set-finish-state`; assert `/prog-next` blocks until resolved | `CONSTRAINT-005`, `CONSTRAINT-006`, `CONSTRAINT-007` | Command contracts, finish gate |
-| 9 | Auto-attach refs and enrich audit updates | Keep change and requirement traceability intact | Add update on a feature and assert `req:*` and `change:*` refs; verify manual refs are preserved; verify overflow handling | `CONSTRAINT-009`, `CONSTRAINT-012` | Interface contracts, audit |
-| 10 | Add summary projection and drift repair | Make status output fast and consistent | Generate `progress_summary.json`; inject checksum drift; assert rebuild before status/UI response | `CONSTRAINT-008`, `CONSTRAINT-012` | Summary contract, failure handling |
-| 11 | Sync commands and generated docs with normalized behavior | Keep user-visible command help aligned with no `/prog-start` dependency | Update `prog-done`, `prog-next`, `prog-plan`, and generated docs; document root-vs-child scope semantics for monorepo and linked projects; run `python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check` | `CONSTRAINT-011`, `CONSTRAINT-012`, `CONSTRAINT-014` | Commands, docs |
-| 12 | Run full regression and produce release readiness report | Validate safety, compatibility, harness quality gates, and residual risk | Run full `plugins/progress-tracker/tests`; run focused migration/finish/worktree/summary/scope suites; verify evaluator/review-route evidence; record residual risks and rollback plan | `CONSTRAINT-012`, `CONSTRAINT-013`, `CONSTRAINT-014`, `CONSTRAINT-015`, `CONSTRAINT-016`, `CONSTRAINT-017`, `CONSTRAINT-018` | All contracts |
-
-Recommended execution order:
-
-1. Features 1-4 form the migration safety foundation.
-2. Features 5-7 establish normalized contract and lifecycle behavior.
-3. Feature 8 is the closeout MVP milestone and should be release-gated.
-4. Features 9-12 harden audit, performance, docs, and release confidence.
+Acceptance evidence requirements:
+- Each criterion must have command output or diff-based proof attached in execution notes.
+- Each delivered feature/PR must cite related `CONSTRAINT-*` IDs.
 
 ## Key Architectural Decisions (ADR)
 
-### ADR-001: Keep `progress_manager.py` as the facade and extract collaborators
+### ADR-001: Keep a Modular Monolith and File-Based Control Plane
 
-**Status**: Accepted
+Status: Accepted
 
-**Context**: The current CLI surface is anchored in a single Python entrypoint, but the file is already large and mixes persistence, workflow, git, UI summary, and business rules.
+Context:
+- Optimization target is consistency, routing quality, and token efficiency across skills and docs, not a storage or service rewrite.
 
-**Decision**: Preserve the CLI facade in `progress_manager.py` and move normalization logic into focused modules that the facade orchestrates.
+Decision:
+- Keep existing plugin/file structure and implement compliance through metadata normalization, docs generation gates, and workflow constraints.
 
-**Consequences**:
-- Positive: command compatibility remains stable; higher-risk code becomes easier to test in isolation.
-- Negative: the plugin remains a modular monolith rather than a fully separated package.
-- Risks: partial extraction can leave mixed patterns if not enforced with constraints.
+Consequences:
+- Positive: low migration risk, fast adoption, direct compatibility with current commands.
+- Negative: contract enforcement remains dependent on disciplined validation tooling.
+- Risks: inconsistent manual edits can reintroduce drift without strict gates.
 
-**Alternatives Considered**:
-1. Rewrite the CLI into multiple standalone scripts - rejected because command compatibility cost is too high.
-2. Keep all new logic in `progress_manager.py` - rejected because testability and write-path safety would degrade further.
+Alternatives considered:
+1. Full service-based metadata registry - rejected due to unnecessary complexity for current problem.
+2. Per-plugin independent standards without central contract - rejected because it preserves drift risk.
 
-### ADR-002: Make schema 2.1 canonical and keep legacy fields as mirrors
+### ADR-002: Enforce Trigger-Oriented Skill Descriptions as Routing API
 
-**Status**: Accepted
+Status: Accepted
 
-**Context**: Existing users and tests still rely on `development_stage` and `completed`, but the new design needs richer state modeling.
+Context:
+- Description ambiguity causes incorrect skill selection and unnecessary token spend.
 
-**Decision**: Treat `lifecycle_state`, `integration_status`, and `cleanup_status` as truth; preserve legacy fields as derived mirrors.
+Decision:
+- Treat frontmatter `description` as a routing contract with required trigger phrases.
 
-**Consequences**:
-- Positive: new behavior is expressive without breaking old flows.
-- Negative: reconciler logic is required on every mutating path.
-- Risks: drift if any write bypasses canonical-state synchronization.
+Consequences:
+- Positive: higher route determinism and lower misfire rate.
+- Negative: additional maintenance burden when introducing new skills.
+- Risks: over-constrained phrasing may miss nuanced user intent if not reviewed periodically.
 
-**Alternatives Considered**:
-1. Hard-cut to 2.1 and drop legacy fields - rejected because current passing tests and user workflows still depend on them.
-2. Keep legacy fields as truth - rejected because finish-gate and lifecycle rules become ambiguous.
+Alternatives considered:
+1. Leave free-form descriptions - rejected due to high routing variance.
+2. Add only informal examples without hard rule - rejected because it is not machine-verifiable.
 
-### ADR-003: Enforce one transactional write path for state, audit, and summary
+### ADR-003: Progressive Disclosure as Default Token Strategy
 
-**Status**: Accepted
+Status: Accepted
 
-**Context**: Current direct writes are simple but unsafe for future concurrency, rollback, and audit consistency needs.
+Context:
+- Multiple oversized skill files inflate default context payload and slow execution.
 
-**Decision**: All semantic writes must go through the transaction manager, which owns lock acquisition, durability, audit append, and summary update.
+Decision:
+- Keep core routing and constraints in main `SKILL.md`; move examples/templates/long references to `references/` and load on demand.
 
-**Consequences**:
-- Positive: reliable recovery and deterministic state.
-- Negative: implementation is more complex than plain file writes.
-- Risks: some legacy helper may continue using `save_progress_json(...)` directly unless explicitly forbidden.
+Consequences:
+- Positive: reduced default token consumption and clearer skill entrypoints.
+- Negative: slight increase in navigation complexity for deep-reference usage.
+- Risks: accidental loss of critical details if extraction boundaries are poorly chosen.
 
-**Alternatives Considered**:
-1. Keep direct writes and patch specific hot paths - rejected because audit and summary would still drift.
-2. Move to SQLite immediately - rejected because it is outside the current normalization scope.
+Alternatives considered:
+1. Keep all details inline - rejected due to token inefficiency.
+2. Split into many small skills immediately - rejected due to route fragmentation risk.
 
-### ADR-004: Persist `finish_pending` as the canonical unresolved closeout state
+### ADR-004: Fail-Closed Release Gates for SOP Compliance
 
-**Status**: Accepted
+Status: Accepted
 
-**Context**: The design requires `/prog-next` to block unresolved finish work, but an unpersisted pending decision cannot be enforced across sessions.
+Context:
+- Historical pattern shows compliance regressions when checks are advisory only.
 
-**Decision**: `/prog-done` writes `verified + finish_pending` when it cannot determine or complete a terminal integration outcome immediately.
+Decision:
+- Release progression is blocked when validation gates fail (frontmatter, metadata, docs parity, sync dry-run).
 
-**Consequences**:
-- Positive: unresolved closeout is visible, durable, and blockable.
-- Negative: users may see a new intermediate state they must resolve.
-- Risks: closeout resolver path must be explicit in command/docs to avoid deadlock.
+Consequences:
+- Positive: prevents hidden drift and regression loops.
+- Negative: may slow short-term delivery cadence.
+- Risks: false positives can create temporary friction without well-maintained checks.
 
-**Alternatives Considered**:
-1. Return a pending decision without persisting state - rejected because it cannot reliably block `/prog-next`.
-2. Auto-guess a terminal state - rejected because it can incorrectly delete or close work.
-
-### ADR-005: Use git-native cleanup only and never auto-delete unsafe worktrees
-
-**Status**: Accepted
-
-**Context**: Closeout safety is explicitly called out as a high-risk area.
-
-**Decision**: Cleanup uses git-native worktree commands only, and dirty/current/unpushed worktrees are marked pending rather than removed.
-
-**Consequences**:
-- Positive: far lower risk of destructive cleanup.
-- Negative: some cleanup remains manual.
-- Risks: unresolved cleanup can accumulate unless status and daily checks surface it clearly.
-
-**Alternatives Considered**:
-1. Force-delete worktrees after feature completion - rejected because it is unsafe.
-2. Ignore cleanup entirely - rejected because closeout debt would remain invisible.
-
-### ADR-006: Treat `progress_summary.json` as a rebuildable cache, not a source of truth
-
-**Status**: Accepted
-
-**Context**: Summary acceleration is required, but any duplicated state risks drift.
-
-**Decision**: Summary projection is derived from canonical JSON and validated by checksum plus transaction marker before use.
-
-**Consequences**:
-- Positive: faster reads without semantic ambiguity.
-- Negative: projection rebuild logic adds operational complexity.
-- Risks: status reads become slower during repeated rebuilds if write discipline is not maintained.
-
-**Alternatives Considered**:
-1. Use summary as the primary status source without validation - rejected because stale status becomes user-visible.
-2. Skip summary projection entirely - rejected because large-project performance was called out explicitly in the design.
-
-### ADR-007: Fail closed on ambiguous scope and require explicit coordination for linked projects
-
-**Status**: Accepted
-
-**Context**: The reported `/prog-next` behavior showed that a user can believe they are operating on one project while the command resumes an already-active feature from another tracker. That is acceptable neither for monorepo safety nor for linked-project development.
-
-**Decision**: Mutating commands must require an explicit target whenever multiple tracker scopes are possible. Root-level development remains allowed, but only through explicit child scope or an explicit coordination tracker.
-
-**Consequences**:
-- Positive: wrong-project mutation is prevented by design.
-- Positive: linked projects remain viable without sacrificing safety.
-- Negative: users lose the convenience of implicit root-level mutation in ambiguous workspaces.
-- Risks: command wrappers and skills must consistently pass scope, or they will fail noisily.
-
-**Alternatives Considered**:
-1. Allow implicit mutation from the most recently active tracker - rejected because it is unsafe and non-local.
-2. Forbid root-level `prog` usage entirely - rejected because linked-project and monorepo orchestration remain legitimate workflows.
-
-### ADR-008: Keep `/prog-next` as the only feature-start command
-
-**Status**: Accepted
-
-**Context**: The current command model already folds feature selection and start transition into `/prog-next`; reintroducing `/prog-start` would create split workflow paths and command drift.
-
-**Decision**: Do not restore `/prog-start`. Readiness validation gates the start transition inside `/prog-next`.
-
-**Consequences**:
-- Positive: one-step user flow and fewer command/state mismatches.
-- Negative: `/prog-next` command behavior becomes richer and needs stronger tests/docs.
-- Risks: any stale tests or docs expecting `/prog-start` will fail until updated.
-
-**Alternatives Considered**:
-1. Restore `/prog-start` - rejected because it reopens split-path regressions.
-2. Keep both commands - rejected because duplicate entrypoints drift over time.
-
-### ADR-009: Use independent evaluator gating for long-running quality control
-
-**Status**: Accepted
-
-**Context**: Long-running generator loops tend to self-grade optimistically; quality drifts are hard to detect without an external gate.
-
-**Decision**: Add `evaluator_gate` as an independent check that can return `pass|retry|required_reviews` before release-grade transitions.
-
-**Consequences**:
-- Positive: better defect detection and explicit retry loops.
-- Negative: adds latency and operational cost to each completed sprint.
-- Risks: poor rubric design can block progress or let regressions pass.
-
-**Alternatives Considered**:
-1. Generator self-evaluation only - rejected because it is too lenient over long runs.
-2. Human-only final review - rejected because it does not scale for autonomous loops.
-
-### ADR-010: Keep the agent loop minimal; add harness capabilities as layered mechanisms
-
-**Status**: Accepted
-
-**Context**: Complex branching inside the core loop reduces debuggability and makes resumability fragile.
-
-**Decision**: Maintain a stable core loop and implement capabilities through layered modules (readiness, compaction, sprint ledger, background tasks, review routing).
-
-**Consequences**:
-- Positive: easier replay, testing, and incident diagnosis.
-- Negative: requires disciplined interface boundaries between loop and harness modules.
-- Risks: ad hoc bypasses can reintroduce implicit state coupling.
-
-**Alternatives Considered**:
-1. Encode all behavior directly in loop branches - rejected because it becomes brittle and opaque.
-2. External workflow engine migration now - rejected as out of current scope.
-
-### ADR-011: Route reviews by feature type and gate release on docs consistency
-
-**Status**: Accepted
-
-**Context**: Not every change needs the same review lanes, but every release needs explicit quality and documentation evidence.
-
-**Decision**: Introduce `review_router` to require only relevant lanes (`eng|design|qa|docs`, optional `ceo/devex`) and require docs-sync evidence before archival.
-
-**Consequences**:
-- Positive: focused review effort with explicit release signals.
-- Negative: review metadata must be maintained accurately.
-- Risks: misclassified features can skip needed lanes unless router rules are tested.
-
-**Alternatives Considered**:
-1. Always require all reviews - rejected because it slows delivery unnecessarily.
-2. No structured routing - rejected because missing reviews become invisible.
+Alternatives considered:
+1. Warning-only gates - rejected because they do not prevent repeated regressions.
+2. Manual reviewer discretion without machine checks - rejected as non-scalable and non-deterministic.
 
 ## Execution Constraints
 
-- [CONSTRAINT-001] Route every semantic state mutation through one transaction manager
-  - Applies to: `progress_manager.py`, extracted services, mutating CLI commands
-  - Must: avoid direct semantic `save_progress_json(...)` writes outside the transaction layer
-  - Validation: `rg -n "save_progress_json\\(" plugins/progress-tracker/hooks/scripts` should show only non-semantic or transaction-owned writes after refactor
-- [CONSTRAINT-002] Preserve schema 2.1 fields under downgrade mode
-  - Applies to: schema migration, reconciler, load/save paths
-  - Must: keep unknown/newer fields intact when `PROG_DISABLE_V2=1`
-  - Validation: round-trip tests with downgrade flag enabled
-- [CONSTRAINT-003] Treat canonical lifecycle fields as the only source of truth
-  - Applies to: feature state transitions, migration, status rendering
-  - Must: derive `development_stage` and `completed` from `lifecycle_state`, not the reverse
-  - Validation: lifecycle tests assert mirror repair after conflict injection
-- [CONSTRAINT-004] Block `/prog-next` start transition on readiness errors and allow warnings only by policy
-  - Applies to: readiness validator, `/prog-next`, feature start flows
-  - Must: reject transition to `implementing` when blocking checks fail
-  - Validation: readiness contract tests and command-flow tests
-- [CONSTRAINT-005] Block `/prog-next` when unresolved finish work exists
-  - Applies to: `/prog-next`, finish gate, status recommendations
-  - Must: stop advancement when any active feature remains `verified + finish_pending` or pending cleanup that policy marks blocking
-  - Validation: finish-gate regression tests
-- [CONSTRAINT-006] Persist verification, finish-gate state, and audit update in one logical completion flow
-  - Applies to: `/prog-done`, `complete_feature`, transaction manager
-  - Must: never mark a feature verified without also recording terminal closeout state or durable `finish_pending`
-  - Validation: end-to-end `/prog-done` tests and audit assertions
-- [CONSTRAINT-007] Never auto-delete dirty, current, or unpushed worktrees
-  - Applies to: worktree cleanup, git integration helpers
-  - Must: require manual intervention and leave `cleanup_status=pending`
-  - Validation: worktree cleanup tests with dirty/current/unpushed fixtures
-- [CONSTRAINT-008] Validate summary projection before read
-  - Applies to: status command, progress UI, summary projector
-  - Must: rebuild `progress_summary.json` when checksum or transaction marker mismatches
-  - Validation: summary drift tests and UI status tests
-- [CONSTRAINT-009] Auto-enrich audit updates with feature references
-  - Applies to: `add_update`, lifecycle updates, finish-gate updates
-  - Must: attach `req:*` and `change:*` refs for feature-bound updates without dropping manual refs
-  - Validation: update reference tests
-- [CONSTRAINT-010] Keep retrospectives separate from archive bookkeeping
-  - Applies to: retro APIs, archive logic, schema defaults
-  - Must: store retrospectives at top-level `retrospectives[]` and reserve `archive_info` for file/archive metadata only
-  - Validation: retro separation tests
-- [CONSTRAINT-011] Keep public command help minimal and consistent
-  - Applies to: command markdown, README, generated docs
-  - Must: expose only approved public commands while keeping internal repair commands out of primary help output
-  - Validation: generated docs check and command discovery tests
-- [CONSTRAINT-012] Every macro stage must land with dedicated regression coverage
-  - Applies to: test suite, release readiness
-  - Must: add targeted tests for migration, concurrency, finish-gate, worktree cleanup, refs, and summary consistency
-  - Validation: full `plugins/progress-tracker/tests` run and release report
-- [CONSTRAINT-013] Mutating commands must fail closed on ambiguous project scope
-  - Applies to: slash commands, `progress_manager.py`, skill wrappers, monorepo-root invocations
-  - Must: require explicit target scope whenever multiple tracker roots are plausible
-  - Validation: regression tests that run from monorepo root and assert `next/done` error without `--project-root`
-- [CONSTRAINT-014] Linked-project coordination must be explicit, not inferred
-  - Applies to: root-level workflows, future coordination tracker, documentation
-  - Must: support either explicit child-scope commands or an explicit coordination tracker for multi-project work
-  - Validation: docs and tests cover both independent child trackers and explicit coordination behavior
-- [CONSTRAINT-015] Keep the core agent loop stable and behavior additions modular
-  - Applies to: orchestration loop, harness modules, long-running flow control
-  - Must: avoid embedding one-off workflow branches in the core loop; new behavior must live in composable modules
-  - Validation: orchestration tests and code-structure review for loop/module boundaries
-- [CONSTRAINT-016] Enforce independent evaluator gate before release-grade closeout
-  - Applies to: `/prog-done`, evaluator gate, review router
-  - Must: produce evaluator output and gate result (`pass|retry|required_reviews`) before archive-capable state transitions
-  - Validation: evaluator gate tests and end-to-end closeout tests
-- [CONSTRAINT-017] Persist sprint artifacts for resumable long-running execution
-  - Applies to: sprint ledger, session handoff, retry/resume paths
-  - Must: record plan/implementation/evaluation/handoff artifacts per sprint
-  - Validation: resumability tests across interrupted sessions
-- [CONSTRAINT-018] Route reviews by change type and require docs-sync evidence before archival
-  - Applies to: review router, release report, generated docs
-  - Must: require only relevant lanes but never skip required docs consistency checks
-  - Validation: routed-review tests and docs-sync verification in release pipeline
+- [CONSTRAINT-001] Enforce SOP-compliant skill frontmatter shape
+  - Applies to: `plugins/*/skills/*/SKILL.md`
+  - Must: include `name` and routable `description`; must not include `scope/inputs/outputs/evidence`
+  - Validation: frontmatter scan returns zero prohibited-field hits and zero missing-required hits
 
-## Enhancement Blueprint: Hybrid GSD + gstack (2026-04-08)
+- [CONSTRAINT-002] Enforce routable description phrasing
+  - Applies to: all skill frontmatter `description`
+  - Must: use trigger-oriented phrasing (`This skill should be used when ...` or `Use when ...`)
+  - Validation: description pattern scan reports zero non-compliant files
 
-### Strategic Decision
-- Keep `progress-tracker` as the state kernel; do not replace it with gstack.
-- Adopt GSD-style phased workflow (`discuss -> research -> plan -> execute -> verify`) as process scaffolding.
-- Adopt gstack-style quality/release gates (review routing, ship checks, docs sync) as enforceable checkpoints.
-- Keep Superpowers integration in place for now; migrate only after hybrid gates are stable.
+- [CONSTRAINT-003] Complete plugin traceability metadata
+  - Applies to: `plugins/*/.claude-plugin/plugin.json`
+  - Must: include both `homepage` and `repository`
+  - Validation: JSON key audit reports zero missing keys
 
-### Capability Mapping
-- Anthropic harness: `planner / generator / evaluator` + sprint contract
-  - Map to: `prog-plan` (planner), `prog-next` execution path (generator), `evaluator_gate` (independent judge).
-- GSD workflow controls
-  - Map to: stricter phase transitions + resumable artifacts + deterministic preflight/verification.
-- gstack release discipline
-  - Map to: `review_router`, `ship_check`, docs consistency gate before archival.
+- [CONSTRAINT-004] Require explicit model declaration where model routing is mandatory
+  - Applies to: required skill scopes (starting with `package-manager` items identified in baseline)
+  - Must: include `model` in frontmatter for all required files
+  - Validation: targeted frontmatter scan reports zero missing `model`
 
-### Phase-1 Scope (2 weeks)
-1. Remove `/prog-start` contract residue from tests/docs and lock `/prog-next` as sole start path.
-2. Add explicit resolver command: `prog set-finish-state --feature-id <id> --status <...>`.
-3. Add `evaluator_gate` with hard pass/retry output and defect list.
-4. Add `review_router` + required review lanes (`eng|qa|docs`, optional `design|devex`).
-5. Add `ship_check` gate and docs-sync verification before archive transition.
-6. Add `sprint_ledger` artifacts for resumability (`plan/implementation/evaluation/handoff`).
+- [CONSTRAINT-005] Keep architecture as immutable planning authority during execution
+  - Applies to: `docs/progress-tracker/architecture/architecture.md`
+  - Must: no `/prog done` or feature-closeout flow mutates/archives this file
+  - Validation: closeout flow checklist and diff review show no architecture mutation
 
-### Data Contract Additions (`progress.json`)
-- `features[].sprint_contract`
-  - `scope`, `done_criteria[]`, `test_plan[]`, `accepted_by`, `accepted_at`
-- `features[].quality_gates`
-  - `evaluator`: `{status, score, defects[], last_run_at}`
-  - `reviews`: `{required[], passed[], pending[]}`
-  - `ship_check`: `{status, failures[], last_run_at}`
-- `features[].handoff`
-  - `{from_phase, to_phase, artifact_path, created_at}`
+- [CONSTRAINT-006] Apply progressive disclosure budget to oversized skills
+  - Applies to: oversized `SKILL.md` files in execution batch
+  - Must: main `SKILL.md` stays at or below 150 lines where feasible; long examples/templates move to `references/`
+  - Validation: line-count audit and reference-path integrity checks pass
 
-### Command Contract Updates
-- `/prog-next`: must pass scope + readiness + unresolved-closeout checks before transition to `implementing`.
-- `/prog-done`: must pass evaluator gate and required review lanes before archive-capable completion.
-- New internal CLI: `prog set-finish-state`.
-- New internal CLI: `prog ship-check --feature-id <id>`.
+- [CONSTRAINT-007] Preserve docs single-source parity
+  - Applies to: `docs/PROG_COMMANDS.md`, `README.md`, `readme-zh.md`, `docs/PROG_HELP.md`
+  - Must: generated docs remain synchronized with source-of-truth document
+  - Validation: `python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check` exits `0`
 
-### Acceptance Criteria
-- No public/test/doc contract requires `/prog-start`.
-- `verified + finish_pending` is durable and resolvable via explicit command.
-- `prog status` shows gate matrix (evaluator/reviews/ship-check) and actionable blockers.
-- Interrupted sessions can resume via persisted sprint artifacts.
+- [CONSTRAINT-008] Keep command responsibility boundaries strict
+  - Applies to: `/prog plan`, `/prog init`, `/prog next`, `/prog done`, `/prog sync`
+  - Must: each command only handles its defined lifecycle responsibility; no cross-responsibility side effects
+  - Validation: command contract tests and wrapper docs review pass
+
+- [CONSTRAINT-009] Release gates fail closed
+  - Applies to: execution batch completion and merge readiness
+  - Must: unresolved compliance errors block release
+  - Validation: gate report includes pass/fail status for all acceptance criteria and no unresolved blockers
+
+- [CONSTRAINT-010] Preserve codex-plugin-sync compatibility
+  - Applies to: wrapper/codex-plugin dual-mode migration path
+  - Must: optimized metadata/docs remain compatible with sync workflow
+  - Validation: `codex-plugin-sync --dry-run` completes without blocking errors
