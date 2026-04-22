@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "prog-parent-coordination-archive",
   "created_at": "2026-04-09T01:12:55.289861Z",
-  "updated_at": "2026-04-22T16:33:40.768697Z",
+  "updated_at": "2026-04-22T17:04:33.301775Z",
   "features": [
     {
       "id": 1,
@@ -2451,7 +2451,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "approved",
+      "lifecycle_state": "implementing",
       "requirement_ids": [
         "REQ-026"
       ],
@@ -2481,9 +2481,17 @@
           "evaluator_model": null
         },
         "reviews": {
-          "required": [],
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
           "passed": [],
-          "pending": []
+          "pending": [
+            "docs",
+            "eng",
+            "qa"
+          ]
         },
         "ship_check": {
           "status": "pending",
@@ -2503,7 +2511,9 @@
         "to_phase": null,
         "artifact_path": null,
         "created_at": null
-      }
+      },
+      "development_stage": "developing",
+      "started_at": "2026-04-22T17:04:21.412265Z"
     },
     {
       "id": 27,
@@ -2578,25 +2588,25 @@
       }
     }
   ],
-  "current_feature_id": null,
+  "current_feature_id": 26,
   "updates": [],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-04-22T16:33:40.762709Z",
-    "source": "complete_feature",
+    "recorded_at": "2026-04-22T17:04:33.301261Z",
+    "source": "set_workflow_state",
     "workspace_mode": "worktree",
-    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-25",
-    "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-25",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-25",
-    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-25",
-    "branch": "feature/feature-25",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-26-handoff-template",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-26-handoff-template",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-26-handoff-template",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-26-handoff-template",
+    "branch": "feature/26-handoff-template",
     "upstream": null,
-    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-25/plugins/progress-tracker",
-    "current_feature_id": null,
-    "workflow_phase": null,
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-26-handoff-template/plugins/progress-tracker",
+    "current_feature_id": 26,
+    "workflow_phase": "execution_complete",
     "current_task": null,
     "total_tasks": null,
-    "next_action": null
+    "next_action": "run /prog done to finalize"
   },
   "linked_projects": [],
   "linked_snapshot": {
@@ -2627,5 +2637,22 @@
       "fixed_at": "2026-04-14T08:12:46.429667Z"
     }
   ],
-  "current_bug_id": null
+  "current_bug_id": null,
+  "workflow_state": {
+    "phase": "execution_complete",
+    "plan_path": "",
+    "next_action": "run /prog done to finalize",
+    "updated_at": "2026-04-22T17:04:33.236039Z",
+    "execution_context": {
+      "recorded_at": "2026-04-22T17:04:33.269160Z",
+      "source": "set_workflow_state",
+      "workspace_mode": "worktree",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-26-handoff-template",
+      "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-26-handoff-template",
+      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-26-handoff-template/plugins/progress-tracker",
+      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-26-handoff-template",
+      "branch": "feature/26-handoff-template",
+      "upstream": null
+    }
+  }
 }

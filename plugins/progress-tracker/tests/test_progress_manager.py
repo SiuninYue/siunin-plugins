@@ -689,6 +689,86 @@ class TestStatusDisplay:
         assert summary["schema_version"] == "status_summary.v1"
         assert summary.get("migration", {}).get("from_schema_version") == "legacy"
 
+    def test_status_handoff_block_no_current_feature(self, progress_file, capsys):
+        """status() should output prog-next simple block when no feature is active."""
+        progress_manager.status()
+        captured = capsys.readouterr()
+
+        assert "/progress-tracker:prog-next" in captured.out
+        assert "features done" in captured.out
+        assert "ProjectRoot:" in captured.out
+        assert "Auto-selects and starts next pending feature" in captured.out
+
+    def test_status_handoff_block_execution_phase(self, in_progress_file, capsys):
+        """status() should output detailed prog-next block for execution phase."""
+        progress_manager.status()
+        captured = capsys.readouterr()
+
+        assert "/progress-tracker:prog-next" in captured.out
+        assert 'Feature:' in captured.out
+        assert 'Phase: execution' in captured.out
+        assert "Plan:" in captured.out
+        assert "Branch:" in captured.out
+        assert "ProjectRoot:" in captured.out
+        assert "Resume from next task" in captured.out
+
+    def test_status_handoff_block_execution_complete(self, temp_dir, capsys):
+        """status() should output prog-done block when phase is execution_complete."""
+        state_dir = temp_dir / "docs" / "progress-tracker" / "state"
+        state_dir.mkdir(parents=True, exist_ok=True)
+        plans_dir = temp_dir / "docs" / "plans"
+        plans_dir.mkdir(parents=True, exist_ok=True)
+        (plans_dir / "feature-1-plan.md").write_text("# Plan\n\n## Tasks\n- T1\n\n## Acceptance Mapping\n- ok\n\n## Risks\n- none\n")
+        data = {
+            "project_name": "Exec Complete Project",
+            "created_at": "2024-01-01T00:00:00Z",
+            "features": [
+                {"id": 1, "name": "My Feature", "test_steps": ["step1"], "completed": False}
+            ],
+            "current_feature_id": 1,
+            "workflow_state": {
+                "phase": "execution_complete",
+                "plan_path": "docs/plans/feature-1-plan.md",
+                "completed_tasks": [1, 2, 3],
+                "total_tasks": 3,
+                "updated_at": "2024-01-03T00:00:00Z",
+            },
+        }
+        (state_dir / "progress.json").write_text(
+            json.dumps(data, ensure_ascii=False), encoding="utf-8"
+        )
+
+        progress_manager.status()
+        captured = capsys.readouterr()
+
+        assert "/progress-tracker:prog-done" in captured.out
+        assert 'Phase: execution_complete' in captured.out
+        assert "Run verification and commit" in captured.out
+        assert "ProjectRoot:" in captured.out
+
+    def test_status_handoff_block_all_complete(self, temp_dir, capsys):
+        """status() should NOT output handoff block when all features are complete."""
+        state_dir = temp_dir / "docs" / "progress-tracker" / "state"
+        state_dir.mkdir(parents=True, exist_ok=True)
+        data = {
+            "project_name": "Done Project",
+            "created_at": "2024-01-01T00:00:00Z",
+            "features": [
+                {"id": 1, "name": "Feature 1", "test_steps": [], "completed": True},
+                {"id": 2, "name": "Feature 2", "test_steps": [], "completed": True},
+            ],
+            "current_feature_id": None,
+        }
+        (state_dir / "progress.json").write_text(
+            json.dumps(data, ensure_ascii=False), encoding="utf-8"
+        )
+
+        progress_manager.status()
+        captured = capsys.readouterr()
+
+        assert "/progress-tracker:prog-next" not in captured.out
+        assert "/progress-tracker:prog-done" not in captured.out
+
 
 class TestCurrentFeature:
     """Test current feature management."""

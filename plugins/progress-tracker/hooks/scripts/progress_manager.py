@@ -4074,6 +4074,94 @@ def init_tracking(project_name, features=None, force=False):
     return True
 
 
+def _build_status_handoff_block(
+    data: Dict[str, Any],
+    completed: int,
+    total: int,
+    project_root: str,
+) -> Optional[str]:
+    """Build context handoff block for /prog status output."""
+    features = data.get("features", [])
+    current_id = data.get("current_feature_id")
+    workflow_state = data.get("workflow_state") or {}
+
+    # All features complete — no handoff block
+    if completed == total and total > 0:
+        return None
+
+    # Determine branch/worktree from persisted execution_context, fall back to git
+    execution_context = workflow_state.get("execution_context") or {}
+    branch = execution_context.get("branch") or "main"
+    worktree_path: Optional[str] = None
+    if execution_context.get("workspace_mode") == "worktree":
+        worktree_path = execution_context.get("worktree_path")
+
+    branch_line = f"Branch: {branch}"
+    if worktree_path:
+        branch_line += f" | Worktree: {worktree_path}"
+
+    # No active feature — simple prog-next block
+    if not current_id:
+        remaining = [
+            f for f in features
+            if isinstance(f, dict)
+            and not f.get("completed", False)
+            and not _is_feature_deferred(f)
+        ]
+        if not remaining:
+            return None
+        return "\n".join([
+            "/progress-tracker:prog-next",
+            "",
+            f"Project: {completed}/{total} features done",
+            f"ProjectRoot: {project_root}",
+            "→ Context pre-loaded. Auto-selects and starts next pending feature.",
+        ])
+
+    # Active feature — find it
+    current_feature = next((f for f in features if f.get("id") == current_id), None)
+    if not current_feature:
+        return None
+
+    feature_name = current_feature.get("name", "Unknown")
+    phase = workflow_state.get("phase") or "execution"
+    plan_path = workflow_state.get("plan_path") or ""
+    total_tasks = workflow_state.get("total_tasks")
+    completed_tasks_list = workflow_state.get("completed_tasks") or []
+    completed_tasks_count = len(completed_tasks_list) if isinstance(completed_tasks_list, list) else 0
+    next_action = workflow_state.get("next_action") or ""
+
+    if phase == "execution_complete":
+        task_count = total_tasks or completed_tasks_count
+        return "\n".join([
+            "/progress-tracker:prog-done",
+            "",
+            f'Feature: {current_id} "{feature_name}" | Phase: execution_complete',
+            f"Plan: {plan_path} | Tasks: {task_count}/{task_count} done",
+            branch_line,
+            f"ProjectRoot: {project_root}",
+            "→ Context pre-loaded. Run verification and commit.",
+        ])
+
+    # All other active phases (execution, planning:approved, planning_complete, etc.)
+    tasks_done = completed_tasks_count
+    tasks_total = total_tasks if total_tasks is not None else "?"
+    lines = [
+        "/progress-tracker:prog-next",
+        "",
+        f'Feature: {current_id} "{feature_name}" | Phase: {phase}',
+        f"Plan: {plan_path} | Tasks: {tasks_done}/{tasks_total} done",
+    ]
+    if next_action:
+        lines.append(f"Next: {next_action}")
+    lines.extend([
+        branch_line,
+        f"ProjectRoot: {project_root}",
+        "→ Context pre-loaded. Resume from next task.",
+    ])
+    return "\n".join(lines)
+
+
 def status():
     """Display current progress status."""
     data = load_progress_json()
@@ -4320,6 +4408,12 @@ def status():
         print(
             f"  Latest: [{archive_id}] {project_name_arch} | {reason} | {archived_str}"
         )
+
+    # Output context handoff block
+    project_root_str = str(find_project_root().resolve())
+    handoff = _build_status_handoff_block(data, completed, total, project_root_str)
+    if handoff:
+        print(f"\n---\n**Paste into a new session to continue:**\n\n{handoff}\n---")
 
     return True
 
