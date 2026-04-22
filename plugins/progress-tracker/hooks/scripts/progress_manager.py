@@ -3944,6 +3944,71 @@ def auto_checkpoint() -> bool:
     return True
 
 
+def _cmd_wf_auto_driver() -> bool:
+    """
+    wf-auto-driver 子命令：在文件锁内计算并写回 pending_action。
+
+    流程（原子）：
+    1. 读取 progress.json
+    2. 检查 current_feature_id 和 workflow_state
+    3. compute_next_action(phase, context)
+    4. 写回 workflow_state.pending_action
+
+    幂等：相同 phase 重复调用结果不变。
+    """
+    try:
+        import importlib.util
+        _scripts_dir = Path(__file__).parent
+        spec = importlib.util.spec_from_file_location(
+            "wf_state_machine", _scripts_dir / "wf_state_machine.py"
+        )
+        _wf_sm = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(_wf_sm)
+        compute_next_action = _wf_sm.compute_next_action
+    except Exception:
+        return True  # fail-open：模块不存在时静默退出
+
+    data = load_progress_json()
+    if not data:
+        return True
+
+    current_id = data.get("current_feature_id")
+    if not current_id:
+        return True
+
+    workflow_state = data.get("workflow_state")
+    if not workflow_state or not isinstance(workflow_state, dict):
+        return True
+
+    phase = workflow_state.get("phase")
+    context = {
+        "completed_tasks": workflow_state.get("completed_tasks") or [],
+        "total_tasks": workflow_state.get("total_tasks") or 0,
+    }
+
+    pending_action = compute_next_action(phase, context)
+    if pending_action is None:
+        return True
+
+    # 在锁内原子写回
+    from lifecycle_state_machine import acquire_lock
+    state_dir = get_progress_dir()
+    lock_path = state_dir / "progress.lock"
+    progress_path = state_dir / "progress.json"
+
+    with acquire_lock(lock_path):
+        fresh = load_progress_json()
+        if not fresh:
+            return True
+        wf = fresh.get("workflow_state")
+        if not wf or not isinstance(wf, dict):
+            return True
+        wf["pending_action"] = pending_action
+        _atomic_write_text(progress_path, json.dumps(fresh, indent=2, ensure_ascii=False))
+
+    return True
+
+
 def init_tracking(project_name, features=None, force=False):
     """
     Initialize progress tracking for a project.
@@ -6177,10 +6242,14 @@ def cmd_ship_check(feature_id: int, *, coverage_min: float = 0.8) -> int:
         thresholds={"coverage_min": coverage_min},
     )
 
-    with progress_transaction() as data2:
-        feat2 = next((f for f in data2.get("features", []) if f.get("id") == feature_id), None)
-        if feat2 is not None:
-            feat2.setdefault("quality_gates", {})["ship_check"] = result.to_quality_gate_payload()
+    with progress_transaction():
+        data2 = load_progress_json()
+        if data2:
+            feat2 = next((f for f in data2.get("features", []) if f.get("id") == feature_id), None)
+            if feat2 is not None:
+                feat2.setdefault("quality_gates", {})["ship_check"] = result.to_quality_gate_payload()
+                save_progress_json(data2)
+                save_progress_md(generate_progress_md(data2))
 
     if result.status == "fail":
         for f in result.failures:
@@ -8635,6 +8704,9 @@ def main():
     # Auto-checkpoint command
     subparsers.add_parser("auto-checkpoint", help="Create checkpoint snapshot if interval elapsed")
 
+    # wf-auto-driver command
+    subparsers.add_parser("wf-auto-driver", help="Compute and write back pending_action to workflow_state")
+
     # reconcile-evaluator command
     reconcile_evaluator_parser = subparsers.add_parser(
         "reconcile-evaluator",
@@ -8924,6 +8996,8 @@ def main():
             return complete_feature_ai_metrics(args.feature_id)
         if args.command == "auto-checkpoint":
             return auto_checkpoint()
+        if args.command == "wf-auto-driver":
+            return _cmd_wf_auto_driver()
         if args.command == "sync-linked":
             return sync_linked(
                 output_json=args.output_json,

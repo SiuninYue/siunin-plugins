@@ -30,11 +30,24 @@
 - [x] 落地 ship_check 统一门禁与 docs-sync 证据校验
 - [x] 落地 sprint_ledger 与 schema 2.1 的 sprint_contract/handoff 持久化
 
-## Pending
+## In Progress
 - [ ] 落地 wf_state_machine + wf_auto_driver + hook 自动推进
+  **Test steps**:
+  - 新增 wf_state_machine.py 纯函数 compute_next_action 与 wf_auto_driver.py hook 入口
+  - 运行: pytest -q plugins/progress-tracker/tests/test_wf_state_machine.py
+  - 运行: pytest -q plugins/progress-tracker/tests/test_wf_auto_driver.py
+
+## Pending
 - [ ] prog done 后自动清理已合并的 feature 分支和 worktree
 - [ ] 让 /prog 状态页末尾输出详细 handoff 提示
 - [ ] 优化概念命名与映射：将 prog-sync 类比为 log，prog-update 类比为 note
+
+## Workflow Context
+- Phase: execution_complete
+- Task progress: 7
+- Next action: T1: 编写 test_wf_state_machine.py 失败测试
+- Execution context: feature/feature-14 @ feature-14 [worktree]
+- Current session context: feature/feature-14 @ feature-14 [worktree]
 
 ### Fixed (✅)
 - [x] [BUG-001] [DEBT] /prog done 应该自动切换到内联上下文中指定的工作树进行验收测试验证，避免在错误分支上运行测试导致误判
