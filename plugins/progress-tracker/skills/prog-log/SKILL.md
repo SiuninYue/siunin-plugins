@@ -1,6 +1,6 @@
 ---
-name: prog-sync
-description: This skill should be used when the user asks to "/prog sync", "sync project memory", "sync capabilities", or requests incremental capability backfill from git history.
+name: prog-log
+description: This skill should be used when the user asks to "/prog log", "sync project memory", "sync capabilities", or requests incremental capability backfill from git history.
 model: sonnet
 version: "1.0.0"
 scope: skill
@@ -14,7 +14,7 @@ evidence: optional
 references: []
 ---
 
-# Prog Sync Skill
+# Prog Log Skill
 
 Synchronize capability memory from incremental Git history and persist accepted items through `project_memory.py`.
 
