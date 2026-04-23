@@ -21,8 +21,7 @@ Usage:
     python3 progress_manager.py fix-readiness <feature_id> [--add-requirement <REQ-ID>] [--set-why <text>] [--add-acceptance <text>]
     python3 progress_manager.py set-development-stage <planning|developing|completed> [--feature-id <id>]
     python3 progress_manager.py complete <feature_id>
-    python3 progress_manager.py done [--commit <hash>] [--run-all] [--skip-archive] [--no-cleanup] [--auto-gates]
-    python3 progress_manager.py finalize --feature-id <id> [--commit <hash>] [--run-all] [--skip-archive] [--no-cleanup]
+    python3 progress_manager.py done [--commit <hash>] [--run-all] [--skip-archive] [--no-cleanup]
     python3 progress_manager.py set-finish-state --feature-id <id> --status <merged_and_cleaned|pr_open|kept_with_reason> [--reason <text>]
     python3 progress_manager.py set-feature-ai-metrics <feature_id> --complexity-score <score> --selected-model <model> --workflow-path <path>
     python3 progress_manager.py complete-feature-ai-metrics <feature_id>
@@ -38,7 +37,6 @@ Usage:
 """
 
 import argparse
-import copy
 import json
 import os
 import re
@@ -213,7 +211,6 @@ MUTATING_COMMANDS = {
     "set-development-stage",
     "complete",
     "done",
-    "finalize",
     "set-finish-state",
     "add-feature",
     "update-feature",
@@ -2749,91 +2746,7 @@ def reconcile_evaluator(
     return 0
 
 
-def _read_progress_json_snapshot(path: Path) -> Optional[Dict[str, Any]]:
-    """Best-effort reader for existing progress snapshots on disk."""
-    if not path.exists():
-        return None
-    try:
-        with open(path, "r", encoding="utf-8") as handle:
-            payload = json.load(handle)
-    except (OSError, json.JSONDecodeError):
-        return None
-    if not isinstance(payload, dict):
-        return None
-    return payload
-
-
-def _prevent_completed_feature_regression(
-    data: Dict[str, Any],
-    json_path: Path,
-    *,
-    allow_completion_regression: bool = False,
-) -> List[Any]:
-    """
-    Preserve completed features against stale writes.
-
-    If the on-disk snapshot already marks a feature as completed, a normal save
-    cannot regress that same feature back to incomplete.
-    """
-    if allow_completion_regression:
-        return []
-
-    existing_data = _read_progress_json_snapshot(json_path)
-    if not existing_data:
-        return []
-
-    existing_features = existing_data.get("features")
-    incoming_features = data.get("features")
-    if not isinstance(existing_features, list) or not isinstance(incoming_features, list):
-        return []
-
-    incoming_by_id: Dict[Any, int] = {}
-    for index, feature in enumerate(incoming_features):
-        if not isinstance(feature, dict):
-            continue
-        feature_id = feature.get("id")
-        if feature_id is None:
-            continue
-        incoming_by_id.setdefault(feature_id, index)
-
-    regressed_ids: List[Any] = []
-    for existing_feature in existing_features:
-        if not isinstance(existing_feature, dict):
-            continue
-        if not bool(existing_feature.get("completed")):
-            continue
-        feature_id = existing_feature.get("id")
-        if feature_id not in incoming_by_id:
-            continue
-        incoming_feature = incoming_features[incoming_by_id[feature_id]]
-        if not isinstance(incoming_feature, dict):
-            continue
-        if bool(incoming_feature.get("completed")):
-            continue
-
-        incoming_features[incoming_by_id[feature_id]] = copy.deepcopy(existing_feature)
-        regressed_ids.append(feature_id)
-
-    if not regressed_ids:
-        return []
-
-    current_id = data.get("current_feature_id")
-    if current_id in regressed_ids:
-        data["current_feature_id"] = None
-        data.pop("workflow_state", None)
-
-    logger.warning(
-        "Prevented completion regression for features: %s",
-        ", ".join(str(fid) for fid in regressed_ids),
-    )
-    return regressed_ids
-
-
-def save_progress_json(
-    data,
-    touch_updated_at: bool = True,
-    allow_completion_regression: bool = False,
-):
+def save_progress_json(data, touch_updated_at: bool = True):
     """Save data to progress.json file with optional updated_at touch and migration."""
     with progress_transaction():
         progress_dir = get_progress_dir()
@@ -2843,14 +2756,6 @@ def save_progress_json(
         progress_dir.mkdir(parents=True, exist_ok=True)
 
         _apply_schema_defaults(data)
-
-        # Prevent accidental state regression from completed -> incomplete when
-        # callers save stale snapshots after /prog done.
-        _prevent_completed_feature_regression(
-            data=data,
-            json_path=json_path,
-            allow_completion_regression=allow_completion_regression,
-        )
 
         # Auto-update updated_at timestamp
         if touch_updated_at:
@@ -4197,7 +4102,6 @@ def _build_project_completion_summary(
 ) -> str:
     """Build a concise summary when no more pending features remain."""
     return progress_prompt_builders.build_project_completion_summary(data, project_root)
-
 
 def status():
     """Display current progress status."""
@@ -6332,74 +6236,8 @@ def _get_head_commit() -> Optional[str]:
     return None
 
 
-def _shell_join(argv: Sequence[str]) -> str:
-    """Render shell-safe command string for copy-paste guidance."""
-    return " ".join(shlex.quote(str(part)) for part in argv)
-
-
-def _build_done_retry_command(
-    *,
-    commit_hash: Optional[str],
-    run_all: bool,
-    skip_archive: bool,
-    no_cleanup: bool,
-    auto_gates: bool,
-) -> str:
-    """Build a deterministic `prog done` retry command preserving user flags."""
-    command: List[str] = ["prog", "done"]
-    if commit_hash:
-        command.extend(["--commit", commit_hash])
-    if run_all:
-        command.append("--run-all")
-    if skip_archive:
-        command.append("--skip-archive")
-    if no_cleanup:
-        command.append("--no-cleanup")
-    if auto_gates:
-        command.append("--auto-gates")
-    return _shell_join(command)
-
-
-def _print_done_repair_chain(
-    *,
-    feature_id: int,
-    need_evaluator: bool,
-    pending_reviews: Sequence[str],
-    need_ship_check: bool,
-    commit_hash: Optional[str],
-    run_all: bool,
-    skip_archive: bool,
-    no_cleanup: bool,
-    auto_gates: bool,
-) -> None:
-    """Print a single copy-paste recovery chain for unresolved done gates."""
-    chain: List[str] = []
-    if need_evaluator:
-        chain.append(
-            _shell_join(["prog", "reconcile-evaluator", "--feature-id", str(feature_id)])
-        )
-    for lane in pending_reviews:
-        chain.append(
-            _shell_join(
-                ["prog", "review-pass", "--feature-id", str(feature_id), "--lane", lane]
-            )
-        )
-    if need_ship_check:
-        chain.append(_shell_join(["prog", "ship-check", "--feature-id", str(feature_id)]))
-    chain.append(
-        _build_done_retry_command(
-            commit_hash=commit_hash,
-            run_all=run_all,
-            skip_archive=skip_archive,
-            no_cleanup=no_cleanup,
-            auto_gates=auto_gates,
-        )
-    )
-    print(f"[DONE] Repair chain: {' && '.join(chain)}", file=sys.stderr)
-
-
 def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False,
-             no_cleanup: bool = False, auto_gates: bool = False) -> int:
+             no_cleanup: bool = False) -> int:
     """Close current feature through deterministic acceptance gatekeeping."""
     data = load_progress_json()
     if not data:
@@ -6487,102 +6325,57 @@ def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False
 
     print("[DONE] Acceptance passed")
 
-    def _reload_gate_feature() -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
-        refreshed = load_progress_json()
-        if not refreshed:
-            return None, None
-        refreshed_feature = next(
-            (f for f in refreshed.get("features", []) if f.get("id") == feature_id),
+    # PR-3: evaluator gate — must pass before archiving (generator/evaluator separation).
+    # Strict mode: evaluator status must be explicit "pass" before /prog done can close.
+    gate_feat = None
+    refreshed_for_gate = load_progress_json()
+    if refreshed_for_gate:
+        gate_feat = next(
+            (f for f in refreshed_for_gate.get("features", []) if f.get("id") == feature_id),
             None,
         )
-        return refreshed, refreshed_feature
-
-    refreshed_for_gate, gate_feat = _reload_gate_feature()
-    if auto_gates and gate_feat is not None:
-        evaluator_payload = gate_feat.get("quality_gates", {}).get("evaluator", {})
-        eval_status = evaluator_payload.get("status")
-        if eval_status != "pass":
-            print(
-                f"[DONE][AUTO] evaluator gate status={eval_status!r}; "
-                f"running `prog reconcile-evaluator --feature-id {feature_id}`",
-            )
-            rc = reconcile_evaluator(feature_id=feature_id, output_json=False)
-            if rc != 0:
-                print(f"[DONE][AUTO] reconcile-evaluator returned {rc}", file=sys.stderr)
-            refreshed_for_gate, gate_feat = _reload_gate_feature()
-
         if gate_feat is not None:
-            ship_payload = gate_feat.get("quality_gates", {}).get("ship_check", {})
-            ship_status = ship_payload.get("status")
-            if ship_status != "pass":
+            evaluator_payload = gate_feat.get("quality_gates", {}).get("evaluator", {})
+            eval_status = evaluator_payload.get("status")
+            if eval_status != "pass":
                 print(
-                    f"[DONE][AUTO] ship_check status={ship_status!r}; "
-                    f"running `prog ship-check --feature-id {feature_id}`",
+                    f"[DONE] BLOCKED: evaluator gate not passed "
+                    f"(status={eval_status!r}). "
+                    "Run evaluator subagent and call _store_evaluator_result before /prog-done.",
+                    file=sys.stderr,
                 )
-                rc = cmd_ship_check(feature_id=feature_id)
-                if rc != 0:
-                    print(f"[DONE][AUTO] ship-check returned {rc}", file=sys.stderr)
-                refreshed_for_gate, gate_feat = _reload_gate_feature()
+                return 6
 
-    need_evaluator = False
-    eval_status = None
-    pending_lanes: List[str] = []
-    need_ship_check = False
-    ship_status = None
-
-    if gate_feat is not None:
-        evaluator_payload = gate_feat.get("quality_gates", {}).get("evaluator", {})
-        eval_status = evaluator_payload.get("status")
-        need_evaluator = eval_status != "pass"
-
-        if REVIEW_ROUTER_AVAILABLE:
-            reviews_payload = gate_feat.setdefault("quality_gates", {}).setdefault(
-                "reviews",
-                {"required": [], "passed": [], "pending": []},
+    # F-11: review gate — all required review lanes must be passed before archiving
+    if REVIEW_ROUTER_AVAILABLE and gate_feat is not None:
+        reviews_payload = gate_feat.setdefault("quality_gates", {}).setdefault(
+            "reviews",
+            {"required": [], "passed": [], "pending": []},
+        )
+        if not reviews_payload.get("required"):
+            _initialize_reviews(gate_feat)
+            save_progress_json(refreshed_for_gate)
+            save_progress_md(generate_progress_md(refreshed_for_gate))
+        pending_lanes = _get_pending_lanes(gate_feat)
+        if pending_lanes:
+            print(
+                f"[DONE] BLOCKED: pending reviews: {pending_lanes}. "
+                "Run: prog review-pass --feature-id <id> --lane <lane>",
+                file=sys.stderr,
             )
-            if not reviews_payload.get("required"):
-                _initialize_reviews(gate_feat)
-                if refreshed_for_gate:
-                    save_progress_json(refreshed_for_gate)
-                    save_progress_md(generate_progress_md(refreshed_for_gate))
-            pending_lanes = _get_pending_lanes(gate_feat)
+            return 7
 
+    # PR-5: ship_check gate — must pass before archiving
+    if gate_feat is not None:
         ship_payload = gate_feat.get("quality_gates", {}).get("ship_check", {})
         ship_status = ship_payload.get("status")
-        need_ship_check = ship_status != "pass"
-
-    if need_evaluator or pending_lanes or need_ship_check:
-        if need_evaluator:
+        if ship_status != "pass":
             print(
-                f"[DONE] BLOCKED: evaluator gate not passed (status={eval_status!r}).",
+                f"[DONE] BLOCKED: ship_check not passed (status={ship_status!r}). "
+                f"Run `prog ship-check --feature-id {feature_id}` first.",
                 file=sys.stderr,
             )
-        if pending_lanes:
-            print(
-                f"[DONE] BLOCKED: pending reviews: {pending_lanes}.",
-                file=sys.stderr,
-            )
-        if need_ship_check:
-            print(
-                f"[DONE] BLOCKED: ship_check not passed (status={ship_status!r}).",
-                file=sys.stderr,
-            )
-        _print_done_repair_chain(
-            feature_id=feature_id,
-            need_evaluator=need_evaluator,
-            pending_reviews=pending_lanes,
-            need_ship_check=need_ship_check,
-            commit_hash=commit_hash,
-            run_all=run_all,
-            skip_archive=skip_archive,
-            no_cleanup=no_cleanup,
-            auto_gates=auto_gates,
-        )
-        if need_evaluator:
-            return 6
-        if pending_lanes:
-            return 7
-        return 8
+            return 8
 
     # Snapshot git context BEFORE complete_feature() clears workflow_state.
     git_ctx = collect_git_context()
@@ -6627,47 +6420,9 @@ def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False
         print(f"[CLEANUP] WARN: unexpected cleanup error (feature still completed): {exc}")
 
     if completion_output:
-        print(f"\n{completion_output}")
+        print(completion_output)
+
     return 0
-
-
-def cmd_finalize(
-    *,
-    feature_id: int,
-    commit_hash: Optional[str] = None,
-    run_all: bool = False,
-    skip_archive: bool = False,
-    no_cleanup: bool = False,
-) -> int:
-    """Aggregate finishing flow: auto-recover machine gates, then run done."""
-    data = load_progress_json()
-    if not data:
-        print("[FINALIZE] No progress tracking found", file=sys.stderr)
-        return 4
-
-    current_feature_id = data.get("current_feature_id")
-    if current_feature_id is None:
-        print("[FINALIZE] BLOCKED: no active feature. Run /prog next-feature first.", file=sys.stderr)
-        return 1
-    if int(current_feature_id) != int(feature_id):
-        print(
-            "[FINALIZE] BLOCKED: --feature-id does not match current active feature "
-            f"(current={current_feature_id}, requested={feature_id}).",
-            file=sys.stderr,
-        )
-        return 2
-
-    print(
-        f"[FINALIZE] Feature {feature_id}: running done with auto gate recovery "
-        "(evaluator + ship_check).",
-    )
-    return cmd_done(
-        commit_hash=commit_hash,
-        run_all=run_all,
-        skip_archive=skip_archive,
-        no_cleanup=no_cleanup,
-        auto_gates=True,
-    )
 
 
 def _collect_ship_signals(feature: dict) -> dict:
@@ -7040,8 +6795,8 @@ def undo_last_feature():
 
     # If nothing is currently in progress, we could optionally set this as current
     # But for safety, we'll leave current_feature_id as None or whatever it was
-    # Undo is an explicit regression path, so bypass monotonic completion guard.
-    save_progress_json(data, allow_completion_regression=True)
+
+    save_progress_json(data)
 
     # Update progress.md
     md_content = generate_progress_md(data)
@@ -9002,39 +8757,6 @@ def main():
         dest="no_cleanup",
         help="Skip automatic post-done cleanup of worktree and feature branch",
     )
-    done_parser.add_argument(
-        "--auto-gates",
-        action="store_true",
-        dest="auto_gates",
-        help="Auto-run evaluator and ship-check gates before final done gate validation",
-    )
-    finalize_parser = subparsers.add_parser(
-        "finalize",
-        help="Auto-recover evaluator/ship-check gates and then complete current feature",
-    )
-    finalize_parser.add_argument(
-        "--feature-id",
-        type=int,
-        required=True,
-        help="Active feature ID to finalize (must match current_feature_id)",
-    )
-    finalize_parser.add_argument("--commit", help="Git commit hash (default: HEAD)")
-    finalize_parser.add_argument(
-        "--run-all",
-        action="store_true",
-        help="Run all acceptance tests even if one fails",
-    )
-    finalize_parser.add_argument(
-        "--skip-archive",
-        action="store_true",
-        help="Skip document archiving",
-    )
-    finalize_parser.add_argument(
-        "--no-cleanup",
-        action="store_true",
-        dest="no_cleanup",
-        help="Skip automatic post-finalize cleanup of worktree and feature branch",
-    )
     set_finish_state_parser = subparsers.add_parser(
         "set-finish-state",
         help="Resolve explicit finish_pending integration status for a feature",
@@ -9430,15 +9152,6 @@ def main():
                 run_all=args.run_all,
                 skip_archive=args.skip_archive,
                 no_cleanup=args.no_cleanup,
-                auto_gates=args.auto_gates,
-            )
-        if args.command == "finalize":
-            return cmd_finalize(
-                feature_id=args.feature_id,
-                commit_hash=args.commit,
-                run_all=args.run_all,
-                skip_archive=args.skip_archive,
-                no_cleanup=args.no_cleanup,
             )
         if args.command == "set-finish-state":
             return cmd_set_finish_state(
@@ -9571,17 +9284,17 @@ def main():
         parser.print_help()
         return 1
 
-    # F21: fail-closed scope consistency check for next-feature and completion commands
-    if args.command in {"next-feature", "done", "finalize"}:
+    # F21: fail-closed scope consistency check for next-feature and done
+    if args.command in {"next-feature", "done"}:
         if not check_worktree_branch_consistency(args.command):
             return 1
 
     if args.command in MUTATING_COMMANDS:
         if not enforce_route_preflight(args.command, sys.argv):
             return 1
-        # `done/finalize` may execute nested `prog` mutating commands from acceptance steps.
+        # `done` may execute nested `prog` mutating commands from acceptance steps.
         # Holding an outer process lock here can deadlock those nested invocations.
-        if args.command in {"done", "finalize"}:
+        if args.command == "done":
             return _dispatch_command()
         try:
             with progress_transaction():

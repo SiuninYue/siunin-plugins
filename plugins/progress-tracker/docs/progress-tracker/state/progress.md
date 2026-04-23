@@ -1,18 +1,39 @@
-# Project Progress: progress-tracker-sop-compliance-optimization
+# Project Progress: prog-parent-coordination-archive
 
-**Created**: 2026-04-23T00:28:18.285129Z
+**Created**: 2026-04-09T01:12:55.289861Z
 
-**Status**: 1/9 completed
+**Status**: 28/28 completed
 
 ## Completed
-- [x] Baseline compliance scan for frontmatter and routable descriptions
+- [x] 定义父级协调追踪器 Schema（linked_projects + snapshot 元数据）
+- [x] 实现子项目 progress.json 发现与只读聚合采集器
+- [x] 实现 monorepo 根目录歧义 fail-closed 与显式 scope 选择
+- [x] 新增父级同步命令 sync-linked（刷新子项目最新快照）
+- [x] 全部功能完成时自动归档当前 run 并写入归档索引
+- [x] prog init --force 归档与旧状态重命名策略标准化
+- [x] [RouteV1] 父级路由 Schema 扩展（tracker_role/project_code/routing_queue/active_routes）
+- [x] [RouteV1] 新增 link-project 命令注册子项目与 project_code
+- [x] [RouteV1] 新增 route-status/route-select 命令
+- [x] [RouteV1] feature_ref 命名空间化（<project_code>-F<number>）
+- [x] [RouteV1] mutating 命令统一 route_preflight fail-closed
+- [x] [RouteV1] worktree/branch 一致性校验（next/done fail-closed）
+- [x] [RouteV1] 并行 active_routes 冲突策略（允许执行+强告警）
+- [x] [RouteV1] 父级顺序调度：/prog-next 按 routing_queue 选首个可执行子项目
+- [x] [RouteV1] sync-linked 升级为父级统一同步入口
+- [x] [RouteV1] 在 prog-init/prog-plan 与子项目完成时回写父级备案
+- [x] 状态展示与文档更新（父级总览+子项目明细+归档历史）
+- [x] 清理 /prog-start 残留并锁定 /prog-next 为唯一 start path
+- [x] 实现 set-finish-state 显式解锁器并固化 finish_pending 阻断链路
+- [x] 落地 evaluator_gate 与 quality_gates.evaluator 独立评估门
+- [x] 新增 evaluator 补偿机制命令（排队实现）
+- [x] 落地 review_router 智能分流并持久化 review lanes
+- [x] 落地 ship_check 统一门禁与 docs-sync 证据校验
+- [x] 落地 sprint_ledger 与 schema 2.1 的 sprint_contract/handoff 持久化
+- [x] 落地 wf_state_machine + wf_auto_driver + hook 自动推进
+- [x] prog done 后自动清理已合并的 feature 分支和 worktree
+- [x] 让 /prog 状态页末尾输出详细 handoff 提示
+- [x] 优化概念命名与映射：将 prog-sync 类比为 log，prog-update 类比为 note
 
-## Pending
-- [ ] Refactor progress_manager into modular command helpers
-- [ ] Normalize skill frontmatter to SOP-compliant shape
-- [ ] Enforce plugin metadata traceability fields
-- [ ] Add explicit model declaration checks for required skill scopes
-- [ ] Apply progressive disclosure budget to oversized SKILL files
-- [ ] Harden command lifecycle boundaries and architecture immutability guard
-- [ ] Enforce PROG command docs single-source parity
-- [ ] Implement fail-closed release gate with sync compatibility evidence
+### Fixed (✅)
+- [x] [BUG-001] [DEBT] /prog done 应该自动切换到内联上下文中指定的工作树进行验收测试验证，避免在错误分支上运行测试导致误判
+  Fix: Fix applied: feature-complete + feature-implement SKILL.md CWD persistence bug fixed, all prog CLI calls use --project-root (commits: 8f887ca, 1c6332e). PR: SiuninYue/siunin-plugins#16

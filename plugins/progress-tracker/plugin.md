@@ -20,7 +20,7 @@ The Progress Tracker plugin solves the critical problem of maintaining progress 
 
 **Dependencies**: Requires [Superpowers](https://github.com/obra/superpowers-marketplace) plugin for systematic development workflows.
 
-**Command naming note**: Plugin commands are registered from `commands/*.md` and use hyphenated slash names (for example `/prog-next`, `/prog-sync`). In namespaced form they appear as `/progress-tracker:<command>`.
+**Command naming note**: Plugin commands are registered from `commands/*.md` and use hyphenated slash names (for example `/prog-next`, `/prog-log`). In namespaced form they appear as `/progress-tracker:<command>`.
 
 ## Quick Start
 
@@ -42,7 +42,7 @@ The Progress Tracker plugin solves the critical problem of maintaining progress 
 | `/prog-init <goal>` | Initialize progress tracking for a new goal |
 | `/prog-plan` | Create architectural plan with technology selection |
 | `/prog` | Display current project status |
-| `/prog-sync` | Sync capability memory from incremental Git history |
+| `/prog-log` | Sync capability memory from incremental Git history |
 | `/prog-next` | Start implementing next pending feature |
 | `/prog-fix [bug]` | Report, list, or fix bugs with smart scheduling |
 | `/prog-done` | Complete current feature after testing |

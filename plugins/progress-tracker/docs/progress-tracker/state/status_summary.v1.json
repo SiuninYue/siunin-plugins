@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-04-23T02:14:06.580133Z",
+  "updated_at": "2026-04-22T21:29:07.023076Z",
   "source": {
     "generator": "progress_manager.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,27 +11,27 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1776881635534519688,
-      "size": 23775
+      "mtime_ns": 1776864537583395531,
+      "size": 93214
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
       "exists": true,
-      "mtime_ns": 1776862293787600231,
-      "size": 5830
+      "mtime_ns": 1776863079913036459,
+      "size": 5896
     }
   },
   "progress": {
-    "completed": 0,
-    "total": 9,
-    "percentage": 0
+    "completed": 28,
+    "total": 28,
+    "percentage": 100
   },
   "next_action": {
-    "type": "feature",
-    "feature_id": 1,
-    "feature_name": "Baseline compliance scan for frontmatter and routable descriptions",
-    "development_stage": "developing",
-    "stage_label": "开发中"
+    "type": "none",
+    "feature_id": null,
+    "feature_name": "无待办功能",
+    "development_stage": null,
+    "stage_label": null
   },
   "plan_health": {
     "status": "N/A",
@@ -46,7 +46,7 @@
   },
   "recent_snapshot": {
     "exists": true,
-    "timestamp": "2026-04-22T20:51:33.727681+08:00",
-    "relative_time": "5 小时前"
+    "timestamp": "2026-04-22T21:04:39.852998+08:00",
+    "relative_time": "24 分钟前"
   }
 }

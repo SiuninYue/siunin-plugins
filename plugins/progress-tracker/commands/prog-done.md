@@ -1,6 +1,6 @@
 ---
 description: Complete current feature via deterministic acceptance gatekeeping
-version: "2.4.0"
+version: "2.3.0"
 scope: command
 inputs:
   - User request to complete current feature
