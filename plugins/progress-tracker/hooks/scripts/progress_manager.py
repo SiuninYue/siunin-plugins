@@ -77,6 +77,7 @@ from prog_paths import (
     resolve_target_project_root,
 )
 from contract_importer import ContractImporter, ContractImportError
+import progress_prompt_builders
 try:
     import audit_log
 except ImportError:  # pragma: no cover - defensive import
@@ -4176,85 +4177,9 @@ def _build_status_handoff_block(
     project_root: str,
 ) -> Optional[str]:
     """Build context handoff block for /prog status output."""
-    features = data.get("features", [])
-    current_id = data.get("current_feature_id")
-    workflow_state = data.get("workflow_state") or {}
-
-    # All features complete — no handoff block
-    if completed == total and total > 0:
-        return None
-
-    # Determine branch/worktree from persisted execution_context, fall back to git
-    execution_context = workflow_state.get("execution_context") or {}
-    branch = execution_context.get("branch") or "main"
-    worktree_path: Optional[str] = None
-    if execution_context.get("workspace_mode") == "worktree":
-        worktree_path = execution_context.get("worktree_path")
-
-    branch_line = f"Branch: {branch}"
-    if worktree_path:
-        branch_line += f" | Worktree: {worktree_path}"
-
-    # No active feature — simple prog-next block
-    if not current_id:
-        remaining = [
-            f for f in features
-            if isinstance(f, dict)
-            and not f.get("completed", False)
-            and not _is_feature_deferred(f)
-        ]
-        if not remaining:
-            return None
-        return "\n".join([
-            "/progress-tracker:prog-next",
-            "",
-            f"Project: {completed}/{total} features done",
-            f"ProjectRoot: {project_root}",
-            "→ Context pre-loaded. Auto-selects and starts next pending feature.",
-        ])
-
-    # Active feature — find it
-    current_feature = next((f for f in features if f.get("id") == current_id), None)
-    if not current_feature:
-        return None
-
-    feature_name = current_feature.get("name", "Unknown")
-    phase = workflow_state.get("phase") or "execution"
-    plan_path = workflow_state.get("plan_path") or ""
-    total_tasks = workflow_state.get("total_tasks")
-    completed_tasks_list = workflow_state.get("completed_tasks") or []
-    completed_tasks_count = len(completed_tasks_list) if isinstance(completed_tasks_list, list) else 0
-    next_action = workflow_state.get("next_action") or ""
-
-    if phase == "execution_complete":
-        task_count = total_tasks or completed_tasks_count
-        return "\n".join([
-            "/progress-tracker:prog-done",
-            "",
-            f'Feature: {current_id} "{feature_name}" | Phase: execution_complete',
-            f"Plan: {plan_path} | Tasks: {task_count}/{task_count} done",
-            branch_line,
-            f"ProjectRoot: {project_root}",
-            "→ Context pre-loaded. Run verification and commit.",
-        ])
-
-    # All other active phases (execution, planning:approved, planning_complete, etc.)
-    tasks_done = completed_tasks_count
-    tasks_total = total_tasks if total_tasks is not None else "?"
-    lines = [
-        "/progress-tracker:prog-next",
-        "",
-        f'Feature: {current_id} "{feature_name}" | Phase: {phase}',
-        f"Plan: {plan_path} | Tasks: {tasks_done}/{tasks_total} done",
-    ]
-    if next_action:
-        lines.append(f"Next: {next_action}")
-    lines.extend([
-        branch_line,
-        f"ProjectRoot: {project_root}",
-        "→ Context pre-loaded. Resume from next task.",
-    ])
-    return "\n".join(lines)
+    return progress_prompt_builders.build_status_handoff_block(
+        data, completed, total, project_root
+    )
 
 
 def _build_done_handoff_block(
@@ -4262,52 +4187,8 @@ def _build_done_handoff_block(
     project_root: str,
 ) -> Optional[str]:
     """Build the post-completion handoff block for `/prog done`."""
-    features = data.get("features", [])
-    if not isinstance(features, list):
-        features = []
-
-    completed = sum(
-        1
-        for feature in features
-        if isinstance(feature, dict) and feature.get("completed", False)
-    )
-    total = len(features)
     next_feature = get_next_feature()
-    if not next_feature:
-        return None
-
-    project_name = data.get("project_name", "Unknown")
-    next_id = next_feature.get("id", "?")
-    next_name = next_feature.get("name", "Unknown")
-    test_steps = next_feature.get("test_steps", [])
-    if not isinstance(test_steps, list):
-        test_steps = []
-
-    lines = [
-        "---",
-        "**粘贴到新会话以启动下一个功能：**",
-        "",
-        "/progress-tracker:prog-next",
-        "",
-        f'Project: {project_name} | {completed}/{total} completed',
-        f'Feature: F{next_id} "{next_name}"',
-        f"ProjectRoot: {project_root}",
-        "→ Context pre-loaded. Auto-selects and starts next pending feature.",
-        "",
-        "**下一个功能预览：**",
-        f"- ID: F{next_id}",
-        f"- Name: {next_name}",
-    ]
-
-    if test_steps:
-        lines.append("- Test steps:")
-        for index, step in enumerate(test_steps, start=1):
-            lines.append(f"  {index}. {step}")
-    else:
-        lines.append("- Test steps: none recorded")
-
-    lines.append("---")
-    return "\n".join(lines)
+    return progress_prompt_builders.build_done_handoff_block(data, next_feature, project_root)
 
 
 def _build_project_completion_summary(
@@ -4315,23 +4196,7 @@ def _build_project_completion_summary(
     project_root: str,
 ) -> str:
     """Build a concise summary when no more pending features remain."""
-    features = data.get("features", [])
-    if not isinstance(features, list):
-        features = []
-    completed = sum(
-        1
-        for feature in features
-        if isinstance(feature, dict) and feature.get("completed", False)
-    )
-    total = len(features)
-    project_name = data.get("project_name", "Unknown")
-
-    return "\n".join([
-        "### Project Complete",
-        f"Project: {project_name} | {completed}/{total} completed",
-        f"ProjectRoot: {project_root}",
-        "→ No pending features remain.",
-    ])
+    return progress_prompt_builders.build_project_completion_summary(data, project_root)
 
 
 def status():
