@@ -94,7 +94,6 @@ def test_explicit_project_root_recovers_mutating_command_from_monorepo_root(temp
         ["update-feature", "1", "Feature X Updated", "Step 2"],
         ["complete", "1", "--skip-archive"],
         ["done"],
-        ["finalize", "--feature-id", "1"],
     ],
 )
 def test_child_route_mismatch_blocks_core_mutating_commands(temp_dir, capsys, mutating_tail):

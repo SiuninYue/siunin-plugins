@@ -70,7 +70,7 @@ class TestAppendAuditRecord:
             "tx_id": "TX-20240101-120000",
             "timestamp": "2024-01-01T12:00:00Z",
             "feature_id": 1,
-            "event_type": "test_event",
+            "event_type": "feature_completed",
             "details": {"key": "value"}
         }
 
@@ -195,14 +195,14 @@ class TestReadAuditLog:
                 "tx_id": "TX-20240101-120000",
                 "timestamp": "2024-01-01T12:00:00Z",
                 "feature_id": 1,
-                "event_type": "event1"
+                "event_type": "feature_completed"
             },
             {
                 "id": "AUDIT-002",
                 "tx_id": "TX-20240101-120001",
                 "timestamp": "2024-01-01T12:00:01Z",
                 "feature_id": 2,
-                "event_type": "event2"
+                "event_type": "feature_undone"
             }
         ]
 
@@ -351,14 +351,14 @@ class TestGetLatestAuditRecord:
                 "tx_id": "TX-20240101-120000",
                 "timestamp": "2024-01-01T12:00:00Z",
                 "feature_id": 1,
-                "event_type": "old"
+                "event_type": "feature_completed"
             },
             {
                 "id": "AUDIT-002",
                 "tx_id": "TX-20240101-120001",
                 "timestamp": "2024-01-01T12:00:01Z",
                 "feature_id": 1,
-                "event_type": "new"
+                "event_type": "feature_undone"
             }
         ]
 
@@ -367,7 +367,7 @@ class TestGetLatestAuditRecord:
 
         latest = audit_log.get_latest_audit_record(feature_id=1)
         assert latest is not None
-        assert latest["event_type"] == "new"
+        assert latest["event_type"] == "feature_undone"
         assert latest["id"] == "AUDIT-002"
 
         # 清理环境变量
@@ -396,14 +396,14 @@ class TestGetAuditRecordById:
             "tx_id": "TX-20240101-120000",
             "timestamp": "2024-01-01T12:00:00Z",
             "feature_id": 1,
-            "event_type": "test"
+            "event_type": "schema_migration"
         }
 
         audit_log.append_audit_record(record)
 
         found = audit_log.get_audit_record_by_id("AUDIT-001")
         assert found is not None
-        assert found["event_type"] == "test"
+        assert found["event_type"] == "schema_migration"
 
         # 清理环境变量
         del os.environ["PROGRESS_TRACKER_STATE_DIR"]

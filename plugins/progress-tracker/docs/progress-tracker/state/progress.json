@@ -2,8 +2,212 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-04-23T02:14:30.512729Z",
+  "updated_at": "2026-04-24T21:32:28.884901Z",
   "features": [
+    {
+      "id": 10,
+      "name": "根目录混合宿主架构：Monorepo /prog 支持",
+      "test_steps": [
+        "在仓库根目录运行 prog init，确认生成 tracker_role=parent 的 progress.json 并自动发现子插件",
+        "在根目录运行 prog，确认面板展示所有子目录完成率和当前活跃 feature",
+        "在根目录运行 prog next-feature，确认按 routing_queue 顺序 dispatch 到子目录",
+        "运行 prog prioritize PT，确认输出 [OK] PT moved to front 并更新队列",
+        "运行 pytest -q plugins/progress-tracker/tests/ 确认回归测试全部通过"
+      ],
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "change_spec": {
+        "why": "Deliver 根目录混合宿主架构：Monorepo /prog 支持 with traceable acceptance coverage.",
+        "in_scope": [
+          "根目录混合宿主架构：Monorepo /prog 支持"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 在仓库根目录运行 prog init，确认生成 tracker_role=parent 的 progress.json 并自动发现子插件",
+        "Scenario: 在根目录运行 prog，确认面板展示所有子目录完成率和当前活跃 feature",
+        "Scenario: 在根目录运行 prog next-feature，确认按 routing_queue 顺序 dispatch 到子目录",
+        "Scenario: 运行 prog prioritize PT，确认输出 [OK] PT moved to front 并更新队列",
+        "Scenario: 运行 pytest -q plugins/progress-tracker/tests/ 确认回归测试全部通过"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
+    },
+    {
+      "id": 0,
+      "name": "Robust Progress State Architecture - Event Sourcing & Reconciliation",
+      "test_steps": [
+        "Configure Git union merge for audit.log via .gitattributes",
+        "Define event schema whitelist (feature_completed, feature_undone, state_restored, tracker_reset, manual_state_override)",
+        "Implement reconcile-state command with drift detection and auto-ingestion",
+        "Add post-merge Git hook that auto-commits reconciled progress.json",
+        "Verify Feature 9 state recovery through audit.log replay",
+        "Test union merge behavior with concurrent audit.log appends",
+        "Validate manual state override events are properly recorded and replayed"
+      ],
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "implementing",
+      "requirement_ids": [
+        "REQ-ARCH-001"
+      ],
+      "change_spec": {
+        "why": "Implement Event Sourcing pattern to prevent progress state loss during Git merges. The current single-file progress.json approach loses completed state when merge conflicts are resolved by picking base branch version. This architecture uses audit.log as the single source of truth with union merge strategy, automatic reconciliation, and full audit trail for all state changes including manual edits.",
+        "in_scope": [
+          "Git union merge configuration for audit.log",
+          "Event schema whitelist and normalization",
+          "Reconciliation module with drift detection",
+          "Manual state override event recording",
+          "Post-merge Git hook with auto-commit",
+          "Feature 9 immediate repair through automated backfill"
+        ],
+        "out_of_scope": [
+          "Modifying core business logic of existing commands",
+          "Changing the progress.json schema structure",
+          "Implementing new quality gates or review processes"
+        ],
+        "risks": [
+          "Union merge edge cases with concurrent appends may require deduplication logic",
+          "Event ordering issues if branches append different events simultaneously",
+          "Git hook requires user.name/user.email configuration",
+          "Schema evolution needs version field for future compatibility"
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: Git merge of audit.log uses union strategy without conflicts",
+        "Scenario: reconcile-state correctly replays events and reconstructs state",
+        "Scenario: Manual edits to progress.json are recorded as manual_state_override events",
+        "Scenario: Post-merge hook auto-commits reconciled progress.json with [skip ci]",
+        "Scenario: Feature 9 state is recovered through audit.log replay after merge",
+        "Scenario: Duplicate events are properly deduplicated during reconciliation"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 87,
+          "defects": [
+            "I-01: manual_state_override event type whitelisted but no call-site detects/records manual edits to progress.json — acceptance scenario 3 partially unmet",
+            "I-02: append_audit_record temp-file pattern provides no atomicity guarantee; code misleadingly suggests atomic rename semantics",
+            "I-03: state_restored event type whitelisted but never emitted",
+            "S-01: _write_audit_event test helper uses mutable default arg counter=[0]",
+            "S-02: deduplicate_audit_log in-memory only; never writes deduped records back to audit.log",
+            "S-03: post_merge_hook.sh $? in warn block captures echo exit code not reconcile-state exit code"
+          ],
+          "last_run_at": "2026-04-24T13:16:34.067745+00:00",
+          "evaluator_model": "claude-sonnet-4-6"
+        },
+        "reviews": {
+          "required": [
+            "architecture",
+            "eng"
+          ],
+          "passed": [
+            "architecture",
+            "eng"
+          ],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "Implement Event Sourcing architecture for robust progress state management",
+        "done_criteria": [
+          "Git union merge configured and tested",
+          "Event schema whitelist defined and documented",
+          "reconcile-state command implemented and tested",
+          "Post-merge Git hook installed and functional",
+          "Feature 9 state recovered and verified",
+          "All acceptance scenarios validated"
+        ],
+        "test_plan": [
+          "Configure .gitattributes with audit.log merge=union",
+          "Test union merge with concurrent audit.log appends",
+          "Implement event schema whitelist in audit_log.py",
+          "Implement reconcile-state command in progress_manager.py",
+          "Add manual_state_override event recording",
+          "Create post-merge hook script",
+          "Run prog install-git-hooks",
+          "Verify Feature 9 state recovery",
+          "Run integration tests for reconciliation flow"
+        ],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "development_stage": "developing",
+      "started_at": "2026-04-24T00:00:00.000000Z",
+      "ai_metrics": {
+        "complexity_score": 35,
+        "complexity_bucket": "complex",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-24T00:00:00.000000Z"
+      }
+    },
     {
       "id": 1,
       "name": "Baseline compliance scan for frontmatter and routable descriptions",
@@ -130,7 +334,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "approved",
+      "lifecycle_state": "implementing",
       "requirement_ids": [
         "REQ-009"
       ],
@@ -160,9 +364,17 @@
           "evaluator_model": null
         },
         "reviews": {
-          "required": [],
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
           "passed": [],
-          "pending": []
+          "pending": [
+            "docs",
+            "eng",
+            "qa"
+          ]
         },
         "ship_check": {
           "status": "pending",
@@ -182,6 +394,15 @@
         "to_phase": null,
         "artifact_path": null,
         "created_at": null
+      },
+      "development_stage": "developing",
+      "started_at": "2026-04-23T23:31:35.975656Z",
+      "ai_metrics": {
+        "complexity_score": 21,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-23T23:38:15.417138Z"
       }
     },
     {
@@ -687,9 +908,94 @@
         "artifact_path": null,
         "created_at": null
       }
+    },
+    {
+      "id": 11,
+      "name": "plan_path CLI normalization",
+      "test_steps": [
+        "Normalize plan_path at CLI entry point",
+        "Improve validate_plan_path error message"
+      ],
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "implementing",
+      "requirement_ids": [
+        "REQ-011"
+      ],
+      "change_spec": {
+        "why": "Deliver plan_path CLI normalization with traceable acceptance coverage.",
+        "in_scope": [
+          "plan_path CLI normalization"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ],
+        "categories": [
+          "cli"
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: Normalize plan_path at CLI entry point",
+        "Scenario: Improve validate_plan_path error message"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [
+            "devex",
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [],
+          "pending": [
+            "devex",
+            "docs",
+            "eng",
+            "qa"
+          ]
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "development_stage": "developing",
+      "started_at": "2026-04-24T15:54:37.202730Z"
     }
   ],
-  "current_feature_id": null,
+  "current_feature_id": 0,
   "linked_projects": [],
   "linked_snapshot": {
     "schema_version": "1.0",
@@ -703,20 +1009,62 @@
   "updates": [],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-04-23T02:14:30.431433Z",
-    "source": "complete_feature",
+    "recorded_at": "2026-04-24T18:07:23.996910Z",
+    "source": "set_workflow_state",
     "workspace_mode": "in_place",
     "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
     "project_root": "/Users/siunin/Projects/Claude-Plugins",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins",
     "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
     "branch": "main",
     "upstream": "origin/main",
     "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
-    "current_feature_id": null,
-    "workflow_phase": null,
-    "current_task": null,
+    "current_feature_id": 0,
+    "workflow_phase": "execution_complete",
+    "current_task": 11,
     "total_tasks": null,
-    "next_action": null
+    "next_action": "All tasks completed. Ready for /prog done"
+  },
+  "bugs": [
+    {
+      "id": "BUG-001",
+      "description": "Python falsy trap: current_feature_id=0 被 not 误判为 None，导致 set-workflow-state/auto_checkpoint/wf_auto_driver/route_status 等函数在 feature ID 为 0 时异常跳过",
+      "status": "fixed",
+      "priority": "high",
+      "category": "bug",
+      "created_at": "2026-04-24T15:21:20.997557Z",
+      "quick_verification": {},
+      "updated_at": "2026-04-24T15:21:47.589961Z",
+      "root_cause": "Python truthy/falsy trap: not 0 == True，导致 ID=0 的 feature 被误判为不存在",
+      "investigation": {
+        "root_cause": "Python truthy/falsy trap: not 0 == True，导致 ID=0 的 feature 被误判为不存在",
+        "confirmed_at": "2026-04-24T15:21:47.589970Z"
+      }
+    }
+  ],
+  "current_bug_id": null,
+  "workflow_state": {
+    "phase": "execution_complete",
+    "plan_path": "docs/plans/2026-04-24-f0-event-sourcing-reconciliation.md",
+    "next_action": "All tasks completed. Ready for /prog done",
+    "updated_at": "2026-04-24T18:07:23.886030Z",
+    "execution_context": {
+      "recorded_at": "2026-04-24T18:07:23.946372Z",
+      "source": "set_workflow_state",
+      "workspace_mode": "in_place",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+      "project_root": "/Users/siunin/Projects/Claude-Plugins",
+      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
+      "branch": "main",
+      "upstream": "origin/main"
+    },
+    "completed_tasks": [
+      7,
+      8,
+      9,
+      10
+    ],
+    "current_task": 11
   }
 }

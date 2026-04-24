@@ -1,0 +1,5 @@
+# Progress tracker audit logs: union merge prevents conflicts on concurrent branch appends.
+# Glob covers all plugins that use the progress-tracker layout.
+plugins/*/docs/progress-tracker/state/audit.log merge=union
+# Standalone repo root (if tracker_role=standalone at repo root)
+docs/progress-tracker/state/audit.log merge=union

@@ -1234,49 +1234,6 @@ class TestUndo:
         assert [f for f in data["features"] if f["id"] == 3][0]["completed"] is False
 
 
-class TestCompletionRegressionGuard:
-    """Protect completed features from accidental stale overwrites."""
-
-    def test_save_progress_blocks_completed_to_incomplete_regression(self, progress_file):
-        """Default save path should preserve completed features and metadata."""
-        data = progress_manager.load_progress_json()
-        feature = next(f for f in data["features"] if f["id"] == 1)
-        assert feature["completed"] is True
-
-        data["current_feature_id"] = 1
-        data["workflow_state"] = {"phase": "execution"}
-        feature["completed"] = False
-        feature["development_stage"] = "developing"
-        feature.pop("completed_at", None)
-        feature.pop("commit_hash", None)
-
-        progress_manager.save_progress_json(data)
-
-        saved = progress_manager.load_progress_json()
-        restored = next(f for f in saved["features"] if f["id"] == 1)
-        assert restored["completed"] is True
-        assert restored["completed_at"] == "2024-01-02T00:00:00Z"
-        assert restored["commit_hash"] == "abc123"
-        assert saved["current_feature_id"] is None
-        assert "workflow_state" not in saved
-
-    def test_save_progress_allows_explicit_completion_regression(self, progress_file):
-        """Explicit regression flag should still allow controlled rollback flows."""
-        data = progress_manager.load_progress_json()
-        feature = next(f for f in data["features"] if f["id"] == 1)
-        feature["completed"] = False
-        feature.pop("completed_at", None)
-        feature.pop("commit_hash", None)
-
-        progress_manager.save_progress_json(data, allow_completion_regression=True)
-
-        saved = progress_manager.load_progress_json()
-        restored = next(f for f in saved["features"] if f["id"] == 1)
-        assert restored["completed"] is False
-        assert "completed_at" not in restored
-        assert "commit_hash" not in restored
-
-
 class TestPluginRoot:
     """Test plugin root detection."""
 
@@ -1874,20 +1831,6 @@ class TestMainFunction:
         assert result == 0
         transaction_mock.assert_not_called()
 
-    def test_main_finalize_command_skips_outer_transaction_lock(self, temp_dir):
-        """finalize should run without outer transaction lock to avoid nested command deadlocks."""
-        with patch("progress_manager.cmd_finalize", return_value=0), patch(
-            "progress_manager.progress_transaction",
-            return_value=contextlib.nullcontext(),
-        ) as transaction_mock, patch(
-            "sys.argv",
-            ["progress_manager.py", "finalize", "--feature-id", "1"],
-        ):
-            result = progress_manager.main()
-
-        assert result == 0
-        transaction_mock.assert_not_called()
-
     def test_main_defer_command(self, progress_file):
         """Should handle defer command."""
         with patch(
@@ -2170,7 +2113,6 @@ class TestDoneCommand:
         test_steps: List[str],
         phase: Optional[str],
         current_feature_id: Optional[int],
-        extra_features: Optional[List[dict]] = None,
         feature_completed: bool = False,
         evaluator_status: str = "pass",
         evaluator_last_run_at: Optional[str] = "2026-03-17T00:00:00Z",
@@ -2225,8 +2167,6 @@ class TestDoneCommand:
             "current_feature_id": current_feature_id,
             "schema_version": "2.0",
         }
-        if extra_features:
-            data["features"].extend(extra_features)
         if phase is not None:
             data["workflow_state"] = {"phase": phase, "next_action": "run done"}
         (state_dir / "progress.json").write_text(
@@ -2236,22 +2176,14 @@ class TestDoneCommand:
         return state_dir
 
     @staticmethod
-    def _run_prog(temp_dir: Path, *args: str) -> subprocess.CompletedProcess:
+    def _run_done(temp_dir: Path, *args: str) -> subprocess.CompletedProcess:
         script_path = Path(progress_manager.__file__).resolve()
         return subprocess.run(
-            [sys.executable, str(script_path), *args],
+            [sys.executable, str(script_path), "done", *args],
             capture_output=True,
             text=True,
             cwd=temp_dir,
         )
-
-    @staticmethod
-    def _run_done(temp_dir: Path, *args: str) -> subprocess.CompletedProcess:
-        return TestDoneCommand._run_prog(temp_dir, "done", *args)
-
-    @staticmethod
-    def _run_finalize(temp_dir: Path, *args: str) -> subprocess.CompletedProcess:
-        return TestDoneCommand._run_prog(temp_dir, "finalize", *args)
 
     def test_done_command_no_active_feature(self, temp_dir):
         """done should fail with exit code 1 when no current feature exists."""
@@ -2298,54 +2230,6 @@ class TestDoneCommand:
         assert result.returncode == 6
         assert "evaluator gate not passed" in result.stderr
         assert "status='pending'" in result.stderr
-
-    def test_done_command_auto_gates_recovers_evaluator_and_ship_check(self, temp_dir):
-        """done --auto-gates should auto-run evaluator + ship-check and complete successfully."""
-        state_dir = self._write_done_state(
-            temp_dir,
-            test_steps=["true"],
-            phase="execution_complete",
-            current_feature_id=1,
-            evaluator_status="pending",
-            evaluator_last_run_at=None,
-            ship_check_status="pending",
-        )
-
-        result = self._run_done(temp_dir, "--auto-gates", "--skip-archive")
-
-        assert result.returncode == 0
-        assert "[DONE][AUTO] evaluator gate status='pending'" in result.stdout
-        assert "[DONE][AUTO] ship_check status='pending'" in result.stdout
-        assert "Feature 1 completed" in result.stdout
-
-        data = json.loads((state_dir / "progress.json").read_text(encoding="utf-8"))
-        feature = data["features"][0]
-        assert feature["quality_gates"]["evaluator"]["status"] == "pass"
-        assert feature["quality_gates"]["ship_check"]["status"] == "pass"
-
-    def test_done_command_blocked_prints_single_repair_chain(self, temp_dir):
-        """done blocked output should include one copy-paste repair chain command."""
-        self._write_done_state(
-            temp_dir,
-            test_steps=["true"],
-            phase="execution_complete",
-            current_feature_id=1,
-            evaluator_status="pending",
-            evaluator_last_run_at=None,
-            reviews_required=["eng", "qa"],
-            reviews_passed=[],
-            ship_check_status="pending",
-        )
-
-        result = self._run_done(temp_dir, "--skip-archive")
-
-        assert result.returncode == 6
-        assert "[DONE] Repair chain:" in result.stderr
-        assert "prog reconcile-evaluator --feature-id 1" in result.stderr
-        assert "prog review-pass --feature-id 1 --lane eng" in result.stderr
-        assert "prog review-pass --feature-id 1 --lane qa" in result.stderr
-        assert "prog ship-check --feature-id 1" in result.stderr
-        assert "prog done --skip-archive" in result.stderr
 
     def test_done_command_blocks_when_sprint_contract_incomplete(self, temp_dir):
         """done should fail with exit code 9 when sprint_contract is incomplete."""
@@ -2509,98 +2393,6 @@ class TestDoneCommand:
         assert feature["completed"] is True
         assert feature["development_stage"] == "completed"
         assert data["current_feature_id"] is None
-
-    def test_done_command_outputs_next_feature_handoff(self, temp_dir):
-        """done should print a detailed next-step prompt when pending work remains."""
-        self._write_done_state(
-            temp_dir,
-            test_steps=["echo done-step-1"],
-            phase="execution_complete",
-            current_feature_id=1,
-            extra_features=[
-                {
-                    "id": 2,
-                    "name": "Feature 2",
-                    "test_steps": ["echo next-step-1", "echo next-step-2"],
-                    "completed": False,
-                    "development_stage": "developing",
-                    "lifecycle_state": "implementing",
-                    "quality_gates": {
-                        "evaluator": {
-                            "status": "pass",
-                            "score": 95,
-                            "defects": [],
-                            "last_run_at": "2026-03-17T00:00:00Z",
-                            "evaluator_model": "test-evaluator",
-                        },
-                        "reviews": {
-                            "required": ["eng", "qa", "docs"],
-                            "passed": ["eng", "qa", "docs"],
-                            "pending": [],
-                        },
-                        "ship_check": {"status": "pass", "failures": [], "last_run_at": None},
-                    },
-                    "sprint_contract": {
-                        "scope": "deliver feature 2",
-                        "done_criteria": ["acceptance checks pass"],
-                        "test_plan": ["run test_steps"],
-                        "accepted_by": "test-suite",
-                        "accepted_at": "2026-03-17T00:00:00Z",
-                    },
-                }
-            ],
-        )
-
-        result = self._run_done(temp_dir, "--skip-archive")
-
-        assert result.returncode == 0
-        assert "/progress-tracker:prog-next" in result.stdout
-        assert "Project: Done Test | 1/2 completed" in result.stdout
-        assert 'Feature: F2 "Feature 2"' in result.stdout
-        assert "**下一个功能预览：**" in result.stdout
-        assert "next-step-1" in result.stdout
-        assert "next-step-2" in result.stdout
-
-    def test_done_command_outputs_completion_summary_when_all_complete(self, temp_dir):
-        """done should summarize completion when no pending features remain."""
-        self._write_done_state(
-            temp_dir,
-            test_steps=["true"],
-            phase="execution_complete",
-            current_feature_id=1,
-        )
-
-        result = self._run_done(temp_dir, "--skip-archive")
-
-        assert result.returncode == 0
-        assert "### Project Complete" in result.stdout
-        assert "Project: Done Test | 1/1 completed" in result.stdout
-        assert "No pending features remain" in result.stdout
-        assert "/progress-tracker:prog-next" not in result.stdout
-
-    def test_finalize_command_runs_done_with_auto_gates(self, temp_dir):
-        """finalize should require active feature-id match and complete with auto gates."""
-        state_dir = self._write_done_state(
-            temp_dir,
-            test_steps=["true"],
-            phase="execution_complete",
-            current_feature_id=1,
-            evaluator_status="pending",
-            evaluator_last_run_at=None,
-            ship_check_status="pending",
-        )
-
-        result = self._run_finalize(temp_dir, "--feature-id", "1", "--skip-archive")
-
-        assert result.returncode == 0
-        assert "[FINALIZE] Feature 1: running done with auto gate recovery" in result.stdout
-        assert "Feature 1 completed" in result.stdout
-
-        data = json.loads((state_dir / "progress.json").read_text(encoding="utf-8"))
-        feature = data["features"][0]
-        assert feature["completed"] is True
-        assert feature["quality_gates"]["evaluator"]["status"] == "pass"
-        assert feature["quality_gates"]["ship_check"]["status"] == "pass"
 
     def test_done_command_sets_finish_pending_and_next_stays_blocked(self, temp_dir):
         """On failed acceptance, done should mark finish_pending fields and keep next blocked."""

@@ -21,8 +21,7 @@ Usage:
     python3 progress_manager.py fix-readiness <feature_id> [--add-requirement <REQ-ID>] [--set-why <text>] [--add-acceptance <text>]
     python3 progress_manager.py set-development-stage <planning|developing|completed> [--feature-id <id>]
     python3 progress_manager.py complete <feature_id>
-    python3 progress_manager.py done [--commit <hash>] [--run-all] [--skip-archive] [--no-cleanup] [--auto-gates]
-    python3 progress_manager.py finalize --feature-id <id> [--commit <hash>] [--run-all] [--skip-archive] [--no-cleanup]
+    python3 progress_manager.py done [--commit <hash>] [--run-all] [--skip-archive] [--no-cleanup]
     python3 progress_manager.py set-finish-state --feature-id <id> --status <merged_and_cleaned|pr_open|kept_with_reason> [--reason <text>]
     python3 progress_manager.py set-feature-ai-metrics <feature_id> --complexity-score <score> --selected-model <model> --workflow-path <path>
     python3 progress_manager.py complete-feature-ai-metrics <feature_id>
@@ -38,7 +37,6 @@ Usage:
 """
 
 import argparse
-import copy
 import json
 import os
 import re
@@ -77,6 +75,7 @@ from prog_paths import (
     resolve_target_project_root,
 )
 from contract_importer import ContractImporter, ContractImportError
+import progress_prompt_builders
 try:
     import audit_log
 except ImportError:  # pragma: no cover - defensive import
@@ -212,7 +211,6 @@ MUTATING_COMMANDS = {
     "set-development-stage",
     "complete",
     "done",
-    "finalize",
     "set-finish-state",
     "add-feature",
     "update-feature",
@@ -239,6 +237,7 @@ MUTATING_COMMANDS = {
     "reconcile-evaluator",
     "review-pass",
     "ship-check",
+    "backfill-event",
 }
 ROUTE_PREFLIGHT_EXEMPT_COMMANDS = {
     "init",
@@ -2255,7 +2254,7 @@ def analyze_reconcile_state(data: Optional[Dict[str, Any]] = None) -> Dict[str, 
     }
 
     diagnosis = "in_sync"
-    recommended_next_step = "/prog next" if not current_id else "resume implementation"
+    recommended_next_step = "/prog next" if current_id is None else "resume implementation"
     reason = "Tracker and implementation context are aligned."
 
     if current_id is not None and active_feature is None:
@@ -2568,6 +2567,412 @@ def _append_audit_event(
         logger.warning("Failed to append audit record for %s: %s", event_type, exc)
 
 
+def record_feature_state_event(
+    event_type: str,
+    feature_id: Optional[int],
+    feature_name: Optional[str],
+    extra_details: Optional[Dict[str, Any]] = None,
+) -> None:
+    """向当前项目的 audit.log 追加特征状态变更事件。
+
+    使用 find_project_root() 确定写入路径，与 progress_manager 的其余路径一致，
+    避免跨 plugin 时写入错误的 audit.log。
+
+    Args:
+        event_type: 必须在 ALLOWED_EVENT_TYPES 白名单内
+        feature_id: 特征 ID（全局事件如 tracker_reset 传 None）
+        feature_name: 特征名称（用于可读性，写入 details）
+        extra_details: 额外详情（可选）
+    """
+    if audit_log is None:
+        return
+
+    # 使用与 _append_audit_event 相同的 project_root 解析逻辑
+    effective_project_root = str(find_project_root())
+
+    try:
+        details: Dict[str, Any] = {}
+        if feature_name:
+            details["feature_name"] = feature_name
+        if extra_details:
+            details.update(extra_details)
+
+        record: Dict[str, Any] = {
+            "id": audit_log.generate_audit_id(project_root=effective_project_root),
+            "tx_id": audit_log.generate_tx_id(),
+            "timestamp": _iso_now(),
+            "event_type": event_type,
+        }
+        if feature_id is not None:
+            record["feature_id"] = feature_id
+        if details:
+            record["details"] = details
+
+        audit_log.append_audit_record(record, project_root=effective_project_root)
+    except ValueError as e:
+        # ValueError 来自白名单校验（未知 event_type）—— 这是编程错误，应冒泡
+        raise
+    except Exception as e:
+        # I/O 写失败不能静默吞掉：audit.log 是事实源，写入失败意味着状态不一致
+        # 调用方（done/undo/reset）必须感知失败，否则 audit.log 丢事件但命令仍返回成功
+        print(f"[audit] ERROR: Failed to record '{event_type}' event: {e}")
+        raise
+
+
+def _replay_audit_events(
+    audit_records: List[Dict[str, Any]],
+) -> Tuple[Dict[int, str], bool]:
+    """按时间戳升序回放事件，重建每个 feature 的期望完成状态。
+
+    - tracker_reset 是边界：清空已累积状态，reset 之前的事件不再有效
+    - feature_completed → "completed"
+    - feature_undone → "not_completed"
+
+    Returns:
+        (states, last_event_was_reset)
+        - states: {feature_id: "completed" | "not_completed"}
+        - last_event_was_reset: True 表示 reset 是最后一个边界事件，之后无任何
+          feature 状态变更。此时 reconcile 应将所有 completed=True 的 feature 视为 drift。
+    """
+    relevant_types = {"feature_completed", "feature_undone", "tracker_reset"}
+    sorted_records = sorted(
+        [r for r in audit_records if r.get("event_type") in relevant_types],
+        key=lambda r: r.get("timestamp", ""),
+    )
+
+    states: Dict[int, str] = {}
+    last_event_was_reset = False
+    for record in sorted_records:
+        et = record["event_type"]
+        if et == "tracker_reset":
+            # reset 是边界：清空所有已回放状态
+            states.clear()
+            last_event_was_reset = True
+        elif et == "feature_completed" and record.get("feature_id") is not None:
+            states[record["feature_id"]] = "completed"
+            last_event_was_reset = False  # reset 后有完成事件，reset 不再是最终边界
+        elif et == "feature_undone" and record.get("feature_id") is not None:
+            states[record["feature_id"]] = "not_completed"
+            last_event_was_reset = False
+    return states, last_event_was_reset
+
+
+def cmd_reconcile_state(
+    check_only: bool = False,
+    auto_commit: bool = False,
+) -> Dict[str, Any]:
+    """通过 audit.log 事件回放检测并修复 progress.json 的 drift。
+
+    不接受 project_root 参数：使用 find_project_root() 与其余 progress_manager
+    命令保持一致。测试通过 _PROJECT_ROOT_OVERRIDE 注入。
+
+    Returns:
+        {"drift": bool, "drifted_features": [int], "diff": [...],
+         "fixed": bool, "committed": bool, "dedup_stats": {...}}
+    """
+    result: Dict[str, Any] = {
+        "drift": False,
+        "drifted_features": [],
+        "diff": [],
+        "fixed": False,
+        "committed": False,
+        "dedup_stats": {},
+    }
+
+    if audit_log is None:
+        print("[reconcile-state] audit_log module unavailable")
+        return result
+
+    # 1. 读取并去重 audit.log（显式传 project_root，避免跨 plugin 读错）
+    effective_root = str(find_project_root())
+    raw_records = audit_log.read_audit_log(ascending=True, project_root=effective_root)
+    if raw_records:
+        dedup = audit_log.deduplicate_audit_log(raw_records)
+        records = dedup["kept"]
+        result["dedup_stats"] = {
+            "original": len(raw_records),
+            "kept": len(records),
+            "id_conflicts": dedup["id_conflicts"],
+            "semantic_dupes": len(dedup["semantic_duplicates_removed"]),
+        }
+    else:
+        records = []
+
+    # 2. 回放事件，重建期望状态
+    expected_states, last_event_was_reset = _replay_audit_events(records)
+
+    # 3. 加载 progress.json（必须在 reset boundary 检查前加载）
+    data = load_progress_json()
+    if not data:
+        print("[reconcile-state] No progress.json found")
+        return result
+
+    features_map = {f["id"]: f for f in data.get("features", [])}
+    diff_items = []
+
+    if not expected_states and not last_event_was_reset:
+        print("[reconcile-state] No state-change events in audit.log. Nothing to reconcile.")
+        return result
+
+    if last_event_was_reset and not expected_states:
+        # tracker_reset 是最后一个事件，之后无任何完成事件
+        # → 所有 completed=True 的 feature 均是 drift（reset 后应恢复初始态）
+        print("[reconcile-state] Last audit event was tracker_reset with no subsequent completions.")
+        print("[reconcile-state] All currently completed features are drift candidates.")
+        for feature in data.get("features", []):
+            if feature.get("completed", False):
+                diff_items.append({
+                    "feature_id": feature["id"],
+                    "feature_name": feature.get("name", f"Feature {feature['id']}"),
+                    "expected_completed": False,
+                    "actual_completed": True,
+                    "audit_verdict": "not_completed (post-reset boundary)",
+                })
+    else:
+        for fid, expected in expected_states.items():
+            feature = features_map.get(fid)
+            if feature is None:
+                continue
+            actual_completed = feature.get("completed", False)
+            expected_completed = (expected == "completed")
+            if actual_completed != expected_completed:
+                diff_items.append({
+                    "feature_id": fid,
+                    "feature_name": feature.get("name", f"Feature {fid}"),
+                    "expected_completed": expected_completed,
+                    "actual_completed": actual_completed,
+                    "audit_verdict": expected,
+                })
+
+    result["drifted_features"] = [d["feature_id"] for d in diff_items]
+    result["diff"] = diff_items
+    result["drift"] = len(diff_items) > 0
+
+    # 4. 打印 diff（始终）
+    if not diff_items:
+        print("[reconcile-state] OK — no drift detected")
+    else:
+        print(f"[reconcile-state] DRIFT DETECTED: {len(diff_items)} feature(s)")
+        for item in diff_items:
+            print(
+                f"  Feature {item['feature_id']} '{item['feature_name']}': "
+                f"audit='{item['audit_verdict']}', "
+                f"progress.json completed={item['actual_completed']}"
+            )
+
+    if check_only or not diff_items:
+        return result
+
+    # 5. 修复 progress.json（强制写，不用 setdefault）
+    print("[reconcile-state] Fixing progress.json...")
+    for item in diff_items:
+        feature = features_map.get(item["feature_id"])
+        if feature is None:
+            continue
+        if item["expected_completed"]:
+            # 强制写完整完成状态
+            feature["completed"] = True
+            feature["development_stage"] = "completed"
+            feature["lifecycle_state"] = "archived"
+        else:
+            # 撤销完成：清理完成相关字段
+            feature["completed"] = False
+            feature["development_stage"] = "developing"
+            feature["lifecycle_state"] = "implementing"
+            feature.pop("completed_at", None)
+            feature.pop("commit_hash", None)
+
+    save_progress_json(data)
+    result["fixed"] = True
+    print(f"[reconcile-state] Fixed {len(diff_items)} feature(s) in progress.json")
+    print("[reconcile-state] NOTE: Not committed. Run 'git commit' manually, or use --auto-commit.")
+
+    # 6. 可选 auto-commit
+    if auto_commit:
+        try:
+            import subprocess
+            progress_json_path = get_progress_dir() / PROGRESS_JSON
+            try:
+                rel_path = str(progress_json_path.relative_to(Path.cwd()))
+            except ValueError:
+                rel_path = str(progress_json_path)
+            commit_msg = (
+                f"fix(reconcile): auto-reconcile progress.json [{len(diff_items)} fix(es)] [skip ci]"
+            )
+            r1 = subprocess.run(
+                ["git", "add", rel_path],
+                capture_output=True, text=True, timeout=30,
+            )
+            if r1.returncode == 0:
+                r2 = subprocess.run(
+                    ["git", "commit", "-m", commit_msg],
+                    capture_output=True, text=True, timeout=30,
+                )
+                result["committed"] = r2.returncode == 0
+                if result["committed"]:
+                    print(f"[reconcile-state] Auto-committed: {commit_msg}")
+                else:
+                    print(f"[reconcile-state] Auto-commit failed: {r2.stderr.strip()}")
+        except Exception as e:
+            print(f"[reconcile-state] Auto-commit error: {e}")
+
+    return result
+
+
+def find_backfill_candidates(
+    feature_id: Optional[int] = None,
+) -> List[Dict[str, Any]]:
+    """找出已完成但 audit.log 缺少 feature_completed 事件的 feature。
+
+    幂等性保证：已有 feature_completed（含 backfilled=True 的）也不是候选。
+
+    Returns:
+        [{"feature_id": int, "feature_name": str, "completed_at": str}]
+    """
+    data = load_progress_json()
+    if not data:
+        return []
+
+    completed_in_audit: set = set()
+    if audit_log is not None:
+        effective_root = str(find_project_root())
+        all_records = audit_log.read_audit_log(ascending=True, project_root=effective_root)
+
+        # 幂等性须考虑 reset 边界：只看最后一次 tracker_reset 之后的 feature_completed
+        # reset 之前的完成事件不应阻止 reset 之后合法的 backfill
+        last_reset_idx = -1
+        for i, r in enumerate(all_records):
+            if r.get("event_type") == "tracker_reset":
+                last_reset_idx = i
+
+        for r in all_records[last_reset_idx + 1:]:
+            if r.get("event_type") == "feature_completed" and r.get("feature_id") is not None:
+                completed_in_audit.add(r["feature_id"])
+
+    return [
+        {
+            "feature_id": f["id"],
+            "feature_name": f.get("name", f"Feature {f['id']}"),
+            "completed_at": f.get("completed_at", "unknown"),
+        }
+        for f in data.get("features", [])
+        if f.get("completed", False)
+        and (feature_id is None or f["id"] == feature_id)
+        and f["id"] not in completed_in_audit
+    ]
+
+
+def cmd_backfill_event(
+    feature_id: Optional[int] = None,
+    yes: bool = False,
+) -> Dict[str, Any]:
+    """为已完成但缺少 feature_completed 审计事件的 feature 补录事件。
+
+    幂等：已有 feature_completed（含 backfilled）的 feature 不重复写入。
+    """
+    if audit_log is None:
+        print("[backfill-event] audit_log module unavailable")
+        return {"written": 0, "candidates": 0, "cancelled": False}
+
+    candidates = find_backfill_candidates(feature_id=feature_id)
+
+    if not candidates:
+        print("[backfill-event] No candidates. All completed features have audit events.")
+        return {"written": 0, "candidates": 0, "cancelled": False}
+
+    print(f"[backfill-event] {len(candidates)} candidate(s) missing feature_completed events:\n")
+    effective_root = str(find_project_root())
+
+    preview_events = []
+    for c in candidates:
+        ts = c["completed_at"] if c["completed_at"] != "unknown" else _iso_now()
+        preview_events.append((c, ts))
+        print(f"  Feature {c['feature_id']}: {c['feature_name']}")
+        print(f"    → feature_completed  backfilled=true  timestamp={ts}\n")
+
+    if not yes:
+        answer = input(
+            f"Write {len(preview_events)} backfill event(s) to audit.log? [y/N] "
+        ).strip().lower()
+        if answer != "y":
+            print("[backfill-event] Cancelled.")
+            return {"written": 0, "candidates": len(candidates), "cancelled": True}
+
+    written = 0
+    for c, ts in preview_events:
+        try:
+            event = {
+                "id": audit_log.generate_audit_id(project_root=effective_root),
+                "tx_id": audit_log.generate_tx_id(),
+                "timestamp": ts,
+                "event_type": "feature_completed",
+                "feature_id": c["feature_id"],
+                "backfilled": True,
+                "backfill_reason": "reconciled from existing progress state",
+                "details": {"feature_name": c["feature_name"]},
+            }
+            audit_log.append_audit_record(event, project_root=effective_root)
+            written += 1
+            print(f"[backfill-event] Written: F{c['feature_id']} feature_completed")
+        except Exception as e:
+            print(f"[backfill-event] ERROR: F{c['feature_id']}: {e}")
+
+    print(f"[backfill-event] Done. {written}/{len(candidates)} written.")
+    return {"written": written, "candidates": len(candidates), "cancelled": False}
+
+
+def cmd_install_git_hooks() -> Dict[str, Any]:
+    """将 post-merge hook 安装到当前项目的 git hooks 目录。
+
+    使用 `git rev-parse --git-path hooks` 获取 hooks 路径，
+    正确支持 worktree（.git 是文件而非目录的场景）。
+    """
+    import stat
+
+    repo_root = find_project_root()
+
+    # 通过 git 查询 hooks 路径：worktree 下 .git 是文件，不是目录
+    # git rev-parse --git-path hooks 在两种情况下均返回正确路径
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--git-path", "hooks"],
+            capture_output=True, text=True, timeout=10,
+            cwd=str(repo_root),
+        )
+        if result.returncode != 0:
+            msg = f"git rev-parse --git-path hooks failed: {result.stderr.strip()}"
+            print(f"[install-git-hooks] ERROR: {msg}")
+            return {"installed": False, "hook_path": None, "error": msg}
+
+        hooks_path = result.stdout.strip()
+        git_hooks_dir = Path(hooks_path)
+        if not git_hooks_dir.is_absolute():
+            git_hooks_dir = repo_root / git_hooks_dir
+        git_hooks_dir.mkdir(exist_ok=True, parents=True)
+    except FileNotFoundError:
+        msg = "git not found in PATH"
+        print(f"[install-git-hooks] ERROR: {msg}")
+        return {"installed": False, "hook_path": None, "error": msg}
+    except Exception as e:
+        msg = f"Failed to resolve git hooks directory: {e}"
+        print(f"[install-git-hooks] ERROR: {msg}")
+        return {"installed": False, "hook_path": None, "error": msg}
+
+    source = Path(__file__).parent / "post_merge_hook.sh"
+    if not source.exists():
+        msg = f"Hook source not found: {source}"
+        print(f"[install-git-hooks] ERROR: {msg}")
+        return {"installed": False, "hook_path": None, "error": msg}
+
+    target = git_hooks_dir / "post-merge"
+    target.write_text(source.read_text())
+    current_mode = target.stat().st_mode
+    target.chmod(current_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+    print(f"[install-git-hooks] Installed: {target}")
+    return {"installed": True, "hook_path": str(target), "error": None}
+
+
 def _store_evaluator_result(feature_id: int, result: Any) -> None:
     """PR-3: persist evaluator assessment into quality_gates.evaluator."""
     data = load_progress_json()
@@ -2748,91 +3153,7 @@ def reconcile_evaluator(
     return 0
 
 
-def _read_progress_json_snapshot(path: Path) -> Optional[Dict[str, Any]]:
-    """Best-effort reader for existing progress snapshots on disk."""
-    if not path.exists():
-        return None
-    try:
-        with open(path, "r", encoding="utf-8") as handle:
-            payload = json.load(handle)
-    except (OSError, json.JSONDecodeError):
-        return None
-    if not isinstance(payload, dict):
-        return None
-    return payload
-
-
-def _prevent_completed_feature_regression(
-    data: Dict[str, Any],
-    json_path: Path,
-    *,
-    allow_completion_regression: bool = False,
-) -> List[Any]:
-    """
-    Preserve completed features against stale writes.
-
-    If the on-disk snapshot already marks a feature as completed, a normal save
-    cannot regress that same feature back to incomplete.
-    """
-    if allow_completion_regression:
-        return []
-
-    existing_data = _read_progress_json_snapshot(json_path)
-    if not existing_data:
-        return []
-
-    existing_features = existing_data.get("features")
-    incoming_features = data.get("features")
-    if not isinstance(existing_features, list) or not isinstance(incoming_features, list):
-        return []
-
-    incoming_by_id: Dict[Any, int] = {}
-    for index, feature in enumerate(incoming_features):
-        if not isinstance(feature, dict):
-            continue
-        feature_id = feature.get("id")
-        if feature_id is None:
-            continue
-        incoming_by_id.setdefault(feature_id, index)
-
-    regressed_ids: List[Any] = []
-    for existing_feature in existing_features:
-        if not isinstance(existing_feature, dict):
-            continue
-        if not bool(existing_feature.get("completed")):
-            continue
-        feature_id = existing_feature.get("id")
-        if feature_id not in incoming_by_id:
-            continue
-        incoming_feature = incoming_features[incoming_by_id[feature_id]]
-        if not isinstance(incoming_feature, dict):
-            continue
-        if bool(incoming_feature.get("completed")):
-            continue
-
-        incoming_features[incoming_by_id[feature_id]] = copy.deepcopy(existing_feature)
-        regressed_ids.append(feature_id)
-
-    if not regressed_ids:
-        return []
-
-    current_id = data.get("current_feature_id")
-    if current_id in regressed_ids:
-        data["current_feature_id"] = None
-        data.pop("workflow_state", None)
-
-    logger.warning(
-        "Prevented completion regression for features: %s",
-        ", ".join(str(fid) for fid in regressed_ids),
-    )
-    return regressed_ids
-
-
-def save_progress_json(
-    data,
-    touch_updated_at: bool = True,
-    allow_completion_regression: bool = False,
-):
+def save_progress_json(data, touch_updated_at: bool = True):
     """Save data to progress.json file with optional updated_at touch and migration."""
     with progress_transaction():
         progress_dir = get_progress_dir()
@@ -2842,14 +3163,6 @@ def save_progress_json(
         progress_dir.mkdir(parents=True, exist_ok=True)
 
         _apply_schema_defaults(data)
-
-        # Prevent accidental state regression from completed -> incomplete when
-        # callers save stale snapshots after /prog done.
-        _prevent_completed_feature_regression(
-            data=data,
-            json_path=json_path,
-            allow_completion_regression=allow_completion_regression,
-        )
 
         # Auto-update updated_at timestamp
         if touch_updated_at:
@@ -3990,7 +4303,7 @@ def auto_checkpoint() -> bool:
         return True
 
     current_feature_id = data.get("current_feature_id")
-    if not current_feature_id:
+    if current_feature_id is None:
         return True
 
     checkpoints = load_checkpoints()
@@ -4068,7 +4381,7 @@ def _cmd_wf_auto_driver() -> bool:
         return True
 
     current_id = data.get("current_feature_id")
-    if not current_id:
+    if current_id is None:
         return True
 
     workflow_state = data.get("workflow_state")
@@ -4176,85 +4489,9 @@ def _build_status_handoff_block(
     project_root: str,
 ) -> Optional[str]:
     """Build context handoff block for /prog status output."""
-    features = data.get("features", [])
-    current_id = data.get("current_feature_id")
-    workflow_state = data.get("workflow_state") or {}
-
-    # All features complete — no handoff block
-    if completed == total and total > 0:
-        return None
-
-    # Determine branch/worktree from persisted execution_context, fall back to git
-    execution_context = workflow_state.get("execution_context") or {}
-    branch = execution_context.get("branch") or "main"
-    worktree_path: Optional[str] = None
-    if execution_context.get("workspace_mode") == "worktree":
-        worktree_path = execution_context.get("worktree_path")
-
-    branch_line = f"Branch: {branch}"
-    if worktree_path:
-        branch_line += f" | Worktree: {worktree_path}"
-
-    # No active feature — simple prog-next block
-    if not current_id:
-        remaining = [
-            f for f in features
-            if isinstance(f, dict)
-            and not f.get("completed", False)
-            and not _is_feature_deferred(f)
-        ]
-        if not remaining:
-            return None
-        return "\n".join([
-            "/progress-tracker:prog-next",
-            "",
-            f"Project: {completed}/{total} features done",
-            f"ProjectRoot: {project_root}",
-            "→ Context pre-loaded. Auto-selects and starts next pending feature.",
-        ])
-
-    # Active feature — find it
-    current_feature = next((f for f in features if f.get("id") == current_id), None)
-    if not current_feature:
-        return None
-
-    feature_name = current_feature.get("name", "Unknown")
-    phase = workflow_state.get("phase") or "execution"
-    plan_path = workflow_state.get("plan_path") or ""
-    total_tasks = workflow_state.get("total_tasks")
-    completed_tasks_list = workflow_state.get("completed_tasks") or []
-    completed_tasks_count = len(completed_tasks_list) if isinstance(completed_tasks_list, list) else 0
-    next_action = workflow_state.get("next_action") or ""
-
-    if phase == "execution_complete":
-        task_count = total_tasks or completed_tasks_count
-        return "\n".join([
-            "/progress-tracker:prog-done",
-            "",
-            f'Feature: {current_id} "{feature_name}" | Phase: execution_complete',
-            f"Plan: {plan_path} | Tasks: {task_count}/{task_count} done",
-            branch_line,
-            f"ProjectRoot: {project_root}",
-            "→ Context pre-loaded. Run verification and commit.",
-        ])
-
-    # All other active phases (execution, planning:approved, planning_complete, etc.)
-    tasks_done = completed_tasks_count
-    tasks_total = total_tasks if total_tasks is not None else "?"
-    lines = [
-        "/progress-tracker:prog-next",
-        "",
-        f'Feature: {current_id} "{feature_name}" | Phase: {phase}',
-        f"Plan: {plan_path} | Tasks: {tasks_done}/{tasks_total} done",
-    ]
-    if next_action:
-        lines.append(f"Next: {next_action}")
-    lines.extend([
-        branch_line,
-        f"ProjectRoot: {project_root}",
-        "→ Context pre-loaded. Resume from next task.",
-    ])
-    return "\n".join(lines)
+    return progress_prompt_builders.build_status_handoff_block(
+        data, completed, total, project_root
+    )
 
 
 def _build_done_handoff_block(
@@ -4262,52 +4499,8 @@ def _build_done_handoff_block(
     project_root: str,
 ) -> Optional[str]:
     """Build the post-completion handoff block for `/prog done`."""
-    features = data.get("features", [])
-    if not isinstance(features, list):
-        features = []
-
-    completed = sum(
-        1
-        for feature in features
-        if isinstance(feature, dict) and feature.get("completed", False)
-    )
-    total = len(features)
     next_feature = get_next_feature()
-    if not next_feature:
-        return None
-
-    project_name = data.get("project_name", "Unknown")
-    next_id = next_feature.get("id", "?")
-    next_name = next_feature.get("name", "Unknown")
-    test_steps = next_feature.get("test_steps", [])
-    if not isinstance(test_steps, list):
-        test_steps = []
-
-    lines = [
-        "---",
-        "**粘贴到新会话以启动下一个功能：**",
-        "",
-        "/progress-tracker:prog-next",
-        "",
-        f'Project: {project_name} | {completed}/{total} completed',
-        f'Feature: F{next_id} "{next_name}"',
-        f"ProjectRoot: {project_root}",
-        "→ Context pre-loaded. Auto-selects and starts next pending feature.",
-        "",
-        "**下一个功能预览：**",
-        f"- ID: F{next_id}",
-        f"- Name: {next_name}",
-    ]
-
-    if test_steps:
-        lines.append("- Test steps:")
-        for index, step in enumerate(test_steps, start=1):
-            lines.append(f"  {index}. {step}")
-    else:
-        lines.append("- Test steps: none recorded")
-
-    lines.append("---")
-    return "\n".join(lines)
+    return progress_prompt_builders.build_done_handoff_block(data, next_feature, project_root)
 
 
 def _build_project_completion_summary(
@@ -4315,24 +4508,7 @@ def _build_project_completion_summary(
     project_root: str,
 ) -> str:
     """Build a concise summary when no more pending features remain."""
-    features = data.get("features", [])
-    if not isinstance(features, list):
-        features = []
-    completed = sum(
-        1
-        for feature in features
-        if isinstance(feature, dict) and feature.get("completed", False)
-    )
-    total = len(features)
-    project_name = data.get("project_name", "Unknown")
-
-    return "\n".join([
-        "### Project Complete",
-        f"Project: {project_name} | {completed}/{total} completed",
-        f"ProjectRoot: {project_root}",
-        "→ No pending features remain.",
-    ])
-
+    return progress_prompt_builders.build_project_completion_summary(data, project_root)
 
 def status():
     """Display current progress status."""
@@ -4396,7 +4572,7 @@ def status():
     if deferred_count > 0:
         print(f"**Deferred Pending**: {deferred_count}")
 
-    if current_id:
+    if current_id is not None:
         current_feature = next((f for f in features if f.get("id") == current_id), None)
         if current_feature:
             print(
@@ -5167,7 +5343,7 @@ def check(output_json: bool = False):
     if incomplete:
         current_id = data.get("current_feature_id")
 
-        if not actionable_incomplete and not current_id:
+        if not actionable_incomplete and current_id is None:
             print(
                 json.dumps(
                     {
@@ -5224,7 +5400,7 @@ def check(output_json: bool = False):
         workflow_state = data.get("workflow_state", {})
 
         # If there's a feature in progress, provide detailed recovery info
-        if current_id:
+        if current_id is not None:
             feature = next((f for f in features if f.get("id") == current_id), None)
             if feature:
                 if _is_feature_deferred(feature):
@@ -6467,74 +6643,8 @@ def _get_head_commit() -> Optional[str]:
     return None
 
 
-def _shell_join(argv: Sequence[str]) -> str:
-    """Render shell-safe command string for copy-paste guidance."""
-    return " ".join(shlex.quote(str(part)) for part in argv)
-
-
-def _build_done_retry_command(
-    *,
-    commit_hash: Optional[str],
-    run_all: bool,
-    skip_archive: bool,
-    no_cleanup: bool,
-    auto_gates: bool,
-) -> str:
-    """Build a deterministic `prog done` retry command preserving user flags."""
-    command: List[str] = ["prog", "done"]
-    if commit_hash:
-        command.extend(["--commit", commit_hash])
-    if run_all:
-        command.append("--run-all")
-    if skip_archive:
-        command.append("--skip-archive")
-    if no_cleanup:
-        command.append("--no-cleanup")
-    if auto_gates:
-        command.append("--auto-gates")
-    return _shell_join(command)
-
-
-def _print_done_repair_chain(
-    *,
-    feature_id: int,
-    need_evaluator: bool,
-    pending_reviews: Sequence[str],
-    need_ship_check: bool,
-    commit_hash: Optional[str],
-    run_all: bool,
-    skip_archive: bool,
-    no_cleanup: bool,
-    auto_gates: bool,
-) -> None:
-    """Print a single copy-paste recovery chain for unresolved done gates."""
-    chain: List[str] = []
-    if need_evaluator:
-        chain.append(
-            _shell_join(["prog", "reconcile-evaluator", "--feature-id", str(feature_id)])
-        )
-    for lane in pending_reviews:
-        chain.append(
-            _shell_join(
-                ["prog", "review-pass", "--feature-id", str(feature_id), "--lane", lane]
-            )
-        )
-    if need_ship_check:
-        chain.append(_shell_join(["prog", "ship-check", "--feature-id", str(feature_id)]))
-    chain.append(
-        _build_done_retry_command(
-            commit_hash=commit_hash,
-            run_all=run_all,
-            skip_archive=skip_archive,
-            no_cleanup=no_cleanup,
-            auto_gates=auto_gates,
-        )
-    )
-    print(f"[DONE] Repair chain: {' && '.join(chain)}", file=sys.stderr)
-
-
 def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False,
-             no_cleanup: bool = False, auto_gates: bool = False) -> int:
+             no_cleanup: bool = False) -> int:
     """Close current feature through deterministic acceptance gatekeeping."""
     data = load_progress_json()
     if not data:
@@ -6622,102 +6732,57 @@ def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False
 
     print("[DONE] Acceptance passed")
 
-    def _reload_gate_feature() -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
-        refreshed = load_progress_json()
-        if not refreshed:
-            return None, None
-        refreshed_feature = next(
-            (f for f in refreshed.get("features", []) if f.get("id") == feature_id),
+    # PR-3: evaluator gate — must pass before archiving (generator/evaluator separation).
+    # Strict mode: evaluator status must be explicit "pass" before /prog done can close.
+    gate_feat = None
+    refreshed_for_gate = load_progress_json()
+    if refreshed_for_gate:
+        gate_feat = next(
+            (f for f in refreshed_for_gate.get("features", []) if f.get("id") == feature_id),
             None,
         )
-        return refreshed, refreshed_feature
-
-    refreshed_for_gate, gate_feat = _reload_gate_feature()
-    if auto_gates and gate_feat is not None:
-        evaluator_payload = gate_feat.get("quality_gates", {}).get("evaluator", {})
-        eval_status = evaluator_payload.get("status")
-        if eval_status != "pass":
-            print(
-                f"[DONE][AUTO] evaluator gate status={eval_status!r}; "
-                f"running `prog reconcile-evaluator --feature-id {feature_id}`",
-            )
-            rc = reconcile_evaluator(feature_id=feature_id, output_json=False)
-            if rc != 0:
-                print(f"[DONE][AUTO] reconcile-evaluator returned {rc}", file=sys.stderr)
-            refreshed_for_gate, gate_feat = _reload_gate_feature()
-
         if gate_feat is not None:
-            ship_payload = gate_feat.get("quality_gates", {}).get("ship_check", {})
-            ship_status = ship_payload.get("status")
-            if ship_status != "pass":
+            evaluator_payload = gate_feat.get("quality_gates", {}).get("evaluator", {})
+            eval_status = evaluator_payload.get("status")
+            if eval_status != "pass":
                 print(
-                    f"[DONE][AUTO] ship_check status={ship_status!r}; "
-                    f"running `prog ship-check --feature-id {feature_id}`",
+                    f"[DONE] BLOCKED: evaluator gate not passed "
+                    f"(status={eval_status!r}). "
+                    "Run evaluator subagent and call _store_evaluator_result before /prog-done.",
+                    file=sys.stderr,
                 )
-                rc = cmd_ship_check(feature_id=feature_id)
-                if rc != 0:
-                    print(f"[DONE][AUTO] ship-check returned {rc}", file=sys.stderr)
-                refreshed_for_gate, gate_feat = _reload_gate_feature()
+                return 6
 
-    need_evaluator = False
-    eval_status = None
-    pending_lanes: List[str] = []
-    need_ship_check = False
-    ship_status = None
-
-    if gate_feat is not None:
-        evaluator_payload = gate_feat.get("quality_gates", {}).get("evaluator", {})
-        eval_status = evaluator_payload.get("status")
-        need_evaluator = eval_status != "pass"
-
-        if REVIEW_ROUTER_AVAILABLE:
-            reviews_payload = gate_feat.setdefault("quality_gates", {}).setdefault(
-                "reviews",
-                {"required": [], "passed": [], "pending": []},
+    # F-11: review gate — all required review lanes must be passed before archiving
+    if REVIEW_ROUTER_AVAILABLE and gate_feat is not None:
+        reviews_payload = gate_feat.setdefault("quality_gates", {}).setdefault(
+            "reviews",
+            {"required": [], "passed": [], "pending": []},
+        )
+        if not reviews_payload.get("required"):
+            _initialize_reviews(gate_feat)
+            save_progress_json(refreshed_for_gate)
+            save_progress_md(generate_progress_md(refreshed_for_gate))
+        pending_lanes = _get_pending_lanes(gate_feat)
+        if pending_lanes:
+            print(
+                f"[DONE] BLOCKED: pending reviews: {pending_lanes}. "
+                "Run: prog review-pass --feature-id <id> --lane <lane>",
+                file=sys.stderr,
             )
-            if not reviews_payload.get("required"):
-                _initialize_reviews(gate_feat)
-                if refreshed_for_gate:
-                    save_progress_json(refreshed_for_gate)
-                    save_progress_md(generate_progress_md(refreshed_for_gate))
-            pending_lanes = _get_pending_lanes(gate_feat)
+            return 7
 
+    # PR-5: ship_check gate — must pass before archiving
+    if gate_feat is not None:
         ship_payload = gate_feat.get("quality_gates", {}).get("ship_check", {})
         ship_status = ship_payload.get("status")
-        need_ship_check = ship_status != "pass"
-
-    if need_evaluator or pending_lanes or need_ship_check:
-        if need_evaluator:
+        if ship_status != "pass":
             print(
-                f"[DONE] BLOCKED: evaluator gate not passed (status={eval_status!r}).",
+                f"[DONE] BLOCKED: ship_check not passed (status={ship_status!r}). "
+                f"Run `prog ship-check --feature-id {feature_id}` first.",
                 file=sys.stderr,
             )
-        if pending_lanes:
-            print(
-                f"[DONE] BLOCKED: pending reviews: {pending_lanes}.",
-                file=sys.stderr,
-            )
-        if need_ship_check:
-            print(
-                f"[DONE] BLOCKED: ship_check not passed (status={ship_status!r}).",
-                file=sys.stderr,
-            )
-        _print_done_repair_chain(
-            feature_id=feature_id,
-            need_evaluator=need_evaluator,
-            pending_reviews=pending_lanes,
-            need_ship_check=need_ship_check,
-            commit_hash=commit_hash,
-            run_all=run_all,
-            skip_archive=skip_archive,
-            no_cleanup=no_cleanup,
-            auto_gates=auto_gates,
-        )
-        if need_evaluator:
-            return 6
-        if pending_lanes:
-            return 7
-        return 8
+            return 8
 
     # Snapshot git context BEFORE complete_feature() clears workflow_state.
     git_ctx = collect_git_context()
@@ -6762,47 +6827,9 @@ def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False
         print(f"[CLEANUP] WARN: unexpected cleanup error (feature still completed): {exc}")
 
     if completion_output:
-        print(f"\n{completion_output}")
+        print(completion_output)
+
     return 0
-
-
-def cmd_finalize(
-    *,
-    feature_id: int,
-    commit_hash: Optional[str] = None,
-    run_all: bool = False,
-    skip_archive: bool = False,
-    no_cleanup: bool = False,
-) -> int:
-    """Aggregate finishing flow: auto-recover machine gates, then run done."""
-    data = load_progress_json()
-    if not data:
-        print("[FINALIZE] No progress tracking found", file=sys.stderr)
-        return 4
-
-    current_feature_id = data.get("current_feature_id")
-    if current_feature_id is None:
-        print("[FINALIZE] BLOCKED: no active feature. Run /prog next-feature first.", file=sys.stderr)
-        return 1
-    if int(current_feature_id) != int(feature_id):
-        print(
-            "[FINALIZE] BLOCKED: --feature-id does not match current active feature "
-            f"(current={current_feature_id}, requested={feature_id}).",
-            file=sys.stderr,
-        )
-        return 2
-
-    print(
-        f"[FINALIZE] Feature {feature_id}: running done with auto gate recovery "
-        "(evaluator + ship_check).",
-    )
-    return cmd_done(
-        commit_hash=commit_hash,
-        run_all=run_all,
-        skip_archive=skip_archive,
-        no_cleanup=no_cleanup,
-        auto_gates=True,
-    )
 
 
 def _collect_ship_signals(feature: dict) -> dict:
@@ -7037,6 +7064,15 @@ def complete_feature(feature_id, commit_hash=None, skip_archive=False):
 
     save_progress_json(data)
 
+    # Event sourcing: append feature_completed to audit.log
+    resolved_commit = commit_hash or ""
+    record_feature_state_event(
+        event_type="feature_completed",
+        feature_id=feature_id,
+        feature_name=feature.get("name", f"Feature {feature_id}"),
+        extra_details={"commit_hash": resolved_commit} if resolved_commit else None,
+    )
+
     # Update progress.md
     md_content = generate_progress_md(data)
     save_progress_md(md_content)
@@ -7175,8 +7211,15 @@ def undo_last_feature():
 
     # If nothing is currently in progress, we could optionally set this as current
     # But for safety, we'll leave current_feature_id as None or whatever it was
-    # Undo is an explicit regression path, so bypass monotonic completion guard.
-    save_progress_json(data, allow_completion_regression=True)
+
+    save_progress_json(data)
+
+    # Event sourcing: append feature_undone to audit.log
+    record_feature_state_event(
+        event_type="feature_undone",
+        feature_id=last_feature.get("id"),
+        feature_name=last_feature.get("name"),
+    )
 
     # Update progress.md
     md_content = generate_progress_md(data)
@@ -8221,6 +8264,15 @@ def reset_tracking(force=False):
 
     try:
         archived_entry = archive_current_progress(reason="reset")
+
+        # Event sourcing: append tracker_reset global event to audit.log
+        # Must be before files are deleted, so audit_log can still write
+        record_feature_state_event(
+            event_type="tracker_reset",
+            feature_id=None,
+            feature_name=None,
+        )
+
         removed = []
         for path in tracked_files:
             if path.exists():
@@ -8251,7 +8303,7 @@ def set_workflow_state(phase=None, plan_path=None, next_action=None):
         print("No progress tracking found")
         return False
 
-    if not data.get("current_feature_id"):
+    if data.get("current_feature_id") is None:
         print("Error: No feature currently in progress")
         return False
 
@@ -8562,7 +8614,7 @@ def generate_progress_md(data):
                 md_lines.append(f"  Owners: {owner_summary}")
         md_lines.append("")
 
-    if current_id and workflow_state:
+    if current_id is not None and workflow_state:
         phase = workflow_state.get("phase", "unknown")
         current_task = workflow_state.get("current_task")
         total_tasks = workflow_state.get("total_tasks")
@@ -9137,39 +9189,6 @@ def main():
         dest="no_cleanup",
         help="Skip automatic post-done cleanup of worktree and feature branch",
     )
-    done_parser.add_argument(
-        "--auto-gates",
-        action="store_true",
-        dest="auto_gates",
-        help="Auto-run evaluator and ship-check gates before final done gate validation",
-    )
-    finalize_parser = subparsers.add_parser(
-        "finalize",
-        help="Auto-recover evaluator/ship-check gates and then complete current feature",
-    )
-    finalize_parser.add_argument(
-        "--feature-id",
-        type=int,
-        required=True,
-        help="Active feature ID to finalize (must match current_feature_id)",
-    )
-    finalize_parser.add_argument("--commit", help="Git commit hash (default: HEAD)")
-    finalize_parser.add_argument(
-        "--run-all",
-        action="store_true",
-        help="Run all acceptance tests even if one fails",
-    )
-    finalize_parser.add_argument(
-        "--skip-archive",
-        action="store_true",
-        help="Skip document archiving",
-    )
-    finalize_parser.add_argument(
-        "--no-cleanup",
-        action="store_true",
-        dest="no_cleanup",
-        help="Skip automatic post-finalize cleanup of worktree and feature branch",
-    )
     set_finish_state_parser = subparsers.add_parser(
         "set-finish-state",
         help="Resolve explicit finish_pending integration status for a feature",
@@ -9503,6 +9522,30 @@ def main():
     ship_check_parser.add_argument("--feature-id", type=int, required=True)
     ship_check_parser.add_argument("--coverage-min", type=float, default=0.8)
 
+    # reconcile-state command (F0: Event Sourcing)
+    rs_parser = subparsers.add_parser(
+        "reconcile-state",
+        help="Detect and fix progress.json drift by replaying audit.log events"
+    )
+    rs_parser.add_argument("--check", action="store_true",
+                           help="Detect-only, no file modification")
+    rs_parser.add_argument("--auto-commit", action="store_true",
+                           help="Auto git-commit after fixing")
+
+    # backfill-event command (F0: Event Sourcing)
+    bf_parser = subparsers.add_parser(
+        "backfill-event",
+        help="Backfill missing feature_completed events for completed features"
+    )
+    bf_parser.add_argument("--feature-id", type=int, default=None,
+                           help="Only backfill this feature ID")
+    bf_parser.add_argument("--yes", "-y", action="store_true",
+                           help="Skip confirmation prompt")
+
+    # install-git-hooks command (F0: Event Sourcing)
+    subparsers.add_parser("install-git-hooks",
+                          help="Install post-merge hook for auto reconcile-state")
+
     args = parser.parse_args()
 
     scope_project_root = args.project_root
@@ -9521,6 +9564,37 @@ def main():
             return check(output_json=args.output_json)
         if args.command == "reconcile":
             return reconcile(output_json=args.output_json)
+        if args.command == "reconcile-state":
+            check_mode = getattr(args, "check", False)
+            if not check_mode:
+                # 修复模式走 mutating 保护链路
+                if not enforce_route_preflight("reconcile-state", sys.argv):
+                    return 1
+                try:
+                    with progress_transaction():
+                        r = cmd_reconcile_state(
+                            check_only=False,
+                            auto_commit=getattr(args, "auto_commit", False),
+                        )
+                except TimeoutError:
+                    print("[reconcile-state] ERROR: Could not acquire progress lock")
+                    sys.exit(1)
+            else:
+                r = cmd_reconcile_state(check_only=True)
+            # 退出码：修复后 drift 已消除应返回 0；仅检测到 drift 但未修复才返回 1
+            if r["fixed"]:
+                sys.exit(0)
+            else:
+                sys.exit(0 if not r["drift"] else 1)
+        if args.command == "backfill-event":
+            r = cmd_backfill_event(
+                feature_id=getattr(args, "feature_id", None),
+                yes=getattr(args, "yes", False),
+            )
+            sys.exit(0 if r["written"] >= 0 else 1)
+        if args.command == "install-git-hooks":
+            r = cmd_install_git_hooks()
+            sys.exit(0 if r["installed"] else 1)
         if args.command == "reconcile-evaluator":
             return reconcile_evaluator(
                 feature_id=args.feature_id,
@@ -9561,15 +9635,6 @@ def main():
             )
         if args.command == "done":
             return cmd_done(
-                commit_hash=args.commit,
-                run_all=args.run_all,
-                skip_archive=args.skip_archive,
-                no_cleanup=args.no_cleanup,
-                auto_gates=args.auto_gates,
-            )
-        if args.command == "finalize":
-            return cmd_finalize(
-                feature_id=args.feature_id,
                 commit_hash=args.commit,
                 run_all=args.run_all,
                 skip_archive=args.skip_archive,
@@ -9706,17 +9771,17 @@ def main():
         parser.print_help()
         return 1
 
-    # F21: fail-closed scope consistency check for next-feature and completion commands
-    if args.command in {"next-feature", "done", "finalize"}:
+    # F21: fail-closed scope consistency check for next-feature and done
+    if args.command in {"next-feature", "done"}:
         if not check_worktree_branch_consistency(args.command):
             return 1
 
     if args.command in MUTATING_COMMANDS:
         if not enforce_route_preflight(args.command, sys.argv):
             return 1
-        # `done/finalize` may execute nested `prog` mutating commands from acceptance steps.
+        # `done` may execute nested `prog` mutating commands from acceptance steps.
         # Holding an outer process lock here can deadlock those nested invocations.
-        if args.command in {"done", "finalize"}:
+        if args.command == "done":
             return _dispatch_command()
         try:
             with progress_transaction():
