@@ -13,6 +13,27 @@ import random
 
 AUDIT_LOG_FILENAME = "audit.log"
 
+# 事件类型白名单：写入路径 fail-closed；读取路径兼容历史数据（tolerant）
+# 新增 event_type 时必须先加入此集合，否则 append_audit_record 拒绝写入。
+ALLOWED_EVENT_TYPES: frozenset = frozenset({
+    # 核心状态变更事件（Feature 0 新增）
+    "feature_completed",
+    "feature_undone",
+    "state_restored",
+    "tracker_reset",
+    "manual_state_override",
+    # 现有生产代码已写入的事件类型（不可移除，否则静默丢数据）
+    "schema_migration",
+    "evaluator_assessment",
+    "evaluator_backfill",
+    "set_finish_state",
+})
+
+
+def is_known_event_type(event_type: str) -> bool:
+    """供读取路径判断是否为已知事件类型（不阻断，仅供 warn 决策）。"""
+    return event_type in ALLOWED_EVENT_TYPES
+
 
 def get_audit_log_path(project_root: Optional[str] = None) -> Path:
     """获取审计日志文件路径
@@ -105,6 +126,15 @@ def append_audit_record(record: Dict[str, Any], project_root: Optional[str] = No
         raise ValueError("Audit record must have 'tx_id' field")
     if not record.get("timestamp"):
         raise ValueError("Audit record must have 'timestamp' field")
+
+    # 事件类型白名单 fail-closed：未知类型在写入时拒绝，防止污染事实源
+    event_type = record.get("event_type", "")
+    if event_type and event_type not in ALLOWED_EVENT_TYPES:
+        raise ValueError(
+            f"Unknown event_type '{event_type}'. "
+            f"Add to ALLOWED_EVENT_TYPES in audit_log.py before use. "
+            f"Known types: {sorted(ALLOWED_EVENT_TYPES)}"
+        )
 
     path = get_audit_log_path(project_root)
 
@@ -279,6 +309,109 @@ def count_audit_records(project_root: Optional[str] = None) -> int:
         return 0
 
     return count
+
+
+def _record_content_hash(record: Dict[str, Any]) -> str:
+    """生成记录内容的哈希键（排除 id 字段）。"""
+    content = {k: v for k, v in record.items() if k != "id"}
+    return json.dumps(content, sort_keys=True)
+
+
+def deduplicate_audit_log(
+    records: List[Dict[str, Any]]
+) -> Dict[str, Any]:
+    """两阶段去重审计日志记录。
+
+    Pass 1 — id 去重：
+      - same id + same content → 删副本（保留先出现的）
+      - same id + diff content → ID 冲突，重编号冲突条（两者都保留）
+
+    Pass 2 — 语义去重：
+      - same (timestamp + event_type + feature_id) → 删副本
+      - feature_id 缺失时退化为 (timestamp + event_type)
+
+    冲突元数据记录在 id_conflict_metadata 列表，不写入 kept records 本身。
+
+    Returns:
+        {
+          "kept": [records],
+          "removed": [records],
+          "semantic_duplicates_removed": [records],
+          "id_conflicts": int,
+          "id_conflict_metadata": [{"original_id": str, "new_id": str}],
+        }
+    """
+    import copy
+
+    kept_pass1: List[Dict[str, Any]] = []
+    removed: List[Dict[str, Any]] = []
+    id_conflict_metadata: List[Dict[str, Any]] = []
+    id_conflicts = 0
+
+    # 计算最大 AUDIT-XXX 编号，用于重编号冲突条目
+    max_id_num = 0
+    for record in records:
+        rid = record.get("id", "")
+        if rid.startswith("AUDIT-"):
+            try:
+                num = int(rid.split("-")[1])
+                max_id_num = max(max_id_num, num)
+            except (ValueError, IndexError):
+                # 非标准格式，跳过但不崩溃
+                pass
+
+    # --- Pass 1: id 去重 ---
+    seen_ids: Dict[str, str] = {}  # id → content_hash of first seen
+
+    for record in records:
+        rid = record.get("id", "")
+        content_hash = _record_content_hash(record)
+
+        if rid not in seen_ids:
+            seen_ids[rid] = content_hash
+            kept_pass1.append(copy.deepcopy(record))
+        else:
+            if seen_ids[rid] == content_hash:
+                # 完全相同：删副本
+                removed.append(record)
+            else:
+                # ID 冲突：重编号此条，保留两者
+                max_id_num += 1
+                new_id = f"AUDIT-{max_id_num:03d}"
+                new_record = copy.deepcopy(record)
+                new_record["id"] = new_id
+                kept_pass1.append(new_record)
+                id_conflict_metadata.append({
+                    "original_id": rid,
+                    "new_id": new_id,
+                })
+                id_conflicts += 1
+
+    # --- Pass 2: 语义去重 ---
+    seen_semantic: set = set()
+    kept: List[Dict[str, Any]] = []
+    semantic_removed: List[Dict[str, Any]] = []
+
+    for record in kept_pass1:
+        ts = record.get("timestamp", "")
+        et = record.get("event_type", "")
+        fid = record.get("feature_id")
+
+        semantic_key = (ts, et, str(fid)) if fid is not None else (ts, et)
+
+        if semantic_key not in seen_semantic:
+            seen_semantic.add(semantic_key)
+            kept.append(record)
+        else:
+            semantic_removed.append(record)
+
+    return {
+        "kept": kept,
+        "removed": removed,
+        "semantic_duplicates_removed": semantic_removed,
+        "id_conflicts": id_conflicts,
+        "id_conflict_metadata": id_conflict_metadata,
+    }
 
 
 def clear_audit_log(project_root: Optional[str] = None) -> None:
