@@ -12,5 +12,9 @@
 - [x] SPM-2 auto-suggest design and devex lanes by change type
 - [x] E2E cross-plugin integration tests and docs
 
-## Pending
-None
+## Recent Updates
+- [UPD-015] decision: office-hours complete: SPM-2 auto-suggest design and devex lanes by change type (feature:5)
+- [UPD-016] decision: plan-ceo-review complete: SPM-2 auto-suggest design and devex lanes by change type (pass) (feature:5)
+- [UPD-017] decision: plan-design-review complete: SPM-2 auto-suggest design and devex lanes by change type (score=9/10) (feature:5)
+- [UPD-018] decision: plan-devex-review complete: SPM-2 auto-suggest design and devex lanes by change type (score=8/10) (feature:5)
+- [UPD-019] decision: office-hours complete: e2e-test-topic (feature:6)

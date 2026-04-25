@@ -196,6 +196,154 @@ class TestGetDispatchedChildFeature:
 
         assert result is None
 
+    def test_dispatch_root_first_in_queue(self, temp_dir):
+        """ROOT in queue returns root-level pending feature."""
+        routing_queue = [progress_manager.ROOT_ROUTE_CODE, "PM"]
+        active_routes = []
+        linked_projects = []
+        parent_data = {
+            "features": [{"id": 1, "name": "Root Feature", "completed": False}],
+        }
+
+        result = _get_dispatched_child_feature(
+            routing_queue, active_routes, linked_projects,
+            project_root=temp_dir, repo_root=temp_dir,
+            parent_data=parent_data,
+        )
+
+        assert result is not None
+        assert result["dispatched_to"] == "root"
+        assert result["child_project_code"] == progress_manager.ROOT_ROUTE_CODE
+        assert result["next_feature_name"] == "Root Feature"
+        assert result["position"] == 1
+
+    def test_dispatch_child_before_root(self, temp_dir):
+        """[PT, ROOT] returns child first when child has pending work."""
+        child_pt = temp_dir / "child_pt"
+        child_pt.mkdir()
+
+        routing_queue = ["PT", progress_manager.ROOT_ROUTE_CODE]
+        active_routes = []
+        linked_projects = [_linked_entry("PT", child_pt)]
+        child_pt_data = _child_payload([{"id": 2, "name": "PT Feature", "completed": False}])
+        parent_data = {
+            "features": [{"id": 1, "name": "Root Feature", "completed": False}],
+        }
+
+        with patch(
+            "progress_manager._load_progress_payload_at_root",
+            return_value=(child_pt_data, None),
+        ):
+            result = _get_dispatched_child_feature(
+                routing_queue, active_routes, linked_projects,
+                project_root=temp_dir, repo_root=temp_dir,
+                parent_data=parent_data,
+            )
+
+        assert result is not None
+        assert result["dispatched_to"] == "child"
+        assert result["child_project_code"] == "PT"
+        assert result["position"] == 1
+
+    def test_dispatch_active_child_skips_to_root(self, temp_dir):
+        """Active child route causes scanner to continue to ROOT."""
+        child_pt = temp_dir / "child_pt"
+        child_pt.mkdir()
+
+        routing_queue = ["PT", progress_manager.ROOT_ROUTE_CODE]
+        active_routes = [{"project_code": "PT", "assigned_at": None}]
+        linked_projects = [_linked_entry("PT", child_pt)]
+        child_pt_data = _child_payload([{"id": 2, "name": "PT Feature", "completed": False}])
+        parent_data = {
+            "features": [{"id": 1, "name": "Root Feature", "completed": False}],
+        }
+
+        with patch(
+            "progress_manager._load_progress_payload_at_root",
+            return_value=(child_pt_data, None),
+        ):
+            result = _get_dispatched_child_feature(
+                routing_queue, active_routes, linked_projects,
+                project_root=temp_dir, repo_root=temp_dir,
+                parent_data=parent_data,
+            )
+
+        assert result is not None
+        assert result["dispatched_to"] == "root"
+        assert result["position"] == 2
+
+    def test_dispatch_unknown_code_warns_then_root(self, temp_dir, capsys):
+        """Unknown code before ROOT warns and dispatches ROOT."""
+        routing_queue = ["GHOST", progress_manager.ROOT_ROUTE_CODE]
+        active_routes = []
+        linked_projects = []
+        parent_data = {
+            "features": [{"id": 1, "name": "Root Feature", "completed": False}],
+        }
+
+        result = _get_dispatched_child_feature(
+            routing_queue, active_routes, linked_projects,
+            project_root=temp_dir, repo_root=temp_dir,
+            parent_data=parent_data,
+        )
+
+        assert result is not None
+        assert result["dispatched_to"] == "root"
+        captured = capsys.readouterr()
+        assert '[WARN] Code "GHOST" not found in linked_projects, skipping' in captured.out
+
+    def test_dispatch_no_root_in_queue_no_silent_fallback(self, temp_dir):
+        """Queue without ROOT does not silently return root features (CONSTRAINT-005)."""
+        child_pt = temp_dir / "child_pt"
+        child_pt.mkdir()
+
+        routing_queue = ["PT"]
+        active_routes = []
+        linked_projects = [_linked_entry("PT", child_pt)]
+        child_pt_data = _child_payload([{"id": 2, "name": "PT Feature", "completed": True}])
+        parent_data = {
+            "features": [{"id": 1, "name": "Root Feature", "completed": False}],
+        }
+
+        with patch(
+            "progress_manager._load_progress_payload_at_root",
+            return_value=(child_pt_data, None),
+        ):
+            result = _get_dispatched_child_feature(
+                routing_queue, active_routes, linked_projects,
+                project_root=temp_dir, repo_root=temp_dir,
+                parent_data=parent_data,
+            )
+
+        assert result is None
+
+    def test_dispatch_empty_parent_features_no_fallthrough(self, temp_dir):
+        """Parent with features=[] and routing_queue=[PT] dispatches to PT correctly."""
+        child_pt = temp_dir / "child_pt"
+        child_pt.mkdir()
+
+        routing_queue = ["PT"]
+        active_routes = []
+        linked_projects = [_linked_entry("PT", child_pt)]
+        child_pt_data = _child_payload([{"id": 2, "name": "PT Feature", "completed": False}])
+        parent_data = {
+            "features": [],
+        }
+
+        with patch(
+            "progress_manager._load_progress_payload_at_root",
+            return_value=(child_pt_data, None),
+        ):
+            result = _get_dispatched_child_feature(
+                routing_queue, active_routes, linked_projects,
+                project_root=temp_dir, repo_root=temp_dir,
+                parent_data=parent_data,
+            )
+
+        assert result is not None
+        assert result["dispatched_to"] == "child"
+        assert result["child_project_code"] == "PT"
+
 
 # ---------------------------------------------------------------------------
 # Integration Tests for next_feature() parent dispatch

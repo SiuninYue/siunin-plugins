@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "SPM-PROG Harness Linkage",
   "created_at": "2026-04-09T01:18:09.247847Z",
-  "updated_at": "2026-04-18T08:07:53.227914Z",
+  "updated_at": "2026-04-25T23:57:13.314814Z",
   "features": [
     {
       "id": 1,
@@ -876,8 +876,9 @@
     "projects": []
   },
   "workflow_state": {},
-  "tracker_role": "standalone",
-  "project_code": null,
+  "tracker_role": "child",
+  "project_code": "SPM",
   "routing_queue": [],
-  "active_routes": []
+  "active_routes": [],
+  "parent_project_root": "."
 }

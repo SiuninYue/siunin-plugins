@@ -2,7 +2,7 @@
 
 **Created**: 2026-02-25T23:15:37.840964Z
 
-**Status**: 6/10 completed
+**Status**: 10/10 completed
 
 ## Completed
 - [x] Plugin base structure and architecture
@@ -11,12 +11,10 @@
 - [x] Skill and reference documents
 - [x] NotebookLM template and renderer
 - [x] Obsidian template
-
-## Pending
-- [ ] Note-process command
-- [ ] Note-batch command
-- [ ] Marketplace and README updates
-- [ ] E2E structure tests
+- [x] Note-process command
+- [x] Note-batch command
+- [x] Marketplace and README updates
+- [x] E2E structure tests
 
 ## Recent Updates
 - [UPD-001] status: transaction smoke

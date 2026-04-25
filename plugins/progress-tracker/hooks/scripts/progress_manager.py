@@ -169,6 +169,7 @@ LINKED_SNAPSHOT_SCHEMA_VERSION = "1.0"
 DEFAULT_LINKED_STATUS_STALE_HOURS = 24
 TRACKER_ROLES = ("standalone", "parent", "child")
 DEFAULT_TRACKER_ROLE = "standalone"
+ROOT_ROUTE_CODE = "ROOT"
 DEVELOPMENT_STAGES = ("planning", "developing", "completed")
 LIFECYCLE_STATES = ("approved", "implementing", "verified", "archived")
 VALID_FINISH_STATES = ("merged_and_cleaned", "pr_open", "kept_with_reason")
@@ -234,10 +235,14 @@ MUTATING_COMMANDS = {
     "add-bug",
     "update-bug",
     "remove-bug",
+    "prioritize",
+    "set-queue",
+    "discover-children",
     "reconcile-evaluator",
     "review-pass",
     "ship-check",
     "backfill-event",
+    "discover-children",
 }
 ROUTE_PREFLIGHT_EXEMPT_COMMANDS = {
     "init",
@@ -1248,6 +1253,12 @@ def _notify_parent_sync() -> None:
         repo_root = Path(_REPO_ROOT or child_root).resolve()
         parent_root = _resolve_linked_project_root(str(parent_raw).strip(), child_root, repo_root)
 
+        # Best-effort summary refresh before parent writeback (Task 7)
+        try:
+            load_status_summary_projection(str(child_root))
+        except Exception as exc:
+            logger.debug(f"Summary refresh failed during parent sync: {exc}")
+
         parent_data, err = _load_progress_payload_at_root(parent_root)
         if parent_data is None:
             print(
@@ -1557,7 +1568,652 @@ def link_project(
     return True
 
 
+# ---------------------------------------------------------------------------
+# Monorepo child discovery helpers (F10)
+# ---------------------------------------------------------------------------
+
+
+def _derive_plugin_code(plugin_name: str) -> str:
+    """Derive a short project code from a plugin name.
+
+    Takes the first letter of each hyphen/underscore-separated segment,
+    uppercase.  Truncates to 8 chars max.
+
+    Examples:
+        "note-organizer" → "NO"
+        "super-product-manager" → "SPM"
+        "progress-tracker" → "PT"
+    """
+    segments = re.split(r"[-_]+", plugin_name.strip())
+    code = "".join(seg[0].upper() for seg in segments if seg)
+    return code[:8]
+
+
+def _generate_project_code(plugin_name: str, used_codes: Set[str]) -> str:
+    """Generate a unique project code, handling collisions.
+
+    If the derived code is in ``used_codes``, appends numeric suffix 2, 3, …
+    up to the 8-char maximum.  Emits a warning when a suffix is applied.
+    """
+    base = _derive_plugin_code(plugin_name)
+    if base not in used_codes:
+        return base
+    # Collision – append numeric suffix
+    for suffix in range(2, 100):
+        candidate = f"{base}{suffix}"
+        if len(candidate) > 8:
+            candidate = candidate[:8]
+        if candidate not in used_codes:
+            logger.warning(
+                f"Code collision: derived '{base}' already used; "
+                f"assigned '{candidate}' for plugin '{plugin_name}'"
+            )
+            return candidate
+    # Fallback: truncate and timestamp
+    fallback = base[:6] + "XX"
+    logger.warning(
+        f"Code collision exhausted for plugin '{plugin_name}'; "
+        f"using fallback '{fallback}'"
+    )
+    return fallback
+
+
+def _discover_plugin_catalog(
+    repo_root: Path,
+    parent_root: Path,
+) -> Dict[str, List[Dict[str, Any]]]:
+    """Scan repo_root/plugins/* for .claude-plugin/plugin.json.
+
+    Pure read-only — never writes to parent or child trackers, never calls
+    ``ensure_tracker_layout``, never registers links.
+
+    Returns ``{"initialized": [...], "uninitialized": [...]}`` where each
+    entry is ``{"name": str, "root": Path, "plugin_json": dict}``.
+    """
+    plugins_dir = repo_root / "plugins"
+    if not plugins_dir.is_dir():
+        return {"initialized": [], "uninitialized": []}
+
+    initialized: List[Dict[str, Any]] = []
+    uninitialized: List[Dict[str, Any]] = []
+
+    for child_dir in sorted(plugins_dir.iterdir()):
+        if not child_dir.is_dir():
+            continue
+        # Skip the parent itself
+        if child_dir.resolve() == parent_root.resolve():
+            continue
+
+        plugin_json_path = child_dir / ".claude-plugin" / "plugin.json"
+        if not plugin_json_path.is_file():
+            continue
+
+        try:
+            plugin_json = json.loads(plugin_json_path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+
+        if not isinstance(plugin_json, dict):
+            continue
+
+        plugin_name = plugin_json.get("name", child_dir.name)
+        entry = {"name": plugin_name, "root": child_dir, "plugin_json": plugin_json}
+
+        tracker_file = child_dir / "docs" / "progress-tracker" / "state" / PROGRESS_JSON
+        if tracker_file.is_file():
+            initialized.append(entry)
+        else:
+            uninitialized.append(entry)
+
+    return {"initialized": initialized, "uninitialized": uninitialized}
+
+
+def _link_child_to_parent(
+    parent_data: Dict[str, Any],
+    parent_root: Path,
+    repo_root: Path,
+    child_root: Path,
+    code: str,
+    label: Optional[str] = None,
+    append_to_queue: bool = True,
+) -> None:
+    """Register a child tracker in the parent's linked_projects and queue.
+
+    Extracted from ``link_project()`` so discovery can reuse the core
+    registration logic without the CLI scaffolding.
+    """
+    normalized_code = _normalize_project_code(code) or code.upper()[:8]
+
+    # Write child metadata
+    child_data, _ = _load_progress_payload_at_root(child_root)
+    if isinstance(child_data, dict):
+        child_data["tracker_role"] = "child"
+        child_data["project_code"] = normalized_code
+        child_data["parent_project_root"] = _serialize_project_root_for_config(
+            parent_root, repo_root
+        )
+        _save_progress_payload_at_root(child_root, child_data)
+
+    # Infer label
+    if label is None:
+        child_name = child_data.get("project_name") if isinstance(child_data, dict) else None
+        label = (
+            child_name.strip()
+            if isinstance(child_name, str) and child_name.strip()
+            else child_root.name
+        )
+    normalized_label = label.strip() if isinstance(label, str) and label.strip() else child_root.name
+
+    configured_project_root = _serialize_project_root_for_config(child_root, repo_root)
+
+    # Upsert linked_projects
+    linked_projects = parent_data.get("linked_projects")
+    if not isinstance(linked_projects, list):
+        linked_projects = []
+
+    target_written = False
+    deduped: List[Any] = []
+    for entry in linked_projects:
+        entry_root_raw = None
+        entry_code_raw = None
+        if isinstance(entry, dict):
+            raw_value = entry.get("project_root") or entry.get("path") or entry.get("root")
+            entry_root_raw = str(raw_value).strip() if raw_value is not None else None
+            entry_code_raw = entry.get("project_code")
+
+        entry_root = (
+            _resolve_linked_project_root(entry_root_raw, parent_root, repo_root)
+            if entry_root_raw
+            else None
+        )
+
+        matches_target = (entry_root == child_root) or (
+            isinstance(entry_code_raw, str) and entry_code_raw.strip().upper() == normalized_code
+        )
+        if matches_target:
+            if target_written:
+                continue
+            base = entry if isinstance(entry, dict) else {}
+            updated = dict(base)
+            updated["project_root"] = configured_project_root
+            updated["project_code"] = normalized_code
+            updated["label"] = normalized_label
+            deduped.append(updated)
+            target_written = True
+            continue
+
+        deduped.append(entry)
+
+    if not target_written:
+        deduped.append(
+            {
+                "project_root": configured_project_root,
+                "project_code": normalized_code,
+                "label": normalized_label,
+            }
+        )
+
+    parent_data["linked_projects"] = deduped
+    parent_data["tracker_role"] = "parent"
+
+    # Update routing_queue
+    if append_to_queue:
+        routing_queue = parent_data.get("routing_queue")
+        if not isinstance(routing_queue, list):
+            routing_queue = []
+        if normalized_code not in routing_queue:
+            routing_queue.append(normalized_code)
+        parent_data["routing_queue"] = routing_queue
+
+
+def _auto_discover_child_plugins(
+    project_root: Path,
+    repo_root: Path,
+    parent_data: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Discover and register initialized child trackers.
+
+    Calls ``_discover_plugin_catalog`` internally.  Preserves existing queue
+    order and appends newly discovered codes.
+    """
+    catalog = _discover_plugin_catalog(repo_root, parent_root=project_root)
+
+    # Collect used codes from existing queue + linked_projects
+    existing_queue: List[str] = parent_data.get("routing_queue") or []
+    if not isinstance(existing_queue, list):
+        existing_queue = []
+    existing_linked = parent_data.get("linked_projects") or []
+    if not isinstance(existing_linked, list):
+        existing_linked = []
+
+    used_codes: Set[str] = set()
+    for item in existing_queue:
+        if isinstance(item, str) and item.strip():
+            used_codes.add(item.strip().upper())
+    for entry in existing_linked:
+        if isinstance(entry, dict):
+            code_raw = entry.get("project_code")
+            if isinstance(code_raw, str) and code_raw.strip():
+                used_codes.add(code_raw.strip().upper())
+
+    added_codes: List[str] = []
+    warnings: List[str] = []
+
+    for child_info in catalog["initialized"]:
+        child_root: Path = child_info["root"]
+        plugin_name: str = child_info["name"]
+
+        # Code resolution priority:
+        # 1. Existing project_code in child progress.json
+        # 2. Derive from plugin name
+        child_data, _ = _load_progress_payload_at_root(child_root)
+        resolved_code = None
+        if isinstance(child_data, dict):
+            existing_code = child_data.get("project_code")
+            if isinstance(existing_code, str) and existing_code.strip():
+                resolved_code = existing_code.strip().upper()
+
+        if resolved_code is None:
+            resolved_code = _generate_project_code(plugin_name, used_codes)
+
+        used_codes.add(resolved_code)
+
+        # Check if already linked
+        already_linked = False
+        for entry in existing_linked:
+            if isinstance(entry, dict):
+                entry_root_raw = entry.get("project_root") or entry.get("path") or entry.get("root")
+                entry_root = (
+                    _resolve_linked_project_root(str(entry_root_raw).strip(), project_root, repo_root)
+                    if entry_root_raw
+                    else None
+                )
+                if entry_root == child_root:
+                    already_linked = True
+                    break
+
+        if not already_linked:
+            _link_child_to_parent(
+                parent_data,
+                parent_root=project_root,
+                repo_root=repo_root,
+                child_root=child_root,
+                code=resolved_code,
+                append_to_queue=True,
+            )
+            added_codes.append(resolved_code)
+        else:
+            # Even if already linked, write back child metadata if missing
+            if isinstance(child_data, dict):
+                child_data.setdefault("tracker_role", "child")
+                child_data.setdefault("project_code", resolved_code)
+                child_data.setdefault(
+                    "parent_project_root",
+                    _serialize_project_root_for_config(project_root, repo_root),
+                )
+                _save_progress_payload_at_root(child_root, child_data)
+
+    # Initialize empty queue as [ROOT] + sorted(initialized_codes) if queue is empty
+    if not existing_queue:
+        initialized_codes = [
+            _generate_project_code(info["name"], set())
+            for info in catalog["initialized"]
+        ]
+        # Re-derive properly with all codes considered
+        all_codes: Set[str] = set()
+        final_codes: List[str] = [ROOT_ROUTE_CODE]
+        for info in catalog["initialized"]:
+            child_data_tmp, _ = _load_progress_payload_at_root(info["root"])
+            code = None
+            if isinstance(child_data_tmp, dict):
+                code = child_data_tmp.get("project_code")
+                if isinstance(code, str) and code.strip():
+                    code = code.strip().upper()
+            if code is None:
+                code = _generate_project_code(info["name"], all_codes)
+            all_codes.add(code)
+            if code not in final_codes:
+                final_codes.append(code)
+        parent_data["routing_queue"] = final_codes
+
+    final_queue: List[str] = list(parent_data.get("routing_queue") or [])
+
+    # Build uninitialized list for output
+    uninitialized_plugins = [
+        {"name": info["name"], "root": str(info["root"])}
+        for info in catalog["uninitialized"]
+    ]
+
+    return {
+        "added_codes": added_codes,
+        "uninitialized_plugins": uninitialized_plugins,
+        "warnings": warnings,
+        "final_queue": final_queue,
+    }
+
+
+def discover_children(*, output_json: bool = False) -> bool:
+    """Discover and register child trackers under a parent."""
+    project_root = find_project_root()
+    repo_root = _resolve_repo_root(project_root)
+
+    data = load_progress_json()
+    if not isinstance(data, dict):
+        msg = "No progress tracking found. Use init first."
+        if output_json:
+            print(json.dumps({"status": "error", "message": msg}, ensure_ascii=False))
+        else:
+            print(msg)
+        return False
+
+    tracker_role = str(data.get("tracker_role") or DEFAULT_TRACKER_ROLE).strip().lower()
+    if tracker_role != "parent":
+        msg = "discover-children only runs from a parent tracker."
+        if output_json:
+            print(json.dumps({"status": "error", "message": msg}, ensure_ascii=False))
+        else:
+            print(msg)
+        return False
+
+    result = _auto_discover_child_plugins(project_root, repo_root, data)
+
+    _update_runtime_context(data, source="discover_children")
+    save_progress_json(data)
+    save_progress_md(generate_progress_md(data))
+
+    if output_json:
+        payload = {
+            "status": "ok",
+            **result,
+        }
+        print(json.dumps(payload, ensure_ascii=False))
+    else:
+        print(f"Discovered {len(result['added_codes'])} new child plugin(s)")
+        if result["added_codes"]:
+            print(f"  Added: {', '.join(result['added_codes'])}")
+        if result["uninitialized_plugins"]:
+            names = [p["name"] for p in result["uninitialized_plugins"]]
+            print(f"  Uninitialized: {', '.join(names)}")
+        if result["warnings"]:
+            for w in result["warnings"]:
+                print(f"  [WARN] {w}")
+        print(f"  Queue: {' -> '.join(result['final_queue'])}")
+
+    return True
+
+
 def route_status(*, output_json: bool = False) -> bool:
+    """Display routing_queue, active_routes, and conflict summary."""
+    data = load_progress_json()
+    if not data:
+        message = "No progress tracking found. Use init first."
+        if output_json:
+            print(json.dumps({"status": "error", "message": message}, ensure_ascii=False))
+        else:
+            print(message)
+        return False
+
+    routing_queue: List[str] = data.get("routing_queue") or []
+    if not isinstance(routing_queue, list):
+        routing_queue = []
+
+    active_routes: List[Any] = data.get("active_routes") or []
+    if not isinstance(active_routes, list):
+        active_routes = []
+
+    linked_projects: List[Any] = data.get("linked_projects") or []
+    if not isinstance(linked_projects, list):
+        linked_projects = []
+
+    # Collect linked project codes for conflict Type B check
+    linked_codes: set = set()
+    for entry in linked_projects:
+        if isinstance(entry, dict):
+            code_raw = entry.get("project_code")
+            if isinstance(code_raw, str) and code_raw.strip():
+                linked_codes.add(code_raw.strip().upper())
+
+    # Detect conflicts
+    conflicts: List[Dict[str, Any]] = []
+
+    # Type A: duplicate project_code in active_routes
+    seen_codes: Dict[str, int] = {}
+    for route in active_routes:
+        if not isinstance(route, dict):
+            continue
+        code_raw = route.get("project_code")
+        if not isinstance(code_raw, str):
+            continue
+        code = code_raw.strip().upper()
+        seen_codes[code] = seen_codes.get(code, 0) + 1
+    for code, count in seen_codes.items():
+        if count > 1:
+            conflicts.append(
+                {"type": "A", "code": code, "message": f"duplicate in active_routes ({count} entries)"}
+            )
+
+    # Type B: routing_queue code not in linked_projects (ROOT is exempt per CONSTRAINT-006)
+    for item in routing_queue:
+        if not isinstance(item, str):
+            continue
+        code = item.strip().upper()
+        if code and code != ROOT_ROUTE_CODE and code not in linked_codes:
+            conflicts.append(
+                {"type": "B", "code": code, "message": f"{code} in routing_queue but not in linked_projects"}
+            )
+
+    # Type C: 2+ distinct project_codes in active_routes (parallel execution conflict) (F20)
+    parallel_routes = _detect_parallel_active_routes(active_routes)
+    if parallel_routes:
+        codes = [str(r.get("project_code", "?")) for r in parallel_routes]
+        conflicts.append(
+            {"type": "C", "codes": codes, "message": f"parallel active routes: {', '.join(codes)}"}
+        )
+
+    if output_json:
+        print(
+            json.dumps(
+                {
+                    "status": "ok",
+                    "routing_queue": routing_queue,
+                    "active_routes": active_routes,
+                    "conflicts": conflicts,
+                },
+                ensure_ascii=False,
+            )
+        )
+        return True
+
+    print("Route Status")
+    print("============")
+    print(f"routing_queue: {routing_queue or '(empty)'}")
+    print()
+    if active_routes:
+        print("active_routes:")
+        for route in active_routes:
+            if isinstance(route, dict):
+                code = route.get("project_code", "?")
+                ref = route.get("feature_ref") or "(no feature_ref)"
+                print(f"  {code} -> {ref}")
+    else:
+        print("active_routes: (empty)")
+    if conflicts:
+        print()
+        print("Conflicts:")
+        for c in conflicts:
+            print(f"  [{c['type']}] {c['message']}")
+    return True
+
+
+def prioritize_route(code: str, *, output_json: bool = False) -> bool:
+    """Move a queue entry to the front of routing_queue.
+
+    Validates that ``code`` is ``ROOT_ROUTE_CODE`` or an existing linked child code.
+    """
+    data = load_progress_json()
+    if not isinstance(data, dict):
+        msg = "No progress tracking found. Use init first."
+        if output_json:
+            print(json.dumps({"status": "error", "message": msg}, ensure_ascii=False))
+        else:
+            print(msg)
+        return False
+
+    tracker_role = str(data.get("tracker_role") or "").strip().lower()
+    if tracker_role != "parent":
+        msg = "prioritize only runs from a parent tracker."
+        if output_json:
+            print(json.dumps({"status": "error", "message": msg}, ensure_ascii=False))
+        else:
+            print(msg)
+        return False
+
+    routing_queue: List[str] = data.get("routing_queue") or []
+    if not isinstance(routing_queue, list):
+        routing_queue = []
+
+    linked_projects: List[Any] = data.get("linked_projects") or []
+    if not isinstance(linked_projects, list):
+        linked_projects = []
+
+    linked_codes: set = set()
+    for entry in linked_projects:
+        if isinstance(entry, dict):
+            raw = entry.get("project_code")
+            if isinstance(raw, str) and raw.strip():
+                linked_codes.add(raw.strip().upper())
+
+    normalized_code = code.strip().upper()
+    if normalized_code != ROOT_ROUTE_CODE and normalized_code not in linked_codes:
+        msg = f"Code '{code}' is not in routing_queue or linked_projects."
+        if output_json:
+            print(json.dumps({"status": "error", "message": msg}, ensure_ascii=False))
+        else:
+            print(msg)
+        return False
+
+    if normalized_code not in routing_queue:
+        msg = f"Code '{code}' is not in routing_queue."
+        if output_json:
+            print(json.dumps({"status": "error", "message": msg}, ensure_ascii=False))
+        else:
+            print(msg)
+        return False
+
+    # Move to front, preserving order of remaining entries
+    new_queue = [normalized_code] + [c for c in routing_queue if c != normalized_code]
+    data["routing_queue"] = new_queue
+
+    _update_runtime_context(data, source="prioritize_route")
+    save_progress_json(data)
+    save_progress_md(generate_progress_md(data))
+
+    if output_json:
+        print(json.dumps({
+            "status": "ok",
+            "code": normalized_code,
+            "routing_queue": new_queue,
+        }, ensure_ascii=False))
+    else:
+        print(f"Prioritized {normalized_code}. Queue: {' -> '.join(new_queue)}")
+    return True
+
+
+def set_routing_queue(
+    codes: List[str],
+    *,
+    force: bool = False,
+    output_json: bool = False,
+) -> bool:
+    """Replace routing_queue with the provided ordered list of codes.
+
+    Validates every code is ``ROOT_ROUTE_CODE`` or an existing linked child code.
+    Requires all existing queue codes unless ``force`` is True.
+    """
+    data = load_progress_json()
+    if not isinstance(data, dict):
+        msg = "No progress tracking found. Use init first."
+        if output_json:
+            print(json.dumps({"status": "error", "message": msg}, ensure_ascii=False))
+        else:
+            print(msg)
+        return False
+
+    tracker_role = str(data.get("tracker_role") or "").strip().lower()
+    if tracker_role != "parent":
+        msg = "set-queue only runs from a parent tracker."
+        if output_json:
+            print(json.dumps({"status": "error", "message": msg}, ensure_ascii=False))
+        else:
+            print(msg)
+        return False
+
+    routing_queue: List[str] = data.get("routing_queue") or []
+    if not isinstance(routing_queue, list):
+        routing_queue = []
+
+    linked_projects: List[Any] = data.get("linked_projects") or []
+    if not isinstance(linked_projects, list):
+        linked_projects = []
+
+    linked_codes: set = set()
+    for entry in linked_projects:
+        if isinstance(entry, dict):
+            raw = entry.get("project_code")
+            if isinstance(raw, str) and raw.strip():
+                linked_codes.add(raw.strip().upper())
+
+    # Normalize input codes
+    normalized_codes: List[str] = []
+    for c in codes:
+        if isinstance(c, str) and c.strip():
+            normalized_codes.append(c.strip().upper())
+
+    # Validate each code
+    invalid_codes = [c for c in normalized_codes if c != ROOT_ROUTE_CODE and c not in linked_codes]
+    if invalid_codes:
+        msg = f"Invalid code(s): {', '.join(invalid_codes)}"
+        if output_json:
+            print(json.dumps({"status": "error", "message": msg}, ensure_ascii=False))
+        else:
+            print(msg)
+        return False
+
+    # Require all existing queue codes unless --force
+    existing_set = set(routing_queue)
+    new_set = set(normalized_codes)
+    if not force and not existing_set.issubset(new_set):
+        missing = sorted(existing_set - new_set)
+        msg = (
+            f"Missing existing queue code(s): {', '.join(missing)}. "
+            "Use --force to replace the queue anyway."
+        )
+        if output_json:
+            print(json.dumps({"status": "error", "message": msg}, ensure_ascii=False))
+        else:
+            print(msg)
+        return False
+
+    data["routing_queue"] = normalized_codes
+
+    _update_runtime_context(data, source="set_routing_queue")
+    save_progress_json(data)
+    save_progress_md(generate_progress_md(data))
+
+    if output_json:
+        print(json.dumps({
+            "status": "ok",
+            "routing_queue": normalized_codes,
+        }, ensure_ascii=False))
+    else:
+        print(f"Queue set: {' -> '.join(normalized_codes)}")
+    return True
+
+
+def _resolve_repo_root(project_root: Path) -> Path:
+    """Resolve the git repo root from the project root."""
+    from prog_paths import resolve_repo_root
+    return resolve_repo_root(cwd=project_root)
     """Display routing_queue, active_routes, and conflict summary."""
     data = load_progress_json()
     if not data:
@@ -4449,6 +5105,11 @@ def init_tracking(project_name, features=None, force=False):
                 existing_parent_root = raw.strip()
         archived_entry = archive_current_progress(reason="reinitialize")
 
+    # Detect parent tracker role: if the target root has a plugins/ directory,
+    # this is a monorepo root that will act as a mixed-host parent.
+    target_root = find_project_root()
+    is_parent_root = (target_root / "plugins").is_dir()
+
     # Create initial progress structure
     now = datetime.now().isoformat() + "Z"
     data = {
@@ -4462,14 +5123,37 @@ def init_tracking(project_name, features=None, force=False):
     if existing_parent_root:
         data["parent_project_root"] = existing_parent_root
 
+    # Parent tracker initialization (CONSTRAINT-002, CONSTRAINT-003)
+    if is_parent_root:
+        data["tracker_role"] = "parent"
+        data["project_code"] = ROOT_ROUTE_CODE
+        data["routing_queue"] = [ROOT_ROUTE_CODE]
+
     save_progress_json(data)
 
     # Create initial progress.md
     md_content = generate_progress_md(data)
     save_progress_md(md_content)
 
+    # Parent discovery: auto-discover child plugins after parent data is saved
+    discovered_count = 0
+    if is_parent_root:
+        try:
+            repo_root = _resolve_repo_root(target_root)
+            discover_result = _auto_discover_child_plugins(target_root, repo_root, data)
+            discovered_count = len(discover_result.get("added_codes", []))
+            if discovered_count > 0:
+                # Re-save with discovered children
+                save_progress_json(data)
+                save_progress_md(generate_progress_md(data))
+        except Exception as exc:
+            logger.warning(f"Child discovery during init failed: {exc}")
+
     print(f"Initialized progress tracking for: {project_name}")
     print(f"Location: {progress_dir}")
+    if is_parent_root:
+        print(f"Role: parent (mixed-host monorepo root)")
+        print(f"Project code: {ROOT_ROUTE_CODE}")
     if archived_entry:
         print(
             "Archived previous progress as "
@@ -4510,12 +5194,253 @@ def _build_project_completion_summary(
     """Build a concise summary when no more pending features remain."""
     return progress_prompt_builders.build_project_completion_summary(data, project_root)
 
-def status():
+
+def _display_root_dashboard(
+    data: Dict[str, Any],
+    project_root: Path,
+    repo_root: Path,
+    output_json: bool = False,
+) -> bool:
+    """Render monorepo root dashboard by pulling child summaries.
+
+    Uses ``load_status_summary_projection()`` for initialized children,
+    falls back to ``linked_snapshot`` entries when summary loading fails,
+    and renders ``-- not initialized --`` for uninitialized plugins.
+    """
+    catalog = _discover_plugin_catalog(repo_root, parent_root=project_root)
+
+    # Build code -> linked_snapshot entry lookup for fallback
+    linked_snapshot = data.get("linked_snapshot")
+    snapshot_projects: List[Dict[str, Any]] = []
+    if isinstance(linked_snapshot, dict):
+        snapshot_projects = linked_snapshot.get("projects") or []
+        if not isinstance(snapshot_projects, list):
+            snapshot_projects = []
+    snapshot_by_code: Dict[str, Dict[str, Any]] = {}
+    for sp in snapshot_projects:
+        if isinstance(sp, dict):
+            code = sp.get("project_code")
+            if isinstance(code, str) and code.strip():
+                snapshot_by_code[code.strip().upper()] = sp
+
+    # Build code -> linked_projects entry for name/label resolution
+    linked_projects = data.get("linked_projects") or []
+    if not isinstance(linked_projects, list):
+        linked_projects = []
+    linked_by_root: Dict[str, Dict[str, Any]] = {}
+    for lp in linked_projects:
+        if isinstance(lp, dict):
+            raw_root = lp.get("project_root") or lp.get("path") or lp.get("root")
+            if raw_root:
+                resolved = _resolve_linked_project_root(
+                    str(raw_root).strip(), project_root, repo_root
+                )
+                linked_by_root[str(resolved)] = lp
+
+    # Active routes
+    active_routes_raw: List[Any] = data.get("active_routes") or []
+    active_routes_map: Dict[str, Dict[str, Any]] = {}
+    for route in active_routes_raw:
+        if isinstance(route, dict):
+            code = route.get("project_code")
+            if isinstance(code, str) and code.strip():
+                active_routes_map[code.strip().upper()] = route
+
+    # --- Build child rows ---
+    child_rows: List[Dict[str, Any]] = []
+    uninitialized_rows: List[Dict[str, Any]] = []
+
+    for child_info in catalog["initialized"]:
+        child_root = child_info["root"]
+        plugin_name = child_info["name"]
+
+        # Resolve code from linked_projects or child payload
+        code = None
+        lp_entry = linked_by_root.get(str(child_root))
+        if isinstance(lp_entry, dict):
+            raw_code = lp_entry.get("project_code")
+            if isinstance(raw_code, str) and raw_code.strip():
+                code = raw_code.strip().upper()
+
+        if code is None:
+            child_data, _ = _load_progress_payload_at_root(child_root)
+            if isinstance(child_data, dict):
+                raw_code = child_data.get("project_code")
+                if isinstance(raw_code, str) and raw_code.strip():
+                    code = raw_code.strip().upper()
+
+        if code is None:
+            code = _generate_project_code(plugin_name, set(r.get("code", "") for r in child_rows if r.get("code")))
+
+        # Load summary via projection loader
+        summary: Optional[Dict[str, Any]] = None
+        summary_err: Optional[str] = None
+        try:
+            summary = load_status_summary_projection(str(child_root))
+        except Exception as exc:
+            summary_err = str(exc)
+
+        if summary and isinstance(summary, dict):
+            progress = summary.get("progress", {})
+            completed = progress.get("completed", 0) if isinstance(progress, dict) else 0
+            total = progress.get("total", 0) if isinstance(progress, dict) else 0
+            percentage = progress.get("percentage", 0) if isinstance(progress, dict) else 0
+            next_action = summary.get("next_action", {})
+            next_name = ""
+            if isinstance(next_action, dict):
+                if next_action.get("type") == "feature":
+                    next_name = next_action.get("feature_name", "")
+                else:
+                    next_name = next_action.get("message", "")
+            status_text = "(complete)" if completed >= total and total > 0 else (next_name or "--")
+        else:
+            # Fallback to linked_snapshot
+            sp = snapshot_by_code.get(code)
+            if sp:
+                completed = sp.get("completed", 0)
+                total = sp.get("total", 0)
+                rate = sp.get("completion_rate", 0.0)
+                percentage = int(rate * 100)
+                active_ref = sp.get("active_feature_ref")
+                status_text = active_ref if active_ref else "(snapshot fallback)"
+            else:
+                completed = 0
+                total = 0
+                percentage = 0
+                status_text = "(unreachable)"
+            if summary_err:
+                logger.debug(f"Summary load failed for {code}: {summary_err}")
+
+        route = active_routes_map.get(code)
+        active_marker = " *" if route else ""
+
+        child_rows.append({
+            "code": code,
+            "name": plugin_name,
+            "completed": completed,
+            "total": total,
+            "percentage": percentage,
+            "status_text": status_text + active_marker,
+            "active": route is not None,
+        })
+
+    for child_info in catalog["uninitialized"]:
+        uninitialized_rows.append({
+            "code": "--",
+            "name": child_info["name"],
+            "completed": 0,
+            "total": 0,
+            "percentage": 0,
+            "status_text": "-- not initialized --",
+            "active": False,
+        })
+
+    # --- Root features ---
+    features = data.get("features", [])
+    if not isinstance(features, list):
+        features = []
+    feature_items = [f for f in features if isinstance(f, dict)]
+    root_completed = sum(1 for f in feature_items if f.get("completed", False))
+    root_total = len(feature_items)
+    root_pending = [f for f in feature_items if not f.get("completed", False)]
+
+    # --- Active route and queue ---
+    routing_queue: List[str] = data.get("routing_queue") or []
+    if not isinstance(routing_queue, list):
+        routing_queue = []
+
+    active_route_code = None
+    active_feature_name = None
+    for code, route in active_routes_map.items():
+        active_route_code = code
+        ref = route.get("feature_ref") or route.get("feature_name")
+        if ref:
+            active_feature_name = ref
+        break
+
+    if output_json:
+        payload: Dict[str, Any] = {
+            "status": "ok",
+            "dashboard_type": "monorepo",
+            "project_name": data.get("project_name", "Unknown"),
+            "children": [
+                {
+                    "code": r["code"],
+                    "plugin_name": r["name"],
+                    "completed": r["completed"],
+                    "total": r["total"],
+                    "percentage": r["percentage"],
+                    "next_action": r["status_text"].rstrip(" *"),
+                    "active": r["active"],
+                }
+                for r in child_rows
+            ],
+            "uninitialized_plugins": [
+                {"plugin_name": r["name"], "status": r["status_text"]}
+                for r in uninitialized_rows
+            ],
+            "root_features": {
+                "completed": root_completed,
+                "total": root_total,
+                "pending": [
+                    {"id": f.get("id"), "name": f.get("name")}
+                    for f in root_pending
+                ],
+            },
+            "active_route": {
+                "project_code": active_route_code,
+                "feature_ref": active_feature_name,
+            } if active_route_code else None,
+            "queue": [str(c) for c in routing_queue],
+        }
+        print(json.dumps(payload, ensure_ascii=False))
+        return True
+
+    # --- Text output ---
+    print("\n## Monorepo Dashboard")
+    print("")
+    print("| Code | Plugin           | Done  | Pct  | Next Action    |")
+    print("|------|------------------|-------|------|----------------|")
+    for r in child_rows:
+        pct_str = f"{r['percentage']}%"
+        done_str = f"{r['completed']}/{r['total']}"
+        print(f"| {r['code']:<4} | {r['name']:<16} | {done_str:>5} | {pct_str:>4} | {r['status_text']:<14} |")
+    for r in uninitialized_rows:
+        print(f"| {r['code']:<4} | {r['name']:<16} | {r['completed']:>5} | {r['percentage']:>4}% | {r['status_text']:<14} |")
+
+    if root_total > 0 or root_pending:
+        print(f"\nRoot Features: {root_completed}/{root_total} completed")
+        for f in root_pending:
+            print(f"  [ ] {f.get('name', 'Unknown')}")
+
+    active_route_str = "none"
+    if active_route_code:
+        active_route_str = f"{active_route_code}"
+        if active_feature_name:
+            active_route_str += f" -> {active_feature_name}"
+    queue_str = " -> ".join(str(c) for c in routing_queue) if routing_queue else "(empty)"
+    print(f"\nActive Route: {active_route_str}  |  Queue: {queue_str}")
+
+    return True
+
+
+def status(output_json: bool = False) -> bool:
     """Display current progress status."""
     data = load_progress_json()
     if not data:
-        print("No progress tracking found. Use '/prog init' to start tracking.")
+        msg = "No progress tracking found. Use '/prog init' to start tracking."
+        if output_json:
+            print(json.dumps({"status": "error", "message": msg}, ensure_ascii=False))
+        else:
+            print(msg)
         return False
+
+    # Parent tracker: route to root dashboard (CONSTRAINT-004)
+    tracker_role = str(data.get("tracker_role") or DEFAULT_TRACKER_ROLE).strip().lower()
+    if tracker_role == "parent":
+        project_root = find_project_root()
+        repo_root = _resolve_repo_root(project_root)
+        return _display_root_dashboard(data, project_root, repo_root, output_json=output_json)
 
     project_name = data.get("project_name", "Unknown")
     features = data.get("features", [])
@@ -5708,16 +6633,21 @@ def _get_dispatched_child_feature(
     linked_projects: List[Any],
     project_root: Path,
     repo_root: Path,
+    parent_data: Optional[Dict[str, Any]] = None,
     stale_after_hours: int = DEFAULT_LINKED_STATUS_STALE_HOURS,
 ) -> Optional[Dict[str, Any]]:
-    """Scan routing_queue and return the first dispatched child feature, or None."""
+    """Scan routing_queue and return the first dispatchable feature, or None.
+
+    Supports ``ROOT_ROUTE_CODE`` for root-level features and child project
+    codes for child dispatch.  Emits warnings for unknown non-ROOT codes.
+    """
     # Build lookup: code -> linked_project_entry
     lp_lookup: Dict[str, Any] = {}
     for entry in linked_projects:
         if isinstance(entry, dict) and entry.get("project_code"):
             lp_lookup[entry["project_code"]] = entry
 
-    # Build set of conflicted codes from active_routes
+    # Build set of conflicted codes from active_routes (child-only)
     conflicted: set = set()
     for route in active_routes:
         if not isinstance(route, dict):
@@ -5725,7 +6655,6 @@ def _get_dispatched_child_feature(
         status = route.get("status")
         if status in {"done", "cancelled"}:
             continue
-        # Non-terminal route: check if stale
         assigned_at = route.get("assigned_at")
         is_stale = False
         if assigned_at:
@@ -5740,12 +6669,39 @@ def _get_dispatched_child_feature(
             if code:
                 conflicted.add(code)
 
-    # Scan routing_queue for the first dispatchable child
-    for code in routing_queue:
-        if code not in lp_lookup:
+    # Scan routing_queue for the first dispatchable entry
+    for position, code in enumerate(routing_queue, start=1):
+        # ROOT: return root-level pending feature
+        if code == ROOT_ROUTE_CODE:
+            if not isinstance(parent_data, dict):
+                continue
+            root_features = parent_data.get("features", [])
+            if not isinstance(root_features, list):
+                continue
+            for f in root_features:
+                if not isinstance(f, dict):
+                    continue
+                if not f.get("completed", False) and not _is_feature_deferred(f):
+                    return {
+                        "dispatched_to": "root",
+                        "child_project_code": ROOT_ROUTE_CODE,
+                        "child_project_root": str(project_root),
+                        "next_feature_id": f.get("id"),
+                        "next_feature_name": f.get("name"),
+                        "action_required": "prog next",
+                        "position": position,
+                    }
             continue
+
+        # Unknown non-ROOT code: warn and skip (CONSTRAINT-008)
+        if code not in lp_lookup:
+            print(f"[WARN] Code \"{code}\" not found in linked_projects, skipping")
+            continue
+
+        # Child active-route conflict
         if code in conflicted:
             continue
+
         entry = lp_lookup[code]
         raw_project_root = (
             entry.get("project_root") or entry.get("path") or entry.get("root")
@@ -5756,7 +6712,6 @@ def _get_dispatched_child_feature(
         child_data, error = _load_progress_payload_at_root(child_root)
         if error or not child_data:
             continue
-        # Find first pending, non-deferred feature in child
         feature = None
         for f in child_data.get("features", []):
             if not isinstance(f, dict):
@@ -5773,6 +6728,7 @@ def _get_dispatched_child_feature(
             "next_feature_id": feature.get("id"),
             "next_feature_name": feature.get("name"),
             "action_required": f"cd {child_root} && prog next",
+            "position": position,
         }
 
     return None
@@ -5857,22 +6813,42 @@ def next_feature(output_json: bool = False, ack_planning_risk: bool = False) -> 
             try:
                 project_root = find_project_root()
                 repo_root = _REPO_ROOT or project_root
-                child_result = _get_dispatched_child_feature(rq, ar, lp, project_root, repo_root)
-                if child_result:
+                dispatch_result = _get_dispatched_child_feature(
+                    rq, ar, lp, project_root, repo_root, parent_data=data
+                )
+                if dispatch_result:
+                    code = dispatch_result["child_project_code"]
+                    fid = dispatch_result["next_feature_id"]
+                    fname = dispatch_result["next_feature_name"]
+                    action = dispatch_result["action_required"]
+                    pos = dispatch_result.get("position", "?")
                     if output_json:
-                        print(json.dumps(child_result, ensure_ascii=False))
+                        print(json.dumps(dispatch_result, ensure_ascii=False))
                     else:
-                        code = child_result["child_project_code"]
-                        fid = child_result["next_feature_id"]
-                        fname = child_result["next_feature_name"]
-                        action = child_result["action_required"]
-                        print(f"[NEXT] Parent project complete. Found next feature in child [{code}]:")
+                        if code == ROOT_ROUTE_CODE:
+                            print(f"[NEXT] Root-level feature (routing_queue position {pos}):")
+                        else:
+                            print(f"[NEXT] Dispatching to [{code}] (routing_queue position {pos}):")
                         print(f"F{fid}: {fname}")
                         print(f"Run: {action}")
                     return True
             except Exception as exc:
                 logger.debug(f"Parent dispatch failed: {exc}")
-                pass  # Fall through to parent's own features
+
+            # No dispatchable entry found in queue — explicit no-action return
+            no_action_msg = (
+                "No actionable feature found in routing_queue. "
+                "Check queue configuration with 'prog route-status'."
+            )
+            if output_json:
+                print(json.dumps({
+                    "status": "none",
+                    "message": no_action_msg,
+                    "routing_queue": rq,
+                }, ensure_ascii=False))
+            else:
+                print(no_action_msg)
+            return False
 
     feature = get_next_feature()
     if not feature:
@@ -9053,7 +10029,13 @@ def main():
     )
 
     # Status command
-    subparsers.add_parser("status", help="Show progress status")
+    status_parser = subparsers.add_parser("status", help="Show progress status")
+    status_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="output_json",
+        help="Emit machine-readable JSON output only",
+    )
 
     # Check command
     check_parser = subparsers.add_parser("check", help="Check for incomplete progress")
@@ -9430,11 +10412,55 @@ def main():
         dest="output_json",
         help="Emit machine-readable JSON output",
     )
+    discover_children_parser = subparsers.add_parser(
+        "discover-children",
+        help="Auto-discover and register child trackers under a parent.",
+    )
+    discover_children_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="output_json",
+        help="Emit machine-readable JSON output",
+    )
     route_status_parser = subparsers.add_parser(
         "route-status",
         help="Display routing_queue, active_routes, and conflict summary.",
     )
     route_status_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="output_json",
+        help="Emit machine-readable JSON output",
+    )
+    prioritize_parser = subparsers.add_parser(
+        "prioritize",
+        help="Move a queue entry to the front of routing_queue.",
+    )
+    prioritize_parser.add_argument(
+        "code",
+        help="Queue code to prioritize (e.g. PT, ROOT)",
+    )
+    prioritize_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="output_json",
+        help="Emit machine-readable JSON output",
+    )
+    set_queue_parser = subparsers.add_parser(
+        "set-queue",
+        help="Replace routing_queue with an ordered list of codes.",
+    )
+    set_queue_parser.add_argument(
+        "codes",
+        nargs="+",
+        help="Ordered list of queue codes (e.g. PT ROOT NO)",
+    )
+    set_queue_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Allow dropping existing queue codes",
+    )
+    set_queue_parser.add_argument(
         "--json",
         action="store_true",
         dest="output_json",
@@ -9559,7 +10585,7 @@ def main():
         if args.command == "init":
             return init_tracking(args.project_name, force=args.force)
         if args.command == "status":
-            return status()
+            return status(output_json=args.output_json)
         if args.command == "check":
             return check(output_json=args.output_json)
         if args.command == "reconcile":
@@ -9726,8 +10752,18 @@ def main():
                 label=args.label,
                 output_json=args.output_json,
             )
+        if args.command == "discover-children":
+            return discover_children(output_json=args.output_json)
         if args.command == "route-status":
             return route_status(output_json=args.output_json)
+        if args.command == "prioritize":
+            return prioritize_route(code=args.code, output_json=args.output_json)
+        if args.command == "set-queue":
+            return set_routing_queue(
+                codes=args.codes,
+                force=args.force,
+                output_json=args.output_json,
+            )
         if args.command == "route-select":
             return route_select(
                 args.project,

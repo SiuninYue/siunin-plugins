@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-03-17T22:02:30.196758Z",
+  "updated_at": "2026-04-25T23:57:15.960180Z",
   "source": {
     "generator": "progress_manager.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,27 +11,27 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1773669256839444977,
-      "size": 14330
+      "mtime_ns": 1777132633312313894,
+      "size": 33859
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
       "exists": true,
-      "mtime_ns": 1773643155910248560,
-      "size": 5872
+      "mtime_ns": 1777039479002855374,
+      "size": 5753
     }
   },
   "progress": {
-    "completed": 4,
+    "completed": 10,
     "total": 10,
-    "percentage": 40
+    "percentage": 100
   },
   "next_action": {
-    "type": "feature",
-    "feature_id": 5,
-    "feature_name": "NotebookLM template and renderer",
-    "development_stage": "pending",
-    "stage_label": "待开始"
+    "type": "none",
+    "feature_id": null,
+    "feature_name": "无待办功能",
+    "development_stage": null,
+    "stage_label": null
   },
   "plan_health": {
     "status": "N/A",
@@ -47,6 +47,6 @@
   "recent_snapshot": {
     "exists": true,
     "timestamp": "2026-03-16T14:39:15.874993+08:00",
-    "relative_time": "1 天前"
+    "relative_time": "40 天前"
   }
 }

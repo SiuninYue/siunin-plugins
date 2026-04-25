@@ -58,27 +58,28 @@ class TestProjectRootDetection:
         assert progress_manager.configure_project_scope("plugins/note-organizer") is True
         assert progress_manager.find_project_root() == plugin_root
 
-    def test_configure_project_scope_requires_explicit_scope_in_monorepo_root(self, temp_dir):
-        """Should fail in monorepo root when --project-root is omitted."""
+    def test_configure_project_scope_accepts_repo_root(self, temp_dir):
+        """Repo root is a valid tracker scope (F10 CONSTRAINT-001)."""
         os.system(f"git -C {temp_dir} init >/dev/null 2>&1")
         (temp_dir / "plugins" / "note-organizer").mkdir(parents=True)
         os.chdir(temp_dir)
 
-        assert progress_manager.configure_project_scope(None) is False
+        assert progress_manager.configure_project_scope(None) is True
+        assert progress_manager.find_project_root() == temp_dir
 
-    def test_scope_baseline_monorepo_root_next_feature_requires_explicit_scope(
+    def test_scope_baseline_monorepo_root_next_feature_uses_repo_root_tracker(
         self, temp_dir, capsys
     ):
         """
-        Feature 4 scope contract: next-feature must fail closed in monorepo root
-        when --project-root is omitted.
+        F10: next-feature at monorepo root uses the root tracker when one exists.
         """
         os.system(f"git -C {temp_dir} init >/dev/null 2>&1")
         plugin_root = temp_dir / "plugins" / "note-organizer"
         plugin_root.mkdir(parents=True)
         os.chdir(temp_dir)
 
-        assert progress_manager.configure_project_scope("plugins/note-organizer") is True
+        # Initialize root tracker
+        assert progress_manager.configure_project_scope(None) is True
         assert progress_manager.init_tracking("Scope Baseline", force=True) is True
         assert progress_manager.add_feature("Feature 1", ["Step 1"]) is True
 
@@ -90,8 +91,10 @@ class TestProjectRootDetection:
             result = progress_manager.main()
 
         captured = capsys.readouterr()
-        assert result is False
-        assert "Ambiguous monorepo scope" in captured.out
+        assert result is True
+        payload = json.loads([line for line in captured.out.splitlines() if line.strip()][-1])
+        assert payload["dispatched_to"] == "root"
+        assert payload["next_feature_id"] == 1
 
     def test_scope_dot_project_root_from_plugin_dir_targets_plugin_root(self, temp_dir, capsys):
         """`--project-root .` should resolve against cwd when invoked inside a plugin root."""
@@ -120,15 +123,16 @@ class TestProjectRootDetection:
         assert payload["status"] == "ok"
         assert payload["feature_id"] == 1
 
-    def test_scope_monorepo_root_next_feature_recovers_with_explicit_project_root(
+    def test_scope_monorepo_root_next_feature_with_explicit_project_root(
         self, temp_dir, capsys
     ):
-        """After root-scope failure, explicit --project-root should recover deterministically."""
+        """Explicit --project-root still works when repo root tracker exists."""
         os.system(f"git -C {temp_dir} init >/dev/null 2>&1")
         plugin_root = temp_dir / "plugins" / "note-organizer"
         plugin_root.mkdir(parents=True)
         os.chdir(temp_dir)
 
+        # Initialize plugin tracker
         assert progress_manager.configure_project_scope("plugins/note-organizer") is True
         assert progress_manager.init_tracking("Scope Recovery", force=True) is True
         assert progress_manager.add_feature("Feature 1", ["Step 1"]) is True
@@ -141,8 +145,9 @@ class TestProjectRootDetection:
             first_result = progress_manager.main()
         first_output = capsys.readouterr().out
 
+        # Repo root has no tracker yet, so next-feature returns none at root
         assert first_result is False
-        assert "Ambiguous monorepo scope" in first_output
+        assert "No actionable feature found" in first_output
 
         with patch(
             "sys.argv",

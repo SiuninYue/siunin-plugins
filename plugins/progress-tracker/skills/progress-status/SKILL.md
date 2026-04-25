@@ -466,3 +466,39 @@ ProjectRoot: <abs_project_root>
 ```
 
 **All features complete:** Show project summary only (no handoff block).
+
+## Root Dashboard Mode
+
+When `tracker_role == "parent"` (monorepo mixed-host root), `/prog` displays a **Monorepo Dashboard** instead of a single-project status.
+
+### Dashboard Behavior
+
+- **Child summaries are pulled** via `load_status_summary_projection()` for each initialized child plugin.  Dashboard rendering does **not** read full child `progress.json` files.
+- **Uninitialized plugins** show `-- not initialized --` and do **not** cause tracker directory creation.
+- **Corrupt or missing child summaries** fall back to `linked_snapshot` entries; the dashboard never crashes.
+- **Root-level features** appear in their own section, separate from child rows.
+
+### Root-Level Features
+
+- Root-level features are for **repository-wide work** or changes that touch **two or more plugin directories**.
+- Child plugin features should stay in their **child tracker**, not be copied into the parent.
+
+### Next-Feature Routing
+
+- `prog next-feature` scans `routing_queue` in order.
+- `ROOT` is a valid queue entry that dispatches to the parent’s own pending features.
+- Queue entries that are unknown non-ROOT codes are **warned and skipped**; they do not block later entries.
+- A parent without `ROOT` in its queue **does not silently return root features** — queue order is the source of truth.
+
+### Handoff Block for Parent Dashboard
+
+When invoked at a monorepo root with no active feature in progress:
+
+```text
+/progress-tracker:prog-next
+
+Dashboard: Monorepo Root | <completed>/<total> root features done
+Queue: <queue_entries>
+ProjectRoot: <abs_project_root>
+→ Context pre-loaded. Follows routing_queue for next dispatch.
+```

@@ -31,11 +31,11 @@
 - [ ] plan_path CLI normalization
 
 ## Workflow Context
-- Phase: execution_complete
-- Task progress: 11
-- Next action: All tasks completed. Ready for /prog done
-- Execution context: main @ Claude-Plugins [in_place]
-- Current session context: main @ Claude-Plugins [in_place]
+- Phase: execution
+- Task progress: 7
+- Next action: Task 0: Root prog wrapper
+- Execution context: feature/f10-monorepo-prog @ feature-10-monorepo-prog [worktree]
+- Current session context: feature/f10-monorepo-prog @ feature-10-monorepo-prog [worktree]
 
 ### Fixed (✅)
 - [x] [BUG-001] Python falsy trap: current_feature_id=0 被 not 误判为 None，导致 set-workflow-state/auto_checkpoint/wf_auto_driver/route_status 等函数在 feature ID 为 0 时异常跳过

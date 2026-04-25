@@ -1,8 +1,8 @@
 {
-  "schema_version": "2.0",
+  "schema_version": "2.1",
   "project_name": "Note Organizer Plugin",
   "created_at": "2026-02-25T23:15:37.840964Z",
-  "updated_at": "2026-03-26T00:10:56.876836Z",
+  "updated_at": "2026-04-25T23:57:13.312054Z",
   "features": [
     {
       "id": 1,
@@ -61,7 +61,39 @@
         "Scenario: 验证插件清单: ls plugins/note-organizer/.claude-plugin/plugin.json",
         "Scenario: 验证 README: ls plugins/note-organizer/README.md",
         "Scenario: 验证脚本模块: ls plugins/note-organizer/scripts/__init__.py"
-      ]
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
     },
     {
       "id": 2,
@@ -120,7 +152,39 @@
         "Scenario: 运行单元测试: cd plugins/note-organizer && pytest tests/test_clean_timestamps.py -v",
         "Scenario: 测试 CLI 入口: cd plugins/note-organizer && python3 scripts/clean_timestamps.py --help",
         "Scenario: 测试清理功能: echo '[00:01:23] test content' | python3 scripts/clean_timestamps.py /dev/stdin"
-      ]
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
     },
     {
       "id": 3,
@@ -179,7 +243,39 @@
         "Scenario: 运行单元测试: cd plugins/note-organizer && pytest tests/test_batch_scanner.py -v",
         "Scenario: 测试 CLI 入口: cd plugins/note-organizer && python3 scripts/batch_scanner.py --help",
         "Scenario: 测试扫描功能: cd plugins/note-organizer && python3 scripts/batch_scanner.py 'tests/*.py' --json"
-      ]
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
     },
     {
       "id": 4,
@@ -238,7 +334,39 @@
         "Scenario: 验证参考文档: ls plugins/note-organizer/skills/organize-note/references/*.md",
         "Scenario: 检查输入契约: grep '接收：文件内容' plugins/note-organizer/skills/organize-note/SKILL.md",
         "Scenario: 检查输出契约: grep '返回：格式化后的文本' plugins/note-organizer/skills/organize-note/SKILL.md"
-      ]
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
     },
     {
       "id": 5,
@@ -298,6 +426,38 @@
         "archived_at": "2026-03-24T16:40:12.456691Z",
         "files_moved": 0,
         "files": []
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
       }
     },
     {
@@ -353,6 +513,38 @@
         "archived_at": "2026-03-26T00:10:56.876795Z",
         "files_moved": 0,
         "files": []
+      },
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
       }
     },
     {
@@ -408,7 +600,39 @@
         "Scenario: 检查命令格式: grep 'scope: command' plugins/note-organizer/commands/note-process.md",
         "Scenario: 检查 skill 引用: grep 'organize-note' plugins/note-organizer/commands/note-process.md",
         "Scenario: 验证处理步骤: grep '第一步\\|第二步\\|第三步\\|第四步' plugins/note-organizer/commands/note-process.md"
-      ]
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
     },
     {
       "id": 8,
@@ -463,7 +687,39 @@
         "Scenario: 检查命令格式: grep 'scope: command' plugins/note-organizer/commands/note-batch.md",
         "Scenario: 检查路径约定: grep 'CLAUDE_PLUGIN_ROOT' plugins/note-organizer/commands/note-batch.md",
         "Scenario: 验证批量步骤: grep '扫描文件\\|逐个处理\\|生成报告' plugins/note-organizer/commands/note-batch.md"
-      ]
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
     },
     {
       "id": 9,
@@ -518,7 +774,39 @@
         "Scenario: 验证 README 更新: grep 'note-organizer' README.md",
         "Scenario: 检查版本号: grep '1.0.0' .claude-plugin/marketplace.json",
         "Scenario: 验证插件位置: grep 'plugins/note-organizer' .claude-plugin/marketplace.json"
-      ]
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
     },
     {
       "id": 10,
@@ -573,7 +861,39 @@
         "Scenario: 运行 E2E 测试: cd plugins/note-organizer && pytest tests/test_e2e_structure.py -v",
         "Scenario: 验证 NotebookLM 结构测试: grep 'test_notebooklm_output_structure' plugins/note-organizer/tests/test_e2e_structure.py",
         "Scenario: 验证时间戳测试: grep 'test_timestamps_removed' plugins/note-organizer/tests/test_e2e_structure.py"
-      ]
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
     }
   ],
   "current_feature_id": null,
@@ -664,5 +984,16 @@
       "refs": []
     }
   ],
-  "retrospectives": []
+  "retrospectives": [],
+  "linked_projects": [],
+  "linked_snapshot": {
+    "schema_version": "1.0",
+    "updated_at": null,
+    "projects": []
+  },
+  "tracker_role": "child",
+  "project_code": "NO",
+  "routing_queue": [],
+  "active_routes": [],
+  "parent_project_root": "."
 }

@@ -150,6 +150,13 @@ def resolve_target_project_root(
     if plugin_root:
         return plugin_root, repo_root
 
+    # CONSTRAINT-001: Root path resolution is explicit.
+    # When CWD is exactly the repo root and plugins/ exists, the user is
+    # operating at the monorepo root level — return (repo_root, repo_root)
+    # so the parent tracker can be used directly.
+    if current == repo_root and (repo_root / "plugins").is_dir():
+        return repo_root, repo_root
+
     if (repo_root / "plugins").is_dir():
         # In a worktree, try to auto-detect the primary plugin
         if ".worktrees" in str(repo_root):

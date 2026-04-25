@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Root-level prog wrapper for monorepo parent usage.
+# Forwards all arguments to the progress-tracker CLI.
+# Auto-injects --project-root <repo_root> ONLY when caller has not already
+# passed --project-root; explicit child scope is always preserved.
+# Memory routing: delegates to project_memory.py when first non-global arg is "memory".
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PT_PROG="$SCRIPT_DIR/plugins/progress-tracker/prog"
+
+if [[ ! -x "$PT_PROG" ]]; then
+  echo "Error: progress-tracker prog not found at $PT_PROG" >&2
+  exit 1
+fi
+
+# Scan for explicit --project-root to avoid double-injection
+HAS_PROJECT_ROOT=0
+for arg in "$@"; do
+  case "$arg" in
+    --project-root|--project-root=*) HAS_PROJECT_ROOT=1; break ;;
+  esac
+done
+
+if [[ "$HAS_PROJECT_ROOT" -eq 0 ]]; then
+  exec "$PT_PROG" --project-root "$SCRIPT_DIR" "$@"
+else
+  exec "$PT_PROG" "$@"
+fi
