@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "created_at": "2026-04-12T09:38:02.910760Z",
-  "updated_at": "2026-04-21T14:19:18.717255Z",
-  "next_capability_seq": 8,
+  "updated_at": "2026-04-26T02:17:55.189374Z",
+  "next_capability_seq": 9,
   "last_synced_commit": null,
   "capabilities": [
     {
@@ -147,6 +147,27 @@
       },
       "created_at": "2026-04-21T14:19:18.717222Z",
       "updated_at": "2026-04-21T14:19:18.717222Z"
+    },
+    {
+      "cap_id": "CAP-008",
+      "fingerprint": "62992655f28b8f00",
+      "title": "Monorepo Mixed Host Architecture",
+      "summary": "F10 implemented root-level /prog support with Pull-based dashboard, ROOT dispatch, child discovery, queue management, and summary freshness. Code review fixed 2 Critical and 4 Important issues before merge.",
+      "tags": [
+        "monorepo",
+        "dashboard",
+        "routing",
+        "architecture"
+      ],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 10,
+        "commit_hash": "2a6c963c60197e7b24a0c8e5e968aaadc9eb597f",
+        "commit_range": ""
+      },
+      "created_at": "2026-04-26T02:17:55.189303Z",
+      "updated_at": "2026-04-26T02:17:55.189303Z"
     }
   ],
   "rejected_fingerprints": [],
