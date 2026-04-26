@@ -242,7 +242,6 @@ MUTATING_COMMANDS = {
     "review-pass",
     "ship-check",
     "backfill-event",
-    "discover-children",
 }
 ROUTE_PREFLIGHT_EXEMPT_COMMANDS = {
     "init",
@@ -1406,84 +1405,31 @@ def link_project(
             print(message)
         return False
 
-    child_data["tracker_role"] = "child"
-    child_data["project_code"] = normalized_code
-    child_data["parent_project_root"] = _serialize_project_root_for_config(parent_root, repo_root)
-    _save_progress_payload_at_root(child_root, child_data)
-
-    child_name = child_data.get("project_name")
-    inferred_label = (
-        child_name.strip()
-        if isinstance(child_name, str) and child_name.strip()
-        else child_root.name
-    )
-    normalized_label = (
-        label.strip() if isinstance(label, str) and label.strip() else inferred_label
-    )
-    configured_project_root = _serialize_project_root_for_config(child_root, repo_root)
-
-    linked_projects = parent_data.get("linked_projects")
-    if not isinstance(linked_projects, list):
-        linked_projects = []
-
+    # Collect previous codes for migration before delegating to helper
     previous_codes: Set[str] = set()
-    deduped_projects: List[Any] = []
-    target_written = False
-    for entry in linked_projects:
-        entry_root_raw: Optional[str]
-        entry_code_raw: Optional[str]
-        if isinstance(entry, dict):
-            raw_value = entry.get("project_root") or entry.get("path") or entry.get("root")
-            entry_root_raw = str(raw_value).strip() if raw_value is not None else None
-            entry_code_raw = entry.get("project_code")
-        elif isinstance(entry, str):
-            entry_root_raw = entry.strip()
-            entry_code_raw = None
-        else:
-            deduped_projects.append(entry)
-            continue
+    linked_projects = parent_data.get("linked_projects")
+    if isinstance(linked_projects, list):
+        for entry in linked_projects:
+            if isinstance(entry, dict):
+                raw_value = entry.get("project_root") or entry.get("path") or entry.get("root")
+                entry_root_raw = str(raw_value).strip() if raw_value is not None else None
+                entry_code_raw = entry.get("project_code")
+                if entry_root_raw:
+                    entry_root = _resolve_linked_project_root(entry_root_raw, parent_root, repo_root)
+                    entry_code = (
+                        str(entry_code_raw).strip().upper()
+                        if isinstance(entry_code_raw, str) and entry_code_raw.strip()
+                        else None
+                    )
+                    if entry_code and entry_root == child_root and entry_code != normalized_code:
+                        previous_codes.add(entry_code)
 
-        entry_root = (
-            _resolve_linked_project_root(entry_root_raw, parent_root, repo_root)
-            if entry_root_raw
-            else None
-        )
-        entry_code = (
-            str(entry_code_raw).strip().upper()
-            if isinstance(entry_code_raw, str) and entry_code_raw.strip()
-            else None
-        )
+    # Delegate core registration to _link_child_to_parent
+    _link_child_to_parent(
+        parent_data, parent_root, repo_root, child_root, normalized_code, label=label
+    )
 
-        if entry_code and entry_root == child_root and entry_code != normalized_code:
-            previous_codes.add(entry_code)
-
-        matches_target = (entry_root == child_root) or (entry_code == normalized_code)
-        if matches_target:
-            if target_written:
-                continue
-            base_entry = entry if isinstance(entry, dict) else {}
-            updated_entry = dict(base_entry)
-            updated_entry["project_root"] = configured_project_root
-            updated_entry["project_code"] = normalized_code
-            updated_entry["label"] = normalized_label
-            deduped_projects.append(updated_entry)
-            target_written = True
-            continue
-
-        deduped_projects.append(entry)
-
-    if not target_written:
-        deduped_projects.append(
-            {
-                "project_root": configured_project_root,
-                "project_code": normalized_code,
-                "label": normalized_label,
-            }
-        )
-
-    parent_data["linked_projects"] = deduped_projects
-    parent_data["tracker_role"] = "parent"
-
+    # Post-registration: migrate previous_codes in routing_queue
     routing_queue = parent_data.get("routing_queue")
     if not isinstance(routing_queue, list):
         routing_queue = []
@@ -1497,15 +1443,13 @@ def link_project(
             continue
         if token in previous_codes:
             continue
-        if token == normalized_code:
-            continue
         if token in seen_queue_codes:
             continue
         seen_queue_codes.add(token)
         normalized_queue.append(token)
-    normalized_queue.append(normalized_code)
     parent_data["routing_queue"] = normalized_queue
 
+    # Post-registration: migrate previous_codes in active_routes
     active_routes = parent_data.get("active_routes")
     if not isinstance(active_routes, list):
         active_routes = []
@@ -1543,6 +1487,15 @@ def link_project(
     _update_runtime_context(parent_data, source="link_project")
     save_progress_json(parent_data)
     save_progress_md(generate_progress_md(parent_data))
+
+    # Derive output values from updated parent_data
+    configured_project_root = _serialize_project_root_for_config(child_root, repo_root)
+    linked_entry = None
+    for entry in parent_data.get("linked_projects", []):
+        if isinstance(entry, dict) and entry.get("project_code") == normalized_code:
+            linked_entry = entry
+            break
+    normalized_label = linked_entry.get("label", child_root.name) if linked_entry else child_root.name
 
     payload = {
         "status": "ok",
@@ -1598,24 +1551,30 @@ def _generate_project_code(plugin_name: str, used_codes: Set[str]) -> str:
     base = _derive_plugin_code(plugin_name)
     if base not in used_codes:
         return base
-    # Collision – append numeric suffix
+    # Collision – truncate base to leave room for suffix within 8-char limit
     for suffix in range(2, 100):
-        candidate = f"{base}{suffix}"
-        if len(candidate) > 8:
-            candidate = candidate[:8]
+        candidate = f"{base}{suffix}"[:8]
         if candidate not in used_codes:
             logger.warning(
                 f"Code collision: derived '{base}' already used; "
                 f"assigned '{candidate}' for plugin '{plugin_name}'"
             )
             return candidate
-    # Fallback: truncate and timestamp
+    # Fallback: try progressively shorter bases with suffixes
+    for prefix_len in range(7, 3, -1):
+        for suffix in range(2, 100):
+            candidate = f"{base[:prefix_len]}{suffix}"
+            if len(candidate) <= 8 and candidate not in used_codes:
+                logger.warning(
+                    f"Code collision exhausted for plugin '{plugin_name}'; "
+                    f"using fallback '{candidate}'"
+                )
+                return candidate
+    # Ultimate fallback
     fallback = base[:6] + "XX"
-    logger.warning(
-        f"Code collision exhausted for plugin '{plugin_name}'; "
-        f"using fallback '{fallback}'"
-    )
-    return fallback
+    if fallback not in used_codes:
+        return fallback
+    raise ValueError(f"Cannot generate unique project code for '{plugin_name}'")
 
 
 def _discover_plugin_catalog(
@@ -1855,10 +1814,6 @@ def _auto_discover_child_plugins(
 
     # Initialize empty queue as [ROOT] + sorted(initialized_codes) if queue is empty
     if not existing_queue:
-        initialized_codes = [
-            _generate_project_code(info["name"], set())
-            for info in catalog["initialized"]
-        ]
         # Re-derive properly with all codes considered
         all_codes: Set[str] = set()
         final_codes: List[str] = [ROOT_ROUTE_CODE]
@@ -2214,106 +2169,6 @@ def _resolve_repo_root(project_root: Path) -> Path:
     """Resolve the git repo root from the project root."""
     from prog_paths import resolve_repo_root
     return resolve_repo_root(cwd=project_root)
-    """Display routing_queue, active_routes, and conflict summary."""
-    data = load_progress_json()
-    if not data:
-        message = "No progress tracking found. Use init first."
-        if output_json:
-            print(json.dumps({"status": "error", "message": message}, ensure_ascii=False))
-        else:
-            print(message)
-        return False
-
-    routing_queue: List[str] = data.get("routing_queue") or []
-    if not isinstance(routing_queue, list):
-        routing_queue = []
-
-    active_routes: List[Any] = data.get("active_routes") or []
-    if not isinstance(active_routes, list):
-        active_routes = []
-
-    linked_projects: List[Any] = data.get("linked_projects") or []
-    if not isinstance(linked_projects, list):
-        linked_projects = []
-
-    # Collect linked project codes for conflict Type B check
-    linked_codes: set = set()
-    for entry in linked_projects:
-        if isinstance(entry, dict):
-            code_raw = entry.get("project_code")
-            if isinstance(code_raw, str) and code_raw.strip():
-                linked_codes.add(code_raw.strip().upper())
-
-    # Detect conflicts
-    conflicts: List[Dict[str, Any]] = []
-
-    # Type A: duplicate project_code in active_routes
-    seen_codes: Dict[str, int] = {}
-    for route in active_routes:
-        if not isinstance(route, dict):
-            continue
-        code_raw = route.get("project_code")
-        if not isinstance(code_raw, str):
-            continue
-        code = code_raw.strip().upper()
-        seen_codes[code] = seen_codes.get(code, 0) + 1
-    for code, count in seen_codes.items():
-        if count > 1:
-            conflicts.append(
-                {"type": "A", "code": code, "message": f"duplicate in active_routes ({count} entries)"}
-            )
-
-    # Type B: routing_queue code not in linked_projects
-    for item in routing_queue:
-        if not isinstance(item, str):
-            continue
-        code = item.strip().upper()
-        if code and code not in linked_codes:
-            conflicts.append(
-                {"type": "B", "code": code, "message": f"{code} in routing_queue but not in linked_projects"}
-            )
-
-    # Type C: 2+ distinct project_codes in active_routes (parallel execution conflict) (F20)
-    parallel_routes = _detect_parallel_active_routes(active_routes)
-    if parallel_routes:
-        codes = [str(r.get("project_code", "?")) for r in parallel_routes]
-        conflicts.append(
-            {"type": "C", "codes": codes, "message": f"parallel active routes: {', '.join(codes)}"}
-        )
-
-    if output_json:
-        print(
-            json.dumps(
-                {
-                    "status": "ok",
-                    "routing_queue": routing_queue,
-                    "active_routes": active_routes,
-                    "conflicts": conflicts,
-                },
-                ensure_ascii=False,
-            )
-        )
-        return True
-
-    print("Route Status")
-    print("============")
-    print(f"routing_queue: {routing_queue or '(empty)'}")
-    print()
-    if active_routes:
-        print("active_routes:")
-        for route in active_routes:
-            if isinstance(route, dict):
-                code = route.get("project_code", "?")
-                ref = route.get("feature_ref") or "(no feature_ref)"
-                print(f"  {code} -> {ref}")
-    else:
-        print("active_routes: (empty)")
-    if conflicts:
-        print()
-        print("Conflicts:")
-        for c in conflicts:
-            print(f"  [{c['type']}] {c['message']}")
-    return True
 
 
 def route_select(

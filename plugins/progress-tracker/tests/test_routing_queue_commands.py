@@ -28,8 +28,8 @@ def _make_parent_data(queue=None, linked=None):
         "schema_version": progress_manager.CURRENT_SCHEMA_VERSION,
         "project_name": "Parent",
         "tracker_role": "parent",
-        "project_code": "ROOT",
-        "routing_queue": queue if queue is not None else ["ROOT"],
+        "project_code": progress_manager.ROOT_ROUTE_CODE,
+        "routing_queue": queue if queue is not None else [progress_manager.ROOT_ROUTE_CODE],
         "linked_projects": linked if linked is not None else [],
         "features": [],
         "active_routes": [],
@@ -53,7 +53,7 @@ class TestPrioritizeRoute:
         monkeypatch.setattr("os.getcwd", lambda: str(tmp_path))
 
         data = _make_parent_data(
-            queue=["ROOT", "PT", "NO"],
+            queue=[progress_manager.ROOT_ROUTE_CODE, "PT", "NO"],
             linked=[
                 {"project_code": "PT", "project_root": "/plugins/pt"},
                 {"project_code": "NO", "project_root": "/plugins/no"},
@@ -69,7 +69,7 @@ class TestPrioritizeRoute:
         assert "NO -> ROOT -> PT" in captured.out
 
         saved = progress_manager.load_progress_json()
-        assert saved["routing_queue"] == ["NO", "ROOT", "PT"]
+        assert saved["routing_queue"] == ["NO", progress_manager.ROOT_ROUTE_CODE, "PT"]
 
     def test_prioritize_root(self, tmp_path, monkeypatch, capsys):
         """ROOT can be prioritized even though it is not in linked_projects."""
@@ -77,14 +77,14 @@ class TestPrioritizeRoute:
         progress_manager._STORAGE_READY_ROOT = None
         monkeypatch.setattr("os.getcwd", lambda: str(tmp_path))
 
-        data = _make_parent_data(queue=["PT", "ROOT"])
+        data = _make_parent_data(queue=["PT", progress_manager.ROOT_ROUTE_CODE])
         progress_manager.save_progress_json(data)
 
-        result = progress_manager.prioritize_route("ROOT", output_json=False)
+        result = progress_manager.prioritize_route(progress_manager.ROOT_ROUTE_CODE, output_json=False)
         assert result is True
 
         saved = progress_manager.load_progress_json()
-        assert saved["routing_queue"][0] == "ROOT"
+        assert saved["routing_queue"][0] == progress_manager.ROOT_ROUTE_CODE
 
     def test_prioritize_invalid_code(self, tmp_path, monkeypatch, capsys):
         """Prioritizing an unknown code returns an error."""
@@ -92,7 +92,7 @@ class TestPrioritizeRoute:
         progress_manager._STORAGE_READY_ROOT = None
         monkeypatch.setattr("os.getcwd", lambda: str(tmp_path))
 
-        data = _make_parent_data(queue=["ROOT", "PT"])
+        data = _make_parent_data(queue=[progress_manager.ROOT_ROUTE_CODE, "PT"])
         progress_manager.save_progress_json(data)
 
         result = progress_manager.prioritize_route("GHOST", output_json=False)
@@ -107,7 +107,7 @@ class TestPrioritizeRoute:
         monkeypatch.setattr("os.getcwd", lambda: str(tmp_path))
 
         data = _make_parent_data(
-            queue=["ROOT", "PT"],
+            queue=[progress_manager.ROOT_ROUTE_CODE, "PT"],
             linked=[
                 {"project_code": "PT", "project_root": "/plugins/pt"},
             ],
@@ -120,7 +120,7 @@ class TestPrioritizeRoute:
         payload = json.loads(capsys.readouterr().out)
         assert payload["status"] == "ok"
         assert payload["code"] == "PT"
-        assert payload["routing_queue"] == ["PT", "ROOT"]
+        assert payload["routing_queue"] == ["PT", progress_manager.ROOT_ROUTE_CODE]
 
     def test_prioritize_non_parent_rejected(self, tmp_path, monkeypatch, capsys):
         """Non-parent tracker rejects prioritize."""
@@ -152,7 +152,7 @@ class TestSetRoutingQueue:
         monkeypatch.setattr("os.getcwd", lambda: str(tmp_path))
 
         data = _make_parent_data(
-            queue=["ROOT", "PT", "NO"],
+            queue=[progress_manager.ROOT_ROUTE_CODE, "PT", "NO"],
             linked=[
                 {"project_code": "PT", "project_root": "/plugins/pt"},
                 {"project_code": "NO", "project_root": "/plugins/no"},
@@ -161,12 +161,12 @@ class TestSetRoutingQueue:
         progress_manager.save_progress_json(data)
 
         result = progress_manager.set_routing_queue(
-            ["NO", "ROOT", "PT"], force=False, output_json=False
+            ["NO", progress_manager.ROOT_ROUTE_CODE, "PT"], force=False, output_json=False
         )
         assert result is True
 
         saved = progress_manager.load_progress_json()
-        assert saved["routing_queue"] == ["NO", "ROOT", "PT"]
+        assert saved["routing_queue"] == ["NO", progress_manager.ROOT_ROUTE_CODE, "PT"]
 
     def test_set_queue_requires_existing_codes(self, tmp_path, monkeypatch, capsys):
         """Without --force, existing queue codes must be present."""
@@ -175,7 +175,7 @@ class TestSetRoutingQueue:
         monkeypatch.setattr("os.getcwd", lambda: str(tmp_path))
 
         data = _make_parent_data(
-            queue=["ROOT", "PT", "NO"],
+            queue=[progress_manager.ROOT_ROUTE_CODE, "PT", "NO"],
             linked=[
                 {"project_code": "PT", "project_root": "/plugins/pt"},
                 {"project_code": "NO", "project_root": "/plugins/no"},
@@ -185,7 +185,7 @@ class TestSetRoutingQueue:
 
         # Omitting NO should fail without --force
         result = progress_manager.set_routing_queue(
-            ["ROOT", "PT"], force=False, output_json=False
+            [progress_manager.ROOT_ROUTE_CODE, "PT"], force=False, output_json=False
         )
         assert result is False
         captured = capsys.readouterr()
@@ -198,7 +198,7 @@ class TestSetRoutingQueue:
         monkeypatch.setattr("os.getcwd", lambda: str(tmp_path))
 
         data = _make_parent_data(
-            queue=["ROOT", "PT", "NO"],
+            queue=[progress_manager.ROOT_ROUTE_CODE, "PT", "NO"],
             linked=[
                 {"project_code": "PT", "project_root": "/plugins/pt"},
                 {"project_code": "NO", "project_root": "/plugins/no"},
@@ -207,12 +207,12 @@ class TestSetRoutingQueue:
         progress_manager.save_progress_json(data)
 
         result = progress_manager.set_routing_queue(
-            ["ROOT", "PT"], force=True, output_json=False
+            [progress_manager.ROOT_ROUTE_CODE, "PT"], force=True, output_json=False
         )
         assert result is True
 
         saved = progress_manager.load_progress_json()
-        assert saved["routing_queue"] == ["ROOT", "PT"]
+        assert saved["routing_queue"] == [progress_manager.ROOT_ROUTE_CODE, "PT"]
 
     def test_set_queue_rejects_invalid_code(self, tmp_path, monkeypatch, capsys):
         """Invalid non-ROOT code is rejected."""
@@ -220,7 +220,7 @@ class TestSetRoutingQueue:
         progress_manager._STORAGE_READY_ROOT = None
         monkeypatch.setattr("os.getcwd", lambda: str(tmp_path))
 
-        data = _make_parent_data(queue=["ROOT"])
+        data = _make_parent_data(queue=[progress_manager.ROOT_ROUTE_CODE])
         progress_manager.save_progress_json(data)
 
         result = progress_manager.set_routing_queue(
@@ -235,11 +235,11 @@ class TestSetRoutingQueue:
         progress_manager._STORAGE_READY_ROOT = None
         monkeypatch.setattr("os.getcwd", lambda: str(tmp_path))
 
-        data = _make_parent_data(queue=["ROOT"])
+        data = _make_parent_data(queue=[progress_manager.ROOT_ROUTE_CODE])
         progress_manager.save_progress_json(data)
 
         result = progress_manager.set_routing_queue(
-            ["ROOT"], force=False, output_json=False
+            [progress_manager.ROOT_ROUTE_CODE], force=False, output_json=False
         )
         assert result is True
 
@@ -250,7 +250,7 @@ class TestSetRoutingQueue:
         monkeypatch.setattr("os.getcwd", lambda: str(tmp_path))
 
         data = _make_parent_data(
-            queue=["ROOT", "PT"],
+            queue=[progress_manager.ROOT_ROUTE_CODE, "PT"],
             linked=[
                 {"project_code": "PT", "project_root": "/plugins/pt"},
             ],
@@ -258,13 +258,13 @@ class TestSetRoutingQueue:
         progress_manager.save_progress_json(data)
 
         result = progress_manager.set_routing_queue(
-            ["PT", "ROOT"], force=False, output_json=True
+            ["PT", progress_manager.ROOT_ROUTE_CODE], force=False, output_json=True
         )
         assert result is True
 
         payload = json.loads(capsys.readouterr().out)
         assert payload["status"] == "ok"
-        assert payload["routing_queue"] == ["PT", "ROOT"]
+        assert payload["routing_queue"] == ["PT", progress_manager.ROOT_ROUTE_CODE]
 
     def test_set_queue_non_parent_rejected(self, tmp_path, monkeypatch, capsys):
         """Non-parent tracker rejects set-queue."""
@@ -277,7 +277,7 @@ class TestSetRoutingQueue:
         progress_manager.save_progress_json(data)
 
         result = progress_manager.set_routing_queue(
-            ["ROOT"], force=False, output_json=False
+            [progress_manager.ROOT_ROUTE_CODE], force=False, output_json=False
         )
         assert result is False
         assert "only runs from a parent" in capsys.readouterr().out

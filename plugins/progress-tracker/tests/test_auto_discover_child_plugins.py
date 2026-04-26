@@ -243,8 +243,8 @@ class TestAutoDiscoverChildPlugins:
                 "schema_version": "2.1",
                 "project_name": "Test Parent",
                 "tracker_role": "parent",
-                "project_code": "ROOT",
-                "routing_queue": ["ROOT"],
+                "project_code": progress_manager.ROOT_ROUTE_CODE,
+                "routing_queue": [progress_manager.ROOT_ROUTE_CODE],
                 "features": [],
                 "current_feature_id": None,
             }
@@ -269,7 +269,7 @@ class TestAutoDiscoverChildPlugins:
 
             # Queue should include ROOT + child codes
             queue = parent_data.get("routing_queue", [])
-            assert "ROOT" in queue
+            assert progress_manager.ROOT_ROUTE_CODE in queue
             assert "PT" in queue
             assert "NO" in queue
 
@@ -306,8 +306,8 @@ class TestAutoDiscoverChildPlugins:
                 "schema_version": "2.1",
                 "project_name": "Test Parent",
                 "tracker_role": "parent",
-                "project_code": "ROOT",
-                "routing_queue": ["PT", "ROOT"],
+                "project_code": progress_manager.ROOT_ROUTE_CODE,
+                "routing_queue": ["PT", progress_manager.ROOT_ROUTE_CODE],
                 "linked_projects": [
                     {
                         "project_root": "plugins/progress-tracker",
@@ -327,7 +327,7 @@ class TestAutoDiscoverChildPlugins:
 
             queue = parent_data["routing_queue"]
             # PT and ROOT should be preserved in their original order
-            assert queue.index("PT") < queue.index("ROOT")
+            assert queue.index("PT") < queue.index(progress_manager.ROOT_ROUTE_CODE)
             # NO should be appended after
             assert "NO" in queue
             assert queue[-1] == "NO"

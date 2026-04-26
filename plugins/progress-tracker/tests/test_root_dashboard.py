@@ -118,8 +118,8 @@ def parent_data(parent_project):
         "schema_version": progress_manager.CURRENT_SCHEMA_VERSION,
         "project_name": "Test Parent",
         "tracker_role": "parent",
-        "project_code": "ROOT",
-        "routing_queue": ["ROOT", "CA", "CB"],
+        "project_code": progress_manager.ROOT_ROUTE_CODE,
+        "routing_queue": [progress_manager.ROOT_ROUTE_CODE, "CA", "CB"],
         "features": [
             {"id": 100, "name": "Root Feature 1", "completed": False},
         ],
@@ -226,7 +226,7 @@ class TestDisplayRootDashboard:
         captured = capsys.readouterr()
         assert "Active Route:" in captured.out
         assert "Queue:" in captured.out
-        assert "ROOT" in captured.out
+        assert progress_manager.ROOT_ROUTE_CODE in captured.out
         assert "CA" in captured.out
         assert "CB" in captured.out
 
@@ -247,7 +247,7 @@ class TestDisplayRootDashboard:
         assert isinstance(payload["children"], list)
         assert isinstance(payload["uninitialized_plugins"], list)
         assert payload["root_features"]["total"] == 1
-        assert payload["queue"] == ["ROOT", "CA", "CB"]
+        assert payload["queue"] == [progress_manager.ROOT_ROUTE_CODE, "CA", "CB"]
 
     def test_summary_fallback_to_linked_snapshot(self, parent_project, parent_data, capsys):
         """When load_status_summary_projection fails, fallback to linked_snapshot."""
