@@ -3874,6 +3874,66 @@ def archive_current_progress(reason: str) -> Optional[Dict[str, Any]]:
     return entry
 
 
+def _reset_active_progress(data: Dict[str, Any]) -> None:
+    """Clear active progress state after all features are completed.
+
+    Fail-closed: writes the ``project_completed`` audit boundary event FIRST.
+    If the audit write raises any exception, the function returns immediately
+    WITHOUT modifying the active state — this prevents old-cycle
+    ``feature_completed`` events from corrupting the next cycle's
+    reconcile/backfill.
+
+    Args:
+        data: The in-memory progress dict (mutated in place and saved to disk).
+    """
+    # 1. Fail-closed: write audit boundary event FIRST.
+    try:
+        record_feature_state_event(
+            event_type="project_completed",
+            feature_id=None,
+            feature_name=None,
+        )
+    except Exception as exc:
+        print(
+            f"Warning: _reset_active_progress: failed to write project_completed "
+            f"audit event — aborting reset to prevent state corruption. "
+            f"Error: {exc}"
+        )
+        return
+
+    # 2. Clear tracked collections.
+    data["features"] = []
+    data["bugs"] = []
+    data["updates"] = []
+    data["retrospectives"] = []
+
+    # 3. Clear current IDs and workflow state.
+    data["current_feature_id"] = None
+    data["current_bug_id"] = None
+    data.pop("workflow_state", None)
+
+    # 4. Reset runtime_context work fields (preserve structure, clear work).
+    runtime_context = data.get("runtime_context")
+    if isinstance(runtime_context, dict):
+        runtime_context.update({
+            "current_feature_id": None,
+            "workflow_phase": None,
+            "current_task": None,
+            "total_tasks": None,
+            "next_action": None,
+        })
+
+    # 5. Update timestamp.
+    data["updated_at"] = _iso_now()
+
+    # 6. Save and regenerate.
+    save_progress_json(data)
+    md_content = generate_progress_md(data)
+    save_progress_md(md_content)
+
+    print("Active progress cleared — project state is now 0/0.")
+
+
 def _is_project_fully_completed(data: Dict[str, Any]) -> bool:
     """Return True when all tracked features are completed."""
     features = data.get("features", [])
