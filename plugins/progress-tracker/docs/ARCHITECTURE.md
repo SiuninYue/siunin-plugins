@@ -18,7 +18,7 @@ Progress Tracker is a Claude Code plugin that provides cross-session progress tr
 │  │ /prog next   │      │implement     │      │              │  │
 │  │ /prog done   │      │breakdown     │      │check command │  │
 │  │ /prog status │      │architectural │      │              │  │
-│  │ /prog fix    │      │planning      │      │              │  │
+│  │ /prog-fix    │      │planning      │      │              │  │
 │  └──────────────┘      └──────────────┘      └──────────────┘  │
 │                                                  │              │
 │                                                  ▼              │
@@ -298,7 +298,7 @@ progress-tracker/
 
 ```json
 {
-  "schema_version": "2.0",
+  "schema_version": "2.1",
   "project_name": "Project Name",
   "created_at": "2024-01-15T10:30:00Z",
   "updated_at": "2024-01-15T14:20:00Z",

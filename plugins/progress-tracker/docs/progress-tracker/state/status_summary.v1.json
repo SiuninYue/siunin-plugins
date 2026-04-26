@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-04-25T23:57:15.961598Z",
+  "updated_at": "2026-04-26T17:08:56.147808Z",
   "source": {
     "generator": "progress_manager.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,32 +11,32 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1777132633313825804,
-      "size": 37622
+      "mtime_ns": 1777169869687183105,
+      "size": 37034
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
       "exists": true,
-      "mtime_ns": 1777039479013634249,
+      "mtime_ns": 1777169787964702600,
       "size": 5896
     }
   },
   "progress": {
-    "completed": 1,
+    "completed": 3,
     "total": 12,
-    "percentage": 8
+    "percentage": 25
   },
   "next_action": {
     "type": "feature",
-    "feature_id": 0,
-    "feature_name": "Robust Progress State Architecture - Event Sourcing & Reconciliation",
-    "development_stage": "developing",
-    "stage_label": "开发中"
+    "feature_id": 9,
+    "feature_name": "Refactor progress_manager into modular command helpers",
+    "development_stage": "pending",
+    "stage_label": "待开始"
   },
   "plan_health": {
-    "status": "OK",
-    "plan_path": "docs/plans/2026-04-24-f10-monorepo-mixed-host-v2.md",
-    "message": "计划文件完整且符合规范"
+    "status": "N/A",
+    "plan_path": null,
+    "message": "无活跃计划"
   },
   "risk_blocker": {
     "has_risk": false,
