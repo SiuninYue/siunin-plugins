@@ -1,0 +1,58 @@
+{
+  "schema_version": "2.1",
+  "project_name": "Claude-Plugins Monorepo Test",
+  "created_at": "2026-04-25T23:57:13.303927Z",
+  "updated_at": "2026-04-25T23:57:37.735556Z",
+  "features": [],
+  "current_feature_id": null,
+  "tracker_role": "parent",
+  "project_code": "ROOT",
+  "routing_queue": [
+    "ROOT",
+    "PT",
+    "NO",
+    "SPM"
+  ],
+  "linked_projects": [
+    {
+      "project_root": "plugins/note-organizer",
+      "project_code": "NO",
+      "label": "Note Organizer Plugin"
+    },
+    {
+      "project_root": "plugins/progress-tracker",
+      "project_code": "PT",
+      "label": "progress-tracker-sop-compliance-optimization"
+    },
+    {
+      "project_root": "plugins/super-product-manager",
+      "project_code": "SPM",
+      "label": "SPM-PROG Harness Linkage"
+    }
+  ],
+  "linked_snapshot": {
+    "schema_version": "1.0",
+    "updated_at": null,
+    "projects": []
+  },
+  "active_routes": [],
+  "updates": [],
+  "retrospectives": [],
+  "runtime_context": {
+    "recorded_at": "2026-04-25T23:57:28.536260Z",
+    "source": "prioritize_route",
+    "workspace_mode": "worktree",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-10-monorepo-prog",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-10-monorepo-prog",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-10-monorepo-prog",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-10-monorepo-prog",
+    "branch": "feature/f10-monorepo-prog",
+    "upstream": null,
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-10-monorepo-prog",
+    "current_feature_id": null,
+    "workflow_phase": null,
+    "current_task": null,
+    "total_tasks": null,
+    "next_action": null
+  }
+}

@@ -38,14 +38,21 @@ def _save_progress(plugin_root: Path, payload: dict) -> None:
     )
 
 
-def test_monorepo_root_blocks_mutating_command_when_scope_is_ambiguous(temp_dir, capsys):
-    """Mutating commands must fail closed at monorepo root when multiple trackers exist."""
+def test_monorepo_root_creates_tracker_when_scope_is_repo_root(temp_dir, capsys):
+    """F10: Mutating commands at repo root succeed when root tracker exists."""
     os.system(f"git -C {temp_dir} init >/dev/null 2>&1")
 
     _init_tracker(temp_dir, "alpha-plugin", "Alpha Tracker")
     _init_tracker(temp_dir, "beta-plugin", "Beta Tracker")
 
+    # Initialize root tracker first
     os.chdir(temp_dir)
+    progress_manager.configure_project_scope(None)
+    progress_manager.init_tracking("Root Tracker", force=True)
+    progress_manager._PROJECT_ROOT_OVERRIDE = None
+    progress_manager._REPO_ROOT = None
+    progress_manager._STORAGE_READY_ROOT = None
+
     with patch(
         "sys.argv",
         ["progress_manager.py", "add-feature", "Feature X", "Step 1"],
@@ -53,9 +60,14 @@ def test_monorepo_root_blocks_mutating_command_when_scope_is_ambiguous(temp_dir,
         result = progress_manager.main()
 
     output = capsys.readouterr().out
-    assert result in (False, 1)  # Accept both bool and int for error returns
-    assert "Ambiguous monorepo scope" in output
-    assert "prog --project-root plugins/<name>" in output
+    # Root tracker exists, feature is added (F10 CONSTRAINT-001)
+    assert result is True
+    assert "Added feature: Feature X" in output
+    root_progress = temp_dir / "docs" / "progress-tracker" / "state" / "progress.json"
+    assert root_progress.exists()
+    payload = json.loads(root_progress.read_text(encoding="utf-8"))
+    assert payload["tracker_role"] == "parent"
+    assert payload["project_code"] == "ROOT"
 
 
 def test_explicit_project_root_recovers_mutating_command_from_monorepo_root(temp_dir):

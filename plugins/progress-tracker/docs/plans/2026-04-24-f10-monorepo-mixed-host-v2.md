@@ -78,10 +78,11 @@ Root status flow:
 
 1. Load root parent `progress.json`.
 2. Read root features from the parent payload.
-3. Iterate `linked_projects`.
-4. For each initialized child, call `load_status_summary_projection(str(child_root))`.
+3. Call `_discover_plugin_catalog(repo_root, parent_root)` (read-only) to get the two-tier plugin list.
+4. For each **initialized** plugin (has tracker), call `load_status_summary_projection(str(child_root))`.
 5. If summary loading fails, read matching fallback data from `linked_snapshot`.
-6. Render root features, child rows, active route, and queue.
+6. For each **uninitialized** plugin (no tracker), render `-- not initialized --` directly without any file writes.
+7. Render root features, child rows, active route, and queue.
 
 Root next-feature flow:
 
@@ -120,6 +121,8 @@ Child update flow:
 **Decision:** A root tracker can own root-level features and aggregate child tracker status.
 
 **Consequence:** Root `progress.json` stores root features plus child references, not copied child feature lists.
+
+> **Q4 Evolution Note:** ADR-001 extends the Q4 decision that "parent stores only metadata." Root `progress.json` now stores (1) root-level features that participate in `routing_queue` via `ROOT_ROUTE_CODE`, and (2) child plugin reference metadata. It does **not** store copies of child plugin feature lists. Root-level features are reserved for cross-project work: monorepo infrastructure changes, multi-plugin coordination tasks, and repository-wide concerns.
 
 ### ADR-002: Pull Display, Push Coordination
 
@@ -219,6 +222,16 @@ Child update flow:
 
 Line numbers are orientation aids. Prefer function names when editing.
 
+## v2 Patches Applied (2026-04-25)
+
+Three issues identified in conditional-pass review; patched inline below:
+
+1. **Root wrapper (Task 0):** Root `/prog` does not exist; a wrapper that forwards to `plugins/progress-tracker/prog` with auto-injected `--project-root` is required before all other tasks.
+2. **KNOWN_PLUGIN_CODES removed (Task 3):** Hardcoded dict replaced with `_derive_plugin_code()` + `.claude-plugin/plugin.json` scan path. Discovering an initialized child must also write back `tracker_role/project_code/parent_project_root` to the child tracker so child mutating preflight does not reject it.
+3. **Q4 regression test explicit (Task 5):** `features=[]` in parent is not a constraint, it is a deliberate Q4 decision. Corresponding test for CONSTRAINT-005 made explicit: parent with `features=[]` and no `ROOT` in queue must not silently return root features.
+
+---
+
 ## Tasks
 
 ### Task Dependencies
@@ -226,10 +239,62 @@ Line numbers are orientation aids. Prefer function names when editing.
 Implement in this order:
 
 ```text
-Task 1 -> Task 2 -> Task 3 -> {Task 4, Task 5, Task 6, Task 7} -> Task 8 -> Task 9
+Task 0 -> Task 1 -> Task 2 -> Task 3 -> {Task 4, Task 5, Task 6, Task 7} -> Task 8 -> Task 9
 ```
 
 Task 2 establishes root parent identity only. Task 3 implements child discovery and then wires the `init_tracking()` discovery call after the helper exists.
+
+### Task 0: Root `prog` Wrapper Script
+
+**Files:**
+
+- Create: `/Users/siunin/Projects/Claude-Plugins/prog`
+
+**Context:** Repo root has no `prog` executable. Without it, acceptance criteria "在仓库根目录运行 prog init" cannot be met. The wrapper must mirror the existing `plugins/progress-tracker/prog` parameter-normalization model (project-root forwarding + `memory` routing).
+
+- [ ] Confirm root has no `prog`: `ls /Users/siunin/Projects/Claude-Plugins/prog 2>/dev/null || echo "confirmed absent"`.
+- [ ] Create `/Users/siunin/Projects/Claude-Plugins/prog` with this content:
+
+```bash
+#!/usr/bin/env bash
+# Root-level prog wrapper for monorepo parent usage.
+# Forwards all arguments to the progress-tracker CLI.
+# Auto-injects --project-root <repo_root> ONLY when caller has not already
+# passed --project-root; explicit child scope is always preserved.
+# Memory routing: delegates to project_memory.py when first non-global arg is "memory".
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PT_PROG="$SCRIPT_DIR/plugins/progress-tracker/prog"
+
+if [[ ! -x "$PT_PROG" ]]; then
+  echo "Error: progress-tracker prog not found at $PT_PROG" >&2
+  exit 1
+fi
+
+# Scan for explicit --project-root to avoid double-injection
+HAS_PROJECT_ROOT=0
+for arg in "$@"; do
+  case "$arg" in
+    --project-root|--project-root=*) HAS_PROJECT_ROOT=1; break ;;
+  esac
+done
+
+if [[ "$HAS_PROJECT_ROOT" -eq 0 ]]; then
+  exec "$PT_PROG" --project-root "$SCRIPT_DIR" "$@"
+else
+  exec "$PT_PROG" "$@"
+fi
+```
+
+- [ ] `chmod +x /Users/siunin/Projects/Claude-Plugins/prog`.
+- [ ] Verify: `/Users/siunin/Projects/Claude-Plugins/prog --help 2>&1 | head -3` shows Progress Tracker help text.
+- [ ] Verify memory routing: `/Users/siunin/Projects/Claude-Plugins/prog memory read 2>&1 | head -3` does not error with "unknown command".
+- [ ] Verify `--project-root` pass-through: `/Users/siunin/Projects/Claude-Plugins/prog --project-root plugins/progress-tracker status` does not inject a second `--project-root`.
+- [ ] Add one wrapper test in `test_monorepo_root_init.py`:
+  - Test that invoking the wrapper without `--project-root` injects `SCRIPT_DIR` automatically.
+  - Test that invoking with explicit `--project-root plugins/progress-tracker` keeps it unchanged.
+- [ ] Commit the wrapper and tests.
 
 ### Task 1: Allow Repo Root Path Resolution
 
@@ -269,28 +334,43 @@ Task 2 establishes root parent identity only. Task 3 implements child discovery 
 
 - [ ] Extract the reusable registration portion of `link_project()` into `_link_child_to_parent(parent_data, parent_root, repo_root, child_root, code, label=None, append_to_queue=True)`.
 - [ ] Keep public `link_project()` behavior and output compatible.
-- [ ] Add `KNOWN_PLUGIN_CODES` for known plugin directory names:
-  - `note-organizer` -> `NO`
-  - `progress-tracker` -> `PT`
-  - `super-product-manager` -> `SPM`
-  - `package-manager` -> `PKM`
-  - `code-simplifier` -> `CS`
-- [ ] Add `_generate_project_code(plugin_name, used_codes)` with deterministic fallback and collision handling.
-- [ ] Use this fallback algorithm: build the uppercase initialism from hyphen/underscore-separated name parts and truncate to 8 chars; if the candidate is already used, append numeric suffixes `2`, `3`, ... while preserving the 8-char max length, for example `CS`, `CS2`, `CS3`.
+- [ ] **No KNOWN_PLUGIN_CODES dict.** (Patch: removed hardcoded mapping that required source edits for every new plugin.)
+- [ ] Add `_derive_plugin_code(plugin_name: str) -> str`:
+  - Input: plugin `name` field from `.claude-plugin/plugin.json` (e.g. `"note-organizer"`, `"super-product-manager"`).
+  - Algorithm: take the first letter of each hyphen/underscore-separated segment, uppercase. `"note-organizer"` → `"NO"`, `"super-product-manager"` → `"SPM"`, `"progress-tracker"` → `"PT"`.
+  - Truncate to 8 chars maximum.
+- [ ] Add `_generate_project_code(plugin_name, used_codes)` wrapping `_derive_plugin_code` with collision handling: if the derived code is in `used_codes`, append numeric suffix `2`, `3`, ... up to 8-char max. Emit a warning when a suffix is applied.
+- [ ] Add `_discover_plugin_catalog(repo_root, parent_root) -> dict`:
+  - **Pure read-only.** Never writes to parent or child trackers, never calls `ensure_tracker_layout`, never registers links.
+  - Scan path: `repo_root/plugins/*/.claude-plugin/plugin.json`.
+  - Skip the parent root itself.
+  - Returns `{"initialized": [...], "uninitialized": [...]}` where each entry has `{"name": str, "root": Path, "plugin_json": dict}`.
+  - `initialized`: directories that additionally have `docs/progress-tracker/state/progress.json`.
+  - `uninitialized`: directories with `.claude-plugin/plugin.json` but no tracker file.
+  - Dashboard **must only** call this function for the uninitialized plugin list — never `_auto_discover_child_plugins()` at display time.
 - [ ] Add `_auto_discover_child_plugins(project_root, repo_root, parent_data)`:
-  - scan `repo_root/plugins/*`
-  - include only directories with `docs/progress-tracker/state/progress.json`
-  - skip the parent root itself
-  - register children idempotently
-  - preserve existing queue order and append newly discovered codes
-  - initialize empty queue as `[ROOT_ROUTE_CODE] + sorted(discovered_codes)`
-- [ ] Add warning output or structured warning data when fallback code generation is used.
+  - Calls `_discover_plugin_catalog(repo_root, parent_root=project_root)` internally to get the two-tier list.
+  - **Code resolution priority for each initialized child:**
+    1. If child's `progress.json` already contains a non-empty `project_code` field → use it directly (preserves previously assigned codes, avoids drift).
+    2. Otherwise → derive with `_generate_project_code(plugin_name, used_codes)` and write back to child.
+  - Registers initialized children idempotently using the resolved code; call `_link_child_to_parent`.
+  - **Write back to child:** after registering in parent, write `tracker_role="child"`, `project_code=<resolved_code>`, and `parent_project_root=<parent_root>` to each initialized child's `progress.json` (use the same fields that `link_project()` writes at line 1398). This ensures child mutating preflight (`enforce_route_preflight`) accepts the child later.
+  - Preserve existing queue order; append newly discovered codes.
+  - Initialize empty queue as `[ROOT_ROUTE_CODE] + sorted(initialized_codes)`.
+  - Returns `{"added_codes": [...], "uninitialized_plugins": [...], "warnings": [...], "final_queue": [...]}` for `--json` output.
+- [ ] Add warning output or structured warning data when fallback code generation or writeback fails.
 - [ ] Wire `init_tracking()` to call `_auto_discover_child_plugins()` only after the helper exists and after the parent base data has been constructed.
-- [ ] Add a refresh command, preferably `prog discover-children`, so later-added plugins can be discovered without re-running init.
-- [ ] `prog discover-children` must run only from a parent tracker; from a non-parent tracker it must return an error without writing.
-- [ ] `prog discover-children` is a mutating command and must be registered wherever mutating commands are protected by the command framework.
-- [ ] `prog discover-children` must support `--json` output with discovered codes, added codes, warnings, and final queue.
-- [ ] `init --force` on a root parent tracker must run discovery after the new parent payload is created, while preserving existing archive behavior.
+- [ ] Add a refresh command `prog discover-children`:
+  - Runs `_auto_discover_child_plugins()` against the current parent tracker.
+  - Only runs from a parent tracker; returns an error without writing from non-parent.
+  - Is a mutating command; register in `MUTATING_COMMANDS`.
+  - Supports `--json` output with: `discovered_codes`, `added_codes`, `uninitialized_plugins`, `warnings`, `final_queue`.
+- [ ] `init --force` on a root parent tracker must run discovery after new parent payload is created.
+- [ ] Add tests:
+  - `_derive_plugin_code("note-organizer")` → `"NO"`, `_derive_plugin_code("super-product-manager")` → `"SPM"`.
+  - Discovery with three plugins: two initialized, one (`package-manager`) uninitialized — confirm only two appear in `linked_projects/routing_queue`, and `package-manager` is in `uninitialized_plugins`.
+  - Discovery writes back `tracker_role=child`, `project_code`, `parent_project_root` to each initialized child tracker.
+  - Repeated discovery with existing `["PT", "ROOT"]` queue preserves order and appends newly found `NO`.
 - [ ] Run discovery tests.
 
 ### Task 4: Add Root Dashboard Pull Aggregation
@@ -304,7 +384,7 @@ Task 2 establishes root parent identity only. Task 3 implements child discovery 
 - [ ] In `status()`, when `tracker_role == "parent"`, call root dashboard and return.
 - [ ] Read child summaries via `load_status_summary_projection(str(child_root))`.
 - [ ] If the loader raises, fallback to the matching child entry in `linked_snapshot`.
-- [ ] If child progress data is absent, show `-- not initialized --`.
+- [ ] If child progress data is absent, show `-- not initialized --`. The `-- not initialized --` row must come from `plugin_catalog` (all plugins with `.claude-plugin/plugin.json`), not from `linked_projects`. Specifically: do not call `load_status_summary_projection()` for uninitialized plugins — that function calls `ensure_tracker_layout()` which would create directories in the uninitialized child (line 4253). Read the uninitialized plugin list by calling `_discover_plugin_catalog(repo_root, parent_root)` (read-only, no registration side-effects). **Never call `_auto_discover_child_plugins()` from dashboard display code.**
 - [ ] Render root feature progress separately from child summaries.
 - [ ] Render active route and queue using `ROOT_ROUTE_CODE`.
 - [ ] Text dashboard output must follow this shape so AI workers can parse queue and active route context consistently:
@@ -343,14 +423,15 @@ Active Route: none  |  Queue: ROOT -> PT -> NO -> SPM
 - [ ] Update text output:
   - child: `[NEXT] Dispatching to [PT] (routing_queue position 2):`
   - root: `[NEXT] Root-level feature (routing_queue position 1):`
-- [ ] Remove parent-only implicit fallback after dispatch failure.
+- [ ] Remove parent-only implicit fallback after dispatch failure. **Risk:** once `tracker_role="parent"` is set by root init, the `if data.get("tracker_role") == "parent"` branch at line 5852 will activate, and the implicit `pass  # Fall through to parent's own features` at **lines 5875-5877** will route into `get_next_feature()` — violating CONSTRAINT-005. Change lines 5875-5877 from `pass` to an explicit no-action return (e.g. return `False` or a structured no-action message) for parent trackers. Non-parent fallback at this location must remain unchanged.
 - [ ] Keep non-parent `next_feature()` fallback unchanged.
 - [ ] Add tests for:
   - `["ROOT", "PT"]` returns root feature first
   - `["PT", "ROOT"]` returns child first if child has work
   - active child route causes scanner to continue to `ROOT`
   - unknown code before `ROOT` warns and dispatches `ROOT`
-  - queue without `ROOT` does not silently return root features
+  - queue without `ROOT` does not silently return root features (CONSTRAINT-005 Q4 regression guard): parent with `features=["some root feature"]` and `routing_queue=["PT"]` (no ROOT) must not return the root feature — it must return the child PT feature or nothing.
+  - parent with `features=[]` (empty, Q4 decision) and `routing_queue=["PT"]` dispatches to PT correctly and never falls through to parent feature list.
 - [ ] Run dispatch tests.
 
 ### Task 6: Add Queue Management Commands
@@ -372,8 +453,7 @@ Active Route: none  |  Queue: ROOT -> PT -> NO -> SPM
   - `prog prioritize <code>`
   - `prog set-queue <code1> <code2> ... [--force]`
 - [ ] Add mutating command registration if the command framework requires it.
-- [ ] Update queue conflict logic so `ROOT_ROUTE_CODE` is never Type B.
-- [ ] Use the exclusion approach for Type B conflicts: check `code != ROOT_ROUTE_CODE and code not in linked_codes`; do not inject `ROOT_ROUTE_CODE` into `linked_codes`.
+- [ ] Update queue conflict logic so `ROOT_ROUTE_CODE` is never Type B. Use the exclusion approach at the existing Type B loop (near line 1610): `if code and code != ROOT_ROUTE_CODE and code not in linked_codes:`. Do **not** inject `ROOT_ROUTE_CODE` into `linked_codes` as a workaround — use the exclusion test directly.
 - [ ] Run queue command tests and existing route command tests.
 
 ### Task 7: Keep Summary Fresh Without Silent Failure
@@ -442,6 +522,10 @@ Active Route: none  |  Queue: ROOT -> PT -> NO -> SPM
 | Route validation supports ROOT | `route-status` does not flag `ROOT` as unlinked | route command tests |
 | Child summary freshness is best-effort | Refresh failure is logged but child command succeeds | root dashboard/writeback tests |
 | Skill guidance is updated | `progress-status/SKILL.md` documents Root Dashboard Mode | documentation review |
+| Uninitialized plugin is visible | `package-manager` row shows `-- not initialized --` and no tracker directory is created | `test_root_dashboard.py` |
+| Code derivation is written back to child | After discovery, child tracker has `tracker_role=child`, `project_code=<code>`, `parent_project_root` | `test_auto_discover_child_plugins.py` |
+| Route validation supports ROOT without linked_projects entry | `route-status` with `["ROOT"]` in queue reports zero Type B conflicts | route command tests |
+| Root wrapper forwards correctly | `./prog status` at repo root uses repo root as project root; `./prog --project-root plugins/progress-tracker status` uses plugin root | `test_monorepo_root_init.py` |
 
 ## Risks
 
