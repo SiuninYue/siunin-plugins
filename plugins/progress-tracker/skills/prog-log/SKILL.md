@@ -2,16 +2,6 @@
 name: prog-log
 description: This skill should be used when the user asks to "/prog log", "sync project memory", "sync capabilities", or requests incremental capability backfill from git history.
 model: sonnet
-version: "1.0.0"
-scope: skill
-inputs:
-  - User request to sync project capability memory
-outputs:
-  - Candidate capabilities list
-  - User-confirmed accepted/rejected candidates
-  - Updated project memory sync report
-evidence: optional
-references: []
 ---
 
 # Prog Log Skill

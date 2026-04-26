@@ -72,11 +72,14 @@ If output templates change materially:
 
 ### Feature State Machine
 
-```
-pending → in_progress → completed
-    ↑                    ↓
-    └─────── undo ───────┘
-```
+Canonical lifecycle: `proposed → approved → implementing → verified → archived`
+
+Legacy mirrors (derived, not truth):
+- `proposed|approved` → `development_stage=planning, completed=false`
+- `implementing` → `development_stage=developing, completed=false`
+- `verified|archived` → `development_stage=completed, completed=true`
+
+`lifecycle_state` is the source of truth. `development_stage` and `completed` are derived mirrors.
 
 ### Git Commit Message Format
 
@@ -118,20 +121,29 @@ Every execution plan under `docs/plans/feature-*.md` must include:
 Validate this contract before completion:
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-plan
+prog validate-plan                          # uses workflow_state.plan_path
+prog validate-plan --plan-path docs/plans/feature-9.md  # explicit path
 ```
 
 ## Command Naming
 
-All commands use the `prog` prefix:
-- `/prog plan` - Architecture planning
+All commands use the `prog` prefix. Full command reference is in `docs/PROG_COMMANDS.md`.
+
+Commonly used commands:
 - `/prog` - Display status
 - `/prog init` - Initialize tracking
-- `/prog next` - Start next feature
-- `/prog done` - Complete feature
-- `/prog-fix` - Bug report/list/fix workflow
+- `/prog next` - Start next feature (sole feature-start command; `/prog-start` is deprecated)
+- `/prog done` - Complete feature (runs finish gate)
+- `/prog plan` - Architecture planning
 - `/prog undo` - Undo last feature
 - `/prog reset` - Remove tracking
+- `/prog-fix` - Bug report/list/fix workflow
+
+Closeout and quality commands:
+- `prog set-finish-state --feature-id <id> --status <status>` - Resolve verified+finish_pending
+- `prog validate-plan [--plan-path <path>]` - Validate plan contract
+- `prog ship-check` - Run release gate
+- `prog review-pass --feature-id <id> --lane <lane>` - Record review pass
 
 `/prog-fix` is the canonical bug command spelling in docs and skill descriptions. Do not use `/prog fix` in new content.
 
@@ -194,13 +206,13 @@ These conventions apply to plan files in `docs/plans/` and equivalent plan artif
   - Preserve original line-ending style (LF/CRLF)
   - Preserve final newline state
 
-## Progress JSON Schema (v2.0)
+## Progress JSON Schema (v2.1)
 
 ### Top-Level Fields
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `schema_version` | string | Yes | Schema version (e.g., "2.0") |
+| `schema_version` | string | Yes | Schema version (e.g., "2.1") |
 | `project_name` | string | Yes | Human-readable project name |
 | `created_at` | string | Yes | ISO 8601 timestamp (project creation) |
 | `updated_at` | string | Yes | ISO 8601 timestamp (last modification) |
@@ -208,25 +220,49 @@ These conventions apply to plan files in `docs/plans/` and equivalent plan artif
 | `bugs` | array | No | List of bug objects |
 | `current_feature_id` | int\|null | Yes | Currently active feature ID |
 | `current_bug_id` | string\|null | No | Currently active bug ID |
-| `workflow_state` | object\|null | No | Workflow execution state |
+| `updates` | array | No | Project-level update log entries |
+| `retrospectives` | array | No | Retrospective narratives (separate from archive_info) |
+| `tracker_role` | string | No | `parent` \| `child` — monorepo routing role |
+| `project_code` | string | No | Short project code for routing (e.g., "PT") |
+| `routing_queue` | array | No | Child project codes in dispatch order |
+| `active_routes` | array | No | Currently active routed project codes |
+| `runtime_context` | object\|null | No | Last-recorded runtime/workspace snapshot |
+| `linked_projects` | array | No | Cross-project link records |
+| `parent_project_root` | string | No | Relative path to parent tracker (child role) |
 
 ### Feature Object Schema
+
+Canonical fields (source of truth):
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `id` | int | Yes | Unique feature identifier (sequential) |
 | `name` | string | Yes | Human-readable feature name |
 | `test_steps` | array | Yes | List of test step strings or objects |
-| `completed` | boolean | Yes | Feature completion status |
+| `lifecycle_state` | string | Yes | Enum: `proposed` \| `approved` \| `implementing` \| `verified` \| `archived` |
+| `requirement_ids` | array | Yes | Linked requirement identifiers |
+| `change_spec` | object | Yes | Scope, risks, and rationale |
+| `acceptance_scenarios` | array | Yes | Acceptance criteria |
+| `integration_status` | string | Yes | Closeout status: `finish_pending` \| `merged_and_cleaned` \| `pr_open` \| `kept_with_reason` |
+| `quality_gates` | object | No | Evaluator, reviews, ship_check gates |
+| `sprint_contract` | object | No | Sprint scope, done_criteria, test_plan |
+| `handoff` | object | No | Phase handoff artifact metadata |
+| `owners` | object | No | Architecture/coding/testing owner assignments |
+| `deferred` | boolean | No | Whether feature is deferred |
+| `ai_metrics` | object\|null | No | Lightweight AI routing and duration metadata |
+| `started_at` | string\|null | No | ISO 8601 timestamp (when started) |
 | `completed_at` | string\|null | No | ISO 8601 timestamp (when completed) |
 | `commit_hash` | string\|null | No | Git commit hash (when completed) |
-| `ai_metrics` | object\|null | No | Lightweight AI routing and duration metadata |
+| `archive_info` | object\|null | No | Archive operation metadata (files moved, timestamp) |
 
-**Future v2.1+ fields (optional):**
+Legacy mirror fields (derived, do not use as truth):
+
 | Field | Type | Description |
 |-------|------|-------------|
-| `status` | string | Enum: `pending` \| `in_progress` \| `blocked` \| `done` |
-| `started_at` | string | ISO 8601 timestamp (when started) |
+| `completed` | boolean | Derived from `lifecycle_state` (true for verified/archived) |
+| `development_stage` | string | Derived from `lifecycle_state` |
+
+**Note**: Feature objects do NOT have a `status` field. Use `lifecycle_state` for state queries and `integration_status` for closeout state.
 
 ### AI Metrics Object Schema (features[].ai_metrics)
 
@@ -312,5 +348,6 @@ Use stable field names and enums (`complexity_bucket`, `workflow_path`, `categor
 ### Migration Notes
 
 - **v1 → v2.0**: Automatic migration adds `schema_version`, `updated_at` fields
-- **Backward Compatibility**: Old v1 files are auto-upgraded on first save
+- **v2.0 → v2.1**: Adds `lifecycle_state`, `integration_status`, `requirement_ids`, `change_spec`, `acceptance_scenarios`, `quality_gates`, `sprint_contract`, `handoff`. `lifecycle_state` becomes canonical truth; `completed` and `development_stage` become derived mirrors.
+- **Backward Compatibility**: Old v1/v2.0 files are auto-upgraded on first save
 - **Breaking Changes**: Increment `schema_version` major version when removing fields

@@ -6462,6 +6462,10 @@ def set_current(feature_id):
 
     if previous_current_id != feature_id:
         data.pop("workflow_state", None)
+        # Defensive init: even if skill is interrupted before calling
+        # set-workflow-state, the feature has a resumable workflow phase.
+        if not feature.get("completed", False):
+            data["workflow_state"] = {"phase": "planning", "updated_at": _iso_now()}
 
     # F-11: initialize review lanes when starting a new feature (idempotent)
     if not feature.get("completed", False) and REVIEW_ROUTER_AVAILABLE:

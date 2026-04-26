@@ -2,16 +2,6 @@
 name: ui-launcher
 description: This skill should be used when the user runs "/prog-ui", asks to "open progress UI", "launch progress web UI", or wants to view progress in a browser. Manages the Progress UI server lifecycle (detect, start, open browser) for the current project.
 model: haiku
-version: "1.0.0"
-scope: skill
-inputs:
-  - User request to open Progress UI
-outputs:
-  - Server running status
-  - Browser opened to UI URL
-  - Server management instructions
-evidence: optional
-references: []
 ---
 
 # Progress UI Launcher Skill

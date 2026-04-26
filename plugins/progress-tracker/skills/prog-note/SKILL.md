@@ -2,15 +2,6 @@
 name: prog-note
 description: This skill should be used when the user asks to "/prog note", "/prog-note", "record a project update", "add status update", "log decision/risk/handoff", or needs to write structured update entries into progress tracking.
 model: haiku
-version: "1.0.0"
-scope: skill
-inputs:
-  - Raw update text or structured fields
-outputs:
-  - `updates[]` entry persisted via prog CLI
-  - Optional owner assignment when role/owner is provided
-evidence: optional
-references: []
 ---
 
 # Prog Note Skill

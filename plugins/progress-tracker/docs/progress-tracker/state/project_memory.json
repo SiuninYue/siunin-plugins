@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "created_at": "2026-04-12T09:38:02.910760Z",
-  "updated_at": "2026-04-26T02:17:55.189374Z",
-  "next_capability_seq": 9,
+  "updated_at": "2026-04-26T10:46:57.340363Z",
+  "next_capability_seq": 10,
   "last_synced_commit": null,
   "capabilities": [
     {
@@ -168,6 +168,26 @@
       },
       "created_at": "2026-04-26T02:17:55.189303Z",
       "updated_at": "2026-04-26T02:17:55.189303Z"
+    },
+    {
+      "cap_id": "CAP-009",
+      "fingerprint": "40a1f1b44b18b42a",
+      "title": "Refactor progress_manager into modular command helpers",
+      "summary": "Extracted handoff and completion prompt builders into progress_prompt_builders.py; added defensive workflow_state init in set_current(); 3 regression tests passing",
+      "tags": [
+        "refactor",
+        "prompt-builders",
+        "workflow-state"
+      ],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 9,
+        "commit_hash": "ee9fb92",
+        "commit_range": ""
+      },
+      "created_at": "2026-04-26T10:46:57.340327Z",
+      "updated_at": "2026-04-26T10:46:57.340327Z"
     }
   ],
   "rejected_fingerprints": [],

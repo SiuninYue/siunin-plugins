@@ -18,9 +18,9 @@ __all__ = [
 
 
 def _is_deferred(feature: Dict[str, Any]) -> bool:
-    """Mirror of progress_manager._is_feature_deferred (renamed here for brevity).
+    """Single source of truth for deferred-feature checks.
 
-    If _is_feature_deferred changes, update this function too.
+    progress_manager._is_feature_deferred delegates here; do not duplicate logic.
     """
     return bool(feature.get("deferred", False))
 

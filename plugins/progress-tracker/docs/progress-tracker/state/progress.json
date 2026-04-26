@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-04-26T17:23:58.104478Z",
+  "updated_at": "2026-04-26T19:06:36.151699Z",
   "features": [
     {
       "id": 10,
@@ -352,7 +352,7 @@
         "Add regression tests for /prog done and /prog status handoff output",
         "Run targeted regression tests: pytest -q plugins/progress-tracker/tests/test_progress_manager.py -k \"done_command_outputs_next_feature_handoff or done_command_outputs_completion_summary_when_all_complete or status_handoff_block_execution_complete\""
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -362,7 +362,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "implementing",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-009"
       ],
@@ -423,14 +423,25 @@
         "artifact_path": null,
         "created_at": null
       },
-      "development_stage": "developing",
+      "development_stage": "completed",
       "started_at": "2026-04-23T23:31:35.975656Z",
       "ai_metrics": {
         "complexity_score": 21,
         "complexity_bucket": "standard",
         "selected_model": "sonnet",
         "workflow_path": "plan_execute",
-        "started_at": "2026-04-23T23:38:15.417138Z"
+        "started_at": "2026-04-23T23:38:15.417138Z",
+        "finished_at": "2026-04-26T18:46:59.781126+08:00",
+        "duration_seconds": 212924
+      },
+      "completed_at": "2026-04-26T18:46:54.403351Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-26T18:46:54.403355Z",
+      "commit_hash": "ee9fb92",
+      "archive_info": {
+        "archived_at": "2026-04-26T18:46:54.421938Z",
+        "files_moved": 0,
+        "files": []
       }
     },
     {
@@ -451,7 +462,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "approved",
+      "lifecycle_state": "implementing",
       "requirement_ids": [
         "REQ-002"
       ],
@@ -481,9 +492,17 @@
           "evaluator_model": null
         },
         "reviews": {
-          "required": [],
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
           "passed": [],
-          "pending": []
+          "pending": [
+            "docs",
+            "eng",
+            "qa"
+          ]
         },
         "ship_check": {
           "status": "pending",
@@ -503,6 +522,15 @@
         "to_phase": null,
         "artifact_path": null,
         "created_at": null
+      },
+      "development_stage": "developing",
+      "started_at": "2026-04-26T18:54:33.733591Z",
+      "ai_metrics": {
+        "complexity_score": 15,
+        "complexity_bucket": "simple",
+        "selected_model": "haiku",
+        "workflow_path": "direct_tdd",
+        "started_at": "2026-04-26T18:58:00.863448Z"
       }
     },
     {
@@ -1023,7 +1051,7 @@
       "started_at": "2026-04-24T15:54:37.202730Z"
     }
   ],
-  "current_feature_id": 9,
+  "current_feature_id": 2,
   "linked_projects": [],
   "linked_snapshot": {
     "schema_version": "1.0",
@@ -1037,21 +1065,21 @@
   "updates": [],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-04-26T17:16:52.292566Z",
+    "recorded_at": "2026-04-26T19:06:36.143396Z",
     "source": "set_workflow_state",
     "workspace_mode": "worktree",
-    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-9-refactor-pm",
-    "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-9-refactor-pm",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-9-refactor-pm",
-    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-9-refactor-pm",
-    "branch": "feature/f9-refactor-progress-manager",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/.worktrees/feature-2-normalize-skill-frontmatter",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/.worktrees/feature-2-normalize-skill-frontmatter",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/.worktrees/feature-2-normalize-skill-frontmatter/plugins/progress-tracker",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-2-normalize-skill-frontmatter",
+    "branch": "feature/feature-2-normalize-skill-frontmatter",
     "upstream": null,
-    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-9-refactor-pm/plugins/progress-tracker",
-    "current_feature_id": 9,
-    "workflow_phase": "execution_complete",
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/.worktrees/feature-2-normalize-skill-frontmatter/plugins/progress-tracker",
+    "current_feature_id": 2,
+    "workflow_phase": "planning:approved",
     "current_task": null,
     "total_tasks": null,
-    "next_action": "run /prog done to close feature"
+    "next_action": null
   },
   "bugs": [
     {
@@ -1073,20 +1101,19 @@
   "current_bug_id": null,
   "parent_project_root": ".",
   "workflow_state": {
-    "phase": "execution_complete",
-    "updated_at": "2026-04-26T17:23:58.053122Z",
+    "phase": "planning:approved",
+    "updated_at": "2026-04-26T19:06:36.091839Z",
     "execution_context": {
-      "recorded_at": "2026-04-26T17:23:58.080894Z",
+      "recorded_at": "2026-04-26T19:06:36.117653Z",
       "source": "set_workflow_state",
       "workspace_mode": "worktree",
-      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-9-refactor-pm",
-      "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-9-refactor-pm",
-      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-9-refactor-pm/plugins/progress-tracker",
-      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-9-refactor-pm",
-      "branch": "feature/f9-refactor-progress-manager",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/.worktrees/feature-2-normalize-skill-frontmatter",
+      "project_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/.worktrees/feature-2-normalize-skill-frontmatter",
+      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/.worktrees/feature-2-normalize-skill-frontmatter/plugins/progress-tracker",
+      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-2-normalize-skill-frontmatter",
+      "branch": "feature/feature-2-normalize-skill-frontmatter",
       "upstream": null
     },
-    "next_action": "run /prog done to close feature",
-    "plan_path": "docs/plans/2026-04-26-f9-refactor-pm-modular-helpers.md"
+    "plan_path": "docs/plans/2026-04-26-f2-normalize-skill-frontmatter.md"
   }
 }
