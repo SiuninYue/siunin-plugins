@@ -22,6 +22,7 @@ class TestGitRevert:
         # Initialize progress in git repo
         progress_manager.init_tracking("Test Project", force=True)
         progress_manager.add_feature("Feature 1", ["Step 1"])
+        progress_manager.add_feature("Placeholder", ["placeholder step"])  # prevent full-project reset
 
         # Create a test commit to revert
         test_file = mock_git_repo / "test.txt"
@@ -189,6 +190,7 @@ class TestGitIntegrationEdgeCases:
         # Create a simple progress file without commit hash to avoid git operations
         progress_manager.init_tracking("Test Project", force=True)
         progress_manager.add_feature("Feature 1", ["Step 1"])
+        progress_manager.add_feature("Placeholder", ["placeholder step"])  # prevent full-project reset
         progress_manager.complete_feature(1)  # No commit hash
 
         # Verify feature is completed

@@ -1163,6 +1163,7 @@ class TestUndo:
         # Set up a simple project without commit hash
         progress_manager.init_tracking("Test Project", force=True)
         progress_manager.add_feature("Feature 1", ["Step 1"])
+        progress_manager.add_feature("Placeholder", ["placeholder step"])  # prevent full-project reset
         progress_manager.complete_feature(1)  # No commit hash
 
         result = progress_manager.undo_last_feature()
@@ -1184,6 +1185,7 @@ class TestUndo:
         progress_manager.init_tracking("Test Project", force=True)
         progress_manager.add_feature("Feature 1", ["Step 1"])
         progress_manager.add_feature("Feature 2", ["Step 2"])
+        progress_manager.add_feature("Placeholder", ["placeholder step"])  # prevent full-project reset
 
         # Complete feature 1 first
         progress_manager.complete_feature(1)
@@ -1220,6 +1222,7 @@ class TestUndo:
         progress_manager.add_feature("Feature 1", ["Step 1"])
         progress_manager.add_feature("Feature 2", ["Step 2"])
         progress_manager.add_feature("Feature 3", ["Step 3"])
+        progress_manager.add_feature("Placeholder", ["placeholder step"])  # prevent full-project reset
 
         progress_manager.complete_feature(1)
         import time
@@ -2075,6 +2078,7 @@ class TestMainFunction:
         """Should handle undo command."""
         progress_manager.init_tracking("Test", force=True)
         progress_manager.add_feature("F1", ["S1"])
+        progress_manager.add_feature("Placeholder", ["placeholder step"])  # prevent full-project reset
         progress_manager.complete_feature(1)
 
         with patch("sys.argv", ["progress_manager.py", "undo"]):
@@ -2387,6 +2391,10 @@ class TestDoneCommand:
             phase="execution_complete",
             current_feature_id=1,
         )
+        # Add placeholder feature to prevent full-project reset
+        data = json.loads((state_dir / "progress.json").read_text(encoding="utf-8"))
+        data["features"].append({"id": 2, "name": "Placeholder", "test_steps": ["placeholder step"], "completed": False})
+        (state_dir / "progress.json").write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
         result = self._run_done(temp_dir, "--skip-archive")
 

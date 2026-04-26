@@ -138,6 +138,7 @@ def test_lifecycle_transitions_from_start_to_complete(temp_dir):
     """Feature lifecycle should move approved -> implementing -> verified."""
     progress_manager.init_tracking("Lifecycle", force=True)
     progress_manager.add_feature("Feature B", ["step 1"])
+    progress_manager.add_feature("Placeholder", ["placeholder step"])  # prevent full-project reset
     progress_manager.set_current(1)
     assert progress_manager.set_development_stage("developing") is True
 
@@ -156,6 +157,7 @@ def test_complete_feature_sets_archived_lifecycle_when_archive_succeeds(temp_dir
     """Successful archive should move lifecycle verified -> archived."""
     progress_manager.init_tracking("Archive Lifecycle", force=True)
     progress_manager.add_feature("Feature C", ["step 1"])
+    progress_manager.add_feature("Placeholder", ["placeholder step"])  # prevent full-project reset
     progress_manager.set_current(1)
     assert progress_manager.set_development_stage("developing") is True
 

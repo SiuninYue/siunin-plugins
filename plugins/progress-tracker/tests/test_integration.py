@@ -78,6 +78,14 @@ class TestFullWorkflow:
         )
         assert result.returncode == 0, f"Add feature failed: {result.stderr}"
 
+        # Add placeholder feature to prevent full-project reset
+        result = subprocess.run(
+            ['python3', self.progress_manager, 'add-feature', 'Placeholder', 'placeholder'],
+            capture_output=True,
+            text=True
+        )
+        assert result.returncode == 0, f"Add placeholder failed: {result.stderr}"
+
         # 3. Set current feature
         result = subprocess.run(
             ['python3', self.progress_manager, 'set-current', '1'],
@@ -99,7 +107,7 @@ class TestFullWorkflow:
             data = json.load(f)
 
         features = data.get('features', [])
-        assert len(features) == 1, "Should have 1 feature"
+        assert len(features) == 2, "Should have 2 features"
         assert features[0]['completed'] is True, "Feature should be completed"
         assert features[0]['id'] == 1, "Feature ID should be 1"
 
@@ -118,6 +126,14 @@ class TestFullWorkflow:
             text=True,
         )
         assert result.returncode == 0, f"Add feature failed: {result.stderr}"
+
+        # Add placeholder feature to prevent full-project reset
+        result = subprocess.run(
+            ['python3', self.progress_manager, 'add-feature', 'Placeholder', 'true'],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, f"Add placeholder failed: {result.stderr}"
 
         result = subprocess.run(
             ['python3', self.progress_manager, 'set-current', '1'],

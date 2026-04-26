@@ -30,6 +30,12 @@ class TestFeatureCompletionStateTransition:
                     "test_steps": ["step 1", "step 2"],
                     "completed": False,
                     "development_stage": "planning"
+                },
+                {
+                    "id": 2,
+                    "name": "Placeholder",
+                    "test_steps": ["placeholder step"],
+                    "completed": False
                 }
             ],
             "current_feature_id": 1,
