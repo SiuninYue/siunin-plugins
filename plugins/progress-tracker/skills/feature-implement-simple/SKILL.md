@@ -2,19 +2,7 @@
 name: feature-implement-simple
 description: This skill should be used when feature complexity is simple (score 0-15) and the coordinator delegates low-risk tasks such as single-file changes, clear requirements, and limited test steps. Executes direct TDD with haiku and updates workflow and AI metrics.
 model: haiku
-version: "1.1.0"
-scope: skill
 user-invocable: false
-inputs:
-  - feature_id
-  - feature_name
-  - feature test steps
-  - complexity_score
-outputs:
-  - direct_tdd execution summary
-  - workflow state update
-  - ai_metrics update
-evidence: optional
 references:
   - "superpowers:test-driven-development"
   - "superpowers:requesting-code-review"

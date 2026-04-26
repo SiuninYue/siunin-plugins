@@ -10,8 +10,14 @@
 - [x] Baseline compliance scan for frontmatter and routable descriptions
 - [x] Refactor progress_manager into modular command helpers
 
-## Pending
+## In Progress
 - [ ] Normalize skill frontmatter to SOP-compliant shape
+  **Test steps**:
+  - Update target SKILL.md frontmatter to keep required fields and remove prohibited keys
+  - Run contract tests: pytest -q plugins/progress-tracker/tests/test_command_discovery_contract.py
+  - Re-run scan: python3 plugins/progress-tracker/hooks/scripts/quick_validate.py
+
+## Pending
 - [ ] Enforce plugin metadata traceability fields
 - [ ] Add explicit model declaration checks for required skill scopes
 - [ ] Apply progressive disclosure budget to oversized SKILL files
@@ -19,6 +25,11 @@
 - [ ] Enforce PROG command docs single-source parity
 - [ ] Implement fail-closed release gate with sync compatibility evidence
 - [ ] plan_path CLI normalization
+
+## Workflow Context
+- Phase: planning:approved
+- Execution context: feature/feature-2-normalize-skill-frontmatter @ feature-2-normalize-skill-frontmatter [worktree]
+- Current session context: feature/feature-2-normalize-skill-frontmatter @ feature-2-normalize-skill-frontmatter [worktree]
 
 ### Fixed (✅)
 - [x] [BUG-001] Python falsy trap: current_feature_id=0 被 not 误判为 None，导致 set-workflow-state/auto_checkpoint/wf_auto_driver/route_status 等函数在 feature ID 为 0 时异常跳过

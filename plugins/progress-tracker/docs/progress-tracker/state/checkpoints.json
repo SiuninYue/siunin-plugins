@@ -1,5 +1,5 @@
 {
-  "last_checkpoint_at": "2026-04-22T21:04:39.852998+08:00",
+  "last_checkpoint_at": "2026-04-26T19:04:36.648233+08:00",
   "max_entries": 50,
   "entries": [
     {
@@ -164,6 +164,21 @@
       "workspace_mode": "worktree",
       "worktree_path": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/.worktrees/feature-27",
       "branch": "feature/feature-27-naming-alias",
+      "upstream": null,
+      "reason": "auto_interval"
+    },
+    {
+      "timestamp": "2026-04-26T19:04:36.648233+08:00",
+      "feature_id": 2,
+      "feature_name": "Normalize skill frontmatter to SOP-compliant shape",
+      "phase": "planning:clarifying",
+      "plan_path": null,
+      "current_task": null,
+      "total_tasks": null,
+      "next_action": null,
+      "workspace_mode": "worktree",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/.worktrees/feature-2-normalize-skill-frontmatter",
+      "branch": "feature/feature-2-normalize-skill-frontmatter",
       "upstream": null,
       "reason": "auto_interval"
     }
