@@ -807,7 +807,7 @@ class TestCurrentFeature:
         assert result is False
 
     def test_set_current_clears_stale_workflow_state_when_switching_feature(self, progress_file):
-        """Switching to a different feature should drop stale workflow_state."""
+        """Switching to a different feature should reset workflow_state to planning."""
         data = progress_manager.load_progress_json()
         data["current_feature_id"] = 2
         data["workflow_state"] = {"phase": "execution_complete", "plan_path": "docs/plans/f2.md"}
@@ -818,7 +818,10 @@ class TestCurrentFeature:
 
         data = progress_manager.load_progress_json()
         assert data["current_feature_id"] == 3
-        assert "workflow_state" not in data
+        assert data["workflow_state"]["phase"] == "planning"
+        assert "updated_at" in data["workflow_state"]
+        # Stale plan_path from previous feature must be gone
+        assert data["workflow_state"].get("plan_path") is None
 
     def test_set_current_preserves_workflow_state_when_reselecting_same_feature(self, in_progress_file):
         """Reselecting the same current feature should keep existing workflow_state."""
