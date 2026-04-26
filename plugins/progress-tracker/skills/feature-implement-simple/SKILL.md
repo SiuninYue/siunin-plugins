@@ -60,26 +60,37 @@ The `prog` tool uses relative paths and requires being in the correct project di
 # Steps
 
 1. Validate feature context exists and complexity bucket is `simple`.
-2. Display execution banner with feature and model selection.
-3. Invoke `test-driven-development`:
+2. **Generate the execution note** (idempotent):
+
+```bash
+plugins/progress-tracker/prog generate-direct-tdd-note
+```
+
+This creates a minimal execution note from feature metadata, converges
+`workflow_state` to `phase=execution, next_action=direct_tdd`, and sets
+`plan_path`. File creation is idempotent (won't overwrite valid notes).
+State convergence always runs even if the note already exists.
+
+3. Display execution banner with feature and model selection.
+4. Invoke `test-driven-development`:
 
 ```text
 Skill("test-driven-development", args="<feature_name>: <one_line_description>")
 ```
 
-4. Run focused code review on the feature diff:
+5. Run focused code review on the feature diff:
 
 ```text
 Skill("requesting-code-review", args="Review simple feature implementation: <feature_name>")
 ```
 
-5. Run completion verification gate:
+6. Run completion verification gate:
 
 ```text
 Skill("verification-before-completion", args="Verify tests and acceptance evidence for <feature_name>")
 ```
 
-6. On success, update workflow and metrics:
+7. On success, update workflow and metrics:
 
 ```bash
 plugins/progress-tracker/prog set-workflow-state \
@@ -92,7 +103,7 @@ plugins/progress-tracker/prog set-feature-ai-metrics <feature_id> \
   --workflow-path direct_tdd
 ```
 
-7. Ask user to run `/prog done`.
+8. Ask user to run `/prog done`.
 
 # Failure Modes
 
@@ -101,6 +112,7 @@ plugins/progress-tracker/prog set-feature-ai-metrics <feature_id> \
 
 # Commands
 
+- `plugins/progress-tracker/prog generate-direct-tdd-note`
 - `plugins/progress-tracker/prog set-workflow-state ...`
 - `plugins/progress-tracker/prog set-feature-ai-metrics ...`
 

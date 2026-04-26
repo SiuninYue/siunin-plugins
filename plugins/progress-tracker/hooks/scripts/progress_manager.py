@@ -29,6 +29,7 @@ Usage:
     python3 progress_manager.py sync-linked [--json] [--stale-after-hours <hours>]
     python3 progress_manager.py link-project --project-root <path> --code <CODE> [--parent-root <path>] [--json]
     python3 progress_manager.py validate-plan [--plan-path <path>]
+    python3 progress_manager.py generate-direct-tdd-note
     python3 progress_manager.py add-feature <name> <test_steps...>
     python3 progress_manager.py update-feature <feature_id> <name> [test_steps...]
     python3 progress_manager.py defer (--all-pending|--feature-id <id>) --reason <text> [--defer-group <id>]
@@ -242,6 +243,7 @@ MUTATING_COMMANDS = {
     "review-pass",
     "ship-check",
     "backfill-event",
+    "generate-direct-tdd-note",
 }
 ROUTE_PREFLIGHT_EXEMPT_COMMANDS = {
     "init",
@@ -9437,6 +9439,177 @@ def validate_plan(plan_path: Optional[str] = None):
     return True
 
 
+def generate_direct_tdd_note():
+    """Generate a lightweight execution note for direct_tdd features.
+
+    Creates a strict-profile plan document from feature metadata so that
+    validate-plan always finds a valid plan_path. File writes are idempotent
+    (existing valid notes are preserved via state-path and deterministic-path
+    fallback), but workflow_state convergence always runs.
+
+    Returns:
+        bool: True on success, False on error.
+    """
+    data = load_progress_json()
+    if not data:
+        print("No progress tracking found")
+        return False
+
+    current_id = data.get("current_feature_id")
+    if current_id is None:
+        print("Error: No feature currently in progress")
+        return False
+
+    features = data.get("features", [])
+    feature = next((f for f in features if f.get("id") == current_id), None)
+    if feature is None:
+        print(f"Error: Feature {current_id} not found")
+        return False
+
+    def _normalize_text_list(value: Any, fallback: List[str]) -> List[str]:
+        """Normalize metadata fields to a non-empty list of strings."""
+        if isinstance(value, list):
+            normalized = [str(item).strip() for item in value if str(item).strip()]
+            return normalized or fallback
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped:
+                return [stripped]
+        return fallback
+
+    feature_name = str(feature.get("name") or "Unnamed feature").strip()
+    change_spec = feature.get("change_spec")
+    if not isinstance(change_spec, dict) or not change_spec:
+        change_spec = _default_change_spec(feature)
+
+    why = str(change_spec.get("why") or f"Deliver {feature_name}.")
+    in_scope = _normalize_text_list(change_spec.get("in_scope"), [feature_name])
+    out_of_scope = _normalize_text_list(
+        change_spec.get("out_of_scope"),
+        ["Unrelated refactors and behavior changes outside this feature."],
+    )
+    risks = _normalize_text_list(
+        change_spec.get("risks"),
+        ["Potential regression in adjacent workflows"],
+    )
+
+    test_steps = feature.get("test_steps")
+    if isinstance(test_steps, list) and test_steps:
+        task_lines = [
+            f"- [ ] {str(step).strip()}" for step in test_steps if str(step).strip()
+        ]
+    else:
+        task_lines = [f"- [ ] Implement {feature_name}"]
+    if not task_lines:
+        task_lines = [f"- [ ] Implement {feature_name}"]
+
+    acceptance = feature.get("acceptance_scenarios")
+    if not isinstance(acceptance, list) or not acceptance:
+        acceptance = _default_acceptance_scenarios(feature)
+    acceptance_lines = [f"- {str(item).strip()}" for item in acceptance if str(item).strip()]
+    if not acceptance_lines:
+        acceptance_lines = [
+            f"- Scenario: {feature_name} baseline behavior works as expected."
+        ]
+
+    risk_lines = [f"- {str(risk).strip()}" for risk in risks if str(risk).strip()]
+    if not risk_lines:
+        risk_lines = ["- Potential regression in adjacent workflows"]
+
+    in_scope_text = ", ".join(in_scope)
+    out_of_scope_text = ", ".join(out_of_scope)
+
+    base_root = find_project_root()
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    slug = _slugify(feature_name)
+    plan_rel = f"docs/plans/{today}-feature-{current_id}-{slug}.md"
+
+    workflow_state_raw = data.get("workflow_state")
+    needs_workflow_state_repair = (
+        "workflow_state" in data and not isinstance(workflow_state_raw, dict)
+    )
+    workflow_state = workflow_state_raw if isinstance(workflow_state_raw, dict) else {}
+    existing_plan_path = workflow_state.get("plan_path")
+    if isinstance(existing_plan_path, str):
+        existing_plan_path = existing_plan_path.strip() or None
+    else:
+        existing_plan_path = None
+
+    candidate_paths: List[str] = []
+    if existing_plan_path:
+        candidate_paths.append(existing_plan_path)
+    if plan_rel not in candidate_paths:
+        candidate_paths.append(plan_rel)
+
+    plans_dir = base_root / "docs" / "plans"
+    if plans_dir.exists():
+        pattern = f"*-feature-{current_id}-{slug}.md"
+        for matched in sorted(plans_dir.glob(pattern), reverse=True):
+            rel = matched.relative_to(base_root).as_posix()
+            if rel not in candidate_paths:
+                candidate_paths.append(rel)
+
+    need_write = True
+    for candidate in candidate_paths:
+        absolute_candidate = base_root / candidate
+        if not absolute_candidate.exists():
+            continue
+        validation = validate_plan_document(candidate)
+        if validation["valid"]:
+            need_write = False
+            plan_rel = candidate
+            print(f"Execution note already exists: {plan_rel} (state converged)")
+            break
+        print(f"Warning: existing note invalid ({candidate}), regenerating")
+
+    if need_write:
+        note_content = (
+            f"# {feature_name} -- direct_tdd execution note\n"
+            f"\n"
+            f"**Goal:** {why}\n"
+            f"\n"
+            f"**Architecture:** Direct TDD implementation of {in_scope_text}. "
+            f"Out of scope: {out_of_scope_text}.\n"
+            f"\n"
+            f"---\n"
+            f"\n"
+            f"## Tasks\n"
+            f"\n"
+            + "\n".join(task_lines)
+            + "\n"
+            f"\n"
+            f"## Acceptance Mapping\n"
+            f"\n"
+            + "\n".join(acceptance_lines)
+            + "\n"
+            f"\n"
+            f"## Risks\n"
+            f"\n"
+            + "\n".join(risk_lines)
+            + "\n"
+        )
+        absolute_path = base_root / plan_rel
+        _atomic_write_text(absolute_path, note_content)
+        print(f"Generated direct_tdd execution note: {plan_rel}")
+
+    # set_workflow_state() assumes persisted workflow_state has dict semantics.
+    # Missing workflow_state is legal and is initialized by set_workflow_state().
+    if needs_workflow_state_repair:
+        data["workflow_state"] = {}
+        save_progress_json(data)
+
+    result = set_workflow_state(
+        phase="execution",
+        plan_path=plan_rel,
+        next_action="direct_tdd",
+    )
+    if not result:
+        print("Error: Failed to converge workflow_state")
+        return False
+
+    return True
+
+
 def generate_progress_md(data):
     """Generate markdown content from progress data."""
     project_name = data.get("project_name", "Unknown Project")
@@ -10447,6 +10620,12 @@ def main():
         help="Plan path to validate (defaults to workflow_state.plan_path)",
     )
 
+    # Direct TDD execution note generation
+    subparsers.add_parser(
+        "generate-direct-tdd-note",
+        help="Generate lightweight execution note for direct_tdd features",
+    )
+
     # Add bug command
     bug_parser = subparsers.add_parser("add-bug", help="Add a new bug")
     bug_parser.add_argument("--description", required=True, help="Bug description")
@@ -10709,6 +10888,8 @@ def main():
             return sync_runtime_context(source=args.source, quiet=args.quiet, force=args.force)
         if args.command == "validate-plan":
             return validate_plan(plan_path=args.plan_path)
+        if args.command == "generate-direct-tdd-note":
+            return generate_direct_tdd_note()
         if args.command == "add-bug":
             try:
                 return add_bug(

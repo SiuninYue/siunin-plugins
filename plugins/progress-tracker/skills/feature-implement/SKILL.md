@@ -255,8 +255,9 @@ Before complexity scoring, initiate the planning sub-phase to clarify requiremen
 #### 4A) Simple (`0-15`)
 
 - Delegate to `progress-tracker:feature-implement-simple`.
+- The simple skill handles execution note generation and phase transition
+  to `execution` internally (Step 2).
 - Keep flow RED -> GREEN -> REFACTOR.
-- Update `workflow_state.phase` to execution before delegation.
 
 #### 4B) Standard (`16-25`)
 
