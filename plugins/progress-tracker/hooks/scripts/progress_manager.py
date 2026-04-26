@@ -7997,13 +7997,24 @@ def complete_feature(feature_id, commit_hash=None, skip_archive=False):
 
         refreshed = load_progress_json()
         if refreshed and _is_project_fully_completed(refreshed):
-            completed_archive = archive_current_progress(reason="completed")
-            if completed_archive:
-                print(
-                    "Archived completed run as "
-                    f"{completed_archive.get('archive_id')} "
-                    f"(reason={completed_archive.get('reason')})"
-                )
+            try:
+                completed_archive = archive_current_progress(reason="completed")
+                if completed_archive:
+                    print(
+                        "Archived completed run as "
+                        f"{completed_archive.get('archive_id')} "
+                        f"(reason={completed_archive.get('reason')})"
+                    )
+            except Exception as e:
+                # Archive I/O can fail (mkdir, copy2, save_history).
+                # Best-effort: log and continue — reset must still happen.
+                logger.error(f"Completed-run archive failed: {e}")
+                print(f"Warning: Completed-run archive failed, but active state will still be cleared.")
+
+    # ── Outside if not skip_archive — always runs ──
+    refreshed = load_progress_json()
+    if refreshed and _is_project_fully_completed(refreshed):
+        _reset_active_progress(refreshed)
 
     return True
 
