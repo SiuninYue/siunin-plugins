@@ -2571,8 +2571,11 @@ def import_contract_for_feature(feature_id: int) -> Optional[Dict[str, Any]]:
 
 
 def _is_feature_deferred(feature: Dict[str, Any]) -> bool:
-    """Return whether a feature is currently deferred."""
-    return bool(feature.get("deferred", False))
+    """Return whether a feature is currently deferred.
+
+    Delegates to progress_prompt_builders._is_deferred as the single source of truth.
+    """
+    return progress_prompt_builders._is_deferred(feature)
 
 
 def _collect_feature_artifact_evidence(

@@ -2440,6 +2440,44 @@ class TestDoneCommand:
         assert payload["reason"] == "finish_pending"
         assert "set-finish-state" in payload["message"]
 
+    def test_done_command_outputs_next_feature_handoff(self, temp_dir):
+        """done should print handoff block with next feature info when pending features remain."""
+        state_dir = self._write_done_state(
+            temp_dir,
+            test_steps=["true"],
+            phase="execution_complete",
+            current_feature_id=1,
+        )
+        data = json.loads((state_dir / "progress.json").read_text(encoding="utf-8"))
+        data["features"].append({
+            "id": 2,
+            "name": "Next Pending Feature",
+            "test_steps": ["verify something"],
+            "completed": False,
+        })
+        (state_dir / "progress.json").write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        result = self._run_done(temp_dir, "--skip-archive")
+
+        assert result.returncode == 0
+        assert "/progress-tracker:prog-next" in result.stdout
+        assert "Next Pending Feature" in result.stdout
+
+    def test_done_command_outputs_completion_summary_when_all_complete(self, temp_dir):
+        """done should print project completion summary when no pending features remain."""
+        self._write_done_state(
+            temp_dir,
+            test_steps=["true"],
+            phase="execution_complete",
+            current_feature_id=1,
+        )
+
+        result = self._run_done(temp_dir, "--skip-archive")
+
+        assert result.returncode == 0
+        assert "Project Complete" in result.stdout
+        assert "No pending features remain" in result.stdout
+
 
 class TestAiMetricsAndCheckpoints:
     """Test AI metrics persistence and lightweight checkpoint behavior."""
