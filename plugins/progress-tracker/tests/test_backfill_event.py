@@ -98,3 +98,39 @@ class TestBackfillEventWrite:
         candidates = pm.find_backfill_candidates(feature_id=9)
         assert 9 in [c["feature_id"] for c in candidates], \
             "Pre-reset completion should NOT block post-reset backfill"
+
+
+class TestBackfillAfterProjectCompleted:
+    def test_ignores_pre_boundary_feature_completed(self, project_scope):
+        """After project_completed, old-cycle feature_completed should not suppress backfill."""
+        _write_progress(project_scope["state_dir"],
+                        [{"id": 1, "name": "New F1", "completed": True,
+                          "completed_at": "2026-04-25T00:00:00Z"}])
+        # Old cycle: feature 1 was completed before project_completed
+        _write_audit_event(project_scope["state_dir"],
+                           "feature_completed", feature_id=1,
+                           ts="2026-04-24T10:00:00Z")
+        _write_audit_event(project_scope["state_dir"],
+                           "project_completed",
+                           ts="2026-04-24T11:00:00Z")
+        # New cycle: feature 1 completed but no audit event post-boundary
+        candidates = pm.find_backfill_candidates()
+        assert 1 in [c["feature_id"] for c in candidates]
+
+    def test_no_candidates_when_post_boundary_event_exists(self, project_scope):
+        """After project_completed, new-cycle feature_completed suppresses backfill."""
+        _write_progress(project_scope["state_dir"],
+                        [{"id": 1, "name": "New F1", "completed": True,
+                          "completed_at": "2026-04-25T00:00:00Z"}])
+        _write_audit_event(project_scope["state_dir"],
+                           "feature_completed", feature_id=1,
+                           ts="2026-04-24T10:00:00Z")
+        _write_audit_event(project_scope["state_dir"],
+                           "project_completed",
+                           ts="2026-04-24T11:00:00Z")
+        # New cycle event after boundary
+        _write_audit_event(project_scope["state_dir"],
+                           "feature_completed", feature_id=1,
+                           ts="2026-04-25T10:00:00Z")
+        candidates = pm.find_backfill_candidates()
+        assert candidates == []

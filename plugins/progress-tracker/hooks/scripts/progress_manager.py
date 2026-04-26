@@ -3349,11 +3349,13 @@ def find_backfill_candidates(
         effective_root = str(find_project_root())
         all_records = audit_log.read_audit_log(ascending=True, project_root=effective_root)
 
-        # 幂等性须考虑 reset 边界：只看最后一次 tracker_reset 之后的 feature_completed
-        # reset 之前的完成事件不应阻止 reset 之后合法的 backfill
+        # 幂等性须考虑 reset/project_completed 边界：
+        # 只看最后一次 tracker_reset 或 project_completed 之后的 feature_completed
+        # 边界之前的完成事件不应阻止边界之后合法的 backfill
+        BOUNDARY_EVENT_TYPES = {"tracker_reset", "project_completed"}
         last_reset_idx = -1
         for i, r in enumerate(all_records):
-            if r.get("event_type") == "tracker_reset":
+            if r.get("event_type") in BOUNDARY_EVENT_TYPES:
                 last_reset_idx = i
 
         for r in all_records[last_reset_idx + 1:]:
