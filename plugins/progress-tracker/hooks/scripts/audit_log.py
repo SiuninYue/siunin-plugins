@@ -22,6 +22,7 @@ ALLOWED_EVENT_TYPES: frozenset = frozenset({
     "state_restored",
     "tracker_reset",
     "manual_state_override",
+    "project_completed",
     # 现有生产代码已写入的事件类型（不可移除，否则静默丢数据）
     "schema_migration",
     "evaluator_assessment",

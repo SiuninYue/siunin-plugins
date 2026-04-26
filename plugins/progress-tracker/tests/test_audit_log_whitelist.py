@@ -37,6 +37,10 @@ class TestAllowedEventTypesConstant:
         }
         assert production.issubset(audit_log.ALLOWED_EVENT_TYPES)
 
+    def test_contains_project_completed_event(self):
+        """project_completed must be in whitelist before _reset_active_progress can write it."""
+        assert "project_completed" in audit_log.ALLOWED_EVENT_TYPES
+
     def test_is_known_event_type_helper(self):
         assert audit_log.is_known_event_type("feature_completed") is True
         assert audit_log.is_known_event_type("totally_unknown") is False
