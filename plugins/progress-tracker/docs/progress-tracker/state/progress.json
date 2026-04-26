@@ -452,7 +452,7 @@
         "Run contract tests: pytest -q plugins/progress-tracker/tests/test_command_discovery_contract.py",
         "Re-run scan: python3 plugins/progress-tracker/hooks/scripts/quick_validate.py"
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -462,7 +462,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "implementing",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-002"
       ],
@@ -523,8 +523,17 @@
         "artifact_path": null,
         "created_at": null
       },
-      "development_stage": "developing",
-      "started_at": "2026-04-26T18:51:00.420037Z"
+      "development_stage": "completed",
+      "started_at": "2026-04-26T18:51:00.420037Z",
+      "completed_at": "2026-04-26T15:39:16.000000Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-26T15:39:16.000000Z",
+      "commit_hash": "3a30b24",
+      "archive_info": {
+        "archived_at": "2026-04-26T15:39:16.000000Z",
+        "files_moved": 0,
+        "files": []
+      }
     },
     {
       "id": 3,
@@ -1044,7 +1053,7 @@
       "started_at": "2026-04-24T15:54:37.202730Z"
     }
   ],
-  "current_feature_id": 2,
+  "current_feature_id": null,
   "linked_projects": [],
   "linked_snapshot": {
     "schema_version": "1.0",
@@ -1068,8 +1077,8 @@
     "branch": "main",
     "upstream": "origin/main",
     "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
-    "current_feature_id": 2,
-    "workflow_phase": "planning",
+    "current_feature_id": null,
+    "workflow_phase": null,
     "current_task": null,
     "total_tasks": null,
     "next_action": null
@@ -1094,7 +1103,7 @@
   "current_bug_id": null,
   "parent_project_root": ".",
   "workflow_state": {
-    "phase": "planning",
-    "updated_at": "2026-04-26T18:51:00.420049Z"
+    "phase": null,
+    "updated_at": "2026-04-26T15:39:16.000000Z"
   }
 }

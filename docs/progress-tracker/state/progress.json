@@ -35,14 +35,7 @@
     "updated_at": null,
     "projects": []
   },
-  "active_routes": [
-    {
-      "project_code": "PT",
-      "feature_ref": "PT-F9",
-      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
-      "branch": "main"
-    }
-  ],
+  "active_routes": [],
   "updates": [],
   "retrospectives": [],
   "runtime_context": {
