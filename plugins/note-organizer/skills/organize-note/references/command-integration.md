@@ -71,7 +71,7 @@ description: 格式化笔记（支持文件路径或直接粘贴内容）
 ### 调用流程
 
 ```
-用户输入: /note-batch "./notes/*.txt" --format obsidian
+用户输入: /note-batch "./notes/*.txt" --obsidian
     ↓
 命令层: 使用 batch_scanner.py 扫描文件
     ↓
@@ -96,7 +96,7 @@ description: 批量格式化笔记文件
 ## 参数
 
 - `pattern`: Glob 文件模式
-- `--format`: 目标格式 (notebooklm | obsidian)
+- `--obsidian`: 输出 Obsidian 格式（布尔标志）
 
 ## 处理步骤
 

@@ -108,7 +108,7 @@ The plugin detects project type by checking root directory for configuration fil
 pyproject.toml      → Python project  → use uv
 package.json        → Node.js project → check lock file:
   ├─ pnpm-lock.yaml → pnpm
-  ├─ bun.lockb      → bun
+  ├─ bun.lock       → bun
   ├─ yarn.lock      → yarn
   ├─ package-lock.json → npm
   └─ (none)         → recommend pnpm
@@ -124,4 +124,4 @@ MIT
 
 ## Version
 
-1.2.0
+1.2.1

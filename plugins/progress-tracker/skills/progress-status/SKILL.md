@@ -2,6 +2,16 @@
 name: progress-status
 description: This skill should be used when the user runs "/prog", asks to "show project status", "show progress", "how many features are done", or requests a completion summary. Reads progress tracking files, computes completion metrics, displays current feature state, and provides actionable next-step recommendations.
 model: haiku
+version: "2.0.0"
+scope: skill
+inputs:
+  - 用户问题或场景
+  - 约束与目标（如有）
+outputs:
+  - 方法与模板
+  - 注意事项与检查项
+evidence: optional
+references: []
 ---
 
 # Progress Status Display Skill

@@ -2,6 +2,15 @@
 name: progress-recovery
 description: This skill should be used when the user runs "/prog", asks to "resume progress", "recover interrupted workflow", "continue unfinished feature", or returns after an interrupted development session.
 model: sonnet
+version: "1.2.0"
+scope: skill
+inputs:
+  - 用户问题或场景
+  - 约束与目标（如有）
+outputs:
+  - 方法与模板
+  - 注意事项与检查项
+evidence: optional
 references:
   - "./references/scenario-playbook.md"
   - "./references/communication-templates.md"

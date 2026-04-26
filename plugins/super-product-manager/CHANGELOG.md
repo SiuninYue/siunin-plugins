@@ -4,8 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-04-12
+
 ### Added
-- Beta meeting workflow command set:
+- Planning commands: `/office-hours`, `/plan-ceo-review`, `/plan-design-review`, `/plan-devex-review`
+- `scripts/planning_workflow.py` for planning artifact creation
+- `spm_planning` source integration in progress-tracker
+- Meeting workflow command set:
   - `/meeting`
   - `/roundtable`
   - `/assign`
@@ -14,7 +19,21 @@ All notable changes to this project will be documented in this file.
 - `scripts/meeting_workflow.py` for meeting artifact creation and best-effort sync degradation handling.
 - Contract/unit tests for meeting commands, bridge behavior, and workflow artifact guarantees.
 
-## [1.3.0] - 2025-01-15
+## [1.4.0] - 2026-01-25
+
+### Fixed
+- 修复所有 12 个 commands 的 frontmatter，添加 STANDARDS.md 必填字段
+  - 新增字段：`version`, `scope`, `inputs`, `outputs`, `evidence`, `references`
+
+### Added
+- 技能内容大幅扩充：retro (34→295行), persona (51→300行), user-story (50→385行), roadmap (50→414行), launch (50→459行)
+- 复盘框架：KPT、5 Whys、Start-Stop-Continue、4Ls、Post-Mortem
+- 用户画像质量检查：证据来源标注、验证清单
+- 验收标准模板：Given-When-Then 格式
+- 路线图可视化：时间线视图、泳道视图、表格视图
+- 灰度发布策略：5阶段灰度、判断标准阈值
+
+## [1.3.0] - 2026-01-15
 
 ### prd 技能升级 (v1.1.0 → v1.2.0)
 
@@ -93,7 +112,7 @@ All notable changes to this project will be documented in this file.
 - 统一的证据门槛示例格式
 - 详细的实验设计方法论，包括方法、样本、周期和指标
 
-## [1.2.0] - 2025-01-XX
+## [1.2.0] - 2026-01-10
 
 ### idea-concretization 技能升级
 - 重命名验证模板

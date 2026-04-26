@@ -27,9 +27,8 @@
 - [ ] plan_path CLI normalization
 
 ## Workflow Context
-- Phase: planning:approved
-- Execution context: feature/feature-2-normalize-skill-frontmatter @ feature-2-normalize-skill-frontmatter [worktree]
-- Current session context: feature/feature-2-normalize-skill-frontmatter @ feature-2-normalize-skill-frontmatter [worktree]
+- Phase: planning
+- Current session context: main @ Claude-Plugins [in_place]
 
 ### Fixed (✅)
 - [x] [BUG-001] Python falsy trap: current_feature_id=0 被 not 误判为 None，导致 set-workflow-state/auto_checkpoint/wf_auto_driver/route_status 等函数在 feature ID 为 0 时异常跳过

@@ -28,7 +28,7 @@ This document defines conventions and standards for the Package Manager plugin.
    - General: `package.json` (then check lock files)
 3. **Lock file precedence**:
    - `pnpm-lock.yaml` → use pnpm
-   - `bun.lockb` → use bun
+   - `bun.lock` → use bun
    - `yarn.lock` → use yarn
    - `package-lock.json` → use npm
    - No lock file → recommend pnpm

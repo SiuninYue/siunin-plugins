@@ -19,7 +19,6 @@
 │  clean_timestamps.py    - 时间戳清理                      │
 │  batch_scanner.py       - 文件扫描                        │
 │  template_renderer.py   - 模板渲染                        │
-│  file_writer.py         - 文件写入                        │
 └─────────────────────────────────────────────────────────┘
 ```
 

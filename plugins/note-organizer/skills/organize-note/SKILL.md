@@ -46,10 +46,10 @@ references:
 
 ```bash
 # 单文件处理
-/note-process ./notes/meeting.txt --format notebooklm
+/note-process ./notes/meeting.txt --obsidian
 
 # 批量处理
-/note-batch "./notes/*.txt" --format obsidian
+/note-batch "./notes/*.txt" --obsidian
 ```
 
 ## 参考文档

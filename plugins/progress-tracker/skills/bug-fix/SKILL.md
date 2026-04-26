@@ -1,6 +1,15 @@
 ---
 name: bug-fix
 description: This skill should be used when the user asks to "fix a bug", "report a bug", "/prog-fix", "investigate bug", or mentions debugging workflow within progress-tracker plugin. Manages bug discovery, verification, scheduling, and TDD-based fixing.
+version: "1.0.0"
+scope: skill
+inputs:
+  - Bug description or no arguments
+outputs:
+  - Bug verification results
+  - Smart scheduling recommendations
+  - Coordinated debugging and fixing workflow
+evidence: optional
 references:
   - "testing-standards"
   - "superpowers:systematic-debugging"

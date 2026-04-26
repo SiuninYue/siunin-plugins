@@ -2,6 +2,16 @@
 name: feature-breakdown
 description: This skill should be used when the user runs "/prog init", asks to "initialize progress tracking", "break down a goal into features", "create a feature list with test steps", or needs to start a new tracked project.
 model: opus
+version: "1.1.0"
+scope: skill
+inputs:
+  - 用户问题或场景
+  - 约束与目标（如有）
+outputs:
+  - 方法与模板
+  - 注意事项与检查项
+evidence: optional
+references: []
 ---
 
 # Feature Breakdown Skill

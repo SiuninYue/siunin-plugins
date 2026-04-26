@@ -315,7 +315,7 @@ yarn add          # 当项目没有 yarn.lock 时
 
 根据锁定文件选择：
 - `pnpm-lock.yaml` → 使用 `pnpm`
-- `bun.lockb` → 使用 `bun`
+- `bun.lock` → 使用 `bun`
 - `yarn.lock` → 使用 `yarn`
 - `package-lock.json` → 使用 `npm`
 - 无锁定文件 → 推荐使用 `pnpm`
@@ -713,7 +713,7 @@ packages:
 ### bun 工作区配置
 
 ```json
-// bun.lockb 自动管理
+// bun.lock 自动管理
 // 使用 package.json 的 workspaces 字段
 {
   "workspaces": [

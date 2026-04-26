@@ -210,7 +210,7 @@ The planning commands create artifacts and sync structured updates into PROG:
 
 Before starting feature implementation via `/prog-next`, PROG validates planning readiness:
 
-- `prog validate-planning <feature-id>` checks required/optional lanes
+- `prog validate-planning --feature-id <id>` checks required/optional lanes
 - Returns `ready` (all required satisfied), `warn` (required OK, optional missing), or `missing` (required lanes incomplete)
 - `prog-next` blocks on `missing` status unless `--ack-planning-risk` is passed
 
@@ -266,29 +266,15 @@ MIT
 
 ## 更新日志 Changelog
 
-### v1.4.0 (2025-01-25)
+完整变更记录见 `CHANGELOG.md`。
 
-#### 规范修复
-- ✅ 修复所有 12 个 commands 的 frontmatter，添加 STANDARDS.md 必填字段
-  - 新增字段：`version`, `scope`, `inputs`, `outputs`, `evidence`, `references`
-  - 所有命令现在完全符合插件规范
+### v1.5.0 (2026-04-12)
+- 新增 planning 命令：`/office-hours`, `/plan-ceo-review`, `/plan-design-review`, `/plan-devex-review`
+- 新增 meeting 工作流命令：`/meeting`, `/roundtable`, `/assign`, `/followup`
 
-#### 技能内容大幅扩充
-| Skill | 优化前 | 优化后 | 新增内容 |
-|-------|-------|-------|---------|
-| **retro** | 34行 | 295行 | 复盘类型与框架（KPT/5 Whys/Start-Stop-Continue）、标准流程、模板、最佳实践 |
-| **persona** | 51行 | 300行 | 用户画像要素、质量检查清单、详细模板、完整示例 |
-| **user-story** | 50行 | 385行 | INVEST原则、Given-When-Then验收标准、故事拆分技巧、估算方法 |
-| **roadmap** | 50行 | 414行 | 4种路线图类型（Now-Next-Later/Theme-Based等）、里程碑规划、可视化格式 |
-| **launch** | 50行 | 459行 | 上线检查清单、灰度发布策略、回滚方案、风险控制矩阵 |
+### v1.4.0 (2026-01-25)
+- 修复所有 commands 的 frontmatter，添加 STANDARDS.md 必填字段
+- 技能内容大幅扩充：retro, persona, user-story, roadmap, launch
 
-#### 新增内容
-- 复盘框架：KPT、5 Whys、Start-Stop-Continue、4Ls、Post-Mortem
-- 用户画像质量检查：证据来源标注、验证清单
-- 验收标准模板：Given-When-Then 格式、边界场景、异常场景
-- 路线图可视化：时间线视图、泳道视图、表格视图
-- 灰度发布策略：5阶段灰度、判断标准阈值
-- 完整示例：小李用户画像、手机验证码登录、笔记工具路线图
-
-### v1.3.0
+### v1.3.0 (2026-01-15)
 - 初始版本，包含完整的产品管理工作流

@@ -91,7 +91,7 @@ if [ -f "package.json" ]; then
     if [ -f "pnpm-lock.yaml" ]; then
         echo "   包管理器: pnpm"
         echo "   推荐命令: pnpm add <package>"
-    elif [ -f "bun.lockb" ]; then
+    elif [ -f "bun.lock" ]; then
         echo "   包管理器: bun"
         echo "   推荐命令: bun add <package>"
     elif [ -f "yarn.lock" ]; then

@@ -120,7 +120,7 @@ mise upgrade rust          # 通过 mise
 pyproject.toml      → Python  → uv
 package.json        → Node.js → 检查 lock 文件
   ├─ pnpm-lock.yaml → pnpm
-  ├─ bun.lockb      → bun
+  ├─ bun.lock      → bun
   ├─ yarn.lock      → yarn
   ├─ package-lock.json → npm
   └─ (none)         → 推荐 pnpm
@@ -431,8 +431,8 @@ update-all() {
         [ -f "pyproject.toml" ] && mise exec uv -- uv sync --upgrade &>/dev/null
         if [ -f "package.json" ]; then
             [ -f "pnpm-lock.yaml" ] && mise exec pnpm -- pnpm update &>/dev/null
-            [ -f "bun.lockb" ] && mise exec bun -- bun update &>/dev/null
-            [ ! -f "pnpm-lock.yaml" ] && [ ! -f "bun.lockb" ] && npm update &>/dev/null
+            [ -f "bun.lock" ] && mise exec bun -- bun update &>/dev/null
+            [ ! -f "pnpm-lock.yaml" ] && [ ! -f "bun.lock" ] && npm update &>/dev/null
         fi
         [ -f "Gemfile" ] && bundle update &>/dev/null
         [ -f "go.mod" ] && go get -u ./... &>/dev/null && go mod tidy &>/dev/null
@@ -493,8 +493,8 @@ update-project() {
     elif [ -f "pyproject.toml" ]; then mise exec uv -- uv sync --upgrade
     elif [ -f "package.json" ]; then
         [ -f "pnpm-lock.yaml" ] && mise exec pnpm -- pnpm update
-        [ -f "bun.lockb" ] && mise exec bun -- bun update
-        [ ! -f "pnpm-lock.yaml" ] && [ ! -f "bun.lockb" ] && npm update
+        [ -f "bun.lock" ] && mise exec bun -- bun update
+        [ ! -f "pnpm-lock.yaml" ] && [ ! -f "bun.lock" ] && npm update
     elif [ -f "Gemfile" ]; then bundle update
     elif [ -f "go.mod" ]; then go get -u ./... && go mod tidy
     else echo "❓ 未检测到支持的项目类型"; fi

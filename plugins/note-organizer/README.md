@@ -92,6 +92,4 @@
 
 ## 安装
 
-```bash
-/plugin install note-organizer@siunin-plugins
-```
+将 `note-organizer` 目录放入 Claude Code 插件路径即可自动加载。

@@ -1,52 +1,61 @@
-# F2 Plan: Normalize skill frontmatter to SOP-compliant shape
+# F2: Normalize Skill Frontmatter to SOP-Compliant Shape
 
-## Goal
+## Summary
 
-Remove prohibited keys (`version`, `scope`, `inputs`, `outputs`, `evidence`) from all 15
-`skills/*/SKILL.md` frontmatter blocks, keeping only SOP-compliant fields:
-- **Required**: `name`, `description`
-- **Optional retained**: `model`, `user-invocable`, `references` (non-empty only)
+Delete prohibited fields (version, scope, inputs, outputs, evidence) from all 15 progress-tracker SKILL.md files. Preserve allowed fields (model, user-invocable, non-empty references). Run regression tests and compliance scan.
 
-## Target files
+## Scope
 
-All files matching `plugins/progress-tracker/skills/*/SKILL.md`.
+### In Scope
+
+- Remove version, scope, inputs, outputs, evidence from frontmatter
+- Remove references: [] (empty list)
+- Preserve model, user-invocable, references (non-empty)
+- Verify with contract tests and quick_validate.py
+
+### Out of Scope
+
+- Adding new validation tests (F4 responsibility)
+- Modifying description content
+- Other plugins' SKILL.md files
 
 ## Tasks
 
-### T1 — Audit: list each file and its current prohibited fields
+### T1 — Audit: Identify violation fields per file
 
-For each SKILL.md, record which prohibited keys are present and whether `references` is empty.
+List each SKILL.md and its prohibited fields.
 
-Acceptance: audit table produced (internal, no file write needed).
+### T2 — Edit: Remove prohibited fields from frontmatter
 
-### T2 — Edit each SKILL.md: remove prohibited keys
+For each file:
+- Delete version, scope, inputs, outputs, evidence keys and their values
+- Delete references: [] (empty list)
+- Preserve model, user-invocable, references (non-empty)
 
-For each of the 15 SKILL.md files:
-- Delete lines belonging to `version`, `scope`, `inputs`, `outputs`, `evidence` keys (including multi-line values).
-- Delete `references: []` lines (empty list only).
-- Leave `model`, `user-invocable`, `references` (non-empty) intact.
+**Acceptance:** `rg -n '^(version|scope|inputs|outputs|evidence):|^references: \[\]' skills/*/SKILL.md` returns no output.
 
-Acceptance: `grep -r 'version:\|^scope:\|^inputs:\|^outputs:\|^evidence:' skills/*/SKILL.md` returns no matches.
+### T3 — Regression test
 
-### T3 — Run contract tests (regression)
+Run `pytest -q tests/test_command_discovery_contract.py`
 
-```bash
-pytest -q tests/test_command_discovery_contract.py
-```
+**Acceptance:** 3 passed, 0 failures.
 
-Acceptance: 3 passed, 0 failures.
+### T4 — Compliance scan
 
-### T4 — Re-run compliance scan
+Run `python3 hooks/scripts/quick_validate.py`
 
-```bash
-python3 hooks/scripts/quick_validate.py
-```
+**Acceptance:** Quick validation passed.
 
-Acceptance: "Quick validation passed."
+## Acceptance Mapping
 
-## Out of scope
+| Test Step | Plan Task | Expected Outcome |
+|-----------|-----------|-----------------|
+| Update target SKILL.md frontmatter to keep required fields and remove prohibited keys | T2 | All 15 SKILL.md files contain only allowed fields (name, description, model, user-invocable, references with items) |
+| Run contract tests: pytest -q plugins/progress-tracker/tests/test_command_discovery_contract.py | T3 | 3 passed, 0 failures |
+| Re-run scan: python3 plugins/progress-tracker/hooks/scripts/quick_validate.py | T4 | Quick validation passed |
 
-- Adding new frontmatter validation tests (covered by F4).
-- Changing `description` text.
-- Modifying any files outside `skills/*/SKILL.md`.
-- Other plugins.
+## Risks
+
+- **Risk: Frontmatter removal breaks skill discovery** — Mitigated by T3 contract tests verifying command discovery still works.
+- **Risk: References list format changes affect downstream consumers** — Mitigated by only removing empty references; non-empty references preserved unchanged.
+- **Risk: Other plugins have same violations** — Out of scope for this feature; tracked separately.

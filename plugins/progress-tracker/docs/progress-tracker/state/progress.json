@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-04-26T19:06:36.151699Z",
+  "updated_at": "2026-04-26T18:51:00.453562Z",
   "features": [
     {
       "id": 10,
@@ -524,14 +524,7 @@
         "created_at": null
       },
       "development_stage": "developing",
-      "started_at": "2026-04-26T18:54:33.733591Z",
-      "ai_metrics": {
-        "complexity_score": 15,
-        "complexity_bucket": "simple",
-        "selected_model": "haiku",
-        "workflow_path": "direct_tdd",
-        "started_at": "2026-04-26T18:58:00.863448Z"
-      }
+      "started_at": "2026-04-26T18:51:00.420037Z"
     },
     {
       "id": 3,
@@ -1065,18 +1058,18 @@
   "updates": [],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-04-26T19:06:36.143396Z",
-    "source": "set_workflow_state",
-    "workspace_mode": "worktree",
-    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/.worktrees/feature-2-normalize-skill-frontmatter",
-    "project_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/.worktrees/feature-2-normalize-skill-frontmatter",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/.worktrees/feature-2-normalize-skill-frontmatter/plugins/progress-tracker",
-    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-2-normalize-skill-frontmatter",
-    "branch": "feature/feature-2-normalize-skill-frontmatter",
-    "upstream": null,
-    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/.worktrees/feature-2-normalize-skill-frontmatter/plugins/progress-tracker",
+    "recorded_at": "2026-04-26T18:51:00.445413Z",
+    "source": "set_current",
+    "workspace_mode": "in_place",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
+    "branch": "main",
+    "upstream": "origin/main",
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
     "current_feature_id": 2,
-    "workflow_phase": "planning:approved",
+    "workflow_phase": "planning",
     "current_task": null,
     "total_tasks": null,
     "next_action": null
@@ -1101,19 +1094,7 @@
   "current_bug_id": null,
   "parent_project_root": ".",
   "workflow_state": {
-    "phase": "planning:approved",
-    "updated_at": "2026-04-26T19:06:36.091839Z",
-    "execution_context": {
-      "recorded_at": "2026-04-26T19:06:36.117653Z",
-      "source": "set_workflow_state",
-      "workspace_mode": "worktree",
-      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/.worktrees/feature-2-normalize-skill-frontmatter",
-      "project_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/.worktrees/feature-2-normalize-skill-frontmatter",
-      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker/.worktrees/feature-2-normalize-skill-frontmatter/plugins/progress-tracker",
-      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-2-normalize-skill-frontmatter",
-      "branch": "feature/feature-2-normalize-skill-frontmatter",
-      "upstream": null
-    },
-    "plan_path": "docs/plans/2026-04-26-f2-normalize-skill-frontmatter.md"
+    "phase": "planning",
+    "updated_at": "2026-04-26T18:51:00.420049Z"
   }
 }

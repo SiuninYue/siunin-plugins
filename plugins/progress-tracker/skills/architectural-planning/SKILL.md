@@ -2,6 +2,16 @@
 name: architectural-planning
 description: This skill should be used when the user runs "/prog plan", asks to "create architecture plan", "choose tech stack", "document architecture decisions", or needs system design guidance before implementation.
 model: opus
+version: "1.1.0"
+scope: skill
+inputs:
+  - 项目描述或目标
+  - 现有架构文档（如存在）
+outputs:
+  - 技术栈选择
+  - 系统架构设计
+  - 架构决策文档
+evidence: optional
 references:
   - skills/feature-breakdown/SKILL.md
   - skills/feature-implement/SKILL.md

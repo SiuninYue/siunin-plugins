@@ -2,6 +2,16 @@
 name: git-auto
 description: This skill should be used when the user asks to "create a git commit", "commit changes", "commit and push", "make a commit", "handle git", "git auto", "git auto start", "git auto done", or "git auto fix", or needs git operations automated with branch/PR/merge decisions.
 model: sonnet
+version: "2.1.1"
+scope: skill
+inputs:
+  - Current git repository state
+  - Optional user intent (feature/bug/refactor)
+  - Optional repository protection rules and CI/review signals
+outputs:
+  - Execution plan with reasons, enforcement mode, escalation reason, workspace mode, and worktree decision reason
+  - Execution results after confirmation or autorun
+evidence: optional
 references:
   - "superpowers:using-git-worktrees"
   - "./references/enforcement-modes.md"
