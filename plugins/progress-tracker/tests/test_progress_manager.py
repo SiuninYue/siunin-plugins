@@ -1649,6 +1649,42 @@ class TestWorkflowStateEdgeCases:
         result2 = progress_manager.validate_plan_path("docs/notes/plan.md")
         assert result2["valid"] is False
 
+    def test_validate_plan_path_error_message_includes_example(self):
+        """Error message for wrong prefix should include a valid path example (F11)."""
+        result = progress_manager.validate_plan_path("docs/notes/plan.md")
+        assert result["valid"] is False
+        assert "docs/plans/" in result["error"]
+        assert ".md" in result["error"]
+
+    def test_normalize_plan_path_cli_arg_strips_project_root(self, temp_dir):
+        """CLI normalizer should convert absolute path to relative when under project root (F11)."""
+        abs_path = str(temp_dir / "docs" / "plans" / "my-plan.md")
+        result = progress_manager._normalize_plan_path_cli_arg(abs_path, temp_dir)
+        assert result == "docs/plans/my-plan.md"
+
+    def test_normalize_plan_path_cli_arg_passes_through_relative(self, temp_dir):
+        """CLI normalizer should pass relative paths through unchanged (F11)."""
+        result = progress_manager._normalize_plan_path_cli_arg(
+            "docs/plans/my-plan.md", temp_dir
+        )
+        assert result == "docs/plans/my-plan.md"
+
+    def test_normalize_plan_path_cli_arg_leaves_unrelated_absolute_unchanged(self, temp_dir):
+        """CLI normalizer should leave absolute paths outside project root unchanged (F11)."""
+        abs_path = "/some/other/path/plan.md"
+        result = progress_manager._normalize_plan_path_cli_arg(abs_path, temp_dir)
+        assert result == "/some/other/path/plan.md"
+
+    def test_normalize_plan_path_cli_arg_returns_none_for_none(self):
+        """CLI normalizer should return None when given None (F11)."""
+        result = progress_manager._normalize_plan_path_cli_arg(None)
+        assert result is None
+
+    def test_normalize_plan_path_cli_arg_returns_empty_for_empty(self, temp_dir):
+        """CLI normalizer should return empty string when given empty string (F11)."""
+        result = progress_manager._normalize_plan_path_cli_arg("", temp_dir)
+        assert result == ""
+
     def test_set_workflow_state_execution_requires_existing_plan(self, in_progress_file):
         """Should fail if execution phase references a missing plan file."""
         result = progress_manager.set_workflow_state(

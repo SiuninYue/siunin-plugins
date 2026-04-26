@@ -554,7 +554,7 @@ def validate_plan_path(
         return {
             "valid": False,
             "normalized_path": None,
-            "error": f"plan_path must be under '{PLAN_PATH_PREFIX}'",
+            "error": f"plan_path must be a relative path under '{PLAN_PATH_PREFIX}' ending with .md (e.g. {PLAN_PATH_PREFIX}YYYY-MM-DD-name.md)",
         }
 
     if not normalized.endswith(".md"):
@@ -582,6 +582,31 @@ def validate_plan_path(
             }
 
     return {"valid": True, "normalized_path": normalized, "error": None}
+
+
+def _normalize_plan_path_cli_arg(
+    plan_path: Optional[str], project_root: Optional[Path] = None
+) -> Optional[str]:
+    """
+    Normalize a plan_path value coming from CLI argument.
+
+    If the path is absolute and falls under the project root, convert it to a
+    relative path so that ``validate_plan_path`` can accept it.  All other
+    values are returned unchanged.
+    """
+    if not plan_path:
+        return plan_path
+
+    p = Path(plan_path)
+    if not p.is_absolute():
+        return plan_path
+
+    root = project_root or find_project_root()
+    try:
+        relative = p.relative_to(root)
+        return str(relative).replace("\\", "/")
+    except ValueError:
+        return plan_path
 
 
 def validate_plan_document(plan_path: str, target_root: Optional[Path] = None) -> Dict[str, Any]:
@@ -10829,7 +10854,9 @@ def main():
             return reset_tracking(force=args.force)
         if args.command == "set-workflow-state":
             return set_workflow_state(
-                phase=args.phase, plan_path=args.plan_path, next_action=args.next_action
+                phase=args.phase,
+                plan_path=_normalize_plan_path_cli_arg(args.plan_path),
+                next_action=args.next_action,
             )
         if args.command == "update-workflow-task":
             return update_workflow_task(args.task_id, args.status)
@@ -10887,7 +10914,7 @@ def main():
         if args.command == "sync-runtime-context":
             return sync_runtime_context(source=args.source, quiet=args.quiet, force=args.force)
         if args.command == "validate-plan":
-            return validate_plan(plan_path=args.plan_path)
+            return validate_plan(plan_path=_normalize_plan_path_cli_arg(args.plan_path))
         if args.command == "generate-direct-tdd-note":
             return generate_direct_tdd_note()
         if args.command == "add-bug":

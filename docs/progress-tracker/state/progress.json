@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "Claude-Plugins Monorepo Test",
   "created_at": "2026-04-25T23:57:13.303927Z",
-  "updated_at": "2026-04-26T17:16:56.653109Z",
+  "updated_at": "2026-04-27T00:55:43.445235Z",
   "features": [],
   "current_feature_id": null,
   "tracker_role": "parent",
@@ -35,7 +35,14 @@
     "updated_at": null,
     "projects": []
   },
-  "active_routes": [],
+  "active_routes": [
+    {
+      "project_code": "PT",
+      "feature_ref": "PT-F11",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+      "branch": "main"
+    }
+  ],
   "updates": [],
   "retrospectives": [],
   "runtime_context": {

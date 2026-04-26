@@ -2,20 +2,20 @@
 
 **Created**: 2026-04-23T00:28:18.285129Z
 
-**Status**: 4/12 completed
+**Status**: 5/12 completed
 
 ## Completed
 - [x] 根目录混合宿主架构：Monorepo /prog 支持
 - [x] Robust Progress State Architecture - Event Sourcing & Reconciliation
 - [x] Baseline compliance scan for frontmatter and routable descriptions
 - [x] Refactor progress_manager into modular command helpers
+- [x] Normalize skill frontmatter to SOP-compliant shape
 
 ## In Progress
-- [ ] Normalize skill frontmatter to SOP-compliant shape
+- [ ] plan_path CLI normalization
   **Test steps**:
-  - Update target SKILL.md frontmatter to keep required fields and remove prohibited keys
-  - Run contract tests: pytest -q plugins/progress-tracker/tests/test_command_discovery_contract.py
-  - Re-run scan: python3 plugins/progress-tracker/hooks/scripts/quick_validate.py
+  - Normalize plan_path at CLI entry point
+  - Improve validate_plan_path error message
 
 ## Pending
 - [ ] Enforce plugin metadata traceability fields
@@ -24,10 +24,10 @@
 - [ ] Harden command lifecycle boundaries and architecture immutability guard
 - [ ] Enforce PROG command docs single-source parity
 - [ ] Implement fail-closed release gate with sync compatibility evidence
-- [ ] plan_path CLI normalization
 
 ## Workflow Context
-- Phase: planning
+- Phase: execution_complete
+- Execution context: main @ Claude-Plugins [in_place]
 - Current session context: main @ Claude-Plugins [in_place]
 
 ### Fixed (✅)

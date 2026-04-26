@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-04-26T17:08:56.147808Z",
+  "updated_at": "2026-04-27T00:51:36.020757Z",
   "source": {
     "generator": "progress_manager.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,25 +11,25 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1777169869687183105,
-      "size": 37034
+      "mtime_ns": 1777218230192483657,
+      "size": 38127
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
       "exists": true,
-      "mtime_ns": 1777169787964702600,
-      "size": 5896
+      "mtime_ns": 1777200670655001965,
+      "size": 6386
     }
   },
   "progress": {
-    "completed": 3,
+    "completed": 5,
     "total": 12,
-    "percentage": 25
+    "percentage": 41
   },
   "next_action": {
     "type": "feature",
-    "feature_id": 9,
-    "feature_name": "Refactor progress_manager into modular command helpers",
+    "feature_id": 3,
+    "feature_name": "Enforce plugin metadata traceability fields",
     "development_stage": "pending",
     "stage_label": "待开始"
   },
@@ -46,7 +46,7 @@
   },
   "recent_snapshot": {
     "exists": true,
-    "timestamp": "2026-04-22T21:04:39.852998+08:00",
-    "relative_time": "3 天前"
+    "timestamp": "2026-04-26T18:51:10.627264+08:00",
+    "relative_time": "6 小时前"
   }
 }
