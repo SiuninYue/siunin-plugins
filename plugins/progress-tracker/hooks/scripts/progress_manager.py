@@ -3135,17 +3135,17 @@ def _replay_audit_events(
 ) -> Tuple[Dict[int, str], bool]:
     """按时间戳升序回放事件，重建每个 feature 的期望完成状态。
 
-    - tracker_reset 是边界：清空已累积状态，reset 之前的事件不再有效
+    - tracker_reset / project_completed 是边界：清空已累积状态，边界之前的事件不再有效
     - feature_completed → "completed"
     - feature_undone → "not_completed"
 
     Returns:
         (states, last_event_was_reset)
         - states: {feature_id: "completed" | "not_completed"}
-        - last_event_was_reset: True 表示 reset 是最后一个边界事件，之后无任何
+        - last_event_was_reset: True 表示边界事件是最后一个事件，之后无任何
           feature 状态变更。此时 reconcile 应将所有 completed=True 的 feature 视为 drift。
     """
-    relevant_types = {"feature_completed", "feature_undone", "tracker_reset"}
+    relevant_types = {"feature_completed", "feature_undone", "tracker_reset", "project_completed"}
     sorted_records = sorted(
         [r for r in audit_records if r.get("event_type") in relevant_types],
         key=lambda r: r.get("timestamp", ""),
@@ -3155,8 +3155,8 @@ def _replay_audit_events(
     last_event_was_reset = False
     for record in sorted_records:
         et = record["event_type"]
-        if et == "tracker_reset":
-            # reset 是边界：清空所有已回放状态
+        if et in ("tracker_reset", "project_completed"):
+            # 两者都是边界：清空所有已回放状态
             states.clear()
             last_event_was_reset = True
         elif et == "feature_completed" and record.get("feature_id") is not None:

@@ -136,3 +136,37 @@ class TestAutoFix:
         pm.cmd_reconcile_state(check_only=False)
         result2 = pm.cmd_reconcile_state(check_only=True)
         assert result2["drift"] is False
+
+
+class TestProjectCompletedBoundary:
+    def test_project_completed_clears_prior_states(self, project_scope):
+        """project_completed is a boundary: all feature_completed before it are irrelevant."""
+        _write_progress(project_scope["state_dir"],
+                        [{"id": 1, "name": "F1", "completed": True}])
+        _write_audit_event(project_scope["state_dir"],
+                           "feature_completed", feature_id=1,
+                           ts="2026-04-24T10:00:00Z")
+        _write_audit_event(project_scope["state_dir"],
+                           "project_completed",
+                           ts="2026-04-24T11:00:00Z")
+        result = pm.cmd_reconcile_state(check_only=True)
+        # After project_completed, feature 1's completion is pre-boundary
+        assert result["drift"] is True
+        assert 1 in result["drifted_features"]
+        # Verify expected_completed is False in diff detail
+        assert any(d["feature_id"] == 1 and d["expected_completed"] is False
+                    for d in result.get("diff", []))
+
+    def test_project_completed_acts_like_tracker_reset(self, project_scope):
+        """project_completed and tracker_reset should produce identical reconcile results."""
+        _write_progress(project_scope["state_dir"],
+                        [{"id": 5, "name": "F5", "completed": True}])
+        _write_audit_event(project_scope["state_dir"],
+                           "feature_completed", feature_id=5,
+                           ts="2026-04-24T10:00:00Z")
+        _write_audit_event(project_scope["state_dir"],
+                           "project_completed",
+                           ts="2026-04-24T11:00:00Z")
+        result = pm.cmd_reconcile_state(check_only=True)
+        # After boundary, feature 5 completed in progress but not in audit (post-boundary)
+        assert result["drift"] is True
