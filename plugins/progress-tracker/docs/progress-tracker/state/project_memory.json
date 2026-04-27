@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "created_at": "2026-04-12T09:38:02.910760Z",
-  "updated_at": "2026-04-26T10:46:57.340363Z",
-  "next_capability_seq": 10,
+  "updated_at": "2026-04-27T02:52:41.741569Z",
+  "next_capability_seq": 12,
   "last_synced_commit": null,
   "capabilities": [
     {
@@ -188,6 +188,46 @@
       },
       "created_at": "2026-04-26T10:46:57.340327Z",
       "updated_at": "2026-04-26T10:46:57.340327Z"
+    },
+    {
+      "cap_id": "CAP-010",
+      "fingerprint": "6b4cdd4a27dcd56e",
+      "title": "plan_path CLI normalization",
+      "summary": "Added _normalize_plan_path_cli_arg() to convert absolute paths under project root to relative paths at CLI dispatch layer, and improved validate_plan_path error message with format examples.",
+      "tags": [
+        "cli",
+        "path-normalization",
+        "progress-tracker"
+      ],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 11,
+        "commit_hash": "e11f2d58268bf34946e3a756ad0a2e0a217208fc",
+        "commit_range": ""
+      },
+      "created_at": "2026-04-26T17:34:29.062098Z",
+      "updated_at": "2026-04-26T17:34:29.062098Z"
+    },
+    {
+      "cap_id": "CAP-011",
+      "fingerprint": "10138e2c3fe47b6d",
+      "title": "Enforce plugin metadata traceability fields",
+      "summary": "Added repository and homepage fields to all 4 marketplace plugin.json manifests with a repo-level contract test that dynamically traverses marketplace.json to enforce presence and exact values",
+      "tags": [
+        "metadata",
+        "traceability",
+        "contract-test"
+      ],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 3,
+        "commit_hash": "5bcd87ce742e7f6683b2527c75bc4cfe6c58b8f3",
+        "commit_range": ""
+      },
+      "created_at": "2026-04-27T02:52:41.741535Z",
+      "updated_at": "2026-04-27T02:52:41.741535Z"
     }
   ],
   "rejected_fingerprints": [],

@@ -30,6 +30,7 @@ REQUIRED_REFERENCE_FILES = [
     "skills/progress-recovery/references/scenario-playbook.md",
     "skills/progress-recovery/references/communication-templates.md",
 ]
+VALID_SKILL_MODELS = {"haiku", "sonnet", "opus"}
 
 def plugin_root() -> Path:
     return Path(__file__).resolve().parents[2]
@@ -110,6 +111,50 @@ def check_required_references(root: Path, errors: list[str]) -> None:
         if not path.exists():
             errors.append(f"Missing reference file: {path}")
 
+
+def required_skill_scopes_from_commands(root: Path) -> set[str]:
+    command_dir = root / "commands"
+    if not command_dir.exists():
+        return set()
+
+    scopes: set[str] = set()
+    pattern = re.compile(r'skill:\s*"progress-tracker:([A-Za-z0-9_-]+)"')
+    for command_path in sorted(command_dir.glob("*.md")):
+        content = read_text(command_path)
+        scopes.update(pattern.findall(content))
+    return scopes
+
+
+def check_required_skill_model_declarations(root: Path, errors: list[str]) -> None:
+    required_scopes = sorted(required_skill_scopes_from_commands(root))
+    if not required_scopes:
+        errors.append("No required skill scopes discovered from commands/*.md")
+        return
+
+    for scope in required_scopes:
+        skill_path = root / "skills" / scope / "SKILL.md"
+        if not skill_path.exists():
+            errors.append(f"Missing required skill scope file: {skill_path}")
+            continue
+
+        frontmatter = extract_frontmatter(skill_path)
+        if not frontmatter:
+            errors.append(f"Missing or malformed frontmatter in {skill_path}")
+            continue
+
+        model_match = re.search(r"^model:\s*(.+)$", frontmatter, re.MULTILINE)
+        if not model_match:
+            errors.append(f"Missing frontmatter model declaration in {skill_path}")
+            continue
+
+        model_value = model_match.group(1).strip().strip("\"'")
+        if model_value not in VALID_SKILL_MODELS:
+            errors.append(
+                f"Unsupported model declaration '{model_value}' in {skill_path}; "
+                f"expected one of {sorted(VALID_SKILL_MODELS)}"
+            )
+
+
 def check_generated_docs_sync(root: Path, errors: list[str]) -> None:
     script = root / "hooks" / "scripts" / "generate_prog_docs.py"
     if not script.exists():
@@ -137,6 +182,7 @@ def run_checks(root: Path, *, run_docs_check: bool = True) -> list[str]:
     check_description_tokens(root, errors)
     check_main_skill_word_counts(root, errors)
     check_required_references(root, errors)
+    check_required_skill_model_declarations(root, errors)
     if run_docs_check:
         check_generated_docs_sync(root, errors)
 

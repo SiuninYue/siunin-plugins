@@ -1,5 +1,5 @@
 {
-  "last_checkpoint_at": "2026-04-26T18:51:10.627264+08:00",
+  "last_checkpoint_at": "2026-04-27T13:36:20.689259+08:00",
   "max_entries": 50,
   "entries": [
     {
@@ -171,6 +171,21 @@
       "timestamp": "2026-04-26T18:51:10.627264+08:00",
       "feature_id": 2,
       "feature_name": "Normalize skill frontmatter to SOP-compliant shape",
+      "phase": "planning",
+      "plan_path": null,
+      "current_task": null,
+      "total_tasks": null,
+      "next_action": null,
+      "workspace_mode": "in_place",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+      "branch": "main",
+      "upstream": "origin/main",
+      "reason": "auto_interval"
+    },
+    {
+      "timestamp": "2026-04-27T13:36:20.689259+08:00",
+      "feature_id": 4,
+      "feature_name": "Add explicit model declaration checks for required skill scopes",
       "phase": "planning",
       "plan_path": null,
       "current_task": null,
