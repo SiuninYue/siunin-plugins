@@ -302,44 +302,7 @@ If files don't exist, handle gracefully and suggest initialization.
 
 ## Special Situations
 
-### Uncommitted Changes
-
-When `git status` shows uncommitted changes:
-
-```markdown
-### ⚠️ Uncommitted Changes Detected
-
-You have uncommitted changes. Consider:
-- Committing current work with `/prog done` (if feature is complete)
-- Stashing changes if switching context
-- Reviewing changes before continuing
-```
-
-### Stale Tracking (No recent Git activity)
-
-If last commit was more than a day ago:
-
-```markdown
-### 💤 Inactive Project
-
-Last Git activity was <time> ago.
-
-Resume by:
-- Using `/prog` to review current state
-- Running `/prog next` to continue implementation
-```
-
-### Feature Without Test Steps
-
-If a feature has empty or missing `test_steps`:
-
-```markdown
-### ⚠️ Feature Missing Test Steps
-
-Feature "<name>" lacks clear test steps.
-
-Consider updating test steps before marking complete.
-```
+Three common edge cases are handled: uncommitted changes (warn + suggest stash/commit), stale tracking (inactive project notice), feature without test steps (reminder to add steps). See [`references/special-situations.md`](references/special-situations.md) for full response templates.
 
 ## Integration with Commands
 
@@ -355,69 +318,7 @@ When invoked, always:
 
 ## Example Outputs
 
-### Active Project Example
-
-```markdown
-## Project Progress: User Authentication System
-
-**Status**: 2/5 completed (40%)
-**Created**: 2024-01-18T10:00:00Z
-
-### In Progress
-- [*] Registration API Endpoint
-  Test steps:
-  - POST /api/register with valid data
-  - Verify user record created in database
-  - Test validation with invalid email
-
-### Pending (3 remaining)
-- [ ] Login API Endpoint
-- [ ] JWT Token Generation
-- [ ] Password Reset Flow
-
-### Recent Git Activity
-```
-abc1234 feat: complete user database model
-def5678 chore: initialize progress tracking
-```
-
-### Next Steps
-
-Current feature is in progress. When ready:
-1. Verify the implementation passes test steps
-2. Run `/prog done` to test and commit
-
----
-**Paste into a new session to continue:**
-
-/progress-tracker:prog-next
-
-Feature: F3 "Registration API Endpoint" | Phase: execution
-Plan: docs/plans/2024-01-18-registration-api.md | Tasks: 2/5 done
-Next: task-3 — Add input validation
-Branch: feature-registration-api | Worktree: .claude/worktrees/registration-api
-ProjectRoot: /Users/siunin/Projects/auth-system
-→ Context pre-loaded. Resume from task 3.
----
-```
-
-### Empty State Example
-
-```markdown
-## No Active Progress Tracking
-
-No project tracking found in the current directory.
-
-Get started:
-```
-/prog init Build a user authentication system
-```
-
-This will:
-- Analyze your goal
-- Create a feature breakdown
-- Initialize progress tracking
-```
+See [`examples/status-display-examples.md`](examples/status-display-examples.md) for a full Active Project example and Empty State example showing expected output format.
 
 ## Key Guidelines
 
