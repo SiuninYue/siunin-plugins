@@ -219,21 +219,9 @@ If `docs/progress-tracker/architecture/architecture.md` doesn't exist:
 
 When using architecture decisions, inform the user:
 
-```markdown
 ## Feature Breakdown: <Project Name>
 
-Based on your architecture (Node.js + Express + PostgreSQL):
-✓ Using Sequelize for database models
-✓ Using Express Router for API endpoints
-✓ Using Joi for validation
-
-I've broken this down into N features:
-...
-```
-
-Each feature must include explicit architecture alignment:
-- `Architecture constraints`: list of referenced `CONSTRAINT-*` IDs from `docs/progress-tracker/architecture/architecture.md`
-- `Contract touchpoints`: interface/state/failure sections this feature implements
+Present the breakdown using the short-form template in [`references/templates.md`](references/templates.md#feature-breakdown-display-template-short-form).
 
 ## Smart Decision Making
 
@@ -273,50 +261,7 @@ plugins/progress-tracker/prog add-feature "<feature_name>" "<test_step_1>" "<tes
 
 ## Output Format
 
-Present the breakdown to the user as:
-
-```markdown
-## Feature Breakdown: <Project Name>
-
-I've broken this down into N features:
-
-1. **<Feature 1 Name>**
-   - Architecture constraints: <CONSTRAINT-...>
-   - Contract touchpoints: <interface/state/failure>
-   - Test steps:
-     - <step 1>
-     - <step 2>
-
-2. **<Feature 2 Name>**
-   - Architecture constraints: <CONSTRAINT-...>
-   - Contract touchpoints: <interface/state/failure>
-   - Test steps:
-     - <step 1>
-     - <step 2>
-
-...
-
-Initialized progress tracking.
-```
-
-**At the end, ALWAYS output the Context Handoff Block:**
-
-```markdown
----
-**Paste into a new session to start first feature:**
-
-/progress-tracker:prog-next
-
-Project: <project_name> | 0/<total_features> done
-ProjectRoot: <abs_project_root>
-→ Context pre-loaded. Auto-selects and starts first pending feature.
----
-```
-
-Get the `ProjectRoot` by running:
-```bash
-pwd -P
-```
+Use the full-form template in [`references/templates.md`](references/templates.md#feature-breakdown-display-template-full-form).
 
 ## Common Patterns
 
@@ -343,22 +288,7 @@ pwd -P
 
 ## Example Conversations
 
-**User**: "/prog init Build a task management app with CRUD operations"
-
-**Your response**:
-1. Analyze: This is a complex goal needing breakdown
-2. Identify features: task model, create endpoint, read endpoint, update endpoint, delete endpoint, basic UI
-3. Define test steps for each
-4. Call progress_manager.py to initialize
-5. Present breakdown to user
-
-**User**: "/prog init Add dark mode toggle"
-
-**Your response**:
-1. Analyze: This is a simple, single feature
-2. Define test steps: check toggle exists, verify theme changes, confirm persistence
-3. Add as single feature to existing/new tracking
-4. Confirm to user
+See [`examples/conversations.md`](examples/conversations.md) for example breakdowns of web app and CLI tool projects.
 
 ## Key Questions to Answer
 
