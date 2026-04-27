@@ -124,7 +124,7 @@ The `prog` tool uses relative paths and requires being in the correct project di
 1. Read `docs/progress-tracker/state/progress.json` and identify:
    - `current_feature_id`
    - next actionable feature (skip `deferred=true`)
-   - `workflow_state` (if present)
+   - **顶层** `workflow_state`（if present）— 不要读 `features[n].workflow_state`
 2. If `docs/progress-tracker/architecture/architecture.md` exists, read constraints and apply them.
 3. Before any delegation, create lightweight checkpoint:
 
@@ -144,11 +144,11 @@ plugins/progress-tracker/prog git-sync-check
 - If no progress file exists: instruct user to run `/prog init <goal>`.
 - If all features are complete: show completion message and stop.
 - If `current_feature_id` is already set and not complete:
-  - Check `workflow_state.phase`:
+  - Check 顶层 `workflow_state.phase`:
     - `execution_complete` → tell user to run `/prog done`, stop here.
     - `execution` or `planning_complete` → resume from next unfinished task (skip to Step 2.5, use existing plan_path).
     - `planning` or missing → continue normally from Step 2.
-  - Do not overwrite active feature or re-run git preflight if `workflow_state.execution_context` already matches current branch/worktree.
+  - Do not overwrite active feature or re-run git preflight if 顶层 `workflow_state.execution_context` already matches current branch/worktree.
 
 ### Step 2: Select and Lock Feature
 
@@ -174,7 +174,7 @@ plugins/progress-tracker/prog set-current <feature_id>
 
 ### Step 2.4: Project Memory Overlap Warning (Read-Only, Silent)
 
-**Only run this step if `workflow_state.phase` is not already set** (i.e., this is a fresh feature start, not a resume).
+**Only run this step if 顶层 `workflow_state.phase` is not already set** (i.e., this is a fresh feature start, not a resume).
 
 1. Run: `plugins/progress-tracker/prog memory read` (project_memory.py read)
 2. If memory is empty or returns error → skip, continue silently.
@@ -184,7 +184,7 @@ plugins/progress-tracker/prog set-current <feature_id>
 
 ### Step 2.5: Unified Git Auto Preflight
 
-**Skip this step if resuming** (phase was `execution` or `planning_complete`) **and `workflow_state.execution_context` matches the current branch/worktree.** Just continue from the saved plan.
+**Skip this step if resuming** (phase was `execution` or `planning_complete`) **and 顶层 `workflow_state.execution_context` matches the current branch/worktree.** Just continue from the saved plan.
 
 Otherwise, run preflight:
 
@@ -301,8 +301,8 @@ plugins/progress-tracker/prog update-workflow-task <task_id> completed
 ```
 
 Context note:
-- `set-workflow-state` and `update-workflow-task` now also persist `workflow_state.execution_context` (branch/worktree).
-- Recovery flows and `/prog done` should use this context to detect worktree/branch mismatches.
+- `set-workflow-state` and `update-workflow-task` now persist 顶层 `workflow_state.execution_context` (branch/worktree).
+- Recovery flows and `/prog done` should use this top-level context to detect worktree/branch mismatches.
 
 ### Step 6: Completion Handoff
 

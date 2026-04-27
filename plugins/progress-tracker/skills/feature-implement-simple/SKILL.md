@@ -35,7 +35,7 @@ Execute low-complexity features quickly with a direct TDD flow.
 # Outputs
 
 - Implementation finished via direct TDD
-- `workflow_state.phase = execution_complete`
+- 顶层 `workflow_state.phase = execution_complete`（写入 `data["workflow_state"]`，不是 feature 内部）
 - Feature AI metrics recorded with `selected_model = haiku`
 
 # State Read/Write
@@ -67,7 +67,7 @@ plugins/progress-tracker/prog generate-direct-tdd-note
 ```
 
 This creates a minimal execution note from feature metadata, converges
-`workflow_state` to `phase=execution, next_action=direct_tdd`, and sets
+顶层 `workflow_state` to `phase=execution, next_action=direct_tdd`, and sets
 `plan_path`. File creation is idempotent (won't overwrite valid notes).
 State convergence always runs even if the note already exists.
 

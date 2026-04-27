@@ -96,7 +96,7 @@ Read `docs/progress-tracker/state/progress.json` and locate `current_feature_id`
 
 ### Step 2: Validate Workflow State
 
-Inspect `workflow_state.phase`.
+Inspect 顶层 `workflow_state.phase`（不要读 `features[n].workflow_state`）。
 
 - Required phase: `execution_complete`.
 - If not `execution_complete`, do not complete feature.

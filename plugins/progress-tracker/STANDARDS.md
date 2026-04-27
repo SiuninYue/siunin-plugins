@@ -229,6 +229,7 @@ These conventions apply to plan files in `docs/plans/` and equivalent plan artif
 | `runtime_context` | object\|null | No | Last-recorded runtime/workspace snapshot |
 | `linked_projects` | array | No | Cross-project link records |
 | `parent_project_root` | string | No | Relative path to parent tracker (child role) |
+| `workflow_state` | object\|null | No | **顶层的**当前会话工作流状态（phase、plan_path、execution_context 等）。不是 feature 内部的。 |
 
 ### Feature Object Schema
 
@@ -301,17 +302,18 @@ Legacy mirror fields (derived, do not use as truth):
 | `scheduled_position` | object | Scheduling directive (before/after feature) |
 | `investigation` | object | Investigation details with sub-fields |
 
-### Workflow State Schema
+### Workflow State Schema（顶层 `data["workflow_state"]`，非 feature 内部）
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `phase` | string | Current phase: `design_complete` \| `planning_complete` \| `execution` \| `execution_complete` |
+| `phase` | string | Current phase — also supports sub-phases: `planning:clarifying`, `planning:draft`, `planning:approved` |
 | `plan_path` | string | Relative path to execution plan file under `docs/plans/*.md` |
 | `completed_tasks` | array | List of completed task IDs |
 | `current_task` | int | Current task ID |
 | `total_tasks` | int | Total number of tasks |
 | `next_action` | string | Recommended next action |
 | `updated_at` | string | ISO 8601 timestamp |
+| `execution_context` | object | Runtime context snapshot — `branch`, `worktree_path`, `workspace_mode`, `upstream`, `recorded_at` |
 
 ### Checkpoints Schema (`docs/progress-tracker/state/checkpoints.json`)
 

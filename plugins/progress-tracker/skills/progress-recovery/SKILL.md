@@ -35,6 +35,8 @@ Detect interrupted progress-tracker sessions and provide deterministic resume ac
 
 ## Detection Flow
 
+**重要：`progress.json` 的 `workflow_state` 出现在两个层级。恢复流程只用顶层 `data["workflow_state"]`，不要读 `data["features"][n]["workflow_state"]`（那是历史快照，通常为 null）。**
+
 ### Step 1: Check Tracking Existence
 
 If `docs/progress-tracker/state/progress.json` does not exist, recovery is not needed.
@@ -46,14 +48,14 @@ If `docs/progress-tracker/state/progress.json` does not exist, recovery is not n
 
 ### Step 3: Identify Active Context
 
-Read from progress state:
+Read from progress state — **全部从顶层读取，不是 feature 内部**：
 
 - `current_feature_id`
-- `workflow_state.phase`
-- `workflow_state.plan_path`
-- `workflow_state.completed_tasks`
-- `workflow_state.total_tasks`
-- `workflow_state.execution_context` (branch/worktree where workflow last advanced)
+- 顶层 `workflow_state.phase`
+- 顶层 `workflow_state.plan_path`
+- 顶层 `workflow_state.completed_tasks`
+- 顶层 `workflow_state.total_tasks`
+- 顶层 `workflow_state.execution_context` (branch/worktree where workflow last advanced)
 - `runtime_context` (current session branch/worktree snapshot, if present)
 
 If there is an active feature, validate plan path:
@@ -67,7 +69,7 @@ plugins/progress-tracker/prog validate-plan
 Use `git status --porcelain` to detect uncommitted changes.
 
 - If dirty tree conflicts with resume path, show safe options before continuing.
-- Compare current session context vs `workflow_state.execution_context`:
+- Compare current session context vs 顶层 `workflow_state.execution_context`:
   - If branch/worktree mismatch is reported by `check` (`context_hint.status != match`), show a strong warning.
   - Prefer switching to the recorded worktree/branch before resuming `/prog next` or `/prog done`.
 

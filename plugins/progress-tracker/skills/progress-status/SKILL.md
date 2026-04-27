@@ -53,24 +53,58 @@ Present progress information in this structured format:
 
 ## Reading Progress Files
 
-### Progress JSON Structure
+### Progress JSON 结构（两个层级，注意区分）
 
-Read `docs/progress-tracker/state/progress.json` which contains:
+`progress.json` 有两个层级都有 `workflow_state` 字段，**必须区分**：
+
+| 层级 | 路径 | 含义 |
+|------|------|------|
+| **顶层** | `data["workflow_state"]` | 当前会话的执行阶段，由 `set_workflow_state()` 写入 |
+| **Feature 内部** | `data["features"][n]["workflow_state"]` | 该 feature 的历史工作流快照（可能为 `null`） |
+
+**判断当前状态时，始终读取顶层 `workflow_state`，不要读 feature 内部的。**
+
+完整的顶层结构：
 ```json
 {
+  "schema_version": "2.1",
   "project_name": "Project Name",
   "created_at": "ISO-8601 timestamp",
+  "updated_at": "ISO-8601 timestamp",
+  "current_feature_id": null,
+  "current_bug_id": null,
+  "tracker_role": "child",
+  "workflow_state": {
+    "phase": "execution_complete",
+    "plan_path": "docs/plans/2026-04-27-example.md",
+    "completed_tasks": [1, 2, 3],
+    "current_task": 3,
+    "total_tasks": 3,
+    "next_action": "Run /prog done",
+    "execution_context": {
+      "branch": "feature/example",
+      "worktree_path": "/path/to/worktree"
+    }
+  },
   "features": [
     {
       "id": 1,
       "name": "Feature Name",
       "test_steps": ["step 1", "step 2"],
-      "completed": false
+      "lifecycle_state": "verified",
+      "completed": true,
+      "deferred": false,
+      "workflow_state": null
     }
   ],
-  "current_feature_id": null
+  "bugs": []
 }
 ```
+
+**关键读取规则：**
+- 检查当前是否 `execution_complete` → 读 `data["workflow_state"]["phase"]`（顶层）
+- 检查 feature 是否已完成 → 读 `feature["completed"]` 或 `feature["lifecycle_state"]`
+- 不要混淆：**顶层 workflow_state 是会话级，feature 内部的是历史快照**
 
 ### Progress MD Structure
 
@@ -208,7 +242,7 @@ When implementation is complete, use `/prog done` to:
 - Commit changes to Git
 ```
 
-If `workflow_state.phase == "execution_complete"`, prioritize recommendation:
+If 顶层 `workflow_state.phase == "execution_complete"`, prioritize recommendation:
 ```markdown
 ### Recommended Next Step
 Run `/prog done` to finalize the current feature.
@@ -250,7 +284,7 @@ ProjectRoot: <abs_project_root>
 Get `ProjectRoot` by running: `pwd -P`
 
 Also display context alignment when available:
-- `workflow_state.execution_context` (where the workflow last advanced)
+- 顶层 `workflow_state.execution_context` (where the workflow last advanced)
 - `runtime_context` (current session snapshot)
 - If mismatch, warn and recommend switching to the recorded worktree/branch before continuing.
 
@@ -292,11 +326,14 @@ Use `/prog-fix` to review and schedule cleanup.
     /prog init <project description>
     ```
 
-## Reading Strategy
+## Reading Strategy（读文件顺序）
 
-1. **First**: Attempt to read `docs/progress-tracker/state/progress.json`
-2. **Then**: Read `docs/progress-tracker/state/progress.md` for human context
-3. **Finally**: Run `git log --oneline -5` for recent activity
+1. **First**: 读 `docs/progress-tracker/state/progress.json`
+   - **先检查顶层 `data["workflow_state"]`** — 这是当前会话状态的唯一权威来源
+   - 再看 `data["current_feature_id"]` 和 `data["features"]`
+   - 不要从 `data["features"][n]["workflow_state"]` 判断当前阶段（那是历史快照）
+2. **Then**: 读 `docs/progress-tracker/state/progress.md` for human context
+3. **Finally**: 运行 `git log --oneline -5` 获取最近活动
 
 If files don't exist, handle gracefully and suggest initialization.
 
