@@ -95,168 +95,15 @@ Ask clarifying questions to understand:
 
 ### Phase 2: Technology Selection
 
-For each technical decision, present:
-
-```markdown
-## 📦 Decision: <Component Name>
-
-**Options**:
-
-1. **[Option A]** - ⭐ Recommended
-   - Pros: <advantage 1>, <advantage 2>
-   - Cons: <disadvantage 1>
-   - Best for: <use case>
-
-2. **[Option B]**
-   - Pros: <advantage 1>, <advantage 2>
-   - Cons: <disadvantage 1>
-   - Best for: <use case>
-
-3. **[Option C]**
-   - Pros: <advantage 1>, <advantage 2>
-   - Cons: <disadvantage 1>
-   - Best for: <use case>
-
-**Context**: <specific project context>
-**Recommendation**: [Option A] because <reasoning>
-
-Choose [A/B/C] or suggest alternative:
-```
+For each technical decision, present the decision template from [`references/planning-templates.md`](references/planning-templates.md#phase-2-technology-selection-decision-template).
 
 ### Phase 3: Architecture Design
 
-Create visual and textual architecture description:
-
-#### System Architecture
-
-```markdown
-## 🏗️  System Architecture
-
-### High-Level Structure
-
-```
-[Client Layer] → [API Gateway] → [Service Layer] → [Data Layer]
-                      ↓                ↓
-                 [Auth Service]  [Message Queue]
-```
-
-### Component Breakdown
-
-**API Gateway**
-- Responsibility: Routing, rate limiting, authentication
-- Technology: <selected technology>
-- Scaling: <horizontal/vertical>
-
-**Service Layer**
-- <Service 1>: <responsibility>
-- <Service 2>: <responsibility>
-- <Service 3>: <responsibility>
-
-**Data Layer**
-- <Database 1>: <data type>
-- <Cache>: <usage pattern>
-- <Message Queue>: <async processing>
-```
-
-#### Data Model
-
-```markdown
-## 📊 Data Model
-
-### Entities
-
-**<Entity 1>**
-- Fields: <key fields>
-- Relationships: <relations to other entities>
-- Volume: <estimated records>
-
-**<Entity 2>**
-- Fields: <key fields>
-- Relationships: <relations to other entities>
-- Volume: <estimated records>
-```
-
-#### API Design (if applicable)
-
-```markdown
-## 🔌 API Design
-
-### REST Endpoints
-
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| POST   | /api/users | Create user | Required |
-| GET    | /api/users/:id | Get user | Required |
-
-### Data Flow
-
-1. Client → Request → API Gateway
-2. API Gateway → Validate Auth
-3. API Gateway → Route to Service
-4. Service → Business Logic
-5. Service → Database/Cache
-6. Response ← Service ← API Gateway ← Client
-```
+Create visual and textual architecture description using the templates in [`references/planning-templates.md`](references/planning-templates.md#phase-3-architecture-design-templates).
 
 ### Phase 4: Decision Documentation
 
-Create `docs/progress-tracker/architecture/architecture.md` with:
-
-```markdown
-# Architecture: <Project Name>
-
-**Created**: <timestamp>
-**Last Updated**: <timestamp>
-
-## Technology Stack
-
-| Component | Technology | Version | Justification |
-|-----------|-----------|---------|---------------|
-| Backend   | <choice>  | <ver>   | <reason>      |
-| Database  | <choice>  | <ver>   | <reason>      |
-| Cache     | <choice>  | <ver>   | <reason>      |
-
-## Key Architectural Decisions
-
-### ADR-001: <Decision Title>
-
-**Status**: Accepted / Proposed / Deprecated
-
-**Context**: <problem or situation>
-
-**Decision**: <choice made>
-
-**Consequences**:
-- Positive: <benefit 1>, <benefit 2>
-- Negative: <drawback 1>
-- Risks: <risk 1>
-
-**Alternatives Considered**:
-1. <Alternative 1> - Rejected because <reason>
-2. <Alternative 2> - Rejected because <reason>
-
-## System Architecture
-
-<architecture diagram or description>
-
-## Data Model
-
-<data model description>
-
-## Integration Points
-
-<external systems and APIs>
-
-## Deployment Strategy
-
-<deployment approach>
-
-## Next Steps
-
-1. Review architecture with team
-2. Run `/prog init` to generate feature breakdown based on these decisions
-3. Begin implementation with `/prog next`
-```
+Create `docs/progress-tracker/architecture/architecture.md` using the template in [`references/planning-templates.md`](references/planning-templates.md#phase-4-architecture-document-template).
 
 Before finalizing, validate that the document includes:
 - Interface contracts with input/output types
@@ -417,26 +264,6 @@ pwd -P
 4. **Flexibility**: Architecture should evolve with understanding
 5. **Pragmatism**: Best architecture is the one that ships
 
-## Example Conversation
+## Examples and Questions
 
-**User**: `/prog plan Build a real-time chat application`
-
-**Skill Response**:
-
-1. **Analyze**: Real-time chat needs WebSocket, message persistence, online status
-2. **Question**: Expected concurrent users?
-3. **Recommend**:
-   - Small scale (<1000): Node.js + Socket.io + Redis
-   - Large scale (>10000): Go + WebSocket + Redis Cluster + RabbitMQ
-4. **Document**: Save decisions to `docs/progress-tracker/architecture/architecture.md`
-5. **Guide**: Suggest running `/prog init` next
-
-## Questions to Ask
-
-When planning architecture, clarify:
-- **Scale**: Concurrent users, data volume, growth rate
-- **Reliability**: Uptime requirements, fault tolerance needs
-- **Performance**: Latency requirements, throughput targets
-- **Security**: Authentication needs, data sensitivity
-- **Team**: Size, expertise, development timeline
-- **Constraints**: Budget, existing systems, regulatory requirements
+See [`examples/example-conversation.md`](examples/example-conversation.md) for a full example conversation (real-time chat app) and complete list of clarifying questions to ask.
