@@ -27,8 +27,8 @@
 - [ ] plan_path CLI normalization
 
 ## Workflow Context
-- Phase: execution
-- Next action: direct_tdd
+- Phase: execution_complete
+- Next action: verify_and_complete
 - Execution context: feature/feature-3-plugin-metadata-traceability @ feature-3-plugin-metadata-traceability [worktree]
 - Current session context: feature/feature-3-plugin-metadata-traceability @ feature-3-plugin-metadata-traceability [worktree]
 
