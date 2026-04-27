@@ -248,3 +248,60 @@ plugins/progress-tracker/prog list-bugs
 # Remove false positive
 plugins/progress-tracker/prog remove-bug "BUG-XXX"
 ```
+
+---
+
+## Progress Manager CLI Commands
+
+### Required New Commands
+
+```bash
+# Add bug
+plugins/progress-tracker/prog add-bug \
+  --description "<desc>" \
+  --status "<status>" \
+  --priority "<high|medium|low>" \
+  --scheduled-position "<before|after>:<feature_id>"
+
+# Update bug status
+plugins/progress-tracker/prog update-bug \
+  --bug-id "BUG-XXX" \
+  --status "<new_status>" \
+  --root-cause "<cause>"
+
+# List bugs
+plugins/progress-tracker/prog list-bugs
+
+# Remove bug (false positive)
+plugins/progress-tracker/prog remove-bug "BUG-XXX"
+```
+
+## Bug Data Structure (progress.json)
+
+Add to progress.json:
+
+```json
+{
+  "bugs": [
+    {
+      "id": "BUG-001",
+      "description": "登录后会话丢失",
+      "status": "pending_investigation",
+      "priority": "medium",
+      "created_at": "2025-01-29T14:30:00Z",
+      "quick_verification": {
+        "code_exists": true,
+        "related_files": ["auth/session.js"],
+        "reproducibility": "medium",
+        "confidence": "possible"
+      },
+      "scheduled_position": {
+        "type": "before_feature",
+        "feature_id": 3,
+        "reason": "可能影响 Dashboard"
+      }
+    }
+  ],
+  "current_bug_id": null
+}
+```

@@ -287,104 +287,11 @@ WAIT for the skill to complete.
 
 ## Progress Manager Extensions
 
-### Required New Commands
+Four CLI commands: `add-bug`, `update-bug`, `list-bugs`, `remove-bug`. Full command signatures and bug data schema (progress.json structure) in [`references/integration.md`](references/integration.md).
 
-```bash
-# Add bug
-plugins/progress-tracker/prog add-bug \
-  --description "<desc>" \
-  --status "<status>" \
-  --priority "<high|medium|low>" \
-  --scheduled-position "<before|after>:<feature_id>"
+## Priority and Scheduling Algorithms
 
-# Update bug status
-plugins/progress-tracker/prog update-bug \
-  --bug-id "BUG-XXX" \
-  --status "<new_status>" \
-  --root-cause "<cause>"
-
-# List bugs
-plugins/progress-tracker/prog list-bugs
-
-# Remove bug (false positive)
-plugins/progress-tracker/prog remove-bug "BUG-XXX"
-```
-
-### Data Structure
-
-Add to progress.json:
-
-```json
-{
-  "bugs": [
-    {
-      "id": "BUG-001",
-      "description": "登录后会话丢失",
-      "status": "pending_investigation",
-      "priority": "medium",
-      "created_at": "2025-01-29T14:30:00Z",
-      "quick_verification": {
-        "code_exists": true,
-        "related_files": ["auth/session.js"],
-        "reproducibility": "medium",
-        "confidence": "possible"
-      },
-      "scheduled_position": {
-        "type": "before_feature",
-        "feature_id": 3,
-        "reason": "可能影响 Dashboard"
-      }
-    }
-  ],
-  "current_bug_id": null
-}
-```
-
-## Priority Calculation
-
-```python
-def calculate_bug_priority(description, verification):
-    severity_keywords = {
-        "high": ["crash", "broken", "fail", "security", "崩溃", "失败"],
-        "medium": ["slow", "error", "wrong", "慢", "错误"],
-        "low": ["typo", "cosmetic", "minor", "拼写"]
-    }
-
-    # Check severity
-    for level, keywords in severity_keywords.items():
-        if any(kw in description.lower() for kw in keywords):
-            severity = level
-            break
-
-    # Check scope
-    scope = "wide" if len(verification["related_files"]) > 3 else "narrow"
-
-    # Calculate
-    if severity == "high" or scope == "wide":
-        return "high"
-    elif severity == "low":
-        return "low"
-    return "medium"
-```
-
-## Scheduling Logic
-
-```python
-def schedule_bug(bug, features):
-    priority = bug["priority"]
-
-    # High priority: before next feature
-    if priority == "high":
-        return {"type": "before_feature", "feature_id": next_pending_feature["id"]}
-
-    # Medium priority: after related feature
-    related = find_related_features(bug["description"], features)
-    if related:
-        return {"type": "after_feature", "feature_id": related[-1]["id"]}
-
-    # Low priority: end
-    return {"type": "last"}
-```
+Priority is calculated from severity keywords (high/medium/low) + scope (wide if > 3 related files). Scheduling places high-priority before next feature, medium after related feature, low at end. Full algorithms in [`references/workflow.md`](references/workflow.md).
 
 ## Error Handling
 

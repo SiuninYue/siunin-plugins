@@ -283,3 +283,51 @@ Use `/prog` to see overall project status.
 - Nice-to-have fixes
 
 **Scheduling**: Add to end of itinerary
+
+---
+
+## Priority Calculation Algorithm
+
+```python
+def calculate_bug_priority(description, verification):
+    severity_keywords = {
+        "high": ["crash", "broken", "fail", "security", "崩溃", "失败"],
+        "medium": ["slow", "error", "wrong", "慢", "错误"],
+        "low": ["typo", "cosmetic", "minor", "拼写"]
+    }
+
+    # Check severity
+    for level, keywords in severity_keywords.items():
+        if any(kw in description.lower() for kw in keywords):
+            severity = level
+            break
+
+    # Check scope
+    scope = "wide" if len(verification["related_files"]) > 3 else "narrow"
+
+    # Calculate
+    if severity == "high" or scope == "wide":
+        return "high"
+    elif severity == "low":
+        return "low"
+    return "medium"
+```
+
+## Scheduling Logic Algorithm
+
+```python
+def schedule_bug(bug, features):
+    priority = bug["priority"]
+
+    # High priority: before next feature
+    if priority == "high":
+        return {"type": "before_feature", "feature_id": next_pending_feature["id"]}
+
+    # Medium priority: after related feature
+    related = find_related_features(bug["description"], features)
+    if related:
+        return {"type": "after_feature", "feature_id": related[-1]["id"]}
+
+    # Low priority: end
+    return {"type": "last"}
+```
