@@ -56,7 +56,12 @@ If the invocation includes inline context lines (`Feature:`, `Phase:`, `Plan:`, 
      ```bash
      git branch --show-current
      ```
-   If branch doesn't match, stop and ask the user to switch to `<branch>` first; do not run acceptance or completion. Do not run `git checkout` automatically.
+   If branch doesn't match, **auto-switch** with a safety check:
+   ```bash
+   git status --porcelain
+   ```
+   - **Working tree clean** → run `git switch <branch>` and continue.
+   - **Uncommitted changes** → STOP: warn the user that switching would discard or lose changes, ask them to commit or stash first.
 
 4. **Skip** Step 1 (load active feature from file) and Step 2 (validate workflow state from file) — trust the inline `Phase: execution_complete`.
 
@@ -96,7 +101,7 @@ Inspect `workflow_state.phase`.
 - Required phase: `execution_complete`.
 - If not `execution_complete`, do not complete feature.
 - Also inspect execution/runtime context alignment from `docs/progress-tracker/state/progress.json` (or `check` output):
-  - If worktree/branch mismatches the recorded execution context, show a strong warning and ask user to switch first.
+  - If branch mismatches, auto-switch with safety check: `git status --porcelain` → if clean, `git switch <expected_branch>`; if dirty, warn and stop.
   - Do not silently mutate progress state to "fix" mismatch.
 
 Return an actionable message:
@@ -324,9 +329,10 @@ plugins/progress-tracker/prog --project-root <project_root> add-bug \
 - Message: `git-auto` could not complete merge-first closeout due to missing PR/gh context.
 - Next action: keep feature open, surface blocker details, and ask user whether to proceed with manual integration.
 
-- Workflow Context Mismatch (warning path):
+- Workflow Context Mismatch (auto-recovery path):
   - Message: current session branch/worktree differs from recorded execution context.
-  - Next action: switch to recorded context, then rerun `/prog done`; if user confirms verification was done in current context, continue manually.
+  - Auto-switch: `git status --porcelain` → if clean, `git switch <expected_branch>`; if dirty, warn and stop.
+  - After switching, continue `/prog done` normally.
 
 ## Required Output Shape
 

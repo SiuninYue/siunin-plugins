@@ -30,8 +30,15 @@ def build_status_handoff_block(
     completed: int,
     total: int,
     project_root: str,
+    current_branch: Optional[str] = None,
 ) -> Optional[str]:
-    """Build context handoff block for /prog status output."""
+    """Build context handoff block for /prog status output.
+
+    Args:
+        current_branch: Real-time git branch name. If provided, overrides the
+            stale ``workflow_state.execution_context.branch`` so the handoff
+            block always reflects the *actual* checked-out branch.
+    """
     features = data.get("features", [])
     current_id = data.get("current_feature_id")
     workflow_state = data.get("workflow_state") or {}
@@ -40,9 +47,9 @@ def build_status_handoff_block(
     if completed == total and total > 0:
         return None
 
-    # Determine branch/worktree from persisted execution_context, fall back to git
+    # Prefer real-time git branch over stale execution_context
     execution_context = workflow_state.get("execution_context") or {}
-    branch = execution_context.get("branch") or "main"
+    branch = current_branch or execution_context.get("branch") or "main"
     worktree_path: Optional[str] = None
     if execution_context.get("workspace_mode") == "worktree":
         worktree_path = execution_context.get("worktree_path")

@@ -29,9 +29,11 @@ def test_feature_implement_complex_respects_unified_preflight_decision():
 
 
 def test_feature_implement_branch_check_supports_in_place_and_fail_closed():
-    """Inline context branch check should work without worktree and stop on mismatch."""
+    """Inline context branch check should work without worktree and auto-switch on mismatch."""
     content = FEATURE_IMPLEMENT_SKILL.read_text(encoding="utf-8")
 
-    assert "If `worktree_path` is absent (in-place session):" in content
-    assert "stop and ask the user to switch to `<branch>` first" in content
+    assert "If `worktree_path` is absent:" in content
+    assert "auto-switch" in content
+    # Must protect uncommitted changes — never auto-switch when dirty
+    assert "Uncommitted changes" in content
     assert "warn the user but continue" not in content

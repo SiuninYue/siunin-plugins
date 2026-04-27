@@ -44,7 +44,7 @@ If the invocation includes inline context lines (`Feature:`, `Phase:`, `Plan:`, 
    - `Branch` / `Worktree` → `execution_context`
    - `Bucket` → complexity bucket (`simple|standard|complex`)
    - `Questions` → clarifying questions (pipe-separated)
-   - `ProjectRoot` → absolute project root path (used for all `prog` commands)
+   - `ProjectRoot` → absolute path for all `prog` calls
 
 2. If `Worktree` is present: **store `worktree_path` as the execution root for all shell commands**.
 
@@ -61,15 +61,11 @@ If the invocation includes inline context lines (`Feature:`, `Phase:`, `Plan:`, 
    If the path is inaccessible, warn the user and stop.
 
 3. If `Branch` is present: verify the checked-out branch matches.
-   - If `worktree_path` is present:
-     ```bash
-     cd <worktree_path> && git branch --show-current
-     ```
-   - If `worktree_path` is absent (in-place session):
-     ```bash
-     git branch --show-current
-     ```
-   If branch doesn't match, stop and ask the user to switch to `<branch>` first; do not run `git checkout` automatically.
+   - If `worktree_path` is present: `cd <worktree_path> && git branch --show-current`
+   - If `worktree_path` is absent: `git branch --show-current`
+   If branch doesn't match, **auto-switch** with a safety check:
+   - Clean working tree → `git switch <branch>` and continue.
+   - Uncommitted changes → STOP: warn user to commit or stash first.
 
 4. **Skip entirely** (do not run): Steps 1 full re-read, Step 2.4 memory overlap check, Step 2.5 git preflight, complexity re-scoring.
 
@@ -108,9 +104,9 @@ If the invocation includes inline context lines (`Feature:`, `Phase:`, `Plan:`, 
 
 ## Use This Skill For
 
-- `/prog next` command execution.
-- Recovery-driven continuation after interrupted feature work.
-- Any request to start or continue the next pending feature.
+- `/prog next` command.
+- Resuming interrupted feature work.
+- Starting or continuing a pending feature.
 
 ## Execution Context Requirements
 
@@ -379,7 +375,7 @@ Feature: <feature_id> "<feature_name>" | Phase: execution_complete
 Plan: <plan_path> | Tasks: <total>/<total> done
 Branch: <branch>[ | Worktree: <worktree_path>]
 ProjectRoot: <abs_project_root>
-→ Context pre-loaded. Switch to worktree/branch above first if not already there.
+→ Context pre-loaded. Auto-switches to correct branch if needed.
 ```
 
 **Phase = `execution` or `planning_complete`:**
@@ -391,7 +387,7 @@ Plan: <plan_path> | Tasks: <completed>/<total> done
 Next: <next_task_id> — <next_task_title>
 Branch: <branch>[ | Worktree: <worktree_path>]
 ProjectRoot: <abs_project_root>
-→ Context pre-loaded. Switch to worktree/branch above first if not already there.
+→ Context pre-loaded. Auto-switches to correct branch if needed.
 ```
 
 **Phase = `planning:approved`:**
@@ -406,6 +402,8 @@ Branch: <branch>[ | Worktree: <worktree_path>]
 ProjectRoot: <abs_project_root>
 → Context pre-loaded. Routes by Bucket field.
 ```
+
+**Source of truth for `<branch>`:** Use `git branch --show-current` (or `cd <worktree_path> && git branch --show-current`). Never read from `execution_context.branch` — it is stale.
 
 ## Additional Resources
 

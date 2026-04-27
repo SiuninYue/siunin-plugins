@@ -71,7 +71,7 @@ Feature: <feature_id> "<feature_name>" | Phase: execution_complete
 Plan: <plan_path> | Tasks: <total>/<total> done
 Branch: <branch>[ | Worktree: <worktree_path>]
 ProjectRoot: <abs_project_root>
-→ Context pre-loaded. Switch to worktree/branch above first if not already there.
+→ Context pre-loaded. Auto-switches to correct branch if needed.
 ---
 ```
 
@@ -88,7 +88,7 @@ Plan: <plan_path> | Tasks: <completed>/<total> done
 Next: <next_task_id> — <next_task_title>
 Branch: <branch>[ | Worktree: <worktree_path>]
 ProjectRoot: <abs_project_root>
-→ Context pre-loaded. Switch to worktree/branch above first if not already there.
+→ Context pre-loaded. Auto-switches to correct branch if needed.
 ---
 ```
 
@@ -106,6 +106,8 @@ ProjectRoot: <abs_project_root>
 → Context pre-loaded.
 ---
 ```
+
+**Source of truth for `<branch>`:** Use `git branch --show-current` (or `cd <worktree_path> && git branch --show-current`). Never read from `execution_context.branch` — it is stale.
 
 ### Phase = `planning:clarifying` → use `prog-next`
 

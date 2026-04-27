@@ -124,8 +124,8 @@ Use `git status --porcelain` to detect uncommitted changes.
 ### Case F: Workflow Phase Valid but Context Mismatch
 
 - Example: `execution_complete` in progress state, but current session is on a different worktree/branch.
-- Recommended action: switch to recorded execution context first, then continue.
-- This is a strong warning, not an automatic state mutation.
+- Auto-recovery: check `git status --porcelain` → if clean, `git switch <expected_branch>`; if dirty, warn and stop.
+- Do not silently mutate progress state to "fix" mismatch.
 
 Detailed branching logic is in `references/scenario-playbook.md`.
 

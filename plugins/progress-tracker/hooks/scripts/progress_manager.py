@@ -5120,8 +5120,10 @@ def _build_status_handoff_block(
     project_root: str,
 ) -> Optional[str]:
     """Build context handoff block for /prog status output."""
+    git_ctx = collect_git_context()
+    current_branch = git_ctx.get("branch")
     return progress_prompt_builders.build_status_handoff_block(
-        data, completed, total, project_root
+        data, completed, total, project_root, current_branch=current_branch
     )
 
 
