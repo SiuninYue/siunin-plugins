@@ -5,5 +5,7 @@
   "author": {
     "name": "siunin"
   },
+  "repository": "https://github.com/siunin/Claude-Plugins",
+  "homepage": "https://github.com/siunin/Claude-Plugins/tree/main/plugins/package-manager",
   "keywords": ["package-manager", "mise", "uv", "pnpm", "bun", "cargo", "dependencies", "version-management", "install", "upgrade", "update", "brew", "apt", "npm", "cargo", "pip", "tool", "shims", "proxy"]
 }

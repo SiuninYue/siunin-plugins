@@ -6,6 +6,8 @@
     "name": "siunin"
   },
   "license": "MIT",
+  "repository": "https://github.com/siunin/Claude-Plugins",
+  "homepage": "https://github.com/siunin/Claude-Plugins/tree/main/plugins/note-organizer",
   "keywords": [
     "note-taking",
     "notebooklm",
