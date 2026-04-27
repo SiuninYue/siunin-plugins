@@ -12,23 +12,25 @@
 - [x] Normalize skill frontmatter to SOP-compliant shape
 
 ## In Progress
-- [ ] plan_path CLI normalization
+- [ ] Enforce plugin metadata traceability fields
   **Test steps**:
-  - Normalize plan_path at CLI entry point
-  - Improve validate_plan_path error message
+  - Audit metadata keys: rg -n '"homepage"|"repository"' plugins/*/.claude-plugin/plugin.json
+  - Run manifest contract test: pytest -q plugins/progress-tracker/tests/test_plugin_manifest_contract.py
+  - Confirm no plugin manifests are missing required keys
 
 ## Pending
-- [ ] Enforce plugin metadata traceability fields
 - [ ] Add explicit model declaration checks for required skill scopes
 - [ ] Apply progressive disclosure budget to oversized SKILL files
 - [ ] Harden command lifecycle boundaries and architecture immutability guard
 - [ ] Enforce PROG command docs single-source parity
 - [ ] Implement fail-closed release gate with sync compatibility evidence
+- [ ] plan_path CLI normalization
 
 ## Workflow Context
 - Phase: execution_complete
-- Execution context: main @ Claude-Plugins [in_place]
-- Current session context: main @ Claude-Plugins [in_place]
+- Next action: verify_and_complete
+- Execution context: feature/feature-3-plugin-metadata-traceability @ feature-3-plugin-metadata-traceability [worktree]
+- Current session context: feature/feature-3-plugin-metadata-traceability @ feature-3-plugin-metadata-traceability [worktree]
 
 ### Fixed (✅)
 - [x] [BUG-001] Python falsy trap: current_feature_id=0 被 not 误判为 None，导致 set-workflow-state/auto_checkpoint/wf_auto_driver/route_status 等函数在 feature ID 为 0 时异常跳过
