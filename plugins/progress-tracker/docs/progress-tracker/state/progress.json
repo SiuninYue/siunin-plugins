@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-04-28T16:13:08.274091Z",
+  "updated_at": "2026-04-28T23:45:47.922173Z",
   "features": [
     {
       "id": 10,
@@ -299,7 +299,7 @@
         "ship_check": {
           "status": "pass",
           "failures": [],
-          "last_run_at": "2026-04-22T18:13:55Z"
+          "last_run_at": "2026-04-28T13:30:48Z"
         }
       },
       "sprint_contract": {
@@ -1088,7 +1088,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "approved",
+      "lifecycle_state": "implementing",
       "requirement_ids": [
         "REQ-008"
       ],
@@ -1111,21 +1111,55 @@
       ],
       "quality_gates": {
         "evaluator": {
-          "status": "pending",
-          "score": null,
-          "defects": [],
-          "last_run_at": null,
-          "evaluator_model": null
+          "status": "pass",
+          "score": 80,
+          "defects": [
+            {
+              "id": "F8-DEVIATION-01",
+              "severity": "minor",
+              "description": "Extra test test_update_progress_json_writes_ship_check_result not in plan (Task 3 planned 3 tests, implementation has 4). Justified: validates persistence function directly."
+            },
+            {
+              "id": "F8-DEVIATION-02",
+              "severity": "minor",
+              "description": "_collect_real_signals has extra subprocess.TimeoutExpired and general Exception handling not in original plan. Justified: fail-closed defensive programming for robustness."
+            },
+            {
+              "id": "F8-DEVIATION-03",
+              "severity": "minor",
+              "description": "__main__ block has try/except SystemExit wrapper remapping argparse exit code 2 (usage/help errors) to 8 (fail). Not in original plan. Justified: fail-closed — argparse errors should not escape as exit 2."
+            },
+            {
+              "id": "F8-DEVIATION-04",
+              "severity": "minor",
+              "description": "progress_manager.py modified beyond plan scope: removed dead code (_validate_completion_reconcile, _validate_completion_plan_document, _finalize_completion_state_in_memory, _record_feature_completed_event, _append_capability_memory), simplified determine_recovery_action, added dirty_on_default_branch handling in analyze_git_auto_preflight. Plan said 'Existing library API and 7 passing tests are untouched.' However, all 855 tests pass with zero regressions and changes are cleanup/consolidation."
+            }
+          ],
+          "last_run_at": "2026-04-28T15:45:47Z",
+          "evaluator_model": "claude-sonnet-4-6"
         },
         "reviews": {
-          "required": [],
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
           "passed": [],
-          "pending": []
+          "pending": [
+            "docs",
+            "eng",
+            "qa"
+          ]
         },
         "ship_check": {
-          "status": "pending",
-          "failures": [],
-          "last_run_at": null
+          "status": "fail",
+          "failures": [
+            {
+              "check_id": "docs_sync",
+              "detail": "progress.md out of sync with progress.json"
+            }
+          ],
+          "last_run_at": "2026-04-28T15:38:53Z"
         }
       },
       "sprint_contract": {
@@ -1140,7 +1174,16 @@
         "to_phase": null,
         "artifact_path": null,
         "created_at": null
-      }
+      },
+      "ai_metrics": {
+        "complexity_score": 21,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-28T16:52:25.320269Z"
+      },
+      "development_stage": "developing",
+      "started_at": "2026-04-28T16:53:47.905459Z"
     },
     {
       "id": 11,
@@ -1258,7 +1301,7 @@
       }
     }
   ],
-  "current_feature_id": null,
+  "current_feature_id": 8,
   "linked_projects": [],
   "linked_snapshot": {
     "schema_version": "1.0",
@@ -1272,18 +1315,18 @@
   "updates": [],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-04-28T16:12:49.842273Z",
-    "source": "complete_feature",
+    "recorded_at": "2026-04-28T21:57:52.638354Z",
+    "source": "set_workflow_state",
     "workspace_mode": "worktree",
-    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-PT-F7",
-    "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-PT-F7",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-PT-F7/plugins/progress-tracker",
-    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-PT-F7",
-    "branch": "feature/PT-F7-docs-single-source-parity",
-    "upstream": "origin/feature/PT-F7-docs-single-source-parity",
-    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-PT-F7/plugins/progress-tracker",
-    "current_feature_id": null,
-    "workflow_phase": null,
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-PT-F8-fail-closed-release-gate",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-PT-F8-fail-closed-release-gate",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-PT-F8-fail-closed-release-gate/plugins/progress-tracker",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-PT-F8-fail-closed-release-gate",
+    "branch": "feature/PT-F8-fail-closed-release-gate",
+    "upstream": null,
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-PT-F8-fail-closed-release-gate/plugins/progress-tracker",
+    "current_feature_id": 8,
+    "workflow_phase": "execution_complete",
     "current_task": null,
     "total_tasks": null,
     "next_action": null
@@ -1303,8 +1346,61 @@
         "root_cause": "Python truthy/falsy trap: not 0 == True，导致 ID=0 的 feature 被误判为不存在",
         "confirmed_at": "2026-04-24T15:21:47.589970Z"
       }
+    },
+    {
+      "id": "BUG-002",
+      "description": "P0: complete 重定向后被外层锁卡死。complete 走 MUTATING_COMMANDS 外层 progress_transaction()，但 cmd_done 内部路径（record_sprint_artifact、嵌套 prog 命令）会再次拿锁，导致 10 秒锁超时，RC=9。关键位置: progress_manager.py:11145, 11341",
+      "status": "pending_investigation",
+      "priority": "high",
+      "category": "bug",
+      "created_at": "2026-04-28T17:34:41.245568Z",
+      "quick_verification": {}
+    },
+    {
+      "id": "BUG-003",
+      "description": "P1: planning:review phase 未接入状态机。skill 已引入 planning:review 停点，但 wf_state_machine.py 映射只有 planning:draft/clarifying/approved，导致 compute_next_action() 对 planning:review 返回 None。关键位置: wf_state_machine.py:21-27",
+      "status": "pending_investigation",
+      "priority": "medium",
+      "category": "bug",
+      "created_at": "2026-04-28T17:34:48.121330Z",
+      "quick_verification": {}
+    },
+    {
+      "id": "BUG-004",
+      "description": "P1: 恢复策略未覆盖 planning:review，降级为 manual_review。determine_recovery_action() 只覆盖 planning:draft/clarifying/approved，writing planning:review 后走 manual_review 分支，与 skill 定义的单次审批恢复路径不一致。关键位置: progress_manager.py:6439-6462",
+      "status": "pending_investigation",
+      "priority": "medium",
+      "category": "bug",
+      "created_at": "2026-04-28T17:34:54.217426Z",
+      "quick_verification": {}
+    },
+    {
+      "id": "BUG-005",
+      "description": "P2: complete 未走 fail-closed worktree/branch 一致性检查。一致性检查只对 next-feature 和 done 执行，complete 重定向到 cmd_done 后绕过该检查入口。关键位置: progress_manager.py:11336-11339",
+      "status": "pending_investigation",
+      "priority": "low",
+      "category": "bug",
+      "created_at": "2026-04-28T17:34:54.371818Z",
+      "quick_verification": {}
     }
   ],
   "current_bug_id": null,
-  "parent_project_root": "."
+  "parent_project_root": ".",
+  "workflow_state": {
+    "phase": "execution_complete",
+    "updated_at": "2026-04-28T21:57:52.551166Z",
+    "execution_context": {
+      "recorded_at": "2026-04-28T21:57:52.595865Z",
+      "source": "set_workflow_state",
+      "workspace_mode": "worktree",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-PT-F8-fail-closed-release-gate",
+      "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-PT-F8-fail-closed-release-gate",
+      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-PT-F8-fail-closed-release-gate/plugins/progress-tracker",
+      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-PT-F8-fail-closed-release-gate",
+      "branch": "feature/PT-F8-fail-closed-release-gate",
+      "upstream": null
+    },
+    "plan_path": "docs/plans/2026-04-28-f8-fail-closed-release-gate.md",
+    "pending_action": "run_prog_done"
+  }
 }
