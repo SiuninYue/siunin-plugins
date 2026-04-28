@@ -95,11 +95,12 @@ def parse_inline_context(text: str) -> dict[str, Any]:
 def parse_git_auto_result(output: str) -> dict[str, Any]:
     """Parse the === Git Auto Result === block from git-auto output.
 
-    Returns dict with commit_hash, pr, status, block_reason.
+    Returns dict with commit_hash, branch, pr, status, block_reason.
     Mirrors the parsing logic described in feature-complete/SKILL.md.
     """
     result: dict[str, Any] = {
         "commit_hash": None,
+        "branch": None,
         "pr": None,
         "status": None,
         "block_reason": None,
@@ -119,6 +120,8 @@ def parse_git_auto_result(output: str) -> dict[str, Any]:
 
         if stripped.startswith("CommitHash:"):
             result["commit_hash"] = stripped[len("CommitHash:"):].strip()
+        elif stripped.startswith("Branch:"):
+            result["branch"] = stripped[len("Branch:"):].strip()
         elif stripped.startswith("PR:"):
             result["pr"] = stripped[len("PR:"):].strip()
         elif stripped.startswith("Status:"):
@@ -278,5 +281,22 @@ class TestGitAutoResultParsing:
             "=== End Result ==="
         )
         result = parse_git_auto_result(output)
+        assert result["status"] == "ok"
+        assert result["block_reason"] is None
+
+    def test_git_auto_result_block_includes_branch(self):
+        """Branch field is parsed from result block."""
+        output = (
+            "=== Git Auto Result ===\n"
+            "CommitHash: abc123def456789012345678901234567890abcd\n"
+            "Branch: feat/my-feature\n"
+            "PR: https://github.com/owner/repo/pull/42\n"
+            "Status: ok\n"
+            "=== End Result ==="
+        )
+        result = parse_git_auto_result(output)
+        assert result["branch"] == "feat/my-feature"
+        assert result["commit_hash"] == "abc123def456789012345678901234567890abcd"
+        assert result["pr"] == "https://github.com/owner/repo/pull/42"
         assert result["status"] == "ok"
         assert result["block_reason"] is None

@@ -204,11 +204,11 @@ class TestRecoveryActionDetermination:
         assert recommendation == "resume_planning_draft"
 
     def test_recovery_for_planning_clarifying(self):
-        """Should recommend restart_from_planning for planning:clarifying phase."""
+        """Should recommend resume_planning_draft for planning:clarifying phase (normalized to match planning:review)."""
         recommendation = progress_manager.determine_recovery_action(
             "planning:clarifying", None, [], 0
         )
-        assert recommendation == "restart_from_planning"
+        assert recommendation == "resume_planning_draft"
 
 
 class TestCheckCommandWithWorkflowState:

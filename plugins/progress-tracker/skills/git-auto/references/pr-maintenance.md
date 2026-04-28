@@ -11,6 +11,8 @@ Detailed contract for the optional post-push maintenance lane used by `git-auto`
   - `fix-ci`
   - `address-comments+fix-ci`
 
+CI check terminology follows the definition in `closeout-and-recovery.md`.
+
 ## Required Gates
 
 1. Authentication:

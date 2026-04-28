@@ -21,3 +21,11 @@ Every plan includes:
 
 - `Enforcement Mode: <soft|hybrid|hard>`
 - `Escalation Reason: <metric-driven reason>`
+
+## Heuristic Fallback
+
+When 14-day rolling metrics cannot be reliably computed (e.g., fresh
+session, no persistent state), default to `soft` (least-privilege
+principle).
+
+Output: `Escalation Reason: heuristic-fallback-defaults-to-soft`
