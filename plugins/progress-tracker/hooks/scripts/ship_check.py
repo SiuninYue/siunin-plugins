@@ -139,6 +139,7 @@ def run_ship_check(
     failures += _check_coverage(inputs, thresholds)
     failures += _check_regression(inputs)
     failures += _check_docs_sync(inputs)
+    failures += _check_sync_compatibility(project_root)
 
     return ShipCheckResult(
         status="fail" if failures else "pass",
