@@ -2,7 +2,7 @@
 
 **Created**: 2026-04-23T00:28:18.285129Z
 
-**Status**: 10/12 completed
+**Status**: 11/12 completed
 
 ## Completed
 - [x] 根目录混合宿主架构：Monorepo /prog 支持
@@ -14,23 +14,11 @@
 - [x] Add explicit model declaration checks for required skill scopes
 - [x] Apply progressive disclosure budget to oversized SKILL files
 - [x] Harden command lifecycle boundaries and architecture immutability guard
+- [x] Enforce PROG command docs single-source parity
 - [x] plan_path CLI normalization
-
-## In Progress
-- [ ] Enforce PROG command docs single-source parity
-  **Test steps**:
-  - Run docs parity gate: python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check
-  - Run docs generator tests: pytest -q plugins/progress-tracker/tests/test_generate_prog_docs.py
-  - Confirm README.md, readme-zh.md, and docs/PROG_HELP.md stay synchronized
 
 ## Pending
 - [ ] Implement fail-closed release gate with sync compatibility evidence
-
-## Workflow Context
-- Phase: execution_complete
-- Next action: verify_and_complete
-- Execution context: feature/PT-F7-docs-single-source-parity @ feature-PT-F7 [worktree]
-- Current session context: feature/PT-F7-docs-single-source-parity @ feature-PT-F7 [worktree]
 
 ### Fixed (✅)
 - [x] [BUG-001] Python falsy trap: current_feature_id=0 被 not 误判为 None，导致 set-workflow-state/auto_checkpoint/wf_auto_driver/route_status 等函数在 feature ID 为 0 时异常跳过

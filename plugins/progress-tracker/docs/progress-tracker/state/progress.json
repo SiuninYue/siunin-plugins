@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-04-28T15:44:55.505290Z",
+  "updated_at": "2026-04-28T16:13:08.274091Z",
   "features": [
     {
       "id": 10,
@@ -973,7 +973,7 @@
         "Run docs generator tests: pytest -q plugins/progress-tracker/tests/test_generate_prog_docs.py",
         "Confirm README.md, readme-zh.md, and docs/PROG_HELP.md stay synchronized"
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -983,7 +983,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "implementing",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-007"
       ],
@@ -1043,14 +1043,31 @@
         "artifact_path": null,
         "created_at": null
       },
-      "development_stage": "developing",
+      "development_stage": "completed",
       "started_at": "2026-04-28T12:49:12.782715Z",
       "ai_metrics": {
         "complexity_score": 10,
         "complexity_bucket": "simple",
         "selected_model": "haiku",
         "workflow_path": "direct_tdd",
-        "started_at": "2026-04-28T12:55:44.091441Z"
+        "started_at": "2026-04-28T12:55:44.091441Z",
+        "finished_at": "2026-04-28T16:13:08.249672+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-28T16:12:49.777395Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-28T16:12:49.777428Z",
+      "commit_hash": "0a33eb18fa693783bfec31baf12faac68156b653",
+      "plan_path": "docs/plans/2026-04-28-f7-prog-docs-single-source-parity.md",
+      "archive_info": {
+        "archived_at": "2026-04-28T16:12:49.965957Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-04-28-f7-prog-docs-single-source-parity.md",
+            "to": "docs/archive/plans/2026-04-28-f7-prog-docs-single-source-parity.md"
+          }
+        ]
       }
     },
     {
@@ -1241,7 +1258,7 @@
       }
     }
   ],
-  "current_feature_id": 7,
+  "current_feature_id": null,
   "linked_projects": [],
   "linked_snapshot": {
     "schema_version": "1.0",
@@ -1255,21 +1272,21 @@
   "updates": [],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-04-28T15:44:55.231522Z",
-    "source": "set_workflow_state",
+    "recorded_at": "2026-04-28T16:12:49.842273Z",
+    "source": "complete_feature",
     "workspace_mode": "worktree",
     "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-PT-F7",
     "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-PT-F7",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-PT-F7",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-PT-F7/plugins/progress-tracker",
     "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-PT-F7",
     "branch": "feature/PT-F7-docs-single-source-parity",
-    "upstream": null,
+    "upstream": "origin/feature/PT-F7-docs-single-source-parity",
     "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-PT-F7/plugins/progress-tracker",
-    "current_feature_id": 7,
-    "workflow_phase": "execution_complete",
+    "current_feature_id": null,
+    "workflow_phase": null,
     "current_task": null,
     "total_tasks": null,
-    "next_action": "verify_and_complete"
+    "next_action": null
   },
   "bugs": [
     {
@@ -1289,22 +1306,5 @@
     }
   ],
   "current_bug_id": null,
-  "parent_project_root": ".",
-  "workflow_state": {
-    "phase": "execution_complete",
-    "updated_at": "2026-04-28T15:44:55.154554Z",
-    "plan_path": "docs/plans/2026-04-28-f7-prog-docs-single-source-parity.md",
-    "execution_context": {
-      "recorded_at": "2026-04-28T15:44:55.192759Z",
-      "source": "set_workflow_state",
-      "workspace_mode": "worktree",
-      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-PT-F7",
-      "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-PT-F7",
-      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-PT-F7/plugins/progress-tracker",
-      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-PT-F7",
-      "branch": "feature/PT-F7-docs-single-source-parity",
-      "upstream": null
-    },
-    "next_action": "verify_and_complete"
-  }
+  "parent_project_root": "."
 }

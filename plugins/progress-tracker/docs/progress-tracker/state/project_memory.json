@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "created_at": "2026-04-12T09:38:02.910760Z",
-  "updated_at": "2026-04-28T01:32:50.296610Z",
-  "next_capability_seq": 13,
+  "updated_at": "2026-04-28T08:13:04.399235Z",
+  "next_capability_seq": 14,
   "last_synced_commit": null,
   "capabilities": [
     {
@@ -249,6 +249,28 @@
       },
       "created_at": "2026-04-28T01:32:50.296540Z",
       "updated_at": "2026-04-28T01:32:50.296540Z"
+    },
+    {
+      "cap_id": "CAP-013",
+      "fingerprint": "7283090c46e60732",
+      "title": "Enforce PROG command docs single-source parity",
+      "summary": "Added pre-commit hook + CI gate to enforce docs parity via generate_prog_docs.py --check; extended install-git-hooks to install both post-merge and pre-commit hooks; added EN/ZH sync tests and drift roundtrip integration test",
+      "tags": [
+        "docs",
+        "ci",
+        "hooks",
+        "testing",
+        "parity"
+      ],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 7,
+        "commit_hash": "0a33eb18fa693783bfec31baf12faac68156b653",
+        "commit_range": ""
+      },
+      "created_at": "2026-04-28T08:13:04.377815Z",
+      "updated_at": "2026-04-28T08:13:04.377815Z"
     }
   ],
   "rejected_fingerprints": [],
