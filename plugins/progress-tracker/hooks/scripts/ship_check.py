@@ -148,21 +148,26 @@ def _collect_real_signals(
     tests_dir_exists = tests_dir.is_dir()
 
     if tests_dir_exists:
-        result = subprocess.run(
-            [sys.executable, "-m", "pytest", str(tests_dir), "-q", "--tb=no"],
-            capture_output=True, text=True, timeout=300,
-            cwd=str(project_root),
-        )
-        for line in (result.stdout + result.stderr).splitlines():
-            m_pass = re.search(r"(\d+) passed", line)
-            m_fail = re.search(r"(\d+) failed", line)
-            if m_pass:
-                passed = int(m_pass.group(1))
-            if m_fail:
-                failed = int(m_fail.group(1))
-        # Fail-closed: non-zero returncode with no parsed failures = collection/interrupt error
-        if result.returncode != 0 and failed == 0:
-            failed = 1
+        try:
+            result = subprocess.run(
+                [sys.executable, "-m", "pytest", str(tests_dir), "-q", "--tb=no"],
+                capture_output=True, text=True, timeout=300,
+                cwd=str(project_root),
+            )
+            for line in (result.stdout + result.stderr).splitlines():
+                m_pass = re.search(r"(\d+) passed", line)
+                m_fail = re.search(r"(\d+) failed", line)
+                if m_pass:
+                    passed = int(m_pass.group(1))
+                if m_fail:
+                    failed = int(m_fail.group(1))
+            # Fail-closed: non-zero returncode with no parsed failures = collection/interrupt error
+            if result.returncode != 0 and failed == 0:
+                failed = 1
+        except subprocess.TimeoutExpired:
+            failed = 1  # Treat timeout as test failure (fail-closed)
+        except Exception:
+            failed = 1  # Treat any exec error as failure (fail-closed)
 
     # Docs drift: progress.md should be at least as recent as progress.json
     progress_json_path = project_root / "docs" / "progress-tracker" / "state" / "progress.json"

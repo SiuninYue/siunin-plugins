@@ -203,3 +203,32 @@ def test_run_ship_check_fails_with_no_test_scope_when_tests_dir_missing(tmp_path
     )
     assert result.status == "fail"
     assert any(f.check_id == "no_test_scope" for f in result.failures)
+
+
+def test_update_progress_json_writes_ship_check_result(tmp_path, monkeypatch):
+    """_update_progress_json writes gate result into progress.json quality_gates."""
+    import json as _json
+    import subprocess as _sp
+    import sys as _sys
+    from pathlib import Path
+
+    # Set up minimal progress.json with feature id=1
+    monkeypatch.chdir(tmp_path)
+    progress_manager = Path(__file__).parent.parent / "hooks" / "scripts" / "progress_manager.py"
+    _sp.run([_sys.executable, str(progress_manager), "init", "Test"], cwd=tmp_path, check=True)
+    _sp.run([_sys.executable, str(progress_manager), "add-feature", "F1", "echo"], cwd=tmp_path, check=True)
+
+    from ship_check import _update_progress_json, ShipCheckResult, ShipFailure
+
+    result = ShipCheckResult(
+        status="fail",
+        failures=[ShipFailure(check_id="coverage", detail="59% < 80%")],
+        last_run_at="2026-04-28T00:00:00Z",
+    )
+    _update_progress_json(tmp_path, 1, result)
+
+    state = tmp_path / "docs" / "progress-tracker" / "state" / "progress.json"
+    data = _json.loads(state.read_text())
+    sc = data["features"][0]["quality_gates"]["ship_check"]
+    assert sc["status"] == "fail"
+    assert sc["failures"][0]["check_id"] == "coverage"
