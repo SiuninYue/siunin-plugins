@@ -137,3 +137,27 @@ def test_ship_check_cli_returns_zero_and_persists_result_on_success(tmp_path, mo
     ship_check = data["features"][0]["quality_gates"]["ship_check"]
     assert ship_check["status"] == "pass"
     assert ship_check["failures"] == []
+
+
+# ── Task 1: sync compatibility ────────────────────────────────────────────────
+
+def test_check_sync_compat_passes_with_valid_plugin_json(tmp_path):
+    plugin_dir = tmp_path / ".claude-plugin"
+    plugin_dir.mkdir()
+    (plugin_dir / "plugin.json").write_text(
+        '{"name":"x","version":"1.0","description":"d","author":{"name":"a"},'
+        '"license":"MIT","repository":"https://g","homepage":"https://g"}'
+    )
+    from ship_check import _check_sync_compatibility
+    assert _check_sync_compatibility(tmp_path) == []
+
+
+def test_check_sync_compat_fails_with_missing_keys(tmp_path):
+    plugin_dir = tmp_path / ".claude-plugin"
+    plugin_dir.mkdir()
+    (plugin_dir / "plugin.json").write_text('{"name":"x"}')
+    from ship_check import _check_sync_compatibility
+    failures = _check_sync_compatibility(tmp_path)
+    assert len(failures) == 1
+    assert failures[0].check_id == "sync_compat"
+    assert "missing" in failures[0].detail

@@ -8,10 +8,15 @@ See https://github.com/garrytan/gstack for the upstream concept.
 
 from __future__ import annotations
 
+import json
+import re
+import shutil
+import subprocess
+import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Literal
+from typing import Any, Dict, List, Literal, Optional
 
 Status = Literal["pass", "fail"]
 
@@ -70,6 +75,56 @@ def _check_docs_sync(inputs: Dict[str, Any]) -> List[ShipFailure]:
     if not docs.get("architecture_refs_valid", True):
         failures.append(ShipFailure(check_id="docs_sync", detail="architecture.md references stale feature IDs"))
     return failures
+
+
+_PLUGIN_JSON_REQUIRED_KEYS = {
+    "name", "version", "description", "author",
+    "license", "repository", "homepage",
+}
+
+
+def _check_sync_compatibility(project_root: Path) -> List[ShipFailure]:
+    """Sync compatibility gate (Q2-C strategy):
+
+    Primary: run codex-plugin-sync --dry-run when available (richer evidence).
+    Fallback: validate .claude-plugin/plugin.json schema (required keys) when tool absent.
+    No plugin.json present → skip gracefully (non-plugin project).
+    """
+    plugin_json_path = project_root / ".claude-plugin" / "plugin.json"
+    if not plugin_json_path.exists():
+        return []  # Non-plugin project — skip check gracefully
+
+    # Primary: try codex-plugin-sync --dry-run first
+    if shutil.which("codex-plugin-sync"):
+        try:
+            r = subprocess.run(
+                ["codex-plugin-sync", "--dry-run"],
+                capture_output=True, text=True,
+                cwd=str(project_root), timeout=30,
+            )
+            if r.returncode != 0:
+                return [ShipFailure(
+                    check_id="sync_compat",
+                    detail=f"codex-plugin-sync --dry-run failed: {r.stderr.strip()[:200]}",
+                )]
+            return []  # Tool ran and passed
+        except Exception:
+            pass  # Tool present but failed to exec — fall through to schema check
+
+    # Fallback: static schema validation when codex-plugin-sync is absent
+    try:
+        data = json.loads(plugin_json_path.read_text())
+    except (json.JSONDecodeError, OSError) as exc:
+        return [ShipFailure(check_id="sync_compat", detail=f"plugin.json parse error: {exc}")]
+
+    missing = _PLUGIN_JSON_REQUIRED_KEYS - set(data.keys())
+    if missing:
+        return [ShipFailure(
+            check_id="sync_compat",
+            detail=f"plugin.json missing required keys: {', '.join(sorted(missing))}",
+        )]
+
+    return []
 
 
 def run_ship_check(
