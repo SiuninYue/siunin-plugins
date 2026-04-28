@@ -17,8 +17,6 @@ outputs:
 evidence: optional
 references:
   - "superpowers:test-driven-development"
-  - "superpowers:requesting-code-review"
-  - "superpowers:verification-before-completion"
 ---
 
 # Purpose
@@ -78,8 +76,7 @@ State convergence always runs even if the note already exists.
 Skill("superpowers:test-driven-development", args="<feature_name>: <one_line_description>")
 ```
 
-5. **Populate the sprint contract** from the TDD results, describing scope,
-   done criteria, and test plan:
+5. **Populate a compact sprint contract** from TDD results (minimal but explicit):
 
 ```bash
 plugins/progress-tracker/prog set-sprint-contract \
@@ -93,19 +90,7 @@ plugins/progress-tracker/prog set-sprint-contract \
     "<test plan item 2>"
 ```
 
-6. Run focused code review on the feature diff:
-
-```text
-Skill("superpowers:requesting-code-review", args="Review simple feature implementation: <feature_name>")
-```
-
-7. Run completion verification gate:
-
-```text
-Skill("superpowers:verification-before-completion", args="Verify tests and acceptance evidence for <feature_name>")
-```
-
-8. On success, update workflow and metrics:
+6. On success, update workflow and metrics:
 
 ```bash
 plugins/progress-tracker/prog set-workflow-state \
@@ -118,7 +103,7 @@ plugins/progress-tracker/prog set-feature-ai-metrics <feature_id> \
   --workflow-path direct_tdd
 ```
 
-9. Ask user to run `/prog done`.
+7. Ask user to run `/prog done`.
 
 # Failure Modes
 

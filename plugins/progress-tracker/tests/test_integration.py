@@ -95,8 +95,11 @@ class TestFullWorkflow:
         assert result.returncode == 0, f"Set current failed: {result.stderr}"
 
         # 4. Complete the feature
+        # --unsafe-legacy bypasses the done-gate chain (phase/evaluator/contract gates).
+        # This integration test verifies the init→add→set-current→complete plumbing only;
+        # done-gate correctness is covered by TestDoneCommand unit tests.
         result = subprocess.run(
-            ['python3', self.progress_manager, 'complete', '1', '--skip-archive'],
+            ['python3', self.progress_manager, 'complete', '1', '--skip-archive', '--unsafe-legacy'],
             capture_output=True,
             text=True
         )
@@ -160,6 +163,8 @@ class TestFullWorkflow:
             'accepted_by': 'integration-test',
             'accepted_at': '2026-04-22T00:00:00Z',
         }
+        # direct_tdd workflow path skips plan-document validation (no plan file needed)
+        feature.setdefault('ai_metrics', {})['workflow_path'] = 'direct_tdd'
         feature.setdefault('quality_gates', {})
         feature['quality_gates']['evaluator'] = {
             'status': 'pass',

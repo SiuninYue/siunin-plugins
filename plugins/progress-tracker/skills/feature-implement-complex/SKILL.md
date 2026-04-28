@@ -20,8 +20,6 @@ references:
   - "superpowers:using-git-worktrees"
   - "superpowers:writing-plans"
   - "superpowers:subagent-driven-development"
-  - "superpowers:requesting-code-review"
-  - "superpowers:verification-before-completion"
 ---
 
 # Purpose
@@ -128,20 +126,22 @@ plugins/progress-tracker/prog set-workflow-state \
   --next-action "execution"
 ```
 
+7.5. **Conditional STOP (complex-only):**
+- STOP once for user confirmation before execution if ANY of the following applies:
+  - Security boundary changes (auth, permissions, trust boundaries)
+  - Destructive migrations (irreversible schema or data changes)
+  - Cross-service API breaking changes (external contract changes)
+  - Unclear data model or migration path (schema ambiguity or missing migration steps)
+  - Acceptance criteria that cannot be tested automatically (untestable or purely manual DoD)
+- Otherwise continue immediately (no extra STOP).
+
 8. Run execution phase:
 
 ```text
 Skill("superpowers:subagent-driven-development", args="plan:<returned_plan_path>")
 ```
 
-9. Run final review + verification gates:
-
-```text
-Skill("superpowers:requesting-code-review", args="Review complex feature implementation: <feature_name>")
-Skill("superpowers:verification-before-completion", args="Verify complex feature evidence for <feature_name>")
-```
-
-10. Mark workflow as execution complete and save AI metrics:
+9. Mark workflow as execution complete and save AI metrics:
 
 ```bash
 plugins/progress-tracker/prog set-workflow-state \
@@ -154,7 +154,7 @@ plugins/progress-tracker/prog set-feature-ai-metrics <feature_id> \
   --workflow-path full_design_plan_execute
 ```
 
-11. Ask user to run `/prog done`.
+10. Ask user to run `/prog done`.
 
 Compatibility rule:
 - Do not perform branch finalization here.

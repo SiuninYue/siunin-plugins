@@ -2132,12 +2132,32 @@ class TestMainFunction:
             result = progress_manager.main()
             assert result is True
 
-    def test_main_complete_command(self, progress_file):
-        """Should handle complete command."""
+    def test_main_complete_command_blocks_when_id_mismatch(self, progress_file, capsys):
+        """complete should fail closed when feature_id != current_feature_id."""
         with patch("sys.argv", ["progress_manager.py", "complete", "1"]):
             result = progress_manager.main()
-            # complete_feature() returns True on success
-            assert result is True
+        assert result == 12
+        assert "Feature ID mismatch" in capsys.readouterr().err
+
+    def test_main_complete_command_redirects_when_id_matches(self, in_progress_file):
+        """complete should redirect to cmd_done gatekeeping when IDs match."""
+        with patch("progress_manager.cmd_done", return_value=0) as mock_done, patch(
+            "sys.argv",
+            ["progress_manager.py", "complete", "2", "--skip-archive"],
+        ):
+            result = progress_manager.main()
+        assert result == 0
+        mock_done.assert_called_once_with(commit_hash=None, run_all=False, skip_archive=True)
+
+    def test_main_complete_command_unsafe_legacy_bypasses_redirect(self, progress_file):
+        """--unsafe-legacy should call complete_feature directly."""
+        with patch("progress_manager.complete_feature", return_value=True) as mock_complete, patch(
+            "sys.argv",
+            ["progress_manager.py", "complete", "1", "--unsafe-legacy"],
+        ):
+            result = progress_manager.main()
+        assert result is True
+        mock_complete.assert_called_once_with(1, commit_hash=None, skip_archive=False)
 
     def test_main_undo_command(self, temp_dir):
         """Should handle undo command."""
@@ -2194,9 +2214,25 @@ class TestDoneCommand:
         reviews_passed: Optional[List[str]] = None,
         ship_check_status: str = "pass",
         sprint_contract: Optional[dict] = None,
+        plan_path: Optional[str] = "docs/plans/2026-03-17-feature-1.md",
+        workflow_path: str = "plan_execute",
     ) -> Path:
         state_dir = temp_dir / "docs" / "progress-tracker" / "state"
         state_dir.mkdir(parents=True, exist_ok=True)
+        if plan_path:
+            plan_abs = temp_dir / plan_path
+            plan_abs.parent.mkdir(parents=True, exist_ok=True)
+            if not plan_abs.exists():
+                plan_abs.write_text(
+                    "# Test Plan\n\n"
+                    "## Tasks\n\n"
+                    "- [ ] Execute acceptance checks\n\n"
+                    "## Acceptance Mapping\n\n"
+                    "- Acceptance checks pass\n\n"
+                    "## Risks\n\n"
+                    "- Minimal fixture risk\n",
+                    encoding="utf-8",
+                )
         required = reviews_required if reviews_required is not None else ["eng", "qa", "docs"]
         passed = reviews_passed if reviews_passed is not None else list(required)
         pending = [lane for lane in required if lane not in passed]
@@ -2236,13 +2272,17 @@ class TestDoneCommand:
                         "ship_check": {"status": ship_check_status, "failures": [], "last_run_at": None},
                     },
                     "sprint_contract": contract,
+                    "ai_metrics": {"workflow_path": workflow_path},
                 }
             ],
             "current_feature_id": current_feature_id,
             "schema_version": "2.0",
         }
         if phase is not None:
-            data["workflow_state"] = {"phase": phase, "next_action": "run done"}
+            workflow_state = {"phase": phase, "next_action": "run done"}
+            if plan_path:
+                workflow_state["plan_path"] = plan_path
+            data["workflow_state"] = workflow_state
         (state_dir / "progress.json").write_text(
             json.dumps(data, ensure_ascii=False, indent=2),
             encoding="utf-8",
@@ -2254,6 +2294,18 @@ class TestDoneCommand:
         script_path = Path(progress_manager.__file__).resolve()
         return subprocess.run(
             [sys.executable, str(script_path), "done", *args],
+            capture_output=True,
+            text=True,
+            cwd=temp_dir,
+        )
+
+    @staticmethod
+    def _run_complete(
+        temp_dir: Path, feature_id: int = 1, *args: str
+    ) -> subprocess.CompletedProcess:
+        script_path = Path(progress_manager.__file__).resolve()
+        return subprocess.run(
+            [sys.executable, str(script_path), "complete", str(feature_id), *args],
             capture_output=True,
             text=True,
             cwd=temp_dir,
@@ -2287,6 +2339,54 @@ class TestDoneCommand:
         assert result.returncode == 2
         assert "workflow phase" in result.stdout
         assert "execution_complete" in result.stdout
+
+    def test_done_command_blocks_on_plan_doc_invalid(self, temp_dir):
+        """done should fail with exit code 11 when plan document is invalid."""
+        self._write_done_state(
+            temp_dir,
+            test_steps=["echo unreachable"],
+            phase="execution_complete",
+            current_feature_id=1,
+        )
+        invalid_plan = temp_dir / "docs" / "plans" / "2026-03-17-feature-1.md"
+        invalid_plan.write_text(
+            "# Invalid Plan\n\n## Notes\n\nmissing tasks section\n",
+            encoding="utf-8",
+        )
+
+        result = self._run_done(temp_dir, "--skip-archive")
+
+        assert result.returncode == 11
+        assert "plan document validation failed" in result.stderr
+
+    def test_plan_validation_runs_before_acceptance(self, temp_dir):
+        """invalid plan should block before acceptance test commands execute."""
+        self._write_done_state(
+            temp_dir,
+            test_steps=["touch acceptance-side-effect.txt"],
+            phase="execution_complete",
+            current_feature_id=1,
+        )
+        invalid_plan = temp_dir / "docs" / "plans" / "2026-03-17-feature-1.md"
+        invalid_plan.write_text(
+            "# Invalid Plan\n\n## Meta\n\nmissing required sections\n",
+            encoding="utf-8",
+        )
+
+        result = self._run_done(temp_dir, "--skip-archive")
+        assert result.returncode == 11
+        assert not (temp_dir / "acceptance-side-effect.txt").exists()
+
+    def test_prog_complete_redirected_blocks_without_execution_complete(self, temp_dir):
+        """complete should redirect to done and keep phase gate behavior."""
+        self._write_done_state(
+            temp_dir,
+            test_steps=["echo unreachable"],
+            phase="execution",
+            current_feature_id=1,
+        )
+        result = self._run_complete(temp_dir, 1)
+        assert result.returncode == 2
 
     def test_done_command_blocks_when_evaluator_not_passed(self, temp_dir):
         """done should fail with exit code 6 when evaluator gate status != pass."""
@@ -2325,6 +2425,19 @@ class TestDoneCommand:
 
         assert result.returncode == 9
         assert "sprint_contract incomplete" in result.stderr
+
+    def test_prog_complete_unsafe_legacy_bypasses_done_gates(self, temp_dir):
+        """complete --unsafe-legacy should bypass done gate chain."""
+        self._write_done_state(
+            temp_dir,
+            test_steps=["true"],
+            phase="execution",
+            current_feature_id=1,
+            evaluator_status="pending",
+            plan_path=None,
+        )
+        result = self._run_complete(temp_dir, 1, "--unsafe-legacy", "--skip-archive")
+        assert result.returncode == 0
 
     def test_done_command_runs_acceptance_tests(self, temp_dir):
         """done should execute command test_steps and skip manual DoD lines."""
@@ -2543,6 +2656,119 @@ class TestDoneCommand:
         assert "Project Complete" in result.stdout
         assert "No pending features remain" in result.stdout
 
+    def test_cmd_review_pass_stores_evidence(self, temp_dir):
+        """review-pass should persist optional lane-specific evidence payload."""
+        state_dir = self._write_done_state(
+            temp_dir,
+            test_steps=["true"],
+            phase="execution_complete",
+            current_feature_id=1,
+            reviews_required=["eng"],
+            reviews_passed=[],
+        )
+
+        with patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE", temp_dir):
+            rc = progress_manager.cmd_review_pass(
+                feature_id=1,
+                lane="eng",
+                evidence="docs/testing/feature-1-review.md",
+            )
+
+        assert rc == 0
+        data = json.loads((state_dir / "progress.json").read_text(encoding="utf-8"))
+        feature = data["features"][0]
+        lane_evidence = feature["quality_gates"]["review_evidence"]["eng"]
+        assert lane_evidence["evidence"] == "docs/testing/feature-1-review.md"
+        assert lane_evidence["recorded_at"]
+
+    def test_prog_complete_blocked_on_reconcile_scope_mismatch(self, temp_dir):
+        """done should fail with exit code 10 when reconcile detects scope mismatch."""
+        state_dir = self._write_done_state(
+            temp_dir,
+            test_steps=["true"],
+            phase="execution_complete",
+            current_feature_id=1,
+        )
+        # Inject scope mismatch: tracker_root differs from the actual project root.
+        # Intentionally omit "branch" and "worktree_path" so check_worktree_branch_consistency
+        # passes (no constraint = pass-through); only tracker_root drives scope_mismatch.
+        data = json.loads((state_dir / "progress.json").read_text(encoding="utf-8"))
+        data["workflow_state"]["execution_context"] = {
+            "tracker_root": "/some/other/unrelated/project",
+            "project_root": str(temp_dir),
+        }
+        (state_dir / "progress.json").write_text(
+            json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+
+        result = self._run_done(temp_dir, "--skip-archive")
+
+        assert result.returncode == 10
+        assert "reconcile gate" in result.stderr
+
+    def test_cmd_done_appends_capability_memory(self, temp_dir):
+        """_append_capability_memory should write a capability entry when project_memory is available."""
+        feature = {
+            "id": 42,
+            "name": "Test Feature",
+            "change_spec": {"categories": ["backend"]},
+        }
+        mock_pm = MagicMock()
+        mock_pm.load_memory.return_value = ({}, None, None)
+        mock_pm.append_capability.return_value = {"status": "inserted"}
+
+        with patch.dict("sys.modules", {"project_memory": mock_pm}):
+            progress_manager._append_capability_memory(feature, "deadbeef")
+
+        mock_pm.append_capability.assert_called_once()
+        call_payload = mock_pm.append_capability.call_args[0][1]
+        assert call_payload["title"] == "Test Feature"
+        assert call_payload["source"]["commit_hash"] == "deadbeef"
+        assert call_payload["source"]["feature_id"] == 42
+        mock_pm.save_memory.assert_called_once()
+
+    def test_append_capability_memory_dedupes_existing_commit(self, temp_dir):
+        """When append_capability returns deduped, save_memory must not be called."""
+        feature = {"id": 1, "name": "Dup Feature", "change_spec": {}}
+        mock_pm = MagicMock()
+        mock_pm.load_memory.return_value = ({}, None, None)
+        mock_pm.append_capability.return_value = {"status": "deduped"}
+
+        with patch.dict("sys.modules", {"project_memory": mock_pm}):
+            progress_manager._append_capability_memory(feature, "abc123")
+
+        mock_pm.save_memory.assert_not_called()
+
+    def test_cmd_done_io_sequence_preserves_archive_info(self, temp_dir):
+        """save_archive_record results must not be overwritten by subsequent saves."""
+        state_dir = self._write_done_state(
+            temp_dir,
+            test_steps=["true"],
+            phase="execution_complete",
+            current_feature_id=1,
+        )
+        # Add second feature so _reset_active_progress does not wipe progress.json
+        data = json.loads((state_dir / "progress.json").read_text(encoding="utf-8"))
+        data["features"].append({
+            "id": 2,
+            "name": "Placeholder",
+            "test_steps": ["placeholder step"],
+            "completed": False,
+        })
+        (state_dir / "progress.json").write_text(
+            json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+
+        # Run done WITHOUT --skip-archive so the archive → save_archive_record path executes
+        result = self._run_done(temp_dir)
+
+        assert result.returncode == 0
+
+        final_data = json.loads((state_dir / "progress.json").read_text(encoding="utf-8"))
+        feature_1 = next(f for f in final_data["features"] if f["id"] == 1)
+        assert "archive_info" in feature_1, "archive_info must survive subsequent save operations"
+        assert "archived_at" in feature_1["archive_info"]
+
 
 class TestAiMetricsAndCheckpoints:
     """Test AI metrics persistence and lightweight checkpoint behavior."""
@@ -2575,6 +2801,65 @@ class TestAiMetricsAndCheckpoints:
         assert "finished_at" in metrics
         assert "duration_seconds" in metrics
         assert metrics["duration_seconds"] >= 0
+
+    def test_finalize_completion_state_idempotent(self, progress_file):
+        """finalizer should return did_transition=False on repeated completion."""
+        data = progress_manager.load_progress_json()
+        assert data is not None
+        data["current_feature_id"] = 2
+        data["workflow_state"] = {
+            "phase": "execution_complete",
+            "plan_path": "docs/plans/2026-03-17-feature-2.md",
+        }
+        feature = next(item for item in data["features"] if item["id"] == 2)
+        feature["completed"] = False
+        feature["development_stage"] = "developing"
+        feature["lifecycle_state"] = "implementing"
+        feature["ai_metrics"] = {"started_at": "2026-03-17T00:00:00+00:00"}
+
+        data_after_first, did_first = progress_manager._finalize_completion_state_in_memory(
+            data, 2, commit_hash="abc123"
+        )
+        first_feature = next(item for item in data_after_first["features"] if item["id"] == 2)
+        first_completed_at = first_feature["completed_at"]
+        first_finished_at = first_feature["ai_metrics"]["finished_at"]
+
+        data_after_second, did_second = progress_manager._finalize_completion_state_in_memory(
+            data_after_first, 2, commit_hash="def456"
+        )
+        second_feature = next(item for item in data_after_second["features"] if item["id"] == 2)
+
+        assert did_first is True
+        assert did_second is False
+        assert second_feature["completed_at"] == first_completed_at
+        assert second_feature["ai_metrics"]["finished_at"] == first_finished_at
+        assert second_feature["commit_hash"] == "abc123"
+
+    def test_finalize_ai_metrics_preserves_first_finished_at(self, progress_file):
+        """finalizer should not overwrite existing ai_metrics.finished_at."""
+        data = progress_manager.load_progress_json()
+        assert data is not None
+        data["current_feature_id"] = 2
+        data["workflow_state"] = {"phase": "execution_complete"}
+        feature = next(item for item in data["features"] if item["id"] == 2)
+        feature["completed"] = False
+        feature["development_stage"] = "developing"
+        feature["lifecycle_state"] = "implementing"
+        feature["ai_metrics"] = {
+            "started_at": "2026-03-17T00:00:00+00:00",
+            "finished_at": "2026-03-17T01:00:00+00:00",
+            "duration_seconds": 3600,
+        }
+
+        finalized_data, did_transition = progress_manager._finalize_completion_state_in_memory(
+            data, 2, commit_hash="abc123"
+        )
+        finalized_feature = next(item for item in finalized_data["features"] if item["id"] == 2)
+        metrics = finalized_feature["ai_metrics"]
+
+        assert did_transition is True
+        assert metrics["finished_at"] == "2026-03-17T01:00:00+00:00"
+        assert metrics["duration_seconds"] == 3600
 
     def test_auto_checkpoint_creates_snapshot(self, in_progress_file):
         """Should create checkpoints.json with current workflow snapshot."""

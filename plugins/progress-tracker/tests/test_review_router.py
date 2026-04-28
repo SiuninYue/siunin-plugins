@@ -451,6 +451,20 @@ def test_cmd_review_pass_marks_lane_and_returns_0(tmp_path):
 
 def _make_progress_with_execution_complete(tmp_path: Path, reviews: dict) -> Path:
     """Write progress.json with feature in execution_complete phase, configurable reviews."""
+    plan_path = "docs/plans/2026-01-01-feature-55.md"
+    plan_abs = tmp_path / plan_path
+    plan_abs.parent.mkdir(parents=True, exist_ok=True)
+    plan_abs.write_text(
+        "# Review Router Plan\n\n"
+        "## Tasks\n\n"
+        "- [ ] Validate review lanes\n\n"
+        "## Acceptance Mapping\n\n"
+        "- pending required lanes block done\n\n"
+        "## Risks\n\n"
+        "- None\n",
+        encoding="utf-8",
+    )
+
     feature = {
         "id": 55,
         "name": "feature for done gate test",
@@ -496,7 +510,7 @@ def _make_progress_with_execution_complete(tmp_path: Path, reviews: dict) -> Pat
         "active_routes": [],
         "bugs": [],
         "current_bug_id": None,
-        "workflow_state": {"phase": "execution_complete"},
+        "workflow_state": {"phase": "execution_complete", "plan_path": plan_path},
     }
     state_dir = tmp_path / "docs" / "progress-tracker" / "state"
     state_dir.mkdir(parents=True)

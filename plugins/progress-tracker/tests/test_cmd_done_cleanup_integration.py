@@ -6,14 +6,15 @@ call).  unittest.mock.patch only works in-process; CLI subprocess would ignore
 patches.
 
 Gate seeding strategy: the seeded_done_env fixture routes cmd_done() through
-all 6 gates by:
+all completion gates by:
   - seeding progress.json with all quality_gates at "pass" in a tmp_path
+  - seeding workflow_state.plan_path with a valid plan document
   - setting _PROJECT_ROOT_OVERRIDE to tmp_path so all file I/O goes there
   - mocking require_sprint_contract, _run_acceptance_tests,
     _save_done_test_report, record_sprint_artifact, and _notify_parent_sync
   - mocking collect_git_context to return a stable fixture context
 
-complete_feature() is allowed to run for real and write to tmp_path so that
+cmd_done() finalization runs for real and writes to tmp_path so that
 P1 state-invariant assertions can inspect the persisted result.
 """
 
@@ -37,6 +38,20 @@ _FEATURE_ID = 25
 
 def _make_progress_json(tmp_path: Path) -> Path:
     """Write a fully-gated progress.json that allows cmd_done() to pass all gates."""
+    plan_path = "docs/plans/2026-01-01-feature-25.md"
+    plan_abs = tmp_path / plan_path
+    plan_abs.parent.mkdir(parents=True, exist_ok=True)
+    plan_abs.write_text(
+        "# Cleanup Done Plan\n\n"
+        "## Tasks\n\n"
+        "- [ ] Run done flow\n\n"
+        "## Acceptance Mapping\n\n"
+        "- done exits zero\n\n"
+        "## Risks\n\n"
+        "- Minimal fixture drift\n",
+        encoding="utf-8",
+    )
+
     feature = {
         "id": _FEATURE_ID,
         "name": "cleanup-after-done test feature",
@@ -105,7 +120,7 @@ def _make_progress_json(tmp_path: Path) -> Path:
         "active_routes": [],
         "bugs": [],
         "current_bug_id": None,
-        "workflow_state": {"phase": "execution_complete"},
+        "workflow_state": {"phase": "execution_complete", "plan_path": plan_path},
     }
     state_dir = tmp_path / "docs" / "progress-tracker" / "state"
     state_dir.mkdir(parents=True)
@@ -131,14 +146,15 @@ def seeded_done_env(tmp_path):
     """
     Provide a fully-gated cmd_done() environment.
 
-    Gate seeding (6 gates):
+    Gate seeding:
       1. _validate_done_preconditions — satisfied by progress.json content
          (current_feature_id set, not completed, phase=execution_complete)
-      2. require_sprint_contract — mocked to no-op
-      3. _run_acceptance_tests — mocked to return (True, [])
-      4. evaluator gate — seeded in JSON: quality_gates.evaluator.status="pass"
-      5. review gate — seeded in JSON: all required lanes in passed list
-      6. ship_check gate — seeded in JSON: quality_gates.ship_check.status="pass"
+      2. _validate_completion_plan_document — satisfied by valid docs/plans fixture file
+      3. require_sprint_contract — mocked to no-op
+      4. _run_acceptance_tests — mocked to return (True, [])
+      5. evaluator gate — seeded in JSON: quality_gates.evaluator.status="pass"
+      6. review gate — seeded in JSON: all required lanes in passed list
+      7. ship_check gate — seeded in JSON: quality_gates.ship_check.status="pass"
 
     Additional mocks (no state side-effects):
       - _save_done_test_report → None (skips report path branch)
@@ -165,27 +181,24 @@ def seeded_done_env(tmp_path):
 # T3 scenarios
 # ---------------------------------------------------------------------------
 
-def test_cmd_done_snapshots_branch_before_complete_feature(seeded_done_env):
-    """cleanup_ctx captures branch/mode/path BEFORE complete_feature() is called."""
+def test_cmd_done_snapshots_branch_before_finalize(seeded_done_env):
+    """cleanup_ctx captures branch/mode/path BEFORE in-memory finalization."""
     captured: dict = {}
-    original_complete = progress_manager.complete_feature
+    original_finalize = progress_manager._finalize_completion_state_in_memory
 
-    def spy_complete(feature_id, **kwargs):
-        # At this point, _PROJECT_ROOT_OVERRIDE may have already cleared
-        # current_feature_id in a real run, but our spy records the ctx
-        # that was captured before this call.
+    def spy_finalize(data, feature_id, commit_hash=None):
         captured["called"] = True
-        return original_complete(feature_id, **kwargs)
+        return original_finalize(data, feature_id, commit_hash=commit_hash)
 
     with (
-        patch("progress_manager.complete_feature", side_effect=spy_complete),
+        patch("progress_manager._finalize_completion_state_in_memory", side_effect=spy_finalize),
         patch("progress_manager._run_post_done_cleanup") as mock_cleanup,
     ):
         rc = progress_manager.cmd_done()
 
     assert rc == 0
-    assert captured.get("called"), "complete_feature must have been called"
-    # Verify cleanup received the git context that was snapshotted before complete_feature
+    assert captured.get("called"), "_finalize_completion_state_in_memory must have been called"
+    # Verify cleanup received the git context that was snapshotted before finalization.
     assert mock_cleanup.called
     ctx_arg = mock_cleanup.call_args[0][0]
     assert ctx_arg["branch"] == f"feature/feature-{_FEATURE_ID}"

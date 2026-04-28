@@ -74,6 +74,7 @@ If the invocation includes inline context lines (`Feature:`, `Phase:`, `Plan:`, 
    - `execution` → jump to Step 4 route with existing plan, resume from `Next` task
    - `planning_complete` → jump to Step 4B subagent execution with existing plan
    - `planning` → jump to Step 3 complexity scoring
+   - `planning:review` → display `PlanSummary`, collect approval/changes, and STOP (single planning stop)
    - `planning:approved` → verify worktree accessible (if present) → read inline `Bucket:` field and route execution directly:
      - Skip: Steps 2.4, 2.5, brainstorming, writing-plans
      - Bucket routing (priority: inline `Bucket:` > persisted `feature.ai_metrics.complexity_bucket` > standard fallback):
@@ -81,8 +82,7 @@ If the invocation includes inline context lines (`Feature:`, `Phase:`, `Plan:`, 
        - `standard` → Step 4B coordinator
        - `complex` → delegate to `feature-implement-complex`
      - If `Bucket` missing or invalid: read persisted `feature.ai_metrics.complexity_bucket` once (fallback only); if still unavailable → default to `standard` and output warning: "Bucket unknown, defaulting to standard" — do NOT stop execution
-   - `planning:draft` → display `PlanSummary`, wait for user approval/changes; do NOT re-run brainstorming
-   - `planning:clarifying` → read `Questions` field, re-ask questions, proceed to draft after answers received
+   - `planning:draft` / `planning:clarifying` (legacy phase) → normalize to `planning:review` behavior: display current plan/questions, request one approval turn, then continue
 
 6. `ProjectRoot` present → pass `--project-root <project_root>` to **every** `prog` CLI call.
    Branch/worktree mismatch validation still applies (ProjectRoot only determines command directory, does not bypass checks).
@@ -204,47 +204,27 @@ Rules:
 
 ### Step 3: Planning Sub-Phase Flow
 
-Before complexity scoring, initiate the planning sub-phase to clarify requirements.
-
-#### Sub-phase A: Clarifying
-
-0. **[Pre-step]** Complete complexity scoring using `references/complexity-assessment.md`, persist AI metrics:
+1. Complete complexity scoring first and persist AI metrics:
    ```bash
    plugins/progress-tracker/prog set-feature-ai-metrics <feature_id> \
      --complexity-score <score> \
      --selected-model <haiku|sonnet|opus> \
      --workflow-path <direct_tdd|plan_execute|full_design_plan_execute>
    ```
-1. Analyze feature, identify 2-4 design decision questions (skip obvious ones).
-2. Set workflow state:
+2. If bucket is `simple`, skip planning entirely and jump straight to Step 4A.
+3. If bucket is `standard` or `complex`, generate one executable plan (include clarifications inline instead of a separate clarifying stop), then set:
    ```bash
-   plugins/progress-tracker/prog set-workflow-state --phase "planning:clarifying"
+   plugins/progress-tracker/prog set-workflow-state --phase "planning:review" --plan-path <path>
    ```
-3. Output `planning:clarifying` handoff block (see `progress-recovery/references/communication-templates.md`).
-4. Ask questions directly to user. **STOP.**
-
-#### Sub-phase B: Draft
-
-1. Use `writing-plans` skill (incorporating user answers) to generate plan.
-2. Generate `PlanSummary` — single line, semicolon-separated, 3-5 key points.
-3. Set workflow state:
-   ```bash
-   plugins/progress-tracker/prog set-workflow-state --phase "planning:draft" --plan-path <path>
-   ```
-4. Display complete plan.
-5. Output `planning:draft` handoff block. **STOP.**
-
-#### Sub-phase C: Approved
-
-1. Set workflow state:
+4. Output `planning:review` handoff block and STOP once for user approval/edits.
+5. After approval, set:
    ```bash
    plugins/progress-tracker/prog set-workflow-state --phase "planning:approved" --plan-path <path>
    ```
-2. Output `planning:approved` handoff block.
-3. Immediately route by persisted `complexity_bucket` and begin execution (same session — do NOT STOP).
+6. Route immediately by persisted bucket and continue execution in the same session.
 
-**Valid `--phase` values:** `planning`, `planning:clarifying`, `planning:draft`, `planning:approved`, `planning_complete`, `execution`, `execution_complete`
-(`planning_complete` retained for backward compatibility)
+**Valid `--phase` values:** `planning`, `planning:review`, `planning:approved`, `planning_complete`, `execution`, `execution_complete`  
+Legacy phases `planning:clarifying` / `planning:draft` should be treated as `planning:review`.
 
 ### Step 4: Route by Bucket
 
@@ -259,34 +239,30 @@ Before complexity scoring, initiate the planning sub-phase to clarify requiremen
 
 - Remain in this coordinator.
 - Default path:
-  1. Run `brainstorming` when behavior/design decisions are still open.
-  2. `writing-plans` to produce executable task plan.
-  2.5. **Populate the sprint contract** from the plan outputs, describing
-     scope, done criteria, and test plan:
-
+  1. Reuse approved plan from Step 3 (`planning:approved`).
+  2. Enter execution phase:
+  ```bash
+  plugins/progress-tracker/prog set-workflow-state --phase "execution" --plan-path <path>
+  ```
+  3. `subagent-driven-development` to execute plan with TDD.
+  4. Populate sprint contract from implemented scope:
   ```bash
   plugins/progress-tracker/prog set-sprint-contract \
     --feature-id <feature_id> \
     --scope "<brief scope description>" \
-    --done-criteria \
-      "<criteria 1>" \
-      "<criteria 2>" \
-    --test-plan \
-      "<test plan item 1>" \
-      "<test plan item 2>"
+    --done-criteria "<criteria 1>" "<criteria 2>" \
+    --test-plan "<test plan item 1>" "<test plan item 2>"
   ```
-  3. `subagent-driven-development` to execute plan with TDD.
-  4. `requesting-code-review` for final diff validation.
-  5. `verification-before-completion` before phase transition to `execution_complete`.
+  5. Transition to `execution_complete`:
+  ```bash
+  plugins/progress-tracker/prog set-workflow-state --phase "execution_complete" --next-action "verify_and_complete"
+  ```
 - Update workflow state at each gate:
   ```bash
   plugins/progress-tracker/prog set-workflow-state --phase "planning_complete" --plan-path <path>
   plugins/progress-tracker/prog set-workflow-state --phase "execution" --plan-path <path>
   ```
-- After implementation, review, and verification pass, persist completion:
-  ```bash
-  plugins/progress-tracker/prog set-workflow-state --phase "execution_complete" --next-action "verify_and_complete"
-  ```
+- Do not run final review/evaluator/ship-check in this step; `/prog done` owns final gates.
 
 Important compatibility rule:
 - In `/prog next` flow, treat implementation as finished at "code + verification ready".
@@ -329,7 +305,7 @@ When implementation is done:
 
 - summarize what was implemented (2-3 bullet points)
 - confirm expected acceptance steps
-- confirm review + verification gates were executed
+- indicate that final gates (review/evaluator/ship-check) will be enforced by `/prog done`
 - output a Context Handoff Block (see template below)
 
 Do not mark the feature complete in this skill.
@@ -338,8 +314,8 @@ Use the Context Handoff Block templates from `progress-recovery/references/commu
 - `execution_complete` → use the `prog-done` block template
 - `execution` / `planning_complete` → use the `prog-next` block template
 - `planning` → use the planning block template
-- `planning:clarifying` → use the `planning:clarifying` block template
-- `planning:draft` → use the `planning:draft` block template
+- `planning:review` → use the `planning:review` block template
+- `planning:clarifying` / `planning:draft` (legacy) → map to `planning:review` template
 - `planning:approved` → use the `planning:approved` block template
 
 ## Recovery Rules

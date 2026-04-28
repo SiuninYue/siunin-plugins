@@ -85,10 +85,15 @@ Use `git status --porcelain` to detect uncommitted changes.
 - If plan is valid: resume execution from next unfinished task.
 - If plan invalid/missing: recreate plan first, then resume.
 
-### Case C: Active Feature + `planning_complete` or `design_complete`
+### Case C: Active Feature + `planning_complete` (`execute_approved_plan`)
 
-- Resume from planning/execution boundary.
-- Confirm user wants to continue same feature before state changes.
+- 计划已完成，可直接进入执行阶段。
+- 确认用户想继续同一 feature 后再推进状态。
+
+### Case C-2: Active Feature + `design_complete` (`restart_from_planning`)
+
+- 头脑风暴/设计已完成，重新进入规划阶段。
+- 确认用户想继续同一 feature 后再推进状态。
 
 ### Case D-1: Active Feature + `planning:approved` (`execute_approved_plan`)
 
@@ -106,11 +111,12 @@ Use `git status --porcelain` to detect uncommitted changes.
 - Do NOT re-run brainstorming.
 - If plan file missing: reconstruct from `PlanSummary` instead of re-running brainstorming.
 
-### Case D-3: Active Feature + `planning:clarifying` (`restart_from_planning`)
+### Case D-3: Active Feature + `planning:clarifying` (`resume_planning_draft`)
 
-- Read `Questions` from persisted workflow state.
-- Re-ask questions to user.
-- Proceed to `planning:draft` after user provides answers.
+- 归一化为 `planning:review` 行为，与 `planning:draft` 一致。
+- 读取 `Questions`，显示当前计划/问题。
+- 等待用户一次审批回合。
+- 不重跑 brainstorming。
 
 ### Case D: No Active Feature + Pending Features
 

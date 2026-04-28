@@ -10,7 +10,7 @@ Use this reference when `current_feature_id` is already set or when workflow sta
 | Mid execution | `phase=execution` and valid plan | Resume from next unfinished task |
 | Plan missing | `phase in {planning_complete, execution}` and invalid plan | Recreate plan, then continue |
 | Inconsistent lock | `current_feature_id` missing in features | Run recovery workflow before next delegation |
-| planning:clarifying | Questions field present | Re-ask questions, proceed to draft after answers |
+| planning:clarifying | Questions field present | 归一化为 planning:review：显示当前问题/计划，等待一次审批，不重跑 brainstorming |
 | planning:draft | Plan + PlanSummary present | Display PlanSummary, wait for approval; do NOT re-run brainstorming |
 | planning:approved | Phase=planning:approved | Read persisted bucket, route directly to execution |
 

@@ -178,7 +178,34 @@ Skill("superpowers:requesting-code-review", args="Final review before marking fe
 ```
 
 3. Ensure no unresolved Critical/Important review findings remain.
-4. Automatically run git closeout (no user confirmation needed):
+4. Record lane-specific review evidence (CLI `--evidence` is optional but this skill path treats it as required):
+
+```bash
+# eng lane: code review artifact
+plugins/progress-tracker/prog --project-root <project_root> review-pass \
+  --feature-id <feature_id> --lane eng \
+  --evidence "<code_review_artifact_path_or_summary>"
+
+# qa lane: pre-done acceptance evidence
+plugins/progress-tracker/prog --project-root <project_root> review-pass \
+  --feature-id <feature_id> --lane qa \
+  --evidence "<acceptance_log_or_manual_verification_summary>"
+
+# docs lane: plan/documentation evidence
+plugins/progress-tracker/prog --project-root <project_root> review-pass \
+  --feature-id <feature_id> --lane docs \
+  --evidence "<plan_path_or_docs_sync_note>"
+```
+
+If required lanes include `design` or `devex`, also record them with dedicated evidence.
+
+5. Run ship-check before final closeout:
+
+```bash
+plugins/progress-tracker/prog --project-root <project_root> ship-check --feature-id <feature_id>
+```
+
+6. Automatically run git closeout (no user confirmation needed):
 
 ```text
 Skill("progress-tracker:git-auto",
@@ -186,57 +213,20 @@ Skill("progress-tracker:git-auto",
 ```
 
    Parse the Execution Result Block (`=== Git Auto Result ===` … `=== End Result ===`):
-   - `Status: ok` → extract `CommitHash`, continue to step 5
+   - `Status: ok` → extract `CommitHash`, continue to step 7
    - `Status: blocked` → display `BlockReason`, STOP — wait for user to resolve, then re-run `/prog done`
    - GH006 fallback is handled internally by git-auto; still yields `Status: ok` + real `CommitHash`
 
-5. Mark feature complete using the `CommitHash` extracted in step 4:
+7. Invoke deterministic done gate with the extracted commit hash:
 
 ```bash
-plugins/progress-tracker/prog --project-root <project_root> complete <feature_id> --commit <CommitHash_from_step4>
+plugins/progress-tracker/prog --project-root <project_root> done --commit <CommitHash_from_step6>
 ```
 
-This step will automatically:
-- Move associated plan and test documents to `docs/progress-tracker/archive/`
-- Rename archived plans to `feature-{id}-{original-name}.md` for consistency
-- Support both legacy (`feature-N-*.md`) and current date-based naming patterns (`YYYY-MM-DD-*.md`)
+`prog done` now owns finalize I/O ordering and post-finalize side effects (audit/archive/memory/reset).
+After marking the feature complete, `prog done` internally calls `project_memory.py append` to record a capability memory entry for this feature. If the memory append or archive step fails, do not roll back feature completion — those side-effects are non-fatal and the feature remains marked as complete.
 
-6. Append capability memory (non-blocking):
-
-- Build one capability payload from the completed feature:
-  - `title`: feature name
-  - `summary`: concise completion summary
-  - `tags`: optional feature tags
-  - `confidence`: `1.0`
-  - `source.origin`: `prog_done`
-  - `source.feature_id`: current feature ID
-  - `source.commit_hash`: completion commit hash
-- Persist via:
-
-```bash
-plugins/progress-tracker/prog --project-root <project_root> memory append --payload-json '<capability_json>'
-```
-
-Legacy CLI equivalent: `project_memory.py append`.
-
-- If this command fails:
-  - print a warning
-  - do not roll back feature completion
-  - continue remaining completion steps
-
-7. Finalize AI metrics:
-
-```bash
-plugins/progress-tracker/prog --project-root <project_root> complete-feature-ai-metrics <feature_id>
-```
-
-8. Clear workflow state:
-
-```bash
-plugins/progress-tracker/prog --project-root <project_root> clear-workflow-state
-```
-
-9. Show next step and output a Context Handoff Block:
+8. Show next step and output a Context Handoff Block:
 
 Before outputting, read `docs/progress-tracker/state/progress.json` to find:
 - `project_name`
@@ -273,7 +263,7 @@ Also show the next feature's `test_steps` as a preview so the user knows what's 
 
 If all features are complete: output project completion summary instead (no handoff block needed).
 
-10. Merge-first closeout policy:
+9. Merge-first closeout policy:
 
 - `/prog done` defaults to `commit_push_pr_merge`.
 - `git-auto` is the single authority for merge gating and execution.

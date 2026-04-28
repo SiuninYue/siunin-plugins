@@ -7,10 +7,14 @@ compute_next_action(phase, context) → str | None
 - execution_complete → "run_prog_done"
 - execution + completed_tasks == total_tasks → "run_prog_done"
 - execution + completed_tasks < total_tasks → "continue_execution"
+- planning:review → "resume_planning_draft"
 - planning:draft → "resume_planning_draft"
+- planning:clarifying → "resume_planning_draft"（归一化：与 planning:review 行为一致）
 - planning:approved → "execute_approved_plan"
-- planning:clarifying → "resume_planning_clarifying"
+- planning_complete → "execute_approved_plan"（计划完成 = 可执行）
 - planning → "restart_from_planning"
+- design_complete → "restart_from_planning"（设计完成 → 进入规划）
+- design → "restart_from_planning"（防御性覆盖）
 - None / unknown → None（无操作）
 
 设计约束：无 I/O，无副作用，可安全重复调用。
@@ -20,10 +24,14 @@ from typing import Optional
 
 _PHASE_ACTION_MAP: dict[str, str] = {
     "execution_complete": "run_prog_done",
+    "planning:review": "resume_planning_draft",
     "planning:draft": "resume_planning_draft",
+    "planning:clarifying": "resume_planning_draft",  # 归一化：与 planning:review 一致
     "planning:approved": "execute_approved_plan",
-    "planning:clarifying": "resume_planning_clarifying",
+    "planning_complete": "execute_approved_plan",     # 计划完成 = 可执行
     "planning": "restart_from_planning",
+    "design_complete": "restart_from_planning",       # 设计完成 → 进入规划
+    "design": "restart_from_planning",                # 防御性覆盖
 }
 
 

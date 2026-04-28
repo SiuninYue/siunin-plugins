@@ -14,15 +14,22 @@ sys.path.insert(0, str(Path(__file__).parent))
 from conftest import _write_progress, _write_audit_event
 
 
-def _write_full_completed_project(state_dir, feature_count=2):
-    """Write progress.json with all features completed."""
-    features = [
-        {"id": i + 1, "name": f"F{i+1}", "completed": True,
-         "development_stage": "completed", "lifecycle_state": "archived",
-         "completed_at": f"2026-01-0{i+2}T00:00:00Z",
-         "commit_hash": f"abc{i+1}"}
-        for i in range(feature_count)
-    ]
+def _write_full_completed_project(state_dir, feature_count=2, last_pending=False):
+    """Write progress.json where all features are completed (or all-but-last)."""
+    features = []
+    for i in range(feature_count):
+        feature_id = i + 1
+        is_last_pending = last_pending and feature_id == feature_count
+        feature = {
+            "id": feature_id,
+            "name": f"F{feature_id}",
+            "completed": not is_last_pending,
+            "development_stage": "developing" if is_last_pending else "completed",
+            "lifecycle_state": "implementing" if is_last_pending else "archived",
+            "completed_at": None if is_last_pending else f"2026-01-0{feature_id + 1}T00:00:00Z",
+            "commit_hash": None if is_last_pending else f"abc{feature_id}",
+        }
+        features.append(feature)
     data = {
         "schema_version": "2.1",
         "project_name": "test",
@@ -42,8 +49,8 @@ def _write_full_completed_project(state_dir, feature_count=2):
 
 class TestCompleteFeatureClearsState:
     def test_clears_active_state_on_last_feature(self, project_scope):
-        """complete_feature on the last feature clears features/bugs/updates/retrospectives."""
-        _write_full_completed_project(project_scope["state_dir"], feature_count=2)
+        """Completing the last pending feature clears features/bugs/updates/retrospectives."""
+        _write_full_completed_project(project_scope["state_dir"], feature_count=2, last_pending=True)
 
         pm.complete_feature(feature_id=2, skip_archive=True)
 
@@ -56,8 +63,8 @@ class TestCompleteFeatureClearsState:
         assert data["current_bug_id"] is None
 
     def test_clears_with_skip_archive(self, project_scope):
-        """_reset_active_progress runs even with skip_archive=True."""
-        _write_full_completed_project(project_scope["state_dir"], feature_count=1)
+        """_reset_active_progress runs even with skip_archive=True on real transition."""
+        _write_full_completed_project(project_scope["state_dir"], feature_count=1, last_pending=True)
 
         pm.complete_feature(feature_id=1, skip_archive=True)
 
@@ -66,7 +73,7 @@ class TestCompleteFeatureClearsState:
 
     def test_clears_when_archive_throws(self, project_scope):
         """_reset_active_progress runs even if archive_current_progress raises."""
-        _write_full_completed_project(project_scope["state_dir"], feature_count=1)
+        _write_full_completed_project(project_scope["state_dir"], feature_count=1, last_pending=True)
 
         with patch.object(pm, "archive_current_progress", side_effect=OSError("disk full")):
             pm.complete_feature(feature_id=1, skip_archive=False)
@@ -75,8 +82,8 @@ class TestCompleteFeatureClearsState:
         assert data["features"] == []
 
     def test_records_project_completed_event(self, project_scope):
-        """complete_feature on last feature writes project_completed to audit.log."""
-        _write_full_completed_project(project_scope["state_dir"], feature_count=1)
+        """Completing last pending feature writes project_completed to audit.log."""
+        _write_full_completed_project(project_scope["state_dir"], feature_count=1, last_pending=True)
 
         pm.complete_feature(feature_id=1, skip_archive=True)
 

@@ -59,6 +59,18 @@ try:
 except ImportError:  # pragma: no cover - non-POSIX
     fcntl = None
 
+try:
+    import importlib.util as _importlib_util
+    _scripts_dir = Path(__file__).parent
+    _spec = _importlib_util.spec_from_file_location(
+        "wf_state_machine", _scripts_dir / "wf_state_machine.py"
+    )
+    _wf_sm = _importlib_util.module_from_spec(_spec)
+    _spec.loader.exec_module(_wf_sm)
+    compute_next_action = _wf_sm.compute_next_action
+except Exception:
+    compute_next_action = None  # fail-open
+
 from prog_paths import (
     PROGRESS_ARCHIVE_DIR,
     PROGRESS_HISTORY_JSON,
@@ -6432,31 +6444,45 @@ def check(output_json: bool = False):
 def determine_recovery_action(
     phase, feature, completed_tasks, total_tasks, plan_path: Optional[str] = None
 ):
-    """Determine the recommended recovery action based on workflow state."""
-    if phase in ["planning:draft", "planning:approved",
-                 "planning_complete", "execution", "execution_complete"]:
+    """Determine the recommended recovery action based on workflow state.
+
+    Delegates to compute_next_action() as the canonical phase→action mapping,
+    then applies recovery-specific refinements (plan validation, progress %).
+    """
+    # Phase groups that require a valid plan for recovery.
+    # NOTE: planning:clarifying is intentionally excluded — at this stage the
+    # plan may not exist yet (clarifying happens before draft), so validating
+    # it would produce false-positive recreate_plan actions.
+    plan_required_phases = [
+        "planning:draft", "planning:approved", "planning:review",
+        "planning_complete", "execution", "execution_complete",
+    ]
+    if phase in plan_required_phases:
         plan_validation = validate_plan_path(plan_path, require_exists=True)
         if not plan_validation["valid"]:
             return "recreate_plan"
 
-    if phase == "execution_complete":
-        return "run_prog_done"
-    elif phase == "execution" and total_tasks > 0:
-        progress = len(completed_tasks) / total_tasks if total_tasks > 0 else 0
+    # execution phase: finer-grained resume strategy based on progress
+    if phase == "execution" and total_tasks > 0:
+        progress = len(completed_tasks) / total_tasks
         if progress >= 0.8:
             return "auto_resume"
         else:
             return "manual_resume"
-    elif phase == "planning:approved":
-        return "execute_approved_plan"
-    elif phase == "planning:draft":
-        return "resume_planning_draft"
-    elif phase == "planning:clarifying":
-        return "restart_from_planning"
-    elif phase in ["planning", "design_complete", "design"]:
-        return "restart_from_planning"
+
+    # Delegate to canonical FSM for all other phases
+    if compute_next_action is not None:
+        context = {"completed_tasks": completed_tasks, "total_tasks": total_tasks}
+        base_action = compute_next_action(phase, context)
+        if base_action:
+            return base_action
     else:
-        return "manual_review"
+        logging.warning(
+            "wf_state_machine not available, falling back to manual_review "
+            "for phase=%s", phase
+        )
+
+    return "manual_review"
 
 
 def set_current(feature_id):
@@ -7459,6 +7485,163 @@ def _validate_done_preconditions(
     return True, "", 0, feature
 
 
+def _validate_completion_reconcile(
+    data: Dict[str, Any], feature_id: int
+) -> Tuple[bool, str, int]:
+    """Block completion when reconcile reports state drift that needs repair."""
+    reconcile_report = analyze_reconcile_state(data)
+    diagnosis = reconcile_report.get("diagnosis")
+
+    if diagnosis in {"scope_mismatch", "context_mismatch"}:
+        return False, f"reconcile gate: {diagnosis}", 10
+
+    if diagnosis == "needs_manual_review":
+        current_id = data.get("current_feature_id")
+        if current_id == feature_id:
+            suggested = reconcile_report.get("recommended_next_step")
+            if suggested in {"repair workflow_state", "clear invalid current_feature_id"}:
+                return False, f"reconcile gate: needs_manual_review ({suggested})", 10
+
+    return True, "", 0
+
+
+def _validate_completion_plan_document(
+    data: Dict[str, Any], feature_id: int
+) -> Tuple[bool, str, int]:
+    """Validate plan document content before completion gates close."""
+    features = data.get("features", [])
+    feature = next((item for item in features if item.get("id") == feature_id), None)
+    if feature is None:
+        return False, f"Feature {feature_id} not found", 4
+
+    workflow_state = data.get("workflow_state")
+    plan_path: Optional[str] = None
+    if isinstance(workflow_state, dict):
+        raw_plan_path = workflow_state.get("plan_path")
+        if isinstance(raw_plan_path, str):
+            normalized = raw_plan_path.strip()
+            if normalized:
+                plan_path = normalized
+
+    if not plan_path:
+        raw_feature_plan = feature.get("plan_path")
+        if isinstance(raw_feature_plan, str):
+            normalized_feature_plan = raw_feature_plan.strip()
+            if normalized_feature_plan:
+                plan_path = normalized_feature_plan
+
+    if not plan_path:
+        ai_metrics = feature.get("ai_metrics", {})
+        workflow_path = (
+            str(ai_metrics.get("workflow_path", "")).strip().lower()
+            if isinstance(ai_metrics, dict)
+            else ""
+        )
+        if workflow_path == "direct_tdd":
+            return True, "", 0
+        return False, "No plan_path found in workflow_state or feature metadata", 11
+
+    validation = validate_plan_document(plan_path)
+    if not validation.get("valid"):
+        errors = validation.get("errors", [])
+        if not errors:
+            return False, "plan document validation failed", 11
+        return False, "; ".join(str(item) for item in errors), 11
+
+    return True, "", 0
+
+
+def _finalize_completion_state_in_memory(
+    data: Dict[str, Any], feature_id: int, commit_hash: Optional[str] = None
+) -> Tuple[Dict[str, Any], bool]:
+    """Mark feature completion in-memory only; caller owns all I/O."""
+    features = data.get("features", [])
+    feature = next((item for item in features if item.get("id") == feature_id), None)
+    if feature is None:
+        raise ValueError(f"Feature {feature_id} not found")
+
+    if feature.get("completed"):
+        return data, False
+
+    ai_metrics = feature.get("ai_metrics", {})
+    if not isinstance(ai_metrics, dict):
+        ai_metrics = {}
+    if not ai_metrics.get("finished_at"):
+        now = datetime.now().astimezone()
+        now_iso = now.isoformat().replace("+00:00", "Z")
+        started_at = _parse_iso_timestamp(ai_metrics.get("started_at"))
+        if not started_at:
+            started_at = now
+            ai_metrics["started_at"] = now_iso
+        ai_metrics["finished_at"] = now_iso
+        ai_metrics["duration_seconds"] = int(max(0, (now - started_at).total_seconds()))
+    feature["ai_metrics"] = ai_metrics
+
+    feature["completed"] = True
+    feature["development_stage"] = "completed"
+    feature["lifecycle_state"] = "verified"
+    feature["completed_at"] = _iso_now()
+    _clear_feature_defer_state(feature)
+    _clear_feature_finish_pending(feature)
+    feature["integration_status"] = "merged_and_cleaned"
+    feature["finish_state_resolved_at"] = _iso_now()
+    feature.pop("finish_state_resolved_reason", None)
+    if commit_hash:
+        feature["commit_hash"] = commit_hash
+
+    workflow_state = data.get("workflow_state")
+    if isinstance(workflow_state, dict):
+        plan_path = workflow_state.get("plan_path")
+        if isinstance(plan_path, str) and plan_path.strip():
+            feature["plan_path"] = plan_path.strip()
+
+    data["current_feature_id"] = None
+    data.pop("workflow_state", None)
+    _update_runtime_context(data, source="finalize")
+
+    return data, True
+
+
+def _record_feature_completed_event(
+    feature_id: int, feature_name: str, commit_hash: str = ""
+) -> None:
+    """Append feature_completed audit event for a real state transition only."""
+    record_feature_state_event(
+        event_type="feature_completed",
+        feature_id=feature_id,
+        feature_name=feature_name,
+        extra_details={"commit_hash": commit_hash} if commit_hash else None,
+    )
+
+
+def _append_capability_memory(feature: Dict[str, Any], commit_hash: str) -> None:
+    """Best-effort project memory append using project_memory module API."""
+    try:
+        import project_memory
+
+        payload = {
+            "title": feature.get("name", "Unknown Feature"),
+            "summary": f"Completed feature {feature.get('id')}: {feature.get('name', '')}",
+            "tags": feature.get("change_spec", {}).get("categories", []),
+            "confidence": 1.0,
+            "source": {
+                "origin": "prog_done",
+                "feature_id": feature.get("id"),
+                "commit_hash": commit_hash,
+            },
+        }
+        memory, _, _ = project_memory.load_memory()
+        result = project_memory.append_capability(memory, payload)
+        if result.get("status") == "inserted":
+            project_memory.save_memory(memory)
+            return
+        if result.get("status") == "deduped":
+            return
+        project_memory.save_memory(memory)
+    except Exception as exc:
+        print(f"[DONE] Warning: capability memory append failed: {exc}", file=sys.stderr)
+
+
 def _is_worktree_dirty(worktree_path: Optional[str]) -> bool:
     """Return True if the given path has uncommitted changes.
 
@@ -7661,20 +7844,30 @@ def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False
         print(f"[DONE] BLOCKED: {reason}")
         return code
 
+    assert feature is not None  # preconditions guarantee feature presence
+    feature_id = int(feature.get("id"))
+    feature_name = feature.get("name", f"Feature {feature_id}")
+
+    valid, reason, code = _validate_completion_reconcile(data, feature_id)
+    if not valid:
+        print(f"[DONE] BLOCKED: {reason}", file=sys.stderr)
+        return code
+
+    valid, reason, code = _validate_completion_plan_document(data, feature_id)
+    if not valid:
+        print(f"[DONE] BLOCKED: plan document validation failed: {reason}", file=sys.stderr)
+        return code
+
     if not SPRINT_LEDGER_AVAILABLE:
         print("[DONE] BLOCKED: sprint_ledger module unavailable.", file=sys.stderr)
         return 9
 
     try:
-        assert feature is not None
         require_sprint_contract(feature)
     except SprintLedgerError as exc:
         print(f"[DONE] BLOCKED: {exc}", file=sys.stderr)
         return 9
 
-    assert feature is not None  # preconditions guarantee feature presence
-    feature_id = int(feature.get("id"))
-    feature_name = feature.get("name", f"Feature {feature_id}")
     print(f"[DONE] Running acceptance tests for Feature {feature_id}: {feature_name}")
 
     all_passed, results = _run_acceptance_tests(feature, run_all=run_all)
@@ -7737,8 +7930,6 @@ def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False
 
     print("[DONE] Acceptance passed")
 
-    # PR-3: evaluator gate — must pass before archiving (generator/evaluator separation).
-    # Strict mode: evaluator status must be explicit "pass" before /prog done can close.
     gate_feat = None
     refreshed_for_gate = load_progress_json()
     if refreshed_for_gate:
@@ -7746,20 +7937,23 @@ def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False
             (f for f in refreshed_for_gate.get("features", []) if f.get("id") == feature_id),
             None,
         )
-        if gate_feat is not None:
-            evaluator_payload = gate_feat.get("quality_gates", {}).get("evaluator", {})
-            eval_status = evaluator_payload.get("status")
-            if eval_status != "pass":
-                print(
-                    f"[DONE] BLOCKED: evaluator gate not passed "
-                    f"(status={eval_status!r}). "
-                    "Run evaluator subagent and call _store_evaluator_result before /prog-done.",
-                    file=sys.stderr,
-                )
-                return 6
+    if gate_feat is None:
+        print(f"[DONE] BLOCKED: feature {feature_id} not found during gate checks.", file=sys.stderr)
+        return 4
 
-    # F-11: review gate — all required review lanes must be passed before archiving
-    if REVIEW_ROUTER_AVAILABLE and gate_feat is not None:
+    evaluator_payload = gate_feat.get("quality_gates", {}).get("evaluator", {})
+    eval_status = evaluator_payload.get("status")
+    if eval_status != "pass":
+        print(
+            f"[DONE] BLOCKED: evaluator gate not passed "
+            f"(status={eval_status!r}). "
+            "Run evaluator subagent and call _store_evaluator_result before /prog-done.",
+            file=sys.stderr,
+        )
+        return 6
+
+    # F-11: review gate — all required review lanes must be passed before archiving.
+    if REVIEW_ROUTER_AVAILABLE:
         reviews_payload = gate_feat.setdefault("quality_gates", {}).setdefault(
             "reviews",
             {"required": [], "passed": [], "pending": []},
@@ -7777,19 +7971,18 @@ def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False
             )
             return 7
 
-    # PR-5: ship_check gate — must pass before archiving
-    if gate_feat is not None:
-        ship_payload = gate_feat.get("quality_gates", {}).get("ship_check", {})
-        ship_status = ship_payload.get("status")
-        if ship_status != "pass":
-            print(
-                f"[DONE] BLOCKED: ship_check not passed (status={ship_status!r}). "
-                f"Run `prog ship-check --feature-id {feature_id}` first.",
-                file=sys.stderr,
-            )
-            return 8
+    # PR-5: ship_check gate — must pass before archiving.
+    ship_payload = gate_feat.get("quality_gates", {}).get("ship_check", {})
+    ship_status = ship_payload.get("status")
+    if ship_status != "pass":
+        print(
+            f"[DONE] BLOCKED: ship_check not passed (status={ship_status!r}). "
+            f"Run `prog ship-check --feature-id {feature_id}` first.",
+            file=sys.stderr,
+        )
+        return 8
 
-    # Snapshot git context BEFORE complete_feature() clears workflow_state.
+    # Snapshot git context before finalize clears workflow_state.
     git_ctx = collect_git_context()
     cleanup_ctx = {
         "branch": git_ctx.get("branch", ""),
@@ -7798,14 +7991,56 @@ def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False
     }
 
     resolved_commit = commit_hash or _get_head_commit()
-    success = complete_feature(
-        feature_id=feature_id,
-        commit_hash=resolved_commit,
-        skip_archive=skip_archive,
-    )
-    if not success:
-        print("[DONE] Failed to complete feature after acceptance checks")
+    data_for_finalize = load_progress_json()
+    if not data_for_finalize:
+        print("[DONE] Failed to load progress state before finalization", file=sys.stderr)
         return 4
+
+    data_final, did_transition = _finalize_completion_state_in_memory(
+        data_for_finalize, feature_id, commit_hash=resolved_commit
+    )
+    if not did_transition:
+        print(f"[DONE] Feature {feature_id} already completed; no-op.")
+        return 0
+
+    save_progress_json(data_final)
+    save_progress_md(generate_progress_md(data_final))
+
+    _record_feature_completed_event(feature_id, feature_name, resolved_commit or "")
+
+    if not skip_archive:
+        try:
+            archive_result = archive_feature_docs(feature_id, feature_name)
+            if archive_result.get("archived_files"):
+                print(f"Archived {len(archive_result['archived_files'])} file(s)")
+            if archive_result.get("errors"):
+                print("Warning: Some files could not be archived (feature still marked complete)")
+            data_post_archive = load_progress_json()
+            if data_post_archive:
+                save_archive_record(feature_id, archive_result)
+        except Exception as exc:
+            logger.error(f"Archive failed but feature completed: {exc}")
+            print("Warning: Document archiving failed but feature is marked complete")
+
+    data_for_memory = load_progress_json()
+    if data_for_memory:
+        feat_for_memory = next(
+            (f for f in data_for_memory.get("features", []) if f.get("id") == feature_id),
+            None,
+        )
+        if feat_for_memory is not None:
+            _append_capability_memory(feat_for_memory, resolved_commit or "")
+
+    data_final_check = load_progress_json()
+    if data_final_check and _is_project_fully_completed(data_final_check):
+        try:
+            archive_current_progress(reason="completed")
+        except Exception as exc:
+            logger.error(f"Completed-run archive failed: {exc}")
+            print("Warning: Completed-run archive failed, but active state will still be cleared.")
+        data_post_reset = load_progress_json()
+        if data_post_reset:
+            _reset_active_progress(data_post_reset)
 
     print(f"[DONE] Feature {feature_id} completed")
     if resolved_commit:
@@ -7948,7 +8183,7 @@ def cmd_set_finish_state(feature_id: int, status: str, reason: Optional[str] = N
     return 0
 
 
-def cmd_review_pass(feature_id: int, lane: str) -> int:
+def cmd_review_pass(feature_id: int, lane: str, evidence: Optional[str] = None) -> int:
     """Mark one review lane as passed for a feature.
 
     Exit codes:
@@ -7988,6 +8223,15 @@ def cmd_review_pass(feature_id: int, lane: str) -> int:
 
     _mark_review_passed(feature, lane)
     pending = _get_pending_lanes(feature)
+
+    normalized_evidence = _normalize_optional_string(evidence)
+    if normalized_evidence:
+        quality_gates = feature.setdefault("quality_gates", {})
+        lane_evidence = quality_gates.setdefault("review_evidence", {})
+        lane_evidence[lane] = {
+            "evidence": normalized_evidence,
+            "recorded_at": _iso_now(),
+        }
 
     save_progress_json(data)
     save_progress_md(generate_progress_md(data))
@@ -8070,73 +8314,28 @@ def complete_feature(feature_id, commit_hash=None, skip_archive=False):
         print(f"Feature ID {feature_id} not found")
         return False
 
-    reconcile_report = analyze_reconcile_state(data)
-    diagnosis = reconcile_report.get("diagnosis")
-    if diagnosis in {"scope_mismatch", "context_mismatch"}:
-        print(
-            "Cannot complete feature due to reconcile gate: "
-            f"{diagnosis}. Suggested next step: {reconcile_report.get('recommended_next_step')}"
-        )
+    valid, reason, _ = _validate_completion_reconcile(data, feature_id)
+    if not valid:
+        print(f"Cannot complete feature: {reason}")
         return False
 
-    if diagnosis == "needs_manual_review":
-        current_id = data.get("current_feature_id")
-        if current_id == feature_id:
-            suggested = reconcile_report.get("recommended_next_step")
-            if suggested in {"repair workflow_state", "clear invalid current_feature_id"}:
-                print(
-                    "Cannot complete feature until tracker state is repaired. "
-                    f"Suggested next step: {suggested}"
-                )
-                return False
-
-    # Finalize AI metrics before marking feature complete.
-    complete_feature_ai_metrics(feature_id)
-    data = load_progress_json()
-    if not data:
-        print("No progress tracking found")
-        return False
-    features = data.get("features", [])
-    feature = next((f for f in features if f.get("id") == feature_id), None)
-    if not feature:
-        print(f"Feature ID {feature_id} not found")
-        return False
-
-    feature["completed"] = True
-    feature["development_stage"] = "completed"
-    feature["lifecycle_state"] = "verified"
-    feature["completed_at"] = _iso_now()
-    _clear_feature_defer_state(feature)
-    _clear_feature_finish_pending(feature)
-    feature["integration_status"] = "merged_and_cleaned"
-    feature["finish_state_resolved_at"] = _iso_now()
-    feature.pop("finish_state_resolved_reason", None)
-    if commit_hash:
-        feature["commit_hash"] = commit_hash
-
-    # Preserve plan_path for archiving before clearing workflow_state
-    plan_path = data.get("workflow_state", {}).get("plan_path")
-    if plan_path:
-        feature["plan_path"] = plan_path
-
-    data["current_feature_id"] = None
-    data.pop("workflow_state", None)
-    _update_runtime_context(data, source="complete_feature")
+    resolved_commit = commit_hash or ""
+    data, did_transition = _finalize_completion_state_in_memory(
+        data,
+        feature_id,
+        commit_hash=resolved_commit if resolved_commit else None,
+    )
+    if not did_transition:
+        return True
 
     save_progress_json(data)
+    save_progress_md(generate_progress_md(data))
 
-    # Event sourcing: append feature_completed to audit.log
-    resolved_commit = commit_hash or ""
-    record_feature_state_event(
-        event_type="feature_completed",
-        feature_id=feature_id,
-        feature_name=feature.get("name", f"Feature {feature_id}"),
-        extra_details={"commit_hash": resolved_commit} if resolved_commit else None,
+    _record_feature_completed_event(
+        feature_id,
+        feature.get("name", f"Feature {feature_id}"),
+        resolved_commit,
     )
-
-    # Update progress.md
-    md_content = generate_progress_md(data)
-    save_progress_md(md_content)
 
     print(f"Completed feature: {feature.get('name', 'Unknown')}")
     if commit_hash:
@@ -8152,8 +8351,10 @@ def complete_feature(feature_id, commit_hash=None, skip_archive=False):
             if archive_result["archived_files"]:
                 print(f"Archived {len(archive_result['archived_files'])} file(s)")
 
-            # Save archive record regardless of individual file errors
-            save_archive_record(feature_id, archive_result)
+            # Save archive record regardless of individual file errors.
+            refreshed = load_progress_json()
+            if refreshed:
+                save_archive_record(feature_id, archive_result)
 
             if archive_result["errors"]:
                 print(f"Warning: Some files could not be archived (feature still marked complete)")
@@ -8178,6 +8379,12 @@ def complete_feature(feature_id, commit_hash=None, skip_archive=False):
                 # Best-effort: log and continue — reset must still happen.
                 logger.error(f"Completed-run archive failed: {e}")
                 print(f"Warning: Completed-run archive failed, but active state will still be cleared.")
+
+    refreshed = load_progress_json()
+    if refreshed:
+        feat_for_memory = next((f for f in refreshed.get("features", []) if f.get("id") == feature_id), None)
+        if feat_for_memory:
+            _append_capability_memory(feat_for_memory, resolved_commit)
 
     # ── Outside if not skip_archive — always runs ──
     refreshed = load_progress_json()
@@ -9388,6 +9595,7 @@ def set_workflow_state(phase=None, plan_path=None, next_action=None):
     require_existing_plan = effective_phase in [
         "planning:draft",
         "planning:approved",
+        "planning:review",
         "planning_complete",
         "execution",
         "execution_complete",
@@ -10416,6 +10624,11 @@ def main():
     complete_parser.add_argument("--commit", help="Git commit hash")
     complete_parser.add_argument("--skip-archive", action="store_true",
                                help="Skip document archiving")
+    complete_parser.add_argument(
+        "--unsafe-legacy",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
 
     done_parser = subparsers.add_parser(
         "done",
@@ -10472,6 +10685,10 @@ def main():
         "--lane",
         required=True,
         help="Review lane to mark passed (eng, qa, docs, design, devex)",
+    )
+    review_pass_parser.add_argument(
+        "--evidence",
+        help="Optional lane-specific evidence artifact path or summary",
     )
 
     # Add feature command
@@ -10950,10 +11167,36 @@ def main():
         if args.command == "set-development-stage":
             return set_development_stage(args.stage, feature_id=args.feature_id)
         if args.command == "complete":
-            return complete_feature(
-                args.feature_id,
+            if getattr(args, "unsafe_legacy", False):
+                return complete_feature(
+                    args.feature_id,
+                    commit_hash=args.commit,
+                    skip_archive=args.skip_archive,
+                )
+
+            data = load_progress_json()
+            if not data:
+                print("[ERROR] No progress tracking found", file=sys.stderr)
+                return 4
+
+            current_id = data.get("current_feature_id")
+            if args.feature_id != current_id:
+                print(
+                    f"[ERROR] Feature ID mismatch: complete was given {args.feature_id}, "
+                    f"but current_feature_id is {current_id or 'None'}. "
+                    f"Use 'prog done' or 'prog set-current {args.feature_id}' first.",
+                    file=sys.stderr,
+                )
+                return 12
+
+            print(
+                "[NOTICE] Redirecting 'prog complete' through 'prog done' gatekeeping.",
+                file=sys.stderr,
+            )
+            return cmd_done(
                 commit_hash=args.commit,
-                skip_archive=args.skip_archive
+                run_all=False,
+                skip_archive=args.skip_archive,
             )
         if args.command == "done":
             return cmd_done(
@@ -10969,7 +11212,7 @@ def main():
                 reason=args.reason,
             )
         if args.command == "review-pass":
-            return cmd_review_pass(args.feature_id, args.lane)
+            return cmd_review_pass(args.feature_id, args.lane, evidence=args.evidence)
         if args.command == "add-feature":
             return add_feature(args.name, args.test_steps)
         if args.command == "update-feature":

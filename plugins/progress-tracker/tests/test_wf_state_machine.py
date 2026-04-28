@@ -64,12 +64,32 @@ class TestComputeNextActionPlanningPhases:
         result = compute_next_action("planning:approved", {})
         assert result == "execute_approved_plan"
 
-    def test_planning_clarifying_returns_resume_clarifying(self):
+    def test_planning_clarifying_returns_resume_planning_draft(self):
+        """planning:clarifying 归一化为 planning:review 行为"""
         result = compute_next_action("planning:clarifying", {})
-        assert result == "resume_planning_clarifying"
+        assert result == "resume_planning_draft"
+
+    def test_planning_review_returns_resume_planning_draft(self):
+        result = compute_next_action("planning:review", {})
+        assert result == "resume_planning_draft"
 
     def test_planning_base_returns_restart_from_planning(self):
         result = compute_next_action("planning", {})
+        assert result == "restart_from_planning"
+
+    def test_planning_complete_returns_execute_approved_plan(self):
+        """planning_complete → 计划完成，可直接执行"""
+        result = compute_next_action("planning_complete", {})
+        assert result == "execute_approved_plan"
+
+    def test_design_complete_returns_restart_from_planning(self):
+        """design_complete → 设计完成，进入规划"""
+        result = compute_next_action("design_complete", {})
+        assert result == "restart_from_planning"
+
+    def test_design_returns_restart_from_planning(self):
+        """design → 防御性覆盖"""
+        result = compute_next_action("design", {})
         assert result == "restart_from_planning"
 
 
