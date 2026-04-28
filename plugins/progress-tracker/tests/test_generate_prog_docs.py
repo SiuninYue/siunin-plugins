@@ -99,7 +99,7 @@ def test_source_block_en_zh_not_mixed() -> None:
 def test_check_write_check_roundtrip_in_temp_repo(tmp_path: Path) -> None:
     """Roundtrip in an isolated temp dir: check passes on clean state,
     drift makes check fail, write fixes it, check passes again."""
-    import subprocess, sys, textwrap
+    import textwrap
 
     script_root = Path(__file__).resolve().parents[1] / "hooks" / "scripts"
     gen_script = script_root / "generate_prog_docs.py"
