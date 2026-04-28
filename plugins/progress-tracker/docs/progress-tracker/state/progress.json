@@ -2,17 +2,17 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-04-28T21:53:27.493607Z",
+  "updated_at": "2026-04-28T23:45:47.922173Z",
   "features": [
     {
       "id": 10,
-      "name": "\u6839\u76ee\u5f55\u6df7\u5408\u5bbf\u4e3b\u67b6\u6784\uff1aMonorepo /prog \u652f\u6301",
+      "name": "根目录混合宿主架构：Monorepo /prog 支持",
       "test_steps": [
-        "\u5728\u4ed3\u5e93\u6839\u76ee\u5f55\u8fd0\u884c prog init\uff0c\u786e\u8ba4\u751f\u6210 tracker_role=parent \u7684 progress.json \u5e76\u81ea\u52a8\u53d1\u73b0\u5b50\u63d2\u4ef6",
-        "\u5728\u6839\u76ee\u5f55\u8fd0\u884c prog\uff0c\u786e\u8ba4\u9762\u677f\u5c55\u793a\u6240\u6709\u5b50\u76ee\u5f55\u5b8c\u6210\u7387\u548c\u5f53\u524d\u6d3b\u8dc3 feature",
-        "\u5728\u6839\u76ee\u5f55\u8fd0\u884c prog next-feature\uff0c\u786e\u8ba4\u6309 routing_queue \u987a\u5e8f dispatch \u5230\u5b50\u76ee\u5f55",
-        "\u8fd0\u884c prog prioritize PT\uff0c\u786e\u8ba4\u8f93\u51fa [OK] PT moved to front \u5e76\u66f4\u65b0\u961f\u5217",
-        "\u8fd0\u884c pytest -q plugins/progress-tracker/tests/ \u786e\u8ba4\u56de\u5f52\u6d4b\u8bd5\u5168\u90e8\u901a\u8fc7"
+        "在仓库根目录运行 prog init，确认生成 tracker_role=parent 的 progress.json 并自动发现子插件",
+        "在根目录运行 prog，确认面板展示所有子目录完成率和当前活跃 feature",
+        "在根目录运行 prog next-feature，确认按 routing_queue 顺序 dispatch 到子目录",
+        "运行 prog prioritize PT，确认输出 [OK] PT moved to front 并更新队列",
+        "运行 pytest -q plugins/progress-tracker/tests/ 确认回归测试全部通过"
       ],
       "completed": true,
       "deferred": false,
@@ -29,9 +29,9 @@
         "REQ-010"
       ],
       "change_spec": {
-        "why": "Deliver \u6839\u76ee\u5f55\u6df7\u5408\u5bbf\u4e3b\u67b6\u6784\uff1aMonorepo /prog \u652f\u6301 with traceable acceptance coverage.",
+        "why": "Deliver 根目录混合宿主架构：Monorepo /prog 支持 with traceable acceptance coverage.",
         "in_scope": [
-          "\u6839\u76ee\u5f55\u6df7\u5408\u5bbf\u4e3b\u67b6\u6784\uff1aMonorepo /prog \u652f\u6301"
+          "根目录混合宿主架构：Monorepo /prog 支持"
         ],
         "out_of_scope": [
           "Unrelated refactors and behavior changes outside this feature."
@@ -41,11 +41,11 @@
         ]
       },
       "acceptance_scenarios": [
-        "Scenario: \u5728\u4ed3\u5e93\u6839\u76ee\u5f55\u8fd0\u884c prog init\uff0c\u786e\u8ba4\u751f\u6210 tracker_role=parent \u7684 progress.json \u5e76\u81ea\u52a8\u53d1\u73b0\u5b50\u63d2\u4ef6",
-        "Scenario: \u5728\u6839\u76ee\u5f55\u8fd0\u884c prog\uff0c\u786e\u8ba4\u9762\u677f\u5c55\u793a\u6240\u6709\u5b50\u76ee\u5f55\u5b8c\u6210\u7387\u548c\u5f53\u524d\u6d3b\u8dc3 feature",
-        "Scenario: \u5728\u6839\u76ee\u5f55\u8fd0\u884c prog next-feature\uff0c\u786e\u8ba4\u6309 routing_queue \u987a\u5e8f dispatch \u5230\u5b50\u76ee\u5f55",
-        "Scenario: \u8fd0\u884c prog prioritize PT\uff0c\u786e\u8ba4\u8f93\u51fa [OK] PT moved to front \u5e76\u66f4\u65b0\u961f\u5217",
-        "Scenario: \u8fd0\u884c pytest -q plugins/progress-tracker/tests/ \u786e\u8ba4\u56de\u5f52\u6d4b\u8bd5\u5168\u90e8\u901a\u8fc7"
+        "Scenario: 在仓库根目录运行 prog init，确认生成 tracker_role=parent 的 progress.json 并自动发现子插件",
+        "Scenario: 在根目录运行 prog，确认面板展示所有子目录完成率和当前活跃 feature",
+        "Scenario: 在根目录运行 prog next-feature，确认按 routing_queue 顺序 dispatch 到子目录",
+        "Scenario: 运行 prog prioritize PT，确认输出 [OK] PT moved to front 并更新队列",
+        "Scenario: 运行 pytest -q plugins/progress-tracker/tests/ 确认回归测试全部通过"
       ],
       "quality_gates": {
         "evaluator": {
@@ -169,7 +169,7 @@
           "status": "pass",
           "score": 87,
           "defects": [
-            "I-01: manual_state_override event type whitelisted but no call-site detects/records manual edits to progress.json \u2014 acceptance scenario 3 partially unmet",
+            "I-01: manual_state_override event type whitelisted but no call-site detects/records manual edits to progress.json — acceptance scenario 3 partially unmet",
             "I-02: append_audit_record temp-file pattern provides no atomicity guarantee; code misleadingly suggests atomic rename semantics",
             "I-03: state_restored event type whitelisted but never emitted",
             "S-01: _write_audit_event test helper uses mutable default arg counter=[0]",
@@ -924,10 +924,10 @@
           "All F6 target tests green (55+ tests)"
         ],
         "test_plan": [
-          "T1 RED: test_archive_docs_skips_protected_architecture_md \u2014 fails before guard implementation",
+          "T1 RED: test_archive_docs_skips_protected_architecture_md — fails before guard implementation",
           "T2 GREEN: Implement _IMMUTABLE_PROTECTED_FILES + _is_immutable_protected() guard in archive_feature_docs()",
-          "T3 GREEN: test_cmd_done_preserves_architecture_md \u2014 functional-level invariant test",
-          "T4 Verify: Run all F6 target tests \u2014 all green"
+          "T3 GREEN: test_cmd_done_preserves_architecture_md — functional-level invariant test",
+          "T4 Verify: Run all F6 target tests — all green"
         ],
         "accepted_by": null,
         "accepted_at": null
@@ -1111,11 +1111,32 @@
       ],
       "quality_gates": {
         "evaluator": {
-          "status": "pending",
-          "score": null,
-          "defects": [],
-          "last_run_at": null,
-          "evaluator_model": null
+          "status": "pass",
+          "score": 80,
+          "defects": [
+            {
+              "id": "F8-DEVIATION-01",
+              "severity": "minor",
+              "description": "Extra test test_update_progress_json_writes_ship_check_result not in plan (Task 3 planned 3 tests, implementation has 4). Justified: validates persistence function directly."
+            },
+            {
+              "id": "F8-DEVIATION-02",
+              "severity": "minor",
+              "description": "_collect_real_signals has extra subprocess.TimeoutExpired and general Exception handling not in original plan. Justified: fail-closed defensive programming for robustness."
+            },
+            {
+              "id": "F8-DEVIATION-03",
+              "severity": "minor",
+              "description": "__main__ block has try/except SystemExit wrapper remapping argparse exit code 2 (usage/help errors) to 8 (fail). Not in original plan. Justified: fail-closed — argparse errors should not escape as exit 2."
+            },
+            {
+              "id": "F8-DEVIATION-04",
+              "severity": "minor",
+              "description": "progress_manager.py modified beyond plan scope: removed dead code (_validate_completion_reconcile, _validate_completion_plan_document, _finalize_completion_state_in_memory, _record_feature_completed_event, _append_capability_memory), simplified determine_recovery_action, added dirty_on_default_branch handling in analyze_git_auto_preflight. Plan said 'Existing library API and 7 passing tests are untouched.' However, all 855 tests pass with zero regressions and changes are cleanup/consolidation."
+            }
+          ],
+          "last_run_at": "2026-04-28T15:45:47Z",
+          "evaluator_model": "claude-sonnet-4-6"
         },
         "reviews": {
           "required": [
@@ -1131,9 +1152,14 @@
           ]
         },
         "ship_check": {
-          "status": "pass",
-          "failures": [],
-          "last_run_at": "2026-04-28T13:55:25Z"
+          "status": "fail",
+          "failures": [
+            {
+              "check_id": "docs_sync",
+              "detail": "progress.md out of sync with progress.json"
+            }
+          ],
+          "last_run_at": "2026-04-28T15:38:53Z"
         }
       },
       "sprint_contract": {
@@ -1289,18 +1315,18 @@
   "updates": [],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-04-28T20:47:02.338069Z",
+    "recorded_at": "2026-04-28T21:57:52.638354Z",
     "source": "set_workflow_state",
     "workspace_mode": "worktree",
     "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-PT-F8-fail-closed-release-gate",
     "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-PT-F8-fail-closed-release-gate",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-PT-F8-fail-closed-release-gate",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-PT-F8-fail-closed-release-gate/plugins/progress-tracker",
     "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-PT-F8-fail-closed-release-gate",
     "branch": "feature/PT-F8-fail-closed-release-gate",
     "upstream": null,
     "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-PT-F8-fail-closed-release-gate/plugins/progress-tracker",
     "current_feature_id": 8,
-    "workflow_phase": "execution",
+    "workflow_phase": "execution_complete",
     "current_task": null,
     "total_tasks": null,
     "next_action": null
@@ -1308,22 +1334,22 @@
   "bugs": [
     {
       "id": "BUG-001",
-      "description": "Python falsy trap: current_feature_id=0 \u88ab not \u8bef\u5224\u4e3a None\uff0c\u5bfc\u81f4 set-workflow-state/auto_checkpoint/wf_auto_driver/route_status \u7b49\u51fd\u6570\u5728 feature ID \u4e3a 0 \u65f6\u5f02\u5e38\u8df3\u8fc7",
+      "description": "Python falsy trap: current_feature_id=0 被 not 误判为 None，导致 set-workflow-state/auto_checkpoint/wf_auto_driver/route_status 等函数在 feature ID 为 0 时异常跳过",
       "status": "fixed",
       "priority": "high",
       "category": "bug",
       "created_at": "2026-04-24T15:21:20.997557Z",
       "quick_verification": {},
       "updated_at": "2026-04-24T15:21:47.589961Z",
-      "root_cause": "Python truthy/falsy trap: not 0 == True\uff0c\u5bfc\u81f4 ID=0 \u7684 feature \u88ab\u8bef\u5224\u4e3a\u4e0d\u5b58\u5728",
+      "root_cause": "Python truthy/falsy trap: not 0 == True，导致 ID=0 的 feature 被误判为不存在",
       "investigation": {
-        "root_cause": "Python truthy/falsy trap: not 0 == True\uff0c\u5bfc\u81f4 ID=0 \u7684 feature \u88ab\u8bef\u5224\u4e3a\u4e0d\u5b58\u5728",
+        "root_cause": "Python truthy/falsy trap: not 0 == True，导致 ID=0 的 feature 被误判为不存在",
         "confirmed_at": "2026-04-24T15:21:47.589970Z"
       }
     },
     {
       "id": "BUG-002",
-      "description": "P0: complete \u91cd\u5b9a\u5411\u540e\u88ab\u5916\u5c42\u9501\u5361\u6b7b\u3002complete \u8d70 MUTATING_COMMANDS \u5916\u5c42 progress_transaction()\uff0c\u4f46 cmd_done \u5185\u90e8\u8def\u5f84\uff08record_sprint_artifact\u3001\u5d4c\u5957 prog \u547d\u4ee4\uff09\u4f1a\u518d\u6b21\u62ff\u9501\uff0c\u5bfc\u81f4 10 \u79d2\u9501\u8d85\u65f6\uff0cRC=9\u3002\u5173\u952e\u4f4d\u7f6e: progress_manager.py:11145, 11341",
+      "description": "P0: complete 重定向后被外层锁卡死。complete 走 MUTATING_COMMANDS 外层 progress_transaction()，但 cmd_done 内部路径（record_sprint_artifact、嵌套 prog 命令）会再次拿锁，导致 10 秒锁超时，RC=9。关键位置: progress_manager.py:11145, 11341",
       "status": "pending_investigation",
       "priority": "high",
       "category": "bug",
@@ -1332,7 +1358,7 @@
     },
     {
       "id": "BUG-003",
-      "description": "P1: planning:review phase \u672a\u63a5\u5165\u72b6\u6001\u673a\u3002skill \u5df2\u5f15\u5165 planning:review \u505c\u70b9\uff0c\u4f46 wf_state_machine.py \u6620\u5c04\u53ea\u6709 planning:draft/clarifying/approved\uff0c\u5bfc\u81f4 compute_next_action() \u5bf9 planning:review \u8fd4\u56de None\u3002\u5173\u952e\u4f4d\u7f6e: wf_state_machine.py:21-27",
+      "description": "P1: planning:review phase 未接入状态机。skill 已引入 planning:review 停点，但 wf_state_machine.py 映射只有 planning:draft/clarifying/approved，导致 compute_next_action() 对 planning:review 返回 None。关键位置: wf_state_machine.py:21-27",
       "status": "pending_investigation",
       "priority": "medium",
       "category": "bug",
@@ -1341,7 +1367,7 @@
     },
     {
       "id": "BUG-004",
-      "description": "P1: \u6062\u590d\u7b56\u7565\u672a\u8986\u76d6 planning:review\uff0c\u964d\u7ea7\u4e3a manual_review\u3002determine_recovery_action() \u53ea\u8986\u76d6 planning:draft/clarifying/approved\uff0cwriting planning:review \u540e\u8d70 manual_review \u5206\u652f\uff0c\u4e0e skill \u5b9a\u4e49\u7684\u5355\u6b21\u5ba1\u6279\u6062\u590d\u8def\u5f84\u4e0d\u4e00\u81f4\u3002\u5173\u952e\u4f4d\u7f6e: progress_manager.py:6439-6462",
+      "description": "P1: 恢复策略未覆盖 planning:review，降级为 manual_review。determine_recovery_action() 只覆盖 planning:draft/clarifying/approved，writing planning:review 后走 manual_review 分支，与 skill 定义的单次审批恢复路径不一致。关键位置: progress_manager.py:6439-6462",
       "status": "pending_investigation",
       "priority": "medium",
       "category": "bug",
@@ -1350,7 +1376,7 @@
     },
     {
       "id": "BUG-005",
-      "description": "P2: complete \u672a\u8d70 fail-closed worktree/branch \u4e00\u81f4\u6027\u68c0\u67e5\u3002\u4e00\u81f4\u6027\u68c0\u67e5\u53ea\u5bf9 next-feature \u548c done \u6267\u884c\uff0ccomplete \u91cd\u5b9a\u5411\u5230 cmd_done \u540e\u7ed5\u8fc7\u8be5\u68c0\u67e5\u5165\u53e3\u3002\u5173\u952e\u4f4d\u7f6e: progress_manager.py:11336-11339",
+      "description": "P2: complete 未走 fail-closed worktree/branch 一致性检查。一致性检查只对 next-feature 和 done 执行，complete 重定向到 cmd_done 后绕过该检查入口。关键位置: progress_manager.py:11336-11339",
       "status": "pending_investigation",
       "priority": "low",
       "category": "bug",
@@ -1361,10 +1387,10 @@
   "current_bug_id": null,
   "parent_project_root": ".",
   "workflow_state": {
-    "phase": "execution",
-    "updated_at": "2026-04-28T20:47:02.274013Z",
+    "phase": "execution_complete",
+    "updated_at": "2026-04-28T21:57:52.551166Z",
     "execution_context": {
-      "recorded_at": "2026-04-28T20:47:02.307052Z",
+      "recorded_at": "2026-04-28T21:57:52.595865Z",
       "source": "set_workflow_state",
       "workspace_mode": "worktree",
       "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-PT-F8-fail-closed-release-gate",
@@ -1374,6 +1400,7 @@
       "branch": "feature/PT-F8-fail-closed-release-gate",
       "upstream": null
     },
-    "plan_path": "docs/plans/2026-04-28-f8-fail-closed-release-gate.md"
+    "plan_path": "docs/plans/2026-04-28-f8-fail-closed-release-gate.md",
+    "pending_action": "run_prog_done"
   }
 }

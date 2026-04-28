@@ -25,7 +25,7 @@
   - Run compatibility dry-run: codex-plugin-sync --dry-run
 
 ## Workflow Context
-- Phase: execution
+- Phase: execution_complete
 - Execution context: feature/PT-F8-fail-closed-release-gate @ feature-PT-F8-fail-closed-release-gate [worktree]
 - Current session context: feature/PT-F8-fail-closed-release-gate @ feature-PT-F8-fail-closed-release-gate [worktree]
 
