@@ -1,0 +1,46 @@
+#!/bin/bash
+# Pre-commit hook: enforce PROG docs single-source parity.
+# Installed via: prog install-git-hooks
+# Blocks commits when generated docs are out of sync with PROG_COMMANDS.md.
+
+set -euo pipefail
+
+REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+SCRIPT="${REPO_ROOT}/plugins/progress-tracker/hooks/scripts/generate_prog_docs.py"
+
+if [ ! -f "$SCRIPT" ]; then
+  echo "[doc-parity] WARNING: generate_prog_docs.py not found at $SCRIPT, skipping check."
+  exit 0
+fi
+
+echo "[doc-parity] Checking PROG docs are up to date..."
+
+# generator 保持机器可读简讯；hook 负责人类引导文案
+OUTPUT=$(python3 "$SCRIPT" --check 2>&1) && rc=$? || rc=$?
+
+if [ $rc -eq 0 ]; then
+  echo "[doc-parity] OK: docs in sync."
+  exit 0
+fi
+
+cat << MSG
+
+========================================
+[doc-parity] FAILED: Generated docs are out of date.
+
+Generator output:
+$OUTPUT
+
+Run the following command to regenerate:
+  python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --write
+
+Then stage the updated files:
+  git add plugins/progress-tracker/README.md \\
+          plugins/progress-tracker/readme-zh.md \\
+          plugins/progress-tracker/docs/PROG_HELP.md
+
+Then retry your commit.
+========================================
+MSG
+
+exit 1
