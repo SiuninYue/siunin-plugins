@@ -29,4 +29,12 @@ jobs:
             exit 1
           fi
 
+      - name: Check PROG docs single-source parity
+        shell: bash
+        run: |
+          python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check
+
+      - name: Required check passed
+        shell: bash
+        run: |
           echo "Required check passed."
