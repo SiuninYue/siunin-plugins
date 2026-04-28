@@ -48,11 +48,7 @@ If the invocation includes inline context lines (`Feature:`, `Phase:`, `Plan:`, 
 
 2. If `Worktree` is present: **store `worktree_path` as the execution root for all shell commands**.
 
-   > **Claude Code — CWD does NOT persist between Bash tool calls.**  
-   > A standalone `cd <worktree_path>` affects only that single call and has no effect on subsequent calls.  
-   > Do NOT use a bare `cd` to set context.  
-   > Instead, prefix **every** shell command that must run in the feature directory with:  
-   > `cd <worktree_path> && <command>`
+   > **CWD does NOT persist between Bash calls.** Never use a bare `cd`. Prefix every command: `cd <worktree_path> && <command>`
 
    Verify the path is accessible before proceeding:
    ```bash
@@ -110,14 +106,7 @@ If the invocation includes inline context lines (`Feature:`, `Phase:`, `Plan:`, 
 
 ## Execution Context Requirements
 
-**CRITICAL**: All `plugins/progress-tracker/prog` commands MUST be executed from the project root directory.
-
-If not already at project root:
-```bash
-cd <project-root>
-```
-
-The `prog` tool requires the correct project directory for relative path resolution.
+**CRITICAL**: All `prog` commands must run from project root — the tool uses relative paths.
 
 ## Required Read Order
 
