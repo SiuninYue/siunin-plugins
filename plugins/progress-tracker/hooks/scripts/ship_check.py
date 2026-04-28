@@ -300,7 +300,7 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     inputs = _collect_real_signals(project_root, test_path=args.test_path)
     result = run_ship_check(
-        feature_id=feature_id or 0,
+        feature_id=feature_id if feature_id is not None else 0,
         project_root=project_root,
         inputs=inputs,
         thresholds={"coverage_min": 0.8},
@@ -324,4 +324,10 @@ def main(argv: Optional[List[str]] = None) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except SystemExit as exc:
+        # Remap argparse usage errors (code 2) and any other unexpected codes to 8 (fail-closed)
+        if exc.code not in (0, 8):
+            sys.exit(8)
+        raise
