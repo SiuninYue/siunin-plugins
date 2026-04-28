@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-04-27T16:40:53.781451Z",
+  "updated_at": "2026-04-28T11:54:49.294453Z",
   "features": [
     {
       "id": 10,
@@ -751,7 +751,7 @@
         "Move long examples/templates into references/ and keep link integrity",
         "Run discovery contract test: pytest -q plugins/progress-tracker/tests/test_command_discovery_contract.py"
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -761,7 +761,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "implementing",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-005"
       ],
@@ -822,14 +822,31 @@
         "artifact_path": null,
         "created_at": null
       },
-      "development_stage": "developing",
+      "development_stage": "completed",
       "started_at": "2026-04-27T14:37:11.790928Z",
       "ai_metrics": {
         "complexity_score": 21,
         "complexity_bucket": "standard",
         "selected_model": "sonnet",
         "workflow_path": "plan_execute",
-        "started_at": "2026-04-27T14:37:50.774729Z"
+        "started_at": "2026-04-27T14:37:50.774729Z",
+        "finished_at": "2026-04-28T09:32:59.115509+08:00",
+        "duration_seconds": 39308
+      },
+      "completed_at": "2026-04-28T09:32:41.446050Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-28T09:32:41.446056Z",
+      "commit_hash": "0f236688354a24f973d44cf479bfde5c87e6d3d1",
+      "plan_path": "docs/plans/2026-04-27-f5-progressive-disclosure-skill-files.md",
+      "archive_info": {
+        "archived_at": "2026-04-28T09:32:41.471348Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-04-27-f5-progressive-disclosure-skill-files.md",
+            "to": "docs/archive/plans/2026-04-27-f5-progressive-disclosure-skill-files.md"
+          }
+        ]
       }
     },
     {
@@ -840,7 +857,7 @@
         "Run workflow state tests: pytest -q plugins/progress-tracker/tests/test_workflow_state.py plugins/progress-tracker/tests/test_wf_state_machine.py",
         "Validate done flow does not mutate docs/progress-tracker/architecture/architecture.md"
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -850,7 +867,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "approved",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-006"
       ],
@@ -873,27 +890,45 @@
       ],
       "quality_gates": {
         "evaluator": {
-          "status": "pending",
-          "score": null,
+          "status": "pass",
+          "score": 100,
           "defects": [],
-          "last_run_at": null,
+          "last_run_at": "2026-04-28T02:12:03Z",
           "evaluator_model": null
         },
         "reviews": {
-          "required": [],
-          "passed": [],
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [
+            "docs",
+            "eng",
+            "qa"
+          ],
           "pending": []
         },
         "ship_check": {
-          "status": "pending",
+          "status": "pass",
           "failures": [],
-          "last_run_at": null
+          "last_run_at": "2026-04-28T02:12:03Z"
         }
       },
       "sprint_contract": {
-        "scope": "",
-        "done_criteria": [],
-        "test_plan": [],
+        "scope": "In-scope:\n- Add _IMMUTABLE_PROTECTED_FILES constant + _is_immutable_protected() helper in progress_manager.py\n- Apply guard in archive_feature_docs() at both file-move sites (plan_path route + glob route)\n- Add 2 tests to test_cmd_done_cleanup_integration.py\n\nOut-of-scope:\n- Changes to SKILL.md content\n- Changes to workflow state machine\n- Any other test files",
+        "done_criteria": [
+          "closeout contract tests pass: pytest -q test_feature_complete_closeout_contract.py",
+          "workflow state tests pass: pytest -q test_workflow_state.py test_wf_state_machine.py",
+          "done flow does not mutate architecture.md (guard + tests verified)",
+          "All F6 target tests green (55+ tests)"
+        ],
+        "test_plan": [
+          "T1 RED: test_archive_docs_skips_protected_architecture_md — fails before guard implementation",
+          "T2 GREEN: Implement _IMMUTABLE_PROTECTED_FILES + _is_immutable_protected() guard in archive_feature_docs()",
+          "T3 GREEN: test_cmd_done_preserves_architecture_md — functional-level invariant test",
+          "T4 Verify: Run all F6 target tests — all green"
+        ],
         "accepted_by": null,
         "accepted_at": null
       },
@@ -902,6 +937,32 @@
         "to_phase": null,
         "artifact_path": null,
         "created_at": null
+      },
+      "development_stage": "completed",
+      "started_at": "2026-04-28T09:35:49.810367Z",
+      "ai_metrics": {
+        "complexity_score": 12,
+        "complexity_bucket": "simple",
+        "selected_model": "haiku",
+        "workflow_path": "direct_tdd",
+        "started_at": "2026-04-28T09:39:22.604680Z",
+        "finished_at": "2026-04-28T11:54:49.246260+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-28T11:54:49.249162Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-28T11:54:49.249174Z",
+      "commit_hash": "0f236688354a24f973d44cf479bfde5c87e6d3d1",
+      "plan_path": "docs/plans/2026-04-28-f6-lifecycle-boundaries-arch-immutability.md",
+      "archive_info": {
+        "archived_at": "2026-04-28T11:54:49.294296Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-04-28-f6-lifecycle-boundaries-arch-immutability.md",
+            "to": "docs/archive/plans/2026-04-28-f6-lifecycle-boundaries-arch-immutability.md"
+          }
+        ]
       }
     },
     {
@@ -1164,7 +1225,7 @@
       }
     }
   ],
-  "current_feature_id": 5,
+  "current_feature_id": null,
   "linked_projects": [],
   "linked_snapshot": {
     "schema_version": "1.0",
@@ -1178,8 +1239,8 @@
   "updates": [],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-04-27T16:40:53.781029Z",
-    "source": "set_workflow_state",
+    "recorded_at": "2026-04-28T11:54:49.289071Z",
+    "source": "complete_feature",
     "workspace_mode": "in_place",
     "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
     "project_root": "/Users/siunin/Projects/Claude-Plugins",
@@ -1188,8 +1249,8 @@
     "branch": "main",
     "upstream": "origin/main",
     "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
-    "current_feature_id": 5,
-    "workflow_phase": "execution_complete",
+    "current_feature_id": null,
+    "workflow_phase": null,
     "current_task": null,
     "total_tasks": null,
     "next_action": null
@@ -1212,22 +1273,5 @@
     }
   ],
   "current_bug_id": null,
-  "parent_project_root": ".",
-  "workflow_state": {
-    "phase": "execution_complete",
-    "updated_at": "2026-04-27T16:40:53.695535Z",
-    "execution_context": {
-      "recorded_at": "2026-04-27T16:40:53.738519Z",
-      "source": "set_workflow_state",
-      "workspace_mode": "in_place",
-      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
-      "project_root": "/Users/siunin/Projects/Claude-Plugins",
-      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
-      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
-      "branch": "main",
-      "upstream": "origin/main"
-    },
-    "plan_path": "docs/plans/2026-04-27-f5-progressive-disclosure-skill-files.md",
-    "pending_action": "resume_planning_draft"
-  }
+  "parent_project_root": "."
 }

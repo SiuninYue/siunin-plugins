@@ -176,6 +176,11 @@ LIFECYCLE_STATES = ("approved", "implementing", "verified", "archived")
 VALID_FINISH_STATES = ("merged_and_cleaned", "pr_open", "kept_with_reason")
 FINISH_PENDING_STATE = "finish_pending"
 OWNER_ROLES = ("architecture", "coding", "testing")
+# Canonical relative paths (from project root) that must never be moved or deleted
+# by archive_feature_docs or any other done-flow mutation.
+_IMMUTABLE_PROTECTED_RELPATHS: frozenset[str] = frozenset({
+    "docs/progress-tracker/architecture/architecture.md",
+})
 UPDATE_CATEGORIES = ("status", "decision", "risk", "handoff", "assignment", "meeting")
 UPDATE_SOURCES = ("prog_update", "spm_meeting", "spm_assign", "spm_planning", "manual")
 UPDATE_REFS_INLINE_LIMIT = 12
@@ -244,6 +249,7 @@ MUTATING_COMMANDS = {
     "ship-check",
     "backfill-event",
     "generate-direct-tdd-note",
+    "set-sprint-contract",
 }
 ROUTE_PREFLIGHT_EXEMPT_COMMANDS = {
     "init",
@@ -6980,6 +6986,19 @@ def complete_feature_ai_metrics(feature_id: int) -> bool:
     return True
 
 
+def _is_immutable_protected(file_path: Path, project_root: Path) -> bool:
+    """Return True if file_path is a canonically protected file that must never be archived.
+
+    Uses normalized relative-path matching (not basename) to avoid false positives
+    from unrelated files that happen to share the same name.
+    """
+    try:
+        rel = str(file_path.relative_to(project_root)).replace("\\", "/")
+        return rel in _IMMUTABLE_PROTECTED_RELPATHS
+    except ValueError:
+        return False
+
+
 def archive_feature_docs(feature_id: int, feature_name: str = None) -> Dict[str, Any]:
     """
     Archive testing and plan documents for a completed feature.
@@ -7035,22 +7054,30 @@ def archive_feature_docs(feature_id: int, feature_name: str = None) -> Dict[str,
             try:
                 plan_file = project_root / plan_path_from_feature
                 if plan_file.exists():
-                    dst_file = plans_archive / plan_file.name
+                    # Guard: never archive immutable protected files
+                    if _is_immutable_protected(plan_file, project_root):
+                        logger.warning(
+                            "Skipping immutable protected file from archival: %s",
+                            plan_path_from_feature,
+                        )
+                        result["skipped_files"].append(f"Protected: {plan_path_from_feature}")
+                    else:
+                        dst_file = plans_archive / plan_file.name
 
-                    # Handle filename conflicts
-                    if dst_file.exists():
-                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                        stem = plan_file.stem
-                        suffix = plan_file.suffix
-                        new_name = f"{stem}_{timestamp}{suffix}"
-                        dst_file = plans_archive / new_name
+                        # Handle filename conflicts
+                        if dst_file.exists():
+                            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                            stem = plan_file.stem
+                            suffix = plan_file.suffix
+                            new_name = f"{stem}_{timestamp}{suffix}"
+                            dst_file = plans_archive / new_name
 
-                    shutil.move(str(plan_file), str(dst_file))
-                    result["archived_files"].append({
-                        "from": plan_path_from_feature,
-                        "to": str(dst_file.relative_to(project_root))
-                    })
-                    logger.info(f"Archived plan: {plan_path_from_feature} -> {dst_file.relative_to(project_root)}")
+                        shutil.move(str(plan_file), str(dst_file))
+                        result["archived_files"].append({
+                            "from": plan_path_from_feature,
+                            "to": str(dst_file.relative_to(project_root))
+                        })
+                        logger.info(f"Archived plan: {plan_path_from_feature} -> {dst_file.relative_to(project_root)}")
             except Exception as e:
                 error_msg = f"Failed to archive plan {plan_path_from_feature}: {e}"
                 result["errors"].append(error_msg)
@@ -7080,6 +7107,14 @@ def archive_feature_docs(feature_id: int, feature_name: str = None) -> Dict[str,
 
             # Move each matching file
             for src_file in matching_files:
+                # Guard: never archive immutable protected files
+                if _is_immutable_protected(src_file, project_root):
+                    logger.warning(
+                        "Skipping immutable protected file from archival: %s",
+                        src_file,
+                    )
+                    result["skipped_files"].append(f"Protected: {src_file.name}")
+                    continue
                 try:
                     dst_file = dst_dir / src_file.name
 
@@ -7956,6 +7991,62 @@ def cmd_review_pass(feature_id: int, lane: str) -> int:
         print(f"[REVIEW] Remaining pending: {pending}")
     else:
         print("[REVIEW] All required lanes passed. /prog done will no longer be blocked by review gate.")
+    return 0
+
+
+def cmd_set_sprint_contract(
+    feature_id: int, scope: str, done_criteria: list, test_plan: list
+) -> int:
+    """Set or update the sprint contract for a feature.
+
+    Exit codes:
+      0 -- sprint contract set successfully
+      1 -- no progress tracking found
+      3 -- feature not found
+    """
+    data = load_progress_json()
+    if not data:
+        print("No progress tracking found", file=sys.stderr)
+        return 1
+
+    features = data.get("features", [])
+    feature = next((item for item in features if item.get("id") == feature_id), None)
+    if feature is None:
+        print(f"Feature ID {feature_id} not found", file=sys.stderr)
+        return 3
+
+    existing_contract = feature.get("sprint_contract") or {}
+
+    normalized_scope = scope.strip()
+    normalized_done_criteria = [
+        item.strip() for item in done_criteria if item and item.strip()
+    ]
+    normalized_test_plan = [
+        item.strip() for item in test_plan if item and item.strip()
+    ]
+
+    feature["sprint_contract"] = {
+        "scope": normalized_scope,
+        "done_criteria": normalized_done_criteria,
+        "test_plan": normalized_test_plan,
+        "accepted_by": existing_contract.get("accepted_by"),
+        "accepted_at": existing_contract.get("accepted_at"),
+    }
+
+    save_progress_json(data)
+    save_progress_md(generate_progress_md(data))
+
+    _append_audit_event(
+        event_type="set_sprint_contract",
+        feature_id=feature_id,
+        details={
+            "scope": normalized_scope,
+            "done_criteria_count": len(normalized_done_criteria),
+            "test_plan_count": len(normalized_test_plan),
+        },
+    )
+
+    print(f"Sprint contract set for feature {feature_id}")
     return 0
 
 
@@ -10390,6 +10481,29 @@ def main():
         "test_steps", nargs="*", help="Updated test steps (optional)"
     )
 
+    # Set sprint contract command
+    sprint_contract_parser = subparsers.add_parser(
+        "set-sprint-contract", help="Set sprint contract fields for a feature"
+    )
+    sprint_contract_parser.add_argument(
+        "--feature-id", type=int, required=True, help="Feature ID"
+    )
+    sprint_contract_parser.add_argument(
+        "--scope", required=True, help="Scope description for the sprint contract"
+    )
+    sprint_contract_parser.add_argument(
+        "--done-criteria",
+        nargs="+",
+        required=True,
+        help="One or more done criteria items",
+    )
+    sprint_contract_parser.add_argument(
+        "--test-plan",
+        nargs="+",
+        required=True,
+        help="One or more test plan items",
+    )
+
     # Defer command
     defer_parser = subparsers.add_parser(
         "defer", help="Defer one feature or all pending features"
@@ -10855,6 +10969,13 @@ def main():
         if args.command == "update-feature":
             return update_feature(
                 args.feature_id, args.name, args.test_steps if args.test_steps else None
+            )
+        if args.command == "set-sprint-contract":
+            return cmd_set_sprint_contract(
+                feature_id=args.feature_id,
+                scope=args.scope,
+                done_criteria=args.done_criteria,
+                test_plan=args.test_plan,
             )
         if args.command == "defer":
             return defer_features(

@@ -260,6 +260,106 @@ def test_cmd_done_non_git_context_does_not_block(seeded_done_env):
     m_remote.assert_not_called()
 
 
+def test_archive_docs_skips_protected_architecture_md(tmp_path, caplog):
+    """archive_feature_docs must skip the canonical architecture.md even when plan_path points there.
+
+    Vulnerability being guarded: if a feature's plan_path is accidentally set to
+    docs/progress-tracker/architecture/architecture.md, the archive flow would move
+    (destroy) the immutable design doc. The guard must detect and skip this.
+    """
+    import logging
+
+    _ARCH_FEATURE_ID = 42
+
+    # Create the canonical protected file
+    arch_dir = tmp_path / "docs" / "progress-tracker" / "architecture"
+    arch_dir.mkdir(parents=True, exist_ok=True)
+    arch_file = arch_dir / "architecture.md"
+    original_content = "# Architecture\nImmutable design doc."
+    arch_file.write_text(original_content, encoding="utf-8")
+
+    # Also create the archive destination dir (archive_feature_docs creates it, but
+    # we need progress.json to be readable first)
+    state_dir = tmp_path / "docs" / "progress-tracker" / "state"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    progress_data = {
+        "schema_version": "2.1",
+        "project_name": "arch-guard-test",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "features": [
+            {
+                "id": _ARCH_FEATURE_ID,
+                "name": "arch guard test feature",
+                "completed": True,
+                "plan_path": "docs/progress-tracker/architecture/architecture.md",
+            }
+        ],
+        "current_feature_id": None,
+        "updates": [],
+        "retrospectives": [],
+        "runtime_context": {},
+        "linked_projects": [],
+        "linked_snapshot": {},
+        "tracker_role": "standalone",
+        "project_code": None,
+        "routing_queue": [],
+        "active_routes": [],
+        "bugs": [],
+        "current_bug_id": None,
+    }
+    (state_dir / "progress.json").write_text(json.dumps(progress_data), encoding="utf-8")
+
+    with (
+        patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE", tmp_path),
+        caplog.at_level(logging.WARNING, logger="progress_manager"),
+    ):
+        result = progress_manager.archive_feature_docs(_ARCH_FEATURE_ID)
+
+    # File must NOT have been moved
+    assert arch_file.exists(), "architecture.md must not be moved by archive_feature_docs"
+    assert arch_file.read_text(encoding="utf-8") == original_content, (
+        "architecture.md content must be unchanged"
+    )
+
+    # Guard must log a warning that mentions the skipped path
+    warning_messages = [r.message for r in caplog.records if r.levelno >= logging.WARNING]
+    protected_path = "docs/progress-tracker/architecture/architecture.md"
+    assert any(protected_path in msg for msg in warning_messages), (
+        f"Guard must log a WARNING containing '{protected_path}'; got: {warning_messages}"
+    )
+
+    # skipped_files must record the protected path
+    assert any(
+        "architecture.md" in entry for entry in result["skipped_files"]
+    ), f"skipped_files must mention architecture.md; got: {result['skipped_files']}"
+
+
+def test_cmd_done_preserves_architecture_md(seeded_done_env):
+    """[Invariant] cmd_done must leave docs/progress-tracker/architecture/architecture.md untouched.
+
+    Verifies the architecture immutability guarantee end-to-end: content is compared
+    before and after cmd_done() to detect both deletion and silent modification.
+    """
+    arch_dir = seeded_done_env / "docs" / "progress-tracker" / "architecture"
+    arch_dir.mkdir(parents=True, exist_ok=True)
+    original_content = (
+        "# Architecture\n\n"
+        "This is the immutable design doc.\n"
+        "It must not be modified by any done-flow operation.\n"
+    )
+    arch_file = arch_dir / "architecture.md"
+    arch_file.write_text(original_content, encoding="utf-8")
+
+    rc = progress_manager.cmd_done()
+
+    assert rc == 0, f"cmd_done must succeed; got rc={rc}"
+    assert arch_file.exists(), "architecture.md must not be deleted by cmd_done"
+    assert arch_file.read_text(encoding="utf-8") == original_content, (
+        "architecture.md content must be byte-for-byte unchanged after cmd_done"
+    )
+
+
 def test_cmd_done_completion_state_stable_before_cleanup_runs(seeded_done_env):
     """[P1 invariant] complete_feature() writes to disk BEFORE _run_post_done_cleanup runs.
 

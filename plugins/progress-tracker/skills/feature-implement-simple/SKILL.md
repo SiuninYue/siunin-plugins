@@ -75,22 +75,37 @@ State convergence always runs even if the note already exists.
 4. Invoke `test-driven-development`:
 
 ```text
-Skill("test-driven-development", args="<feature_name>: <one_line_description>")
+Skill("superpowers:test-driven-development", args="<feature_name>: <one_line_description>")
 ```
 
-5. Run focused code review on the feature diff:
+5. **Populate the sprint contract** from the TDD results, describing scope,
+   done criteria, and test plan:
+
+```bash
+plugins/progress-tracker/prog set-sprint-contract \
+  --feature-id <feature_id> \
+  --scope "<brief scope description>" \
+  --done-criteria \
+    "<criteria 1>" \
+    "<criteria 2>" \
+  --test-plan \
+    "<test plan item 1>" \
+    "<test plan item 2>"
+```
+
+6. Run focused code review on the feature diff:
 
 ```text
-Skill("requesting-code-review", args="Review simple feature implementation: <feature_name>")
+Skill("superpowers:requesting-code-review", args="Review simple feature implementation: <feature_name>")
 ```
 
-6. Run completion verification gate:
+7. Run completion verification gate:
 
 ```text
-Skill("verification-before-completion", args="Verify tests and acceptance evidence for <feature_name>")
+Skill("superpowers:verification-before-completion", args="Verify tests and acceptance evidence for <feature_name>")
 ```
 
-7. On success, update workflow and metrics:
+8. On success, update workflow and metrics:
 
 ```bash
 plugins/progress-tracker/prog set-workflow-state \
@@ -103,7 +118,7 @@ plugins/progress-tracker/prog set-feature-ai-metrics <feature_id> \
   --workflow-path direct_tdd
 ```
 
-8. Ask user to run `/prog done`.
+9. Ask user to run `/prog done`.
 
 # Failure Modes
 

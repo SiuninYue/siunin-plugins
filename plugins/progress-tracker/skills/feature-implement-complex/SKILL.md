@@ -74,7 +74,7 @@ plugins/progress-tracker/prog git-auto-preflight --json
 
 - If `decision=REQUIRE_WORKTREE`, run:
 ```text
-Skill("using-git-worktrees", args="Set up isolated workspace for feature-<id>")
+Skill("superpowers:using-git-worktrees", args="Set up isolated workspace for feature-<id>")
 ```
 - If `decision=DELEGATE_GIT_AUTO`, run:
 ```text
@@ -85,7 +85,7 @@ Skill("progress-tracker:git-auto", args="Resolve workspace/git preflight blocker
 4. Run design phase:
 
 ```text
-Skill("brainstorming", args="<feature_name>: architecture and approach")
+Skill("superpowers:brainstorming", args="<feature_name>: architecture and approach")
 ```
 
 If `docs/progress-tracker/architecture/architecture.md` exists, include `Execution Constraints` (`CONSTRAINT-*`) in brainstorming context.
@@ -101,7 +101,22 @@ plugins/progress-tracker/prog set-workflow-state \
 6. Run planning phase:
 
 ```text
-Skill("writing-plans", args="<feature_name>: create implementation plan\nArchitecture constraints:\n- <CONSTRAINT-...>\nPlan path policy: must output under docs/plans/YYYY-MM-DD-<slug>.md (e.g. docs/plans/2026-03-03-feature-name.md)")
+Skill("superpowers:writing-plans", args="<feature_name>: create implementation plan\nArchitecture constraints:\n- <CONSTRAINT-...>\nPlan path policy: must output under docs/plans/YYYY-MM-DD-<slug>.md (e.g. docs/plans/2026-03-03-feature-name.md)")
+```
+
+6.5. **Populate the sprint contract** from the plan outputs, describing
+   scope, done criteria, and test plan:
+
+```bash
+plugins/progress-tracker/prog set-sprint-contract \
+  --feature-id <feature_id> \
+  --scope "<brief scope description>" \
+  --done-criteria \
+    "<criteria 1>" \
+    "<criteria 2>" \
+  --test-plan \
+    "<test plan item 1>" \
+    "<test plan item 2>"
 ```
 
 7. Update workflow to planning complete with plan path:
@@ -116,14 +131,14 @@ plugins/progress-tracker/prog set-workflow-state \
 8. Run execution phase:
 
 ```text
-Skill("subagent-driven-development", args="plan:<returned_plan_path>")
+Skill("superpowers:subagent-driven-development", args="plan:<returned_plan_path>")
 ```
 
 9. Run final review + verification gates:
 
 ```text
-Skill("requesting-code-review", args="Review complex feature implementation: <feature_name>")
-Skill("verification-before-completion", args="Verify complex feature evidence for <feature_name>")
+Skill("superpowers:requesting-code-review", args="Review complex feature implementation: <feature_name>")
+Skill("superpowers:verification-before-completion", args="Verify complex feature evidence for <feature_name>")
 ```
 
 10. Mark workflow as execution complete and save AI metrics:

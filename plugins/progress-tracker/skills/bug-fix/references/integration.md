@@ -15,10 +15,10 @@ Invoke `systematic-debugging` when:
 
 ```python
 # Correct: Use Skill tool
-Skill("systematic-debugging", args="<bug description>")
+Skill("superpowers:systematic-debugging", args="<bug description>")
 
 # Example
-Skill("systematic-debugging", args="登录后5分钟会话自动断开")
+Skill("superpowers:systematic-debugging", args="登录后5分钟会话自动断开")
 ```
 
 ### What It Does
@@ -71,10 +71,10 @@ Invoke `test-driven-development` when:
 
 ```python
 # Correct: Use Skill tool with clear description
-Skill("test-driven-development", args="Fix <bug>: <one-line description>")
+Skill("superpowers:test-driven-development", args="Fix <bug>: <one-line description>")
 
 # Example
-Skill("test-driven-development", args="Fix session timeout: Update TIMEOUT from 300 to 86400 seconds")
+Skill("superpowers:test-driven-development", args="Fix session timeout: Update TIMEOUT from 300 to 86400 seconds")
 ```
 
 ### What It Does
@@ -108,10 +108,10 @@ Invoke `requesting-code-review` when:
 
 ```python
 # Correct: Use Skill tool
-Skill("requesting-code-review", args="Verify bug fix for: <bug description>")
+Skill("superpowers:requesting-code-review", args="Verify bug fix for: <bug description>")
 
 # Example
-Skill("requesting-code-review", args="Verify bug fix for: session timeout updated to 24 hours")
+Skill("superpowers:requesting-code-review", args="Verify bug fix for: session timeout updated to 24 hours")
 ```
 
 ### What It Does

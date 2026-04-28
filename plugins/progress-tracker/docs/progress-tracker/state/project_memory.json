@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "created_at": "2026-04-12T09:38:02.910760Z",
-  "updated_at": "2026-04-27T02:52:41.741569Z",
-  "next_capability_seq": 12,
+  "updated_at": "2026-04-28T01:32:50.296610Z",
+  "next_capability_seq": 13,
   "last_synced_commit": null,
   "capabilities": [
     {
@@ -228,6 +228,27 @@
       },
       "created_at": "2026-04-27T02:52:41.741535Z",
       "updated_at": "2026-04-27T02:52:41.741535Z"
+    },
+    {
+      "cap_id": "CAP-012",
+      "fingerprint": "163f5973de396970",
+      "title": "Apply progressive disclosure budget to oversized SKILL files",
+      "summary": "F5: 将 9 个超标 SKILL.md 文件中的长篇示例/模板/算法提取到 references/ 和 examples/ 子目录，所有文件降至 SOP 门禁 500 行以下，链接完整性全部通过，发现契约测试 3/3 通过。评估器评分 91/100。",
+      "tags": [
+        "skill-files",
+        "progressive-disclosure",
+        "sop-compliance",
+        "refactor"
+      ],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": "5",
+        "commit_hash": "0f236688354a24f973d44cf479bfde5c87e6d3d1",
+        "commit_range": ""
+      },
+      "created_at": "2026-04-28T01:32:50.296540Z",
+      "updated_at": "2026-04-28T01:32:50.296540Z"
     }
   ],
   "rejected_fingerprints": [],

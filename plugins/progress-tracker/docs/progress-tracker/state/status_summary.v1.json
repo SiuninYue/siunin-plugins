@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-04-27T21:17:46.744798Z",
+  "updated_at": "2026-04-28T11:54:49.298512Z",
   "source": {
     "generator": "progress_manager.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,8 +11,8 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1777279253782342494,
-      "size": 43216
+      "mtime_ns": 1777348489294912114,
+      "size": 45564
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
@@ -22,21 +22,21 @@
     }
   },
   "progress": {
-    "completed": 8,
+    "completed": 10,
     "total": 12,
-    "percentage": 66
+    "percentage": 83
   },
   "next_action": {
     "type": "feature",
-    "feature_id": 5,
-    "feature_name": "Apply progressive disclosure budget to oversized SKILL files",
-    "development_stage": "developing",
-    "stage_label": "开发中"
+    "feature_id": 7,
+    "feature_name": "Enforce PROG command docs single-source parity",
+    "development_stage": "pending",
+    "stage_label": "待开始"
   },
   "plan_health": {
-    "status": "OK",
-    "plan_path": "docs/plans/2026-04-27-f5-progressive-disclosure-skill-files.md",
-    "message": "计划文件完整且符合规范"
+    "status": "N/A",
+    "plan_path": null,
+    "message": "无活跃计划"
   },
   "risk_blocker": {
     "has_risk": false,
@@ -47,6 +47,6 @@
   "recent_snapshot": {
     "exists": true,
     "timestamp": "2026-04-27T13:36:20.689259+08:00",
-    "relative_time": "7 小时前"
+    "relative_time": "22 小时前"
   }
 }

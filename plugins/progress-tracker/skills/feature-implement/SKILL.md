@@ -195,7 +195,7 @@ plugins/progress-tracker/prog git-auto-preflight --json
 Parse JSON result and branch by `decision`:
 
 1. `ALLOW_IN_PLACE` → continue without workspace changes.
-2. `REQUIRE_WORKTREE` → `Skill("using-git-worktrees", args="Set up isolated workspace for feature-<id>")`
+2. `REQUIRE_WORKTREE` → `Skill("superpowers:using-git-worktrees", args="Set up isolated workspace for feature-<id>")`
 3. `DELEGATE_GIT_AUTO` → `Skill("progress-tracker:git-auto", args="Resolve workspace/git preflight blockers")`
 
 Rules:
@@ -261,6 +261,20 @@ Before complexity scoring, initiate the planning sub-phase to clarify requiremen
 - Default path:
   1. Run `brainstorming` when behavior/design decisions are still open.
   2. `writing-plans` to produce executable task plan.
+  2.5. **Populate the sprint contract** from the plan outputs, describing
+     scope, done criteria, and test plan:
+
+  ```bash
+  plugins/progress-tracker/prog set-sprint-contract \
+    --feature-id <feature_id> \
+    --scope "<brief scope description>" \
+    --done-criteria \
+      "<criteria 1>" \
+      "<criteria 2>" \
+    --test-plan \
+      "<test plan item 1>" \
+      "<test plan item 2>"
+  ```
   3. `subagent-driven-development` to execute plan with TDD.
   4. `requesting-code-review` for final diff validation.
   5. `verification-before-completion` before phase transition to `execution_complete`.

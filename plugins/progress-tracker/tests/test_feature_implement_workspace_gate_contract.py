@@ -16,7 +16,7 @@ def test_feature_implement_uses_unified_git_auto_preflight_and_tri_state_decisio
     assert "ALLOW_IN_PLACE" in content
     assert "REQUIRE_WORKTREE" in content
     assert "DELEGATE_GIT_AUTO" in content
-    assert 'Skill("using-git-worktrees"' in content
+    assert 'Skill("superpowers:using-git-worktrees"' in content
     assert 'Skill("progress-tracker:git-auto"' in content
 
 
