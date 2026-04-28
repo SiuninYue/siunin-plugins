@@ -1,5 +1,11 @@
 # Closeout And Recovery
 
+## CI Check Terminology
+
+"Required checks passing" = all GitHub-required status checks report
+success (green). This is the same condition used in merge gates,
+PR maintenance fix-ci, and any CI status reporting.
+
 ## Lightweight Autorun
 
 When intent includes push/PR and change is low-risk, autorun may execute through push + draft PR.
@@ -34,6 +40,7 @@ After closeout completes (commit + push + PR), output the Execution Result Block
 ```
 === Git Auto Result ===
 CommitHash: <full_40_char_sha>
+Branch: <actual-branch-used>
 PR: <url|draft_url|none>
 Status: <ok|blocked>
 === End Result ===
