@@ -147,7 +147,7 @@ Skill("superpowers:verification-before-completion", args="Verify acceptance evid
 
 ```text
 Agent(
-  subagent_type="code-reviewer",   // or "security-auditor" for security-sensitive features
+  subagent_type="superpowers:code-reviewer",   // or "superpowers:security-auditor" for security-sensitive features
   prompt="Run evaluator_gate.assess() for feature <feature_id>. "
          "Read quality rubric from feature.acceptance_scenarios and test_steps. "
          "Collect signals: test_coverage from pytest --cov output, defects from code review. "
