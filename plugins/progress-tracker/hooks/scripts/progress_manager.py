@@ -6452,7 +6452,7 @@ def determine_recovery_action(
     elif phase == "planning:draft":
         return "resume_planning_draft"
     elif phase == "planning:clarifying":
-        return "restart_from_planning"
+        return "resume_planning_draft"
     elif phase in ["planning", "design_complete", "design"]:
         return "restart_from_planning"
     else:
