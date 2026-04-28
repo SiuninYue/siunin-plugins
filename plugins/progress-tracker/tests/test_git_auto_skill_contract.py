@@ -45,3 +45,48 @@ def test_git_auto_references_are_split_into_expected_files():
 
     actual_files = {path.name for path in REFERENCES_DIR.glob("*.md")}
     assert expected_files.issubset(actual_files)
+
+
+def test_git_auto_skill_has_dual_path_section():
+    content = GIT_AUTO_SKILL.read_text(encoding="utf-8")
+    assert "Dual-Path Execution" in content
+    assert "Fast Path Conditions" in content
+
+
+def test_git_auto_skill_has_command_semantics():
+    content = GIT_AUTO_SKILL.read_text(encoding="utf-8")
+    assert "Command Semantics" in content
+    assert "git auto start" in content
+    assert "git auto done" in content
+    assert "git auto fix" in content
+
+
+def test_git_auto_skill_has_command_disambiguation():
+    content = GIT_AUTO_SKILL.read_text(encoding="utf-8")
+    assert "Command Disambiguation" in content
+
+
+def test_git_auto_skill_has_low_impact_class():
+    content = GIT_AUTO_SKILL.read_text(encoding="utf-8")
+    assert "low_impact" in content
+    assert "docs_ci_small" not in content
+
+
+def test_git_auto_skill_result_block_has_branch():
+    content = GIT_AUTO_SKILL.read_text(encoding="utf-8")
+    assert "Branch:" in content
+
+
+def test_git_auto_references_have_v2_2_updates():
+    change_class = (REFERENCES_DIR / "change-classification.md").read_text(encoding="utf-8")
+    assert "low_impact" in change_class
+    assert "docs_ci_small" not in change_class
+    assert "Class Boundary Rules" in change_class
+    assert "direct-main-exception Eligibility" in change_class
+
+    closeout = (REFERENCES_DIR / "closeout-and-recovery.md").read_text(encoding="utf-8")
+    assert "Branch:" in closeout
+    assert "CI Check Terminology" in closeout
+
+    enforcement = (REFERENCES_DIR / "enforcement-modes.md").read_text(encoding="utf-8")
+    assert "Heuristic Fallback" in enforcement
