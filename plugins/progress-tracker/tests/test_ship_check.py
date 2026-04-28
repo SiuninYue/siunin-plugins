@@ -161,3 +161,45 @@ def test_check_sync_compat_fails_with_missing_keys(tmp_path):
     assert len(failures) == 1
     assert failures[0].check_id == "sync_compat"
     assert "missing" in failures[0].detail
+
+
+# ── Task 3: real signal collection ───────────────────────────────────────────
+
+def test_collect_real_signals_runs_pytest_and_returns_counts(tmp_path):
+    """_collect_real_signals runs pytest in tests/ and parses pass/fail counts."""
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    (tests_dir / "test_trivial.py").write_text("def test_ok(): assert 1 + 1 == 2\n")
+
+    from ship_check import _collect_real_signals
+    signals = _collect_real_signals(tmp_path)
+
+    assert signals["tests_dir_exists"] is True
+    assert signals["test_results"]["passed"] >= 1
+    assert signals["test_results"]["failed"] == 0
+
+
+def test_collect_real_signals_no_tests_dir_signals_missing_scope(tmp_path):
+    """_collect_real_signals sets tests_dir_exists=False when tests/ is absent (fail-closed)."""
+    from ship_check import _collect_real_signals
+    signals = _collect_real_signals(tmp_path)
+    assert signals["tests_dir_exists"] is False
+
+
+def test_run_ship_check_fails_with_no_test_scope_when_tests_dir_missing(tmp_path):
+    """End-to-end: run_ship_check returns fail with check_id='no_test_scope' when tests/ absent."""
+    from ship_check import run_ship_check
+    result = run_ship_check(
+        feature_id=1,
+        project_root=tmp_path,
+        inputs={
+            "test_coverage": 1.0,
+            "tests_dir_exists": False,
+            "test_results": {"passed": 0, "failed": 0, "skipped": 0},
+            "docs_sync": {"progress_md_matches_json": True, "architecture_refs_valid": True},
+            "regression_results": {"passed": 0, "failed": 0},
+        },
+        thresholds={"coverage_min": 0.8},
+    )
+    assert result.status == "fail"
+    assert any(f.check_id == "no_test_scope" for f in result.failures)
