@@ -3507,19 +3507,28 @@ def cmd_install_git_hooks() -> Dict[str, Any]:
         print(f"[install-git-hooks] ERROR: {msg}")
         return {"installed": False, "hook_path": None, "error": msg}
 
-    source = Path(__file__).parent / "post_merge_hook.sh"
-    if not source.exists():
-        msg = f"Hook source not found: {source}"
-        print(f"[install-git-hooks] ERROR: {msg}")
-        return {"installed": False, "hook_path": None, "error": msg}
+    hooks_to_install = [
+        ("post_merge_hook.sh", "post-merge"),
+        (os.path.join("..", "pre-commit"), "pre-commit"),
+    ]
 
-    target = git_hooks_dir / "post-merge"
-    target.write_text(source.read_text())
-    current_mode = target.stat().st_mode
-    target.chmod(current_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    installed = []
+    for src_rel, hook_name in hooks_to_install:
+        source = Path(__file__).parent / src_rel
+        source = source.resolve()
+        if not source.exists():
+            msg = f"Hook source not found: {source}"
+            print(f"[install-git-hooks] ERROR: {msg}")
+            return {"installed": False, "hook_path": None, "error": msg, "installed_hooks": installed}
 
-    print(f"[install-git-hooks] Installed: {target}")
-    return {"installed": True, "hook_path": str(target), "error": None}
+        target = git_hooks_dir / hook_name
+        target.write_text(source.read_text())
+        current_mode = target.stat().st_mode
+        target.chmod(current_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+        print(f"[install-git-hooks] Installed: {target}")
+        installed.append(str(target))
+
+    return {"installed": True, "hook_path": installed[0], "error": None, "installed_hooks": installed}
 
 
 def _store_evaluator_result(feature_id: int, result: Any) -> None:

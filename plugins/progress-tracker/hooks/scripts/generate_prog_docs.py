@@ -67,9 +67,11 @@ def main() -> int:
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--write", action="store_true", help="Write generated content")
     mode.add_argument("--check", action="store_true", help="Check generated content")
+    parser.add_argument("--project-root", type=Path, default=None,
+                        help="Project root (default: auto-detect from script location)")
     args = parser.parse_args()
 
-    root = plugin_root()
+    root = args.project_root.resolve() if args.project_root else plugin_root()
     source_path = root / "docs" / "PROG_COMMANDS.md"
     readme_en_path = root / "README.md"
     readme_zh_path = root / "readme-zh.md"
