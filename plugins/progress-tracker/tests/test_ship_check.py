@@ -232,3 +232,48 @@ def test_update_progress_json_writes_ship_check_result(tmp_path, monkeypatch):
     sc = data["features"][0]["quality_gates"]["ship_check"]
     assert sc["status"] == "fail"
     assert sc["failures"][0]["check_id"] == "coverage"
+
+
+# ── Task 4: CLI entry point ───────────────────────────────────────────────────
+
+def test_ship_check_cli_exits_0_on_clean_project(tmp_path):
+    """python3 ship_check.py exits 0 when all checks pass."""
+    import subprocess, sys
+    from pathlib import Path
+
+    # Minimal project: plugin.json + trivial test
+    plugin_dir = tmp_path / ".claude-plugin"
+    plugin_dir.mkdir()
+    (plugin_dir / "plugin.json").write_text(
+        '{"name":"x","version":"1.0","description":"d","author":{"name":"a"},'
+        '"license":"MIT","repository":"https://g","homepage":"https://g"}'
+    )
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    (tests_dir / "test_trivial.py").write_text("def test_ok(): assert True\n")
+
+    ship_check_script = Path(__file__).parent.parent / "hooks" / "scripts" / "ship_check.py"
+    result = subprocess.run(
+        [sys.executable, str(ship_check_script), "--project-root", str(tmp_path)],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "pass" in result.stdout.lower()
+
+
+def test_ship_check_cli_exits_8_on_missing_plugin_keys(tmp_path):
+    """python3 ship_check.py exits 8 when plugin.json is missing required keys."""
+    import subprocess, sys
+    from pathlib import Path
+
+    plugin_dir = tmp_path / ".claude-plugin"
+    plugin_dir.mkdir()
+    (plugin_dir / "plugin.json").write_text('{"name":"broken"}')
+
+    ship_check_script = Path(__file__).parent.parent / "hooks" / "scripts" / "ship_check.py"
+    result = subprocess.run(
+        [sys.executable, str(ship_check_script), "--project-root", str(tmp_path)],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 8, f"Expected 8, got {result.returncode}"
+    assert "FAIL" in result.stdout or "FAIL" in result.stderr

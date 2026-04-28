@@ -246,3 +246,82 @@ def run_ship_check(
         failures=failures,
         last_run_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     )
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    """CLI entry point: run the ship gate against the current project.
+
+    Exit codes:
+        0 = pass
+        8 = fail (matches cmd_ship_check convention in progress_manager.py)
+
+    Default project root: Path.cwd() — consistent with cmd_ship_check.
+    """
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="ship_check: unified pre-archive release gate"
+    )
+    parser.add_argument(
+        "--feature-id", type=int, default=None,
+        help="Feature ID to update in progress.json (default: auto-discover from current_feature_id)",
+    )
+    parser.add_argument(
+        "--project-root", type=Path, default=None,
+        help="Project root directory (default: cwd, consistent with prog ship-check)",
+    )
+    parser.add_argument(
+        "--test-path", type=Path, default=None,
+        help="Override pytest target path (default: <project-root>/tests/)",
+    )
+    parser.add_argument(
+        "--json", action="store_true", dest="json_output",
+        help="Output result as JSON",
+    )
+    args = parser.parse_args(argv)
+
+    # Default project root: cwd (matches cmd_ship_check in progress_manager.py)
+    project_root: Path = args.project_root or Path.cwd()
+
+    # Auto-discover feature_id before run_ship_check so all calls use the same value
+    feature_id = args.feature_id
+    if feature_id is None:
+        progress_json_path = (
+            project_root / "docs" / "progress-tracker" / "state" / "progress.json"
+        )
+        if progress_json_path.exists():
+            try:
+                data = json.loads(progress_json_path.read_text())
+                fid = data.get("current_feature_id")
+                if fid is not None:
+                    feature_id = int(fid)
+            except Exception:
+                pass
+
+    inputs = _collect_real_signals(project_root, test_path=args.test_path)
+    result = run_ship_check(
+        feature_id=feature_id or 0,
+        project_root=project_root,
+        inputs=inputs,
+        thresholds={"coverage_min": 0.8},
+    )
+
+    if feature_id is not None:
+        _update_progress_json(project_root, feature_id, result)
+
+    if args.json_output:
+        print(json.dumps(result.to_quality_gate_payload(), indent=2))
+    else:
+        if result.status == "pass":
+            print("[SHIP-CHECK] pass")
+        else:
+            for f in result.failures:
+                print(f"  FAIL [{f.check_id}] {f.detail}")
+            print(f"[SHIP-CHECK] FAIL ({len(result.failures)} issue(s))")
+
+    # Exit code: 0=pass, 8=fail (matches cmd_ship_check convention)
+    return 0 if result.status == "pass" else 8
+
+
+if __name__ == "__main__":
+    sys.exit(main())
