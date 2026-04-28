@@ -6784,6 +6784,41 @@ def next_feature(output_json: bool = False, ack_planning_risk: bool = False) -> 
                             print(f"[NEXT] Dispatching to [{code}] (routing_queue position {pos}):")
                         print(f"F{fid}: {fname}")
                         print(f"Run: {action}")
+                    # Register dispatch in active_routes + refresh linked_snapshot
+                    # so /prog reflects that this child is now active (next milestone: done).
+                    if code != ROOT_ROUTE_CODE:
+                        ar_list = data.get("active_routes")
+                        if not isinstance(ar_list, list):
+                            ar_list = []
+                        ar_list = [
+                            r for r in ar_list
+                            if not (isinstance(r, dict) and r.get("project_code") == code)
+                        ]
+                        ar_list.append({
+                            "project_code": code,
+                            "feature_ref": f"F{fid}",
+                            "feature_name": fname,
+                            "assigned_at": _iso_now(),
+                            "status": "active",
+                        })
+                        data["active_routes"] = ar_list
+                        # Refresh linked_snapshot silently (inlined to
+                        # avoid print side-effects when output_json=True).
+                        statuses = collect_linked_project_statuses(
+                            data, project_root=project_root, repo_root=repo_root,
+                            active_routes=ar_list,
+                        )
+                        linked_snapshot = data.get("linked_snapshot")
+                        if not isinstance(linked_snapshot, dict):
+                            linked_snapshot = {}
+                        linked_snapshot["schema_version"] = LINKED_SNAPSHOT_SCHEMA_VERSION
+                        linked_snapshot["updated_at"] = _iso_now()
+                        linked_snapshot["projects"] = statuses
+                        data["linked_snapshot"] = linked_snapshot
+                        _update_runtime_context(data, source="next_dispatch")
+                        save_progress_json(data)
+                        md_content = generate_progress_md(data)
+                        save_progress_md(md_content)
                     return True
             except Exception as exc:
                 logger.debug(f"Parent dispatch failed: {exc}")

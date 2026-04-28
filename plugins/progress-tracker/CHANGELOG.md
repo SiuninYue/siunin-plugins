@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.18] — 2026-04-28
+
+### Fixed
+- **Standard path phase stuck**: `feature-implement` Step 4B (complexity 16-25) was missing explicit `set-workflow-state --phase "execution_complete"` command, causing phase to remain at `planning:approved` after all implementation work completed. Added explicit phase transition commands at each gate.
+- **Parent dispatch sync**: `prog next` now registers dispatched child projects in `active_routes` and refreshes `linked_snapshot`, so `/prog` at parent level shows accurate child status.
+
 ## [Unreleased]
 
 ### Changed

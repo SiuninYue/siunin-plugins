@@ -87,20 +87,20 @@ If the invocation includes inline context lines (`Feature:`, `Phase:`, `Plan:`, 
 6. `ProjectRoot` present → pass `--project-root <project_root>` to **every** `prog` CLI call.
    Branch/worktree mismatch validation still applies (ProjectRoot only determines command directory, does not bypass checks).
 
-**The inline context is the source of truth.** Do not re-read `progress.json` to "verify" it — that defeats the purpose.
+**Inline context is authoritative.** Do not re-read `progress.json` to verify it.
 
 ---
 
 ## Core Responsibilities
 
 1. Select the next actionable feature from `docs/progress-tracker/state/progress.json`.
-2. Set and persist workflow state before delegating implementation.
+2. Set and persist workflow state before delegation.
 3. Route work by deterministic complexity rules.
 4. Ensure all commands use `plugins/progress-tracker/prog` entry point.
-5. Hand off cleanly to `/prog done` after implementation.
+5. Hand off cleanly to `/prog done`.
 6. Run Git/worktree preflight before delegation.
-7. Apply review + verification gates before claiming implementation complete.
-8. Persist execution context (branch/worktree) whenever workflow state/task progress advances.
+7. Apply review + verification gates before marking implementation complete.
+8. Persist execution context whenever workflow state advances.
 
 ## Use This Skill For
 
@@ -112,12 +112,12 @@ If the invocation includes inline context lines (`Feature:`, `Phase:`, `Plan:`, 
 
 **CRITICAL**: All `plugins/progress-tracker/prog` commands MUST be executed from the project root directory.
 
-If not already in the project root, first run:
+If not already at project root:
 ```bash
 cd <project-root>
 ```
 
-The `prog` tool uses relative paths and requires being in the correct project directory to resolve files correctly.
+The `prog` tool requires the correct project directory for relative path resolution.
 
 ## Required Read Order
 
@@ -264,10 +264,15 @@ Before complexity scoring, initiate the planning sub-phase to clarify requiremen
   3. `subagent-driven-development` to execute plan with TDD.
   4. `requesting-code-review` for final diff validation.
   5. `verification-before-completion` before phase transition to `execution_complete`.
-- Update workflow state transitions:
-  - `planning_complete` once plan is accepted
-  - `execution` while tasks run
-  - `execution_complete` when implementation is finished
+- Update workflow state at each gate:
+  ```bash
+  plugins/progress-tracker/prog set-workflow-state --phase "planning_complete" --plan-path <path>
+  plugins/progress-tracker/prog set-workflow-state --phase "execution" --plan-path <path>
+  ```
+- After implementation, review, and verification pass, persist completion:
+  ```bash
+  plugins/progress-tracker/prog set-workflow-state --phase "execution_complete" --next-action "verify_and_complete"
+  ```
 
 Important compatibility rule:
 - In `/prog next` flow, treat implementation as finished at "code + verification ready".
