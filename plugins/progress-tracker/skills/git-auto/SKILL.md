@@ -2,7 +2,7 @@
 name: git-auto
 description: This skill should be used when the user asks to "create a git commit", "commit changes", "commit and push", "make a commit", "handle git", "git auto", "git auto start", "git auto done", or "git auto fix", or needs git operations automated with branch/PR/merge decisions.
 model: sonnet
-version: "2.1.1"
+version: "2.2.0"
 scope: skill
 inputs:
   - Current git repository state
@@ -35,28 +35,24 @@ Keep command names unchanged:
 - `git auto done`
 - `git auto fix <bug-description>`
 
+### Command Semantics
+
+| Command | Intent | Branch | Path |
+|---------|--------|--------|------|
+| `git auto` | Parsed from user message | Determined by strategy | Fast or Full |
+| `git auto start <name>` | commit_and_push | Create `feat/<name>` | Full Path |
+| `git auto done` | commit_push_pr_merge | Use current branch | Full Path + Merge Gate |
+| `git auto fix <desc>` | commit_push_pr | Create `fix/<desc>` | Full Path |
+
 ## Normative Keywords
 
 `MUST`, `MUST NOT`, `SHOULD`, and `MAY` are normative.
 
 ## Output Language Requirements
 
-**Output MUST use English OR Chinese ONLY.** DO NOT use Korean or any other language:
-
-- Plan descriptions MUST use English or Chinese
-- All reason text MUST use English or Chinese
-- Status messages MUST use English or Chinese
-- Any user-facing content MUST be English or Chinese
-- **DO NOT use Korean** - this is a bug to prevent
-
-Examples of CORRECT output:
-- `Escalation Reason: 单独项目，14天内无 sync risk 事件`
-- `Worktree Decision Reason: MAY rule — 重复使用 feature branch，无冲突信号`
-- `Change Size: ~154 insertions, ~12,579 deletions (主要是旧文档归档移动)`
-
-Examples of INCORRECT output (DO NOT DO THIS):
-- `Escalation Reason: 단독 프로젝트, 14일간 sync risk event 없음` ❌
-- `Worktree Decision Reason: MAY rule — 기존 feature branch 반복, 충돌 신호 없음` ❌
+Output language MUST follow the user's active language. If the user
+writes in Chinese, respond in Chinese. If in English, respond in
+English. Do not mix languages within a single output block.
 
 ## Required Intent Parsing
 
@@ -116,13 +112,42 @@ Every plan MUST print:
 - `Workspace Mode: <in-place|worktree>`
 - `Worktree Decision Reason: <reason_codes>`
 
+## Dual-Path Execution
+
+After Preflight, classify execution into Fast Path or Full Path.
+
+### Fast Path Conditions
+
+All must hold:
+- Enforcement Mode = soft
+- Change Class ∈ {docs_only, ci_only, low_impact}
+- Preflight decision = ALLOW_IN_PLACE
+- Execution Intent ≠ commit_push_pr_merge
+- No PR Maintenance activation
+
+### Fast Path Output (5 metadata fields + 1 action step)
+
+```text
+## Fast Path
+Execution Intent: ...
+Enforcement Mode: ...
+Workspace Mode: ...
+Change Class: ...
+Branch Strategy: ...
+1. ...
+```
+
+### Full Path Output
+
+(Unchanged from Plan Template below)
+
 ## Policy And Strategy Resolution
 
 After preflight:
 
 1. Compute enforcement mode from rolling risk metrics.
 2. Probe repository policy (gh-api -> local-config -> GH006 evidence -> conservative fallback).
-3. Classify change set (`docs_only|ci_only|docs_ci_small|mixed|code|unknown`).
+3. Classify change set (`docs_only|ci_only|low_impact|mixed|code|unknown`).
 4. Select branch strategy:
    - `standard-pr`
    - `fast-pr`
@@ -149,6 +174,11 @@ Every plan MUST print:
   - If `Execution Intent=commit_push_pr` or `commit_push_pr_merge`: create ready-for-review PR
   - Otherwise: create draft PR (default for first push)
 - Merge execution is allowed only for `Execution Intent=commit_push_pr_merge` and all merge gates pass.
+- If `using-git-worktrees` fails to create a worktree:
+  1. Report the failure reason.
+  2. Ask user to choose: (a) retry with different path, (b) proceed
+     in-place with explicit acknowledgment, (c) abort.
+  3. Do NOT proceed without explicit user choice.
 
 ## PR Maintenance Extensions (Comments + CI)
 
@@ -216,6 +246,7 @@ After completing all git operations, output the following result block verbatim.
 ```
 === Git Auto Result ===
 CommitHash: <full_40_char_sha>
+Branch: <actual-branch-used>
 PR: <url|draft_url|none>
 Status: <ok|blocked>
 BlockReason: <reason>
@@ -224,13 +255,26 @@ BlockReason: <reason>
 
 Rules:
 - `Status: ok` → `CommitHash` MUST be the real 40-character SHA (never `none` or a placeholder).
+- `Branch` is the actual branch pushed to (may differ from expected after GH006 fallback).
+- `Branch` MUST NOT be `none`.
 - `Status: blocked` → `CommitHash` MAY be `none`; `BlockReason` MUST describe why.
 - `BlockReason` line is **only** output when `Status: blocked`.
+- When `Status: blocked`, append recovery suggestions after `BlockReason`:
+  - CI failing → "Run `git auto fix-ci` or manually fix and re-push"
+  - Review pending → "Wait for approvals or `git auto address-comments`"
+  - Merge conflict → "Rebase onto <branch> and retry"
 - `PR` is `none` when no PR was created/updated.
 - `/prog done` only parses content between `=== Git Auto Result ===` and `=== End Result ===`.
 - GH006 fallback (branch + PR) is handled internally; still outputs `Status: ok` + real `CommitHash`.
 
 The Plan Template (pre-execution output) remains unchanged and does NOT include `CommitHash`, `PR`, or `Status` fields. Those appear only in the Execution Result Block.
+
+## Command Disambiguation
+
+| Command | Scope | Effect |
+|---------|-------|--------|
+| `git auto done` | Git only | commit + push + PR + merge |
+| `/prog done` | Feature lifecycle | progress state archive + delegates to `git auto done` |
 
 ## Compatibility Guarantees
 
