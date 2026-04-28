@@ -6046,9 +6046,6 @@ def analyze_git_auto_preflight() -> Dict[str, Any]:
         reason_codes.append("default_branch_feature_work")
         if "dirty_worktree" in issue_ids:
             reason_codes.append("dirty_on_default_branch")
-    elif on_default_branch and "dirty_worktree" in issue_ids:
-        decision = "REQUIRE_WORKTREE"
-        reason_codes.append("dirty_on_default_branch")
     else:
         reason_codes.append("no_blocking_workspace_risk")
 

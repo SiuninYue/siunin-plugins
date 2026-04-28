@@ -1554,6 +1554,32 @@ class TestGitSyncPreflight:
         assert report["decision"] == "ALLOW_IN_PLACE"
         assert report["reason_codes"] == ["no_blocking_workspace_risk"]
 
+    def test_git_auto_preflight_allows_in_place_on_default_branch_in_worktree(self):
+        """Should allow in-place when on default branch inside worktree with dirty changes."""
+        fake_context = {
+            "project_root": "/tmp/repo",
+            "workspace_mode": "worktree",
+            "branch": "main",
+        }
+        fake_sync = {
+            "status": "warning",
+            "project_root": "/tmp/repo",
+            "issues": [
+                {
+                    "id": "dirty_worktree",
+                    "level": "warning",
+                    "message": "Working tree has uncommitted changes.",
+                }
+            ],
+        }
+        with patch("progress_manager.collect_git_context", return_value=fake_context), patch(
+            "progress_manager.analyze_git_sync_risks", return_value=fake_sync
+        ), patch("progress_manager._detect_default_branch", return_value="main"):
+            report = progress_manager.analyze_git_auto_preflight()
+
+        assert report["decision"] == "ALLOW_IN_PLACE"
+        assert "no_blocking_workspace_risk" in report["reason_codes"]
+
     def test_git_auto_preflight_json_contract(self, capsys):
         """Should emit stable JSON contract fields for machine consumers."""
         fake_report = {
