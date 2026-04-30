@@ -38,6 +38,42 @@ def _save_progress(plugin_root: Path, payload: dict) -> None:
     )
 
 
+class TestMergedBranchHelper:
+    """_is_branch_merged_into helper should support local and origin fallback refs."""
+
+    def test_is_branch_merged_into_via_local_target(self, tmp_path):
+        with (
+            patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE", tmp_path),
+            patch.object(progress_manager, "_run_git", return_value=(0, "", "")),
+        ):
+            assert progress_manager._is_branch_merged_into("feature/21-test", "main") is True
+
+    def test_is_branch_merged_into_via_origin_default_target(self, tmp_path):
+        calls = []
+
+        def _fake_run_git(args, cwd=None, timeout=5):
+            calls.append(args)
+            # succeed only when target fallback is origin/main
+            if args[-2:] == ["feature/21-test", "origin/main"]:
+                return (0, "", "")
+            return (128, "", "ref not found")
+
+        with (
+            patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE", tmp_path),
+            patch.object(progress_manager, "_run_git", side_effect=_fake_run_git),
+        ):
+            assert progress_manager._is_branch_merged_into("feature/21-test", "main") is True
+
+        assert any(cmd[-2:] == ["feature/21-test", "origin/main"] for cmd in calls)
+
+    def test_is_branch_merged_into_fail_closed_when_all_refs_fail(self, tmp_path):
+        with (
+            patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE", tmp_path),
+            patch.object(progress_manager, "_run_git", return_value=(128, "", "ref not found")),
+        ):
+            assert progress_manager._is_branch_merged_into("feature/21-test", "main") is False
+
+
 def test_monorepo_root_creates_tracker_when_scope_is_repo_root(temp_dir, capsys):
     """F10: Mutating commands at repo root succeed when root tracker exists."""
     os.system(f"git -C {temp_dir} init >/dev/null 2>&1")
@@ -413,6 +449,86 @@ class TestCheckWorktreeBranchConsistency:
                           tmp_path):
             result = progress_manager.check_worktree_branch_consistency("next-feature")
         assert result is True
+
+    def test_done_allows_merged_branch_on_default(self, tmp_path, capsys):
+        """done: 在 default branch 且 feature 已合并时放行。"""
+        self._make_with_exec_context(tmp_path, "feature/21-test", "/repo/.worktrees/feat-21")
+        fake_git = {"worktree_path": "/repo", "branch": "main"}
+        with (
+            patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE", tmp_path),
+            patch.object(progress_manager, "collect_git_context", return_value=fake_git),
+            patch.object(progress_manager, "_detect_default_branch", return_value="main"),
+            patch.object(progress_manager, "_is_branch_merged_into", return_value=True),
+        ):
+            result = progress_manager.check_worktree_branch_consistency("done")
+        assert result is True
+        captured = capsys.readouterr()
+        assert "already merged" in captured.out
+
+    def test_done_allows_merged_via_origin_ref(self, tmp_path):
+        """done: merge check 依赖 helper 判真时放行（origin fallback 由 helper 覆盖）。"""
+        self._make_with_exec_context(tmp_path, "feature/21-test", None)
+        fake_git = {"worktree_path": "/repo", "branch": "main"}
+        with (
+            patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE", tmp_path),
+            patch.object(progress_manager, "collect_git_context", return_value=fake_git),
+            patch.object(progress_manager, "_detect_default_branch", return_value="main"),
+            patch.object(progress_manager, "_is_branch_merged_into", return_value=True),
+        ):
+            result = progress_manager.check_worktree_branch_consistency("done")
+        assert result is True
+
+    def test_done_blocks_branch_not_merged(self, tmp_path):
+        """done: 在 default branch 但 feature 未合并时保持阻断。"""
+        self._make_with_exec_context(tmp_path, "feature/21-test", "/repo/.worktrees/feat-21")
+        fake_git = {"worktree_path": "/repo", "branch": "main"}
+        with (
+            patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE", tmp_path),
+            patch.object(progress_manager, "collect_git_context", return_value=fake_git),
+            patch.object(progress_manager, "_detect_default_branch", return_value="main"),
+            patch.object(progress_manager, "_is_branch_merged_into", return_value=False),
+        ):
+            result = progress_manager.check_worktree_branch_consistency("done")
+        assert result is False
+
+    def test_done_blocks_branch_deleted_not_merged(self, tmp_path):
+        """done: merge check 失败（包括分支缺失）时 fail-closed 阻断。"""
+        self._make_with_exec_context(tmp_path, "feature/21-test", "/repo/.worktrees/feat-21")
+        fake_git = {"worktree_path": "/repo", "branch": "main"}
+        with (
+            patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE", tmp_path),
+            patch.object(progress_manager, "collect_git_context", return_value=fake_git),
+            patch.object(progress_manager, "_detect_default_branch", return_value="main"),
+            patch.object(progress_manager, "_is_branch_merged_into", return_value=False),
+        ):
+            result = progress_manager.check_worktree_branch_consistency("done")
+        assert result is False
+
+    def test_next_feature_blocks_even_when_merged(self, tmp_path):
+        """next-feature: 不享受 merged exemption。"""
+        self._make_with_exec_context(tmp_path, "feature/21-test", "/repo/.worktrees/feat-21")
+        fake_git = {"worktree_path": "/repo", "branch": "main"}
+        with (
+            patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE", tmp_path),
+            patch.object(progress_manager, "collect_git_context", return_value=fake_git),
+            patch.object(progress_manager, "_detect_default_branch", return_value="main"),
+            patch.object(progress_manager, "_is_branch_merged_into", return_value=True),
+        ):
+            result = progress_manager.check_worktree_branch_consistency("next-feature")
+        assert result is False
+
+    def test_done_blocks_not_on_default_branch(self, tmp_path):
+        """done: 即便已合并，当前不在 default branch 仍阻断。"""
+        self._make_with_exec_context(tmp_path, "feature/21-test", "/repo/.worktrees/feat-21")
+        fake_git = {"worktree_path": "/repo", "branch": "dev"}
+        with (
+            patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE", tmp_path),
+            patch.object(progress_manager, "collect_git_context", return_value=fake_git),
+            patch.object(progress_manager, "_detect_default_branch", return_value="main"),
+            patch.object(progress_manager, "_is_branch_merged_into", return_value=True),
+        ):
+            result = progress_manager.check_worktree_branch_consistency("done")
+        assert result is False
 
 
 

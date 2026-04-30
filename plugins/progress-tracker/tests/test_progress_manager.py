@@ -2721,11 +2721,18 @@ class TestDoneCommand:
             progress_manager._append_capability_memory(feature, "deadbeef")
 
         mock_pm.append_capability.assert_called_once()
+        expected_memory_path = (
+            temp_dir / "docs" / "progress-tracker" / "state" / "project_memory.json"
+        )
+        mock_pm.load_memory.assert_called_once_with(path=expected_memory_path)
         call_payload = mock_pm.append_capability.call_args[0][1]
         assert call_payload["title"] == "Test Feature"
         assert call_payload["source"]["commit_hash"] == "deadbeef"
         assert call_payload["source"]["feature_id"] == 42
-        mock_pm.save_memory.assert_called_once()
+        mock_pm.save_memory.assert_called_once_with(
+            mock_pm.load_memory.return_value[0],
+            path=expected_memory_path,
+        )
 
     def test_append_capability_memory_dedupes_existing_commit(self, temp_dir):
         """When append_capability returns deduped, save_memory must not be called."""
@@ -2737,6 +2744,10 @@ class TestDoneCommand:
         with patch.dict("sys.modules", {"project_memory": mock_pm}):
             progress_manager._append_capability_memory(feature, "abc123")
 
+        expected_memory_path = (
+            temp_dir / "docs" / "progress-tracker" / "state" / "project_memory.json"
+        )
+        mock_pm.load_memory.assert_called_once_with(path=expected_memory_path)
         mock_pm.save_memory.assert_not_called()
 
     def test_cmd_done_io_sequence_preserves_archive_info(self, temp_dir):

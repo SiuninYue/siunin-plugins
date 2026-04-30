@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "created_at": "2026-04-12T09:38:02.910760Z",
-  "updated_at": "2026-04-30T15:24:38.023791Z",
-  "next_capability_seq": 17,
+  "updated_at": "2026-04-30T17:25:16.820018Z",
+  "next_capability_seq": 18,
   "last_synced_commit": null,
   "capabilities": [
     {
@@ -319,6 +319,22 @@
       },
       "created_at": "2026-04-30T15:24:38.010447Z",
       "updated_at": "2026-04-30T15:24:38.010447Z"
+    },
+    {
+      "cap_id": "CAP-017",
+      "fingerprint": "b8b83c7a2f701809",
+      "title": "cleanup-after-done test feature",
+      "summary": "Completed feature 25: cleanup-after-done test feature",
+      "tags": [],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 25,
+        "commit_hash": "fa4850295109b46082ee888a945b98f95f2bf8e5",
+        "commit_range": ""
+      },
+      "created_at": "2026-04-30T17:25:16.799683Z",
+      "updated_at": "2026-04-30T17:25:16.799683Z"
     }
   ],
   "rejected_fingerprints": [],

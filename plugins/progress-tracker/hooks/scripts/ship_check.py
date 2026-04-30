@@ -281,7 +281,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     args = parser.parse_args(argv)
 
     # Default project root: cwd (matches cmd_ship_check in progress_manager.py)
-    project_root: Path = args.project_root or Path.cwd()
+    project_root: Path = (args.project_root or Path.cwd()).resolve()
 
     # Auto-discover feature_id before run_ship_check so all calls use the same value
     feature_id = args.feature_id
@@ -298,7 +298,14 @@ def main(argv: Optional[List[str]] = None) -> int:
             except Exception:
                 pass
 
-    inputs = _collect_real_signals(project_root, test_path=args.test_path)
+    test_path: Optional[Path] = None
+    if args.test_path is not None:
+        if args.test_path.is_absolute():
+            test_path = args.test_path.resolve()
+        else:
+            test_path = (project_root / args.test_path).resolve()
+
+    inputs = _collect_real_signals(project_root, test_path=test_path)
     result = run_ship_check(
         feature_id=feature_id if feature_id is not None else 0,
         project_root=project_root,
