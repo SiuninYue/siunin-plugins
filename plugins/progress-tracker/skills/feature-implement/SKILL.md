@@ -63,7 +63,7 @@ If the invocation includes inline context lines (`Feature:`, `Phase:`, `Plan:`, 
    - Clean working tree → `git switch <branch>` and continue.
    - Uncommitted changes → STOP: warn user to commit or stash first.
 
-4. **Skip entirely** (do not run): Steps 1 full re-read, Step 2.4 memory overlap check, Step 2.5 git preflight, complexity re-scoring.
+4. **Skip entirely** (do not run): Steps 1 full re-read, Step 2.5 git preflight, complexity re-scoring.
 
 5. Route directly by `Phase`:
    - `execution_complete` → output the `prog-done` handoff block and stop (do not re-implement)
@@ -160,16 +160,6 @@ plugins/progress-tracker/prog set-current <feature_id>
   - feature ID and name
   - acceptance test steps
   - architecture constraints (if any)
-
-### Step 2.4: Project Memory Overlap Warning (Read-Only, Silent)
-
-**Only run this step if 顶层 `workflow_state.phase` is not already set** (i.e., this is a fresh feature start, not a resume).
-
-1. Run: `plugins/progress-tracker/prog memory read` (project_memory.py read)
-2. If memory is empty or returns error → skip, continue silently.
-3. If memory has entries, do a lightweight keyword match (feature name vs capability IDs) — no deep Claude reasoning.
-4. Only surface a warning if there is a clear name/keyword collision. Otherwise, stay silent.
-5. Never block `/prog next`.
 
 ### Step 2.5: Unified Git Auto Preflight
 

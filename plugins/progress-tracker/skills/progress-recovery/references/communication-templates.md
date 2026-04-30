@@ -174,7 +174,7 @@ ProjectRoot: <abs_project_root>
 - Keep block ≤ 8 lines of content — no narrative
 
 **Why this saves tokens in new sessions:**
-The receiving skill checks for this inline context and skips `progress.json` reading, memory overlap check, git preflight, and plan re-validation for resume scenarios.
+The receiving skill checks for this inline context and skips `progress.json` reading, git preflight, and plan re-validation for resume scenarios.
 
 ---
 

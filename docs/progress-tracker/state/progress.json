@@ -2,8 +2,83 @@
   "schema_version": "2.1",
   "project_name": "Claude-Plugins Monorepo Test",
   "created_at": "2026-04-25T23:57:13.303927Z",
-  "updated_at": "2026-04-28T11:54:49.299857Z",
-  "features": [],
+  "updated_at": "2026-04-30T23:52:46.630474Z",
+  "features": [
+    {
+      "id": 1,
+      "name": "Complexity scoring v2: weighted rubric via haiku subagent",
+      "test_steps": [
+        "Verify complexity_analyzer.py and complexity-assessment.md are removed/deprecated",
+        "Run haiku subagent scoring on 3 known features and confirm bucket matches expectation",
+        "Run pytest -q plugins/progress-tracker/tests/ to confirm no regressions",
+        "Verify ai_metrics.scoring_v2 fields are persisted correctly in progress.json after scoring"
+      ],
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-001"
+      ],
+      "change_spec": {
+        "why": "Deliver Complexity scoring v2: weighted rubric via haiku subagent with traceable acceptance coverage.",
+        "in_scope": [
+          "Complexity scoring v2: weighted rubric via haiku subagent"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: Verify complexity_analyzer.py and complexity-assessment.md are removed/deprecated",
+        "Scenario: Run haiku subagent scoring on 3 known features and confirm bucket matches expectation",
+        "Scenario: Run pytest -q plugins/progress-tracker/tests/ to confirm no regressions",
+        "Scenario: Verify ai_metrics.scoring_v2 fields are persisted correctly in progress.json after scoring"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
+    }
+  ],
   "current_feature_id": null,
   "tracker_role": "parent",
   "project_code": "ROOT",
@@ -32,7 +107,7 @@
   ],
   "linked_snapshot": {
     "schema_version": "1.0",
-    "updated_at": "2026-04-28T11:54:49.299776Z",
+    "updated_at": "2026-04-30T23:52:46.630435Z",
     "projects": [
       {
         "status": "ok",
@@ -55,10 +130,10 @@
         "configured_project_root": "plugins/progress-tracker",
         "project_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
         "project_name": "progress-tracker-sop-compliance-optimization",
-        "completed": 10,
-        "total": 12,
-        "completion_rate": 0.8333333333333334,
-        "updated_at": "2026-04-28T11:54:49.294453Z",
+        "completed": 12,
+        "total": 13,
+        "completion_rate": 0.9230769230769231,
+        "updated_at": "2026-04-30T23:52:46.603347Z",
         "is_stale": false,
         "active_feature_ref": null,
         "project_code": "PT",

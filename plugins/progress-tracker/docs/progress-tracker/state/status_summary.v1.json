@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-04-28T22:51:54.460620Z",
+  "updated_at": "2026-04-30T23:52:46.629549Z",
   "source": {
     "generator": "progress_manager.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,32 +11,32 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1777387514189678318,
-      "size": 51832
+      "mtime_ns": 1777564366603563793,
+      "size": 56249
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
       "exists": true,
-      "mtime_ns": 1777365082495925755,
-      "size": 6889
+      "mtime_ns": 1777562455501257288,
+      "size": 8590
     }
   },
   "progress": {
-    "completed": 11,
-    "total": 12,
-    "percentage": 91
+    "completed": 12,
+    "total": 13,
+    "percentage": 92
   },
   "next_action": {
     "type": "feature",
-    "feature_id": 8,
-    "feature_name": "Implement fail-closed release gate with sync compatibility evidence",
-    "development_stage": "developing",
-    "stage_label": "开发中"
+    "feature_id": 12,
+    "feature_name": "Complexity scoring v2: weighted rubric via haiku subagent",
+    "development_stage": "pending",
+    "stage_label": "待开始"
   },
   "plan_health": {
-    "status": "OK",
-    "plan_path": "docs/plans/2026-04-28-f8-fail-closed-release-gate.md",
-    "message": "计划文件完整且符合规范"
+    "status": "N/A",
+    "plan_path": null,
+    "message": "无活跃计划"
   },
   "risk_blocker": {
     "has_risk": true,
@@ -46,7 +46,7 @@
   },
   "recent_snapshot": {
     "exists": true,
-    "timestamp": "2026-04-27T13:36:20.689259+08:00",
-    "relative_time": "1 天前"
+    "timestamp": "2026-04-30T23:20:55.456524+08:00",
+    "relative_time": "31 分钟前"
   }
 }

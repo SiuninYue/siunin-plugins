@@ -38,13 +38,17 @@ def test_feature_complete_mentions_project_memory_append():
     assert "do not roll back feature completion" in content
 
 
-def test_feature_implement_mentions_project_memory_overlap_warning():
-    """feature-implement skill should read project memory for advisory overlap warning."""
+def test_feature_implement_no_longer_reads_project_memory_inline():
+    """feature-implement skill intentionally does NOT read project memory during /prog next.
+
+    The memory overlap warning (Step 2.4) was removed — it added latency for an
+    almost-always-silent check that never blocked the flow.
+    project_memory.py read remains available for /prog log and other workflows.
+    """
     skill_path = PLUGIN_ROOT / "skills" / "feature-implement" / "SKILL.md"
     content = skill_path.read_text(encoding="utf-8")
 
-    assert "project_memory.py read" in content
-    assert "Never block `/prog next`" in content
+    assert "project_memory.py read" not in content
 
 
 def test_command_required_skills_declare_valid_models():

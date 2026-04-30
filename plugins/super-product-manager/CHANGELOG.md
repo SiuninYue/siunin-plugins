@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Planning skills：为 4 个 planning command 新建对应 skill 目录，方法论从 command 迁移到 skill
+  - `skills/office-hours/SKILL.md`：需求澄清三板斧、防惰性机制、子 agent 审查指令
+  - `skills/plan-ceo-review/SKILL.md`：CEO 四种评审模式、影子路径思维、单向门/双向门、防惰性机制
+  - `skills/plan-design-review/SKILL.md`：四维加权评分、6 套设计框架摘要、0-10 循环评分、防惰性机制
+  - `skills/plan-design-review/references/design-frameworks.md`：6 套框架完整内容延迟加载
+  - `skills/plan-devex-review/SKILL.md`：三阶段摩擦检查、TTHW 基准、Journey Trace 9 阶段摘要、DX 第一原则 8 条摘要、防惰性机制
+  - `skills/plan-devex-review/references/journey-trace.md`：9 阶段追问清单延迟加载
+  - `skills/plan-devex-review/references/dx-first-principles.md`：8 原则完整描述 + 金标准对标延迟加载
+
+### Changed
+- 4 个 planning command 瘦身为 ~35 行薄路由，方法论通过 `references:` 委托给对应 skill
+- `tests/test_planning_command_contracts.py` 新增 3 组测试：references 链接有效性验证、子 agent 审查关键词验证、blocking/advisory/status 回写验证
+
 ## [1.5.0] - 2026-04-12
 
 ### Added

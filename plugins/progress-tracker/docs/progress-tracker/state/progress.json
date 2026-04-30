@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-04-28T23:45:47.922173Z",
+  "updated_at": "2026-04-30T23:52:46.603347Z",
   "features": [
     {
       "id": 10,
@@ -1078,7 +1078,7 @@
         "Run gate tests: pytest -q plugins/progress-tracker/tests/test_ship_check.py",
         "Run compatibility dry-run: codex-plugin-sync --dry-run"
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -1088,7 +1088,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "implementing",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-008"
       ],
@@ -1144,28 +1144,41 @@
             "eng",
             "qa"
           ],
-          "passed": [],
-          "pending": [
-            "docs",
+          "passed": [
             "eng",
-            "qa"
-          ]
+            "qa",
+            "docs"
+          ],
+          "pending": []
         },
         "ship_check": {
-          "status": "fail",
-          "failures": [
-            {
-              "check_id": "docs_sync",
-              "detail": "progress.md out of sync with progress.json"
-            }
-          ],
-          "last_run_at": "2026-04-28T15:38:53Z"
+          "status": "pass",
+          "failures": [],
+          "last_run_at": "2026-04-30T15:42:31Z"
+        },
+        "review_evidence": {
+          "eng": {
+            "evidence": "ship_check.py: 15/15 tests pass, 880/880 regression pass, evaluator score 80/status pass",
+            "recorded_at": "2026-04-30T23:42:11.092619Z"
+          },
+          "qa": {
+            "evidence": "Acceptance: CLI gate=pass(excl docs_sync drift), 15 tests, sync_compat pass, 880 regression pass",
+            "recorded_at": "2026-04-30T23:42:11.218864Z"
+          },
+          "docs": {
+            "evidence": "Plan docs/plans/2026-04-28-f8-fail-closed-release-gate.md validated, all tasks implemented",
+            "recorded_at": "2026-04-30T23:42:11.345981Z"
+          }
         }
       },
       "sprint_contract": {
-        "scope": "",
-        "done_criteria": [],
-        "test_plan": [],
+        "scope": "Implement fail-closed release gate: ship_check.py as standalone CLI with sync_compat, real signal collection, and exit code 8 on failure",
+        "done_criteria": [
+          "15 tests pass, evaluator score>=80, ship_check pass, regression 880 pass"
+        ],
+        "test_plan": [
+          "CLI gate, test_ship_check.py, sync compat dry-run, full regression"
+        ],
         "accepted_by": null,
         "accepted_at": null
       },
@@ -1180,10 +1193,27 @@
         "complexity_bucket": "standard",
         "selected_model": "sonnet",
         "workflow_path": "plan_execute",
-        "started_at": "2026-04-28T16:52:25.320269Z"
+        "started_at": "2026-04-28T16:52:25.320269Z",
+        "finished_at": "2026-04-30T23:52:46.584867+08:00",
+        "duration_seconds": 169221
       },
-      "development_stage": "developing",
-      "started_at": "2026-04-28T16:53:47.905459Z"
+      "development_stage": "completed",
+      "started_at": "2026-04-28T16:53:47.905459Z",
+      "completed_at": "2026-04-30T23:52:46.585064Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-30T23:52:46.585067Z",
+      "commit_hash": "7357882",
+      "plan_path": "docs/plans/2026-04-28-f8-fail-closed-release-gate.md",
+      "archive_info": {
+        "archived_at": "2026-04-30T23:52:46.603275Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-04-28-f8-fail-closed-release-gate.md",
+            "to": "docs/archive/plans/2026-04-28-f8-fail-closed-release-gate.md"
+          }
+        ]
+      }
     },
     {
       "id": 11,
@@ -1299,9 +1329,101 @@
         "files_moved": 0,
         "files": []
       }
+    },
+    {
+      "id": 12,
+      "name": "Complexity scoring v2: weighted rubric via haiku subagent",
+      "test_steps": [
+        "Remove/deprecate complexity_analyzer.py and complexity-assessment.md",
+        "Run haiku subagent scoring on 3 known features and confirm bucket matches expectation",
+        "Verify ai_metrics.scoring_v2 fields are persisted in progress.json after scoring",
+        "Run pytest -q tests/ to confirm zero regressions"
+      ],
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-005"
+      ],
+      "change_spec": {
+        "why": "Replace low-accuracy keyword-counter complexity_analyzer.py with a haiku subagent running a weighted 4-dimension rubric (Design Decisions x4, Pattern Familiarity x3, Integration Surface x2, File Impact x1). Score range 0-100, buckets simple/standard/complex with confidence field for uncertainty handling.",
+        "in_scope": [
+          "Remove complexity_analyzer.py (keyword counter)",
+          "Remove/deprecate complexity-assessment.md (inline rubric in coordinator context)",
+          "Create haiku subagent prompt with weighted 4-dim rubric",
+          "Add /prog-next Step 3: spawn haiku subagent instead of loading rubric inline",
+          "Persist scoring_v2 breakdown + confidence in ai_metrics",
+          "Add confidence-based routing: low -> upgrade one tier"
+        ],
+        "out_of_scope": [
+          "Changing determine_complexity_bucket thresholds in progress_manager.py",
+          "Modifying feature-implement routing logic beyond Step 3",
+          "Changing team dispatch or Codex integration"
+        ],
+        "risks": [
+          "Haiku scoring accuracy may differ from current scoring — threshold (38/63) may need calibration after rollout",
+          "Haiku subagent unavailability: must fail open to coordinator self-scoring fallback"
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: Remove complexity_analyzer.py and confirm no import references remain",
+        "Scenario: Run /prog-next on 3 features of known complexity — haiku subagent scores correctly within expected bucket",
+        "Scenario: Feature scored low confidence — coordinator upgrades one tier and continues",
+        "Scenario: Haiku subagent unavailable — coordinator falls back to inline rubric self-scoring",
+        "Scenario: pytest -q tests/ — all existing tests pass, no regressions"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [],
+          "pending": [
+            "docs",
+            "eng",
+            "qa"
+          ]
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "development_stage": "initial"
     }
   ],
-  "current_feature_id": 8,
+  "current_feature_id": null,
   "linked_projects": [],
   "linked_snapshot": {
     "schema_version": "1.0",
@@ -1311,22 +1433,29 @@
   "tracker_role": "child",
   "project_code": "PT",
   "routing_queue": [],
-  "active_routes": [],
+  "active_routes": [
+    {
+      "project_code": "PT",
+      "feature_ref": "",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+      "branch": "main"
+    }
+  ],
   "updates": [],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-04-28T21:57:52.638354Z",
-    "source": "set_workflow_state",
-    "workspace_mode": "worktree",
-    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-PT-F8-fail-closed-release-gate",
-    "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-PT-F8-fail-closed-release-gate",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-PT-F8-fail-closed-release-gate/plugins/progress-tracker",
-    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-PT-F8-fail-closed-release-gate",
-    "branch": "feature/PT-F8-fail-closed-release-gate",
-    "upstream": null,
-    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-PT-F8-fail-closed-release-gate/plugins/progress-tracker",
-    "current_feature_id": 8,
-    "workflow_phase": "execution_complete",
+    "recorded_at": "2026-04-30T23:52:46.600708Z",
+    "source": "finalize",
+    "workspace_mode": "in_place",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
+    "branch": "main",
+    "upstream": "origin/main",
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+    "current_feature_id": null,
+    "workflow_phase": null,
     "current_task": null,
     "total_tasks": null,
     "next_action": null
@@ -1385,22 +1514,5 @@
     }
   ],
   "current_bug_id": null,
-  "parent_project_root": ".",
-  "workflow_state": {
-    "phase": "execution_complete",
-    "updated_at": "2026-04-28T21:57:52.551166Z",
-    "execution_context": {
-      "recorded_at": "2026-04-28T21:57:52.595865Z",
-      "source": "set_workflow_state",
-      "workspace_mode": "worktree",
-      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-PT-F8-fail-closed-release-gate",
-      "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-PT-F8-fail-closed-release-gate",
-      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-PT-F8-fail-closed-release-gate/plugins/progress-tracker",
-      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-PT-F8-fail-closed-release-gate",
-      "branch": "feature/PT-F8-fail-closed-release-gate",
-      "upstream": null
-    },
-    "plan_path": "docs/plans/2026-04-28-f8-fail-closed-release-gate.md",
-    "pending_action": "run_prog_done"
-  }
+  "parent_project_root": "."
 }

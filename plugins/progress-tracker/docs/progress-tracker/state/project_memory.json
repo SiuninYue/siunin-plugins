@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "created_at": "2026-04-12T09:38:02.910760Z",
-  "updated_at": "2026-04-28T08:13:04.399235Z",
-  "next_capability_seq": 14,
+  "updated_at": "2026-04-30T15:24:38.023791Z",
+  "next_capability_seq": 17,
   "last_synced_commit": null,
   "capabilities": [
     {
@@ -271,6 +271,54 @@
       },
       "created_at": "2026-04-28T08:13:04.377815Z",
       "updated_at": "2026-04-28T08:13:04.377815Z"
+    },
+    {
+      "cap_id": "CAP-014",
+      "fingerprint": "d8682e9f7d02406c",
+      "title": "cleanup-after-done test feature",
+      "summary": "Completed feature 25: cleanup-after-done test feature",
+      "tags": [],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 25,
+        "commit_hash": "326039b62bd50e5f1875ec10838aac1b458d512f",
+        "commit_range": ""
+      },
+      "created_at": "2026-04-30T15:24:37.682857Z",
+      "updated_at": "2026-04-30T15:24:37.682857Z"
+    },
+    {
+      "cap_id": "CAP-015",
+      "fingerprint": "31ed2ff5e4978140",
+      "title": "F2",
+      "summary": "Completed feature 2: F2",
+      "tags": [],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 2,
+        "commit_hash": "",
+        "commit_range": ""
+      },
+      "created_at": "2026-04-30T15:24:37.957021Z",
+      "updated_at": "2026-04-30T15:24:37.957021Z"
+    },
+    {
+      "cap_id": "CAP-016",
+      "fingerprint": "75f2cfe9e3081e55",
+      "title": "F1",
+      "summary": "Completed feature 1: F1",
+      "tags": [],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 1,
+        "commit_hash": "",
+        "commit_range": ""
+      },
+      "created_at": "2026-04-30T15:24:38.010447Z",
+      "updated_at": "2026-04-30T15:24:38.010447Z"
     }
   ],
   "rejected_fingerprints": [],

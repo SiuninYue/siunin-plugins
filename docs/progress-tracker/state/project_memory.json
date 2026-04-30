@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "created_at": "2026-04-30T15:52:46.619220Z",
+  "updated_at": "2026-04-30T15:52:46.627730Z",
+  "next_capability_seq": 2,
+  "last_synced_commit": null,
+  "capabilities": [
+    {
+      "cap_id": "CAP-001",
+      "fingerprint": "2624000dc4ca373b",
+      "title": "Implement fail-closed release gate with sync compatibility evidence",
+      "summary": "Completed feature 8: Implement fail-closed release gate with sync compatibility evidence",
+      "tags": [],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 8,
+        "commit_hash": "7357882",
+        "commit_range": ""
+      },
+      "created_at": "2026-04-30T15:52:46.619518Z",
+      "updated_at": "2026-04-30T15:52:46.619518Z"
+    }
+  ],
+  "rejected_fingerprints": [],
+  "sync_history": [],
+  "limits": {
+    "max_sync_history": 50,
+    "max_rejected_fingerprints": 500
+  }
+}

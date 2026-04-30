@@ -2,7 +2,7 @@
 
 **Created**: 2026-04-23T00:28:18.285129Z
 
-**Status**: 11/12 completed
+**Status**: 12/13 completed
 
 ## Completed
 - [x] 根目录混合宿主架构：Monorepo /prog 支持
@@ -15,19 +15,11 @@
 - [x] Apply progressive disclosure budget to oversized SKILL files
 - [x] Harden command lifecycle boundaries and architecture immutability guard
 - [x] Enforce PROG command docs single-source parity
+- [x] Implement fail-closed release gate with sync compatibility evidence
 - [x] plan_path CLI normalization
 
-## In Progress
-- [ ] Implement fail-closed release gate with sync compatibility evidence
-  **Test steps**:
-  - Run unified gate: python3 plugins/progress-tracker/hooks/scripts/ship_check.py
-  - Run gate tests: pytest -q plugins/progress-tracker/tests/test_ship_check.py
-  - Run compatibility dry-run: codex-plugin-sync --dry-run
-
-## Workflow Context
-- Phase: execution_complete
-- Execution context: feature/PT-F8-fail-closed-release-gate @ feature-PT-F8-fail-closed-release-gate [worktree]
-- Current session context: feature/PT-F8-fail-closed-release-gate @ feature-PT-F8-fail-closed-release-gate [worktree]
+## Pending
+- [ ] Complexity scoring v2: weighted rubric via haiku subagent
 
 ## Bug Backlog
 ### High Priority (🔴)
