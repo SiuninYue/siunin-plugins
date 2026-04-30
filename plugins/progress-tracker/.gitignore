@@ -13,6 +13,9 @@ __pycache__/
 # Claude
 .claude/session_*
 
+# Test fixtures — nested git repos (used as reference plugins for testing)
+tests/another-plugins/
+
 # IDE
 .vscode/
 .idea/
