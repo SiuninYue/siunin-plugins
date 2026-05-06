@@ -13,6 +13,13 @@ Features:
 - JSON serialization for easy inspection
 """
 
+import warnings
+warnings.warn(
+    "complexity_analyzer is deprecated since PT-F12. Use haiku subagent scoring instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 import json
 import hashlib
 from pathlib import Path
