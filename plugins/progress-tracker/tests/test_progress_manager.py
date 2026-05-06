@@ -3251,3 +3251,15 @@ class TestScoringV2Persistence:
         assert sv2["raw_score_bucket"] == "standard"
         assert sv2["routed_bucket"] == "standard"
         assert sv2["confidence"] == "medium"  # default
+
+    def test_rejects_invalid_confidence(self, progress_file):
+        result = progress_manager.set_feature_ai_metrics(
+            2, 50, "sonnet", "plan_execute", confidence="invalid"
+        )
+        assert result is False
+
+    def test_rejects_invalid_bucket_override(self, progress_file):
+        result = progress_manager.set_feature_ai_metrics(
+            2, 50, "sonnet", "plan_execute", bucket_override="INVALID"
+        )
+        assert result is False
