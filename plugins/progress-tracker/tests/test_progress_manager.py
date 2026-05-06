@@ -2930,6 +2930,34 @@ class TestAiMetricsAndCheckpoints:
             result = progress_manager.main()
             assert result is True
 
+    def test_main_set_feature_ai_metrics_with_confidence_and_override(self, progress_file):
+        """CLI should pass --confidence and --bucket-override to set_feature_ai_metrics."""
+        with patch(
+            "sys.argv",
+            [
+                "progress_manager.py",
+                "set-feature-ai-metrics",
+                "2",
+                "--complexity-score",
+                "35",
+                "--selected-model",
+                "haiku",
+                "--workflow-path",
+                "direct_tdd",
+                "--confidence",
+                "low",
+                "--bucket-override",
+                "standard",
+            ],
+        ):
+            result = progress_manager.main()
+            assert result is True
+        data = progress_manager.load_progress_json()
+        feature = next(f for f in data["features"] if f["id"] == 2)
+        assert feature["ai_metrics"]["complexity_bucket"] == "standard"
+        assert feature["ai_metrics"]["scoring_v2"]["confidence"] == "low"
+        assert feature["ai_metrics"]["scoring_v2"]["routed_bucket"] == "standard"
+
     def test_main_auto_checkpoint_command(self, in_progress_file):
         """Should handle auto-checkpoint command."""
         with patch("sys.argv", ["progress_manager.py", "auto-checkpoint"]):

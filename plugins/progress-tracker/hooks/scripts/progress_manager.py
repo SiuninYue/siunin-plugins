@@ -10950,6 +10950,18 @@ def main():
         choices=["direct_tdd", "plan_execute", "full_design_plan_execute"],
         help="Workflow path used for implementation"
     )
+    ai_metrics_parser.add_argument(
+        "--confidence",
+        choices=["high", "medium", "low"],
+        default="medium",
+        help="Confidence level of complexity assessment (high/medium/low)"
+    )
+    ai_metrics_parser.add_argument(
+        "--bucket-override",
+        choices=["simple", "standard", "complex"],
+        default=None,
+        help="Override routed bucket when confidence upgrade or force rules apply"
+    )
 
     complete_ai_metrics_parser = subparsers.add_parser(
         "complete-feature-ai-metrics", help="Finalize AI metrics duration for feature"
@@ -11387,6 +11399,8 @@ def main():
                 args.complexity_score,
                 args.selected_model,
                 args.workflow_path,
+                confidence=args.confidence,
+                bucket_override=args.bucket_override,
             )
         if args.command == "complete-feature-ai-metrics":
             return complete_feature_ai_metrics(args.feature_id)
