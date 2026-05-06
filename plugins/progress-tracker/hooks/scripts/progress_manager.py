@@ -4099,10 +4099,10 @@ def restore_archive(archive_id: str, force: bool = False) -> bool:
 
 
 def determine_complexity_bucket(score: int) -> str:
-    """Map a 0-40 complexity score to simple/standard/complex buckets."""
-    if score <= 15:
+    """Map a 0-100 complexity score to simple/standard/complex buckets."""
+    if score <= 37:
         return "simple"
-    if score <= 25:
+    if score <= 62:
         return "standard"
     return "complex"
 
@@ -6996,8 +6996,8 @@ def set_feature_ai_metrics(feature_id: int, complexity_score: int,
         print(f"Invalid model '{selected_model}'. Must be one of: {sorted(valid_models)}")
         return False
 
-    if complexity_score < 0 or complexity_score > 40:
-        print("Invalid complexity score. Must be in range 0-40")
+    if complexity_score < 0 or complexity_score > 100:
+        print("Invalid complexity score. Must be in range 0-100")
         return False
 
     now_iso = datetime.now().isoformat() + "Z"

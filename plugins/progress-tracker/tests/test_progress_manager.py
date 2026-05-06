@@ -2787,14 +2787,14 @@ class TestAiMetricsAndCheckpoints:
     def test_set_feature_ai_metrics_records_fields(self, progress_file):
         """Should write complexity/model/workflow metrics to feature."""
         result = progress_manager.set_feature_ai_metrics(
-            2, 18, "sonnet", "plan_execute"
+            2, 50, "sonnet", "plan_execute"
         )
         assert result is True
 
         data = progress_manager.load_progress_json()
         feature = next(f for f in data["features"] if f["id"] == 2)
         metrics = feature["ai_metrics"]
-        assert metrics["complexity_score"] == 18
+        assert metrics["complexity_score"] == 50
         assert metrics["complexity_bucket"] == "standard"
         assert metrics["selected_model"] == "sonnet"
         assert metrics["workflow_path"] == "plan_execute"
@@ -2802,7 +2802,7 @@ class TestAiMetricsAndCheckpoints:
 
     def test_complete_feature_ai_metrics_sets_duration(self, progress_file):
         """Should finalize finished_at and duration_seconds."""
-        progress_manager.set_feature_ai_metrics(2, 12, "haiku", "direct_tdd")
+        progress_manager.set_feature_ai_metrics(2, 30, "haiku", "direct_tdd")
         result = progress_manager.complete_feature_ai_metrics(2)
         assert result is True
 
@@ -3203,3 +3203,14 @@ class TestWorktreeDetection:
                 result = progress_manager._check_other_worktrees_for_incomplete_work(str(temp_dir))
                 assert len(result) == 1
                 assert result[0]["project_name"] == "Active Project"
+
+
+class TestDetermineComplexityBucketV2:
+    """v2 百分制分桶阈值回归测试"""
+    @pytest.mark.parametrize("score,expected", [
+        (0, "simple"), (37, "simple"),
+        (38, "standard"), (62, "standard"),
+        (63, "complex"), (100, "complex"),
+    ])
+    def test_v2_thresholds(self, score, expected):
+        assert progress_manager.determine_complexity_bucket(score) == expected
