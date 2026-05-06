@@ -10915,7 +10915,7 @@ def main():
     )
     ai_metrics_parser.add_argument("feature_id", type=int, help="Feature ID")
     ai_metrics_parser.add_argument(
-        "--complexity-score", type=int, required=True, help="Complexity score (0-40)"
+        "--complexity-score", type=int, required=True, help="Must be in range 0-100"
     )
     ai_metrics_parser.add_argument(
         "--selected-model", choices=["haiku", "sonnet", "opus"], required=True, help="Model used"
