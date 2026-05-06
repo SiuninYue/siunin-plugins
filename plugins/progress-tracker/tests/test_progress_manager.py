@@ -3214,3 +3214,40 @@ class TestDetermineComplexityBucketV2:
     ])
     def test_v2_thresholds(self, score, expected):
         assert progress_manager.determine_complexity_bucket(score) == expected
+
+
+class TestScoringV2Persistence:
+    """scoring_v2 sub-object and complexity_bucket routing sync tests."""
+
+    def test_scoring_v2_routed_bucket_differs_from_raw(self, progress_file):
+        """bucket_override overrides complexity_bucket AND scoring_v2.routed_bucket."""
+        result = progress_manager.set_feature_ai_metrics(
+            2, 35, "haiku", "direct_tdd",
+            confidence="low", bucket_override="standard"
+        )
+        assert result is True
+        data = progress_manager.load_progress_json()
+        feature = next(f for f in data["features"] if f["id"] == 2)
+        metrics = feature["ai_metrics"]
+        # routing consumer field must be final routed bucket
+        assert metrics["complexity_bucket"] == "standard"
+        sv2 = metrics["scoring_v2"]
+        assert sv2["raw_score_bucket"] == "simple"   # 35 <= 37
+        assert sv2["routed_bucket"] == "standard"
+        assert sv2["confidence"] == "low"
+        assert sv2["score"] == 35
+
+    def test_scoring_v2_no_override_complexity_bucket_equals_raw(self, progress_file):
+        """Without override, complexity_bucket == raw bucket == routed_bucket."""
+        result = progress_manager.set_feature_ai_metrics(
+            2, 50, "sonnet", "plan_execute"
+        )
+        assert result is True
+        data = progress_manager.load_progress_json()
+        feature = next(f for f in data["features"] if f["id"] == 2)
+        metrics = feature["ai_metrics"]
+        assert metrics["complexity_bucket"] == "standard"  # 50 in 38-62
+        sv2 = metrics["scoring_v2"]
+        assert sv2["raw_score_bucket"] == "standard"
+        assert sv2["routed_bucket"] == "standard"
+        assert sv2["confidence"] == "medium"  # default

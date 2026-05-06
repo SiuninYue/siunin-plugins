@@ -6977,8 +6977,14 @@ def next_feature(output_json: bool = False, ack_planning_risk: bool = False) -> 
     return True
 
 
-def set_feature_ai_metrics(feature_id: int, complexity_score: int,
-                           selected_model: str, workflow_path: str) -> bool:
+def set_feature_ai_metrics(
+    feature_id: int,
+    complexity_score: int,
+    selected_model: str,
+    workflow_path: str,
+    confidence: str = "medium",
+    bucket_override: str | None = None,
+) -> bool:
     """Set lightweight AI metrics for a feature."""
     data = load_progress_json()
     if not data:
@@ -6996,6 +7002,16 @@ def set_feature_ai_metrics(feature_id: int, complexity_score: int,
         print(f"Invalid model '{selected_model}'. Must be one of: {sorted(valid_models)}")
         return False
 
+    valid_confidences = {"high", "medium", "low"}
+    if confidence not in valid_confidences:
+        print(f"Invalid confidence '{confidence}'. Must be one of: {sorted(valid_confidences)}")
+        return False
+
+    valid_buckets = {"simple", "standard", "complex", None}
+    if bucket_override not in valid_buckets:
+        print(f"Invalid bucket_override '{bucket_override}'. Must be simple/standard/complex or None")
+        return False
+
     if complexity_score < 0 or complexity_score > 100:
         print("Invalid complexity score. Must be in range 0-100")
         return False
@@ -7005,12 +7021,21 @@ def set_feature_ai_metrics(feature_id: int, complexity_score: int,
     if not isinstance(ai_metrics, dict):
         ai_metrics = {}
 
+    raw_bucket = determine_complexity_bucket(complexity_score)
+    routed_bucket = bucket_override if bucket_override else raw_bucket
+
     ai_metrics.update(
         {
             "complexity_score": complexity_score,
-            "complexity_bucket": determine_complexity_bucket(complexity_score),
+            "complexity_bucket": routed_bucket,
             "selected_model": selected_model,
             "workflow_path": workflow_path,
+            "scoring_v2": {
+                "score": complexity_score,
+                "raw_score_bucket": raw_bucket,
+                "routed_bucket": routed_bucket,
+                "confidence": confidence,
+            },
         }
     )
     if not ai_metrics.get("started_at"):
