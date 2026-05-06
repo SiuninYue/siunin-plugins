@@ -2721,11 +2721,18 @@ class TestDoneCommand:
             progress_manager._append_capability_memory(feature, "deadbeef")
 
         mock_pm.append_capability.assert_called_once()
+        expected_memory_path = (
+            temp_dir / "docs" / "progress-tracker" / "state" / "project_memory.json"
+        )
+        mock_pm.load_memory.assert_called_once_with(path=expected_memory_path)
         call_payload = mock_pm.append_capability.call_args[0][1]
         assert call_payload["title"] == "Test Feature"
         assert call_payload["source"]["commit_hash"] == "deadbeef"
         assert call_payload["source"]["feature_id"] == 42
-        mock_pm.save_memory.assert_called_once()
+        mock_pm.save_memory.assert_called_once_with(
+            mock_pm.load_memory.return_value[0],
+            path=expected_memory_path,
+        )
 
     def test_append_capability_memory_dedupes_existing_commit(self, temp_dir):
         """When append_capability returns deduped, save_memory must not be called."""
@@ -2737,6 +2744,10 @@ class TestDoneCommand:
         with patch.dict("sys.modules", {"project_memory": mock_pm}):
             progress_manager._append_capability_memory(feature, "abc123")
 
+        expected_memory_path = (
+            temp_dir / "docs" / "progress-tracker" / "state" / "project_memory.json"
+        )
+        mock_pm.load_memory.assert_called_once_with(path=expected_memory_path)
         mock_pm.save_memory.assert_not_called()
 
     def test_cmd_done_io_sequence_preserves_archive_info(self, temp_dir):
@@ -2776,14 +2787,14 @@ class TestAiMetricsAndCheckpoints:
     def test_set_feature_ai_metrics_records_fields(self, progress_file):
         """Should write complexity/model/workflow metrics to feature."""
         result = progress_manager.set_feature_ai_metrics(
-            2, 18, "sonnet", "plan_execute"
+            2, 50, "sonnet", "plan_execute"
         )
         assert result is True
 
         data = progress_manager.load_progress_json()
         feature = next(f for f in data["features"] if f["id"] == 2)
         metrics = feature["ai_metrics"]
-        assert metrics["complexity_score"] == 18
+        assert metrics["complexity_score"] == 50
         assert metrics["complexity_bucket"] == "standard"
         assert metrics["selected_model"] == "sonnet"
         assert metrics["workflow_path"] == "plan_execute"
@@ -2791,7 +2802,7 @@ class TestAiMetricsAndCheckpoints:
 
     def test_complete_feature_ai_metrics_sets_duration(self, progress_file):
         """Should finalize finished_at and duration_seconds."""
-        progress_manager.set_feature_ai_metrics(2, 12, "haiku", "direct_tdd")
+        progress_manager.set_feature_ai_metrics(2, 30, "haiku", "direct_tdd")
         result = progress_manager.complete_feature_ai_metrics(2)
         assert result is True
 
@@ -2918,6 +2929,34 @@ class TestAiMetricsAndCheckpoints:
         ):
             result = progress_manager.main()
             assert result is True
+
+    def test_main_set_feature_ai_metrics_with_confidence_and_override(self, progress_file):
+        """CLI should pass --confidence and --bucket-override to set_feature_ai_metrics."""
+        with patch(
+            "sys.argv",
+            [
+                "progress_manager.py",
+                "set-feature-ai-metrics",
+                "2",
+                "--complexity-score",
+                "35",
+                "--selected-model",
+                "haiku",
+                "--workflow-path",
+                "direct_tdd",
+                "--confidence",
+                "low",
+                "--bucket-override",
+                "standard",
+            ],
+        ):
+            result = progress_manager.main()
+            assert result is True
+        data = progress_manager.load_progress_json()
+        feature = next(f for f in data["features"] if f["id"] == 2)
+        assert feature["ai_metrics"]["complexity_bucket"] == "standard"
+        assert feature["ai_metrics"]["scoring_v2"]["confidence"] == "low"
+        assert feature["ai_metrics"]["scoring_v2"]["routed_bucket"] == "standard"
 
     def test_main_auto_checkpoint_command(self, in_progress_file):
         """Should handle auto-checkpoint command."""
@@ -3192,3 +3231,63 @@ class TestWorktreeDetection:
                 result = progress_manager._check_other_worktrees_for_incomplete_work(str(temp_dir))
                 assert len(result) == 1
                 assert result[0]["project_name"] == "Active Project"
+
+
+class TestDetermineComplexityBucketV2:
+    """v2 百分制分桶阈值回归测试"""
+    @pytest.mark.parametrize("score,expected", [
+        (0, "simple"), (37, "simple"),
+        (38, "standard"), (62, "standard"),
+        (63, "complex"), (100, "complex"),
+    ])
+    def test_v2_thresholds(self, score, expected):
+        assert progress_manager.determine_complexity_bucket(score) == expected
+
+
+class TestScoringV2Persistence:
+    """scoring_v2 sub-object and complexity_bucket routing sync tests."""
+
+    def test_scoring_v2_routed_bucket_differs_from_raw(self, progress_file):
+        """bucket_override overrides complexity_bucket AND scoring_v2.routed_bucket."""
+        result = progress_manager.set_feature_ai_metrics(
+            2, 35, "haiku", "direct_tdd",
+            confidence="low", bucket_override="standard"
+        )
+        assert result is True
+        data = progress_manager.load_progress_json()
+        feature = next(f for f in data["features"] if f["id"] == 2)
+        metrics = feature["ai_metrics"]
+        # routing consumer field must be final routed bucket
+        assert metrics["complexity_bucket"] == "standard"
+        sv2 = metrics["scoring_v2"]
+        assert sv2["raw_score_bucket"] == "simple"   # 35 <= 37
+        assert sv2["routed_bucket"] == "standard"
+        assert sv2["confidence"] == "low"
+        assert sv2["score"] == 35
+
+    def test_scoring_v2_no_override_complexity_bucket_equals_raw(self, progress_file):
+        """Without override, complexity_bucket == raw bucket == routed_bucket."""
+        result = progress_manager.set_feature_ai_metrics(
+            2, 50, "sonnet", "plan_execute"
+        )
+        assert result is True
+        data = progress_manager.load_progress_json()
+        feature = next(f for f in data["features"] if f["id"] == 2)
+        metrics = feature["ai_metrics"]
+        assert metrics["complexity_bucket"] == "standard"  # 50 in 38-62
+        sv2 = metrics["scoring_v2"]
+        assert sv2["raw_score_bucket"] == "standard"
+        assert sv2["routed_bucket"] == "standard"
+        assert sv2["confidence"] == "medium"  # default
+
+    def test_rejects_invalid_confidence(self, progress_file):
+        result = progress_manager.set_feature_ai_metrics(
+            2, 50, "sonnet", "plan_execute", confidence="invalid"
+        )
+        assert result is False
+
+    def test_rejects_invalid_bucket_override(self, progress_file):
+        result = progress_manager.set_feature_ai_metrics(
+            2, 50, "sonnet", "plan_execute", bucket_override="INVALID"
+        )
+        assert result is False

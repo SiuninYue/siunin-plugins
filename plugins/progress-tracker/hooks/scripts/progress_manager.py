@@ -78,6 +78,7 @@ from prog_paths import (
     ensure_storage_migrated,
     ensure_tracker_layout,
     get_checkpoints_path,
+    get_project_memory_path,
     get_progress_archive_dir,
     get_progress_history_path,
     get_progress_json_path,
@@ -2374,6 +2375,27 @@ def validate_feature_readiness(feature: Dict[str, Any]) -> Dict[str, Any]:
     if len(name) < 5:
         warnings.append("name should be at least 5 characters")
 
+    # Keep readiness warning semantics aligned with done gate contract checks.
+    sprint_contract = feature.get("sprint_contract")
+    missing: List[str] = []
+    if not isinstance(sprint_contract, dict):
+        missing = ["scope", "done_criteria", "test_plan"]
+    else:
+        if not str(sprint_contract.get("scope") or "").strip():
+            missing.append("scope")
+        done_criteria = sprint_contract.get("done_criteria")
+        if not _has_non_empty_list_items(done_criteria):
+            missing.append("done_criteria")
+        test_plan = sprint_contract.get("test_plan")
+        if not _has_non_empty_list_items(test_plan):
+            missing.append("test_plan")
+    if missing:
+        warnings.append(
+            "sprint_contract incomplete: "
+            + ", ".join(missing)
+            + " are empty or missing. Fill before /prog done."
+        )
+
     return {
         "valid": len(blockers) == 0,
         "errors": blockers,
@@ -4077,10 +4099,10 @@ def restore_archive(archive_id: str, force: bool = False) -> bool:
 
 
 def determine_complexity_bucket(score: int) -> str:
-    """Map a 0-40 complexity score to simple/standard/complex buckets."""
-    if score <= 15:
+    """Map a 0-100 complexity score to simple/standard/complex buckets."""
+    if score <= 37:
         return "simple"
-    if score <= 25:
+    if score <= 62:
         return "standard"
     return "complex"
 
@@ -5753,6 +5775,37 @@ def _detect_default_branch(project_root: Path) -> Optional[str]:
     return None
 
 
+def _local_and_origin_ref_candidates(ref: str) -> Tuple[str, ...]:
+    """Return deduplicated local+origin ref candidates for ancestry checks."""
+    normalized = str(ref or "").strip()
+    if not normalized:
+        return tuple()
+    candidates = [normalized]
+    if not normalized.startswith("origin/"):
+        candidates.append(f"origin/{normalized}")
+    return tuple(dict.fromkeys(candidates))
+
+
+def _is_branch_merged_into(branch: str, target: str) -> bool:
+    """Return True when branch is an ancestor of target (local/origin fallback)."""
+    source_refs = _local_and_origin_ref_candidates(branch)
+    target_refs = _local_and_origin_ref_candidates(target)
+    if not source_refs or not target_refs:
+        return False
+
+    project_root = find_project_root()
+    for source_ref in source_refs:
+        for target_ref in target_refs:
+            exit_code, _, _ = _run_git(
+                ["merge-base", "--is-ancestor", source_ref, target_ref],
+                cwd=str(project_root),
+                timeout=10,
+            )
+            if exit_code == 0:
+                return True
+    return False
+
+
 def analyze_git_sync_risks() -> Dict[str, Any]:
     """
     Analyze repository state for sync/rebase/divergence risks.
@@ -6924,8 +6977,14 @@ def next_feature(output_json: bool = False, ack_planning_risk: bool = False) -> 
     return True
 
 
-def set_feature_ai_metrics(feature_id: int, complexity_score: int,
-                           selected_model: str, workflow_path: str) -> bool:
+def set_feature_ai_metrics(
+    feature_id: int,
+    complexity_score: int,
+    selected_model: str,
+    workflow_path: str,
+    confidence: str = "medium",
+    bucket_override: str | None = None,
+) -> bool:
     """Set lightweight AI metrics for a feature."""
     data = load_progress_json()
     if not data:
@@ -6943,8 +7002,18 @@ def set_feature_ai_metrics(feature_id: int, complexity_score: int,
         print(f"Invalid model '{selected_model}'. Must be one of: {sorted(valid_models)}")
         return False
 
-    if complexity_score < 0 or complexity_score > 40:
-        print("Invalid complexity score. Must be in range 0-40")
+    valid_confidences = {"high", "medium", "low"}
+    if confidence not in valid_confidences:
+        print(f"Invalid confidence '{confidence}'. Must be one of: {sorted(valid_confidences)}")
+        return False
+
+    valid_buckets = {"simple", "standard", "complex", None}
+    if bucket_override not in valid_buckets:
+        print(f"Invalid bucket_override '{bucket_override}'. Must be simple/standard/complex or None")
+        return False
+
+    if complexity_score < 0 or complexity_score > 100:
+        print("Invalid complexity score. Must be in range 0-100")
         return False
 
     now_iso = datetime.now().isoformat() + "Z"
@@ -6952,12 +7021,21 @@ def set_feature_ai_metrics(feature_id: int, complexity_score: int,
     if not isinstance(ai_metrics, dict):
         ai_metrics = {}
 
+    raw_bucket = determine_complexity_bucket(complexity_score)
+    routed_bucket = bucket_override if bucket_override else raw_bucket
+
     ai_metrics.update(
         {
             "complexity_score": complexity_score,
-            "complexity_bucket": determine_complexity_bucket(complexity_score),
+            "complexity_bucket": routed_bucket,
             "selected_model": selected_model,
             "workflow_path": workflow_path,
+            "scoring_v2": {
+                "score": complexity_score,
+                "raw_score_bucket": raw_bucket,
+                "routed_bucket": routed_bucket,
+                "confidence": confidence,
+            },
         }
     )
     if not ai_metrics.get("started_at"):
@@ -7618,6 +7696,8 @@ def _append_capability_memory(feature: Dict[str, Any], commit_hash: str) -> None
     """Best-effort project memory append using project_memory module API."""
     try:
         import project_memory
+        project_root = find_project_root()
+        memory_path = get_project_memory_path(project_root)
 
         payload = {
             "title": feature.get("name", "Unknown Feature"),
@@ -7630,14 +7710,14 @@ def _append_capability_memory(feature: Dict[str, Any], commit_hash: str) -> None
                 "commit_hash": commit_hash,
             },
         }
-        memory, _, _ = project_memory.load_memory()
+        memory, _, _ = project_memory.load_memory(path=memory_path)
         result = project_memory.append_capability(memory, payload)
         if result.get("status") == "inserted":
-            project_memory.save_memory(memory)
+            project_memory.save_memory(memory, path=memory_path)
             return
         if result.get("status") == "deduped":
             return
-        project_memory.save_memory(memory)
+        project_memory.save_memory(memory, path=memory_path)
     except Exception as exc:
         print(f"[DONE] Warning: capability memory append failed: {exc}", file=sys.stderr)
 
@@ -10472,6 +10552,23 @@ def check_worktree_branch_consistency(command: str) -> bool:
     if comparison_status not in mismatch_statuses and not missing_required_current:
         return True
 
+    # done-only exemption: allow completion on default branch once feature branch is merged.
+    if command == "done" and expected_branch:
+        project_root = find_project_root()
+        default_branch = _detect_default_branch(project_root)
+        if default_branch and current_branch == default_branch:
+            if _is_branch_merged_into(expected_branch, default_branch):
+                print(
+                    f"[Scope Consistency] Feature branch '{expected_branch}' "
+                    f"already merged into {default_branch} — proceeding."
+                )
+                if expected_path and comparison_status in {"path_mismatch", "mismatch"}:
+                    print(
+                        "[Scope Consistency] WARN: worktree path mismatch "
+                        f"(expected {expected_path}) — ignored (branch merged)."
+                    )
+                return True
+
     # Hard block — print actionable recovery guidance
     print(f"[Scope Consistency] BLOCKED: {command} denied — worktree/branch mismatch.")
     print(f"  Expected branch:       {expected_branch or '(any)'}")
@@ -10482,6 +10579,15 @@ def check_worktree_branch_consistency(command: str) -> bool:
     print("  1. Switch to the correct worktree/branch, OR")
     print("  2. Re-register this session as the active route:")
     print("       plugins/progress-tracker/prog route-select --project <PROJECT_CODE>")
+    print(
+        "  3. If the feature branch is already merged and worktree was cleaned up:"
+    )
+    print("       plugins/progress-tracker/prog clear-workflow-state")
+    print(
+        "       plugins/progress-tracker/prog set-workflow-state "
+        "--phase execution_complete --plan-path <path>"
+    )
+    print("       plugins/progress-tracker/prog done --commit <merge_commit_hash>")
     return False
 
 
@@ -10834,7 +10940,7 @@ def main():
     )
     ai_metrics_parser.add_argument("feature_id", type=int, help="Feature ID")
     ai_metrics_parser.add_argument(
-        "--complexity-score", type=int, required=True, help="Complexity score (0-40)"
+        "--complexity-score", type=int, required=True, help="Must be in range 0-100"
     )
     ai_metrics_parser.add_argument(
         "--selected-model", choices=["haiku", "sonnet", "opus"], required=True, help="Model used"
@@ -10843,6 +10949,18 @@ def main():
         "--workflow-path", required=True,
         choices=["direct_tdd", "plan_execute", "full_design_plan_execute"],
         help="Workflow path used for implementation"
+    )
+    ai_metrics_parser.add_argument(
+        "--confidence",
+        choices=["high", "medium", "low"],
+        default="medium",
+        help="Confidence level of complexity assessment (high/medium/low)"
+    )
+    ai_metrics_parser.add_argument(
+        "--bucket-override",
+        choices=["simple", "standard", "complex"],
+        default=None,
+        help="Override routed bucket when confidence upgrade or force rules apply"
     )
 
     complete_ai_metrics_parser = subparsers.add_parser(
@@ -11281,6 +11399,8 @@ def main():
                 args.complexity_score,
                 args.selected_model,
                 args.workflow_path,
+                confidence=args.confidence,
+                bucket_override=args.bucket_override,
             )
         if args.command == "complete-feature-ai-metrics":
             return complete_feature_ai_metrics(args.feature_id)

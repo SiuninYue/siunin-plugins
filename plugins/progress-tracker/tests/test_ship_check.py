@@ -277,3 +277,37 @@ def test_ship_check_cli_exits_8_on_missing_plugin_keys(tmp_path):
     )
     assert result.returncode == 8, f"Expected 8, got {result.returncode}"
     assert "FAIL" in result.stdout or "FAIL" in result.stderr
+
+
+def test_ship_check_cli_resolves_relative_test_path_against_project_root(tmp_path):
+    """Relative --test-path should resolve from --project-root, not shell cwd."""
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    plugin_dir = tmp_path / ".claude-plugin"
+    plugin_dir.mkdir()
+    (plugin_dir / "plugin.json").write_text(
+        '{"name":"x","version":"1.0","description":"d","author":{"name":"a"},'
+        '"license":"MIT","repository":"https://g","homepage":"https://g"}'
+    )
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    (tests_dir / "test_trivial.py").write_text("def test_ok(): assert True\n")
+
+    ship_check_script = Path(__file__).parent.parent / "hooks" / "scripts" / "ship_check.py"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(ship_check_script),
+            "--project-root",
+            os.path.basename(str(tmp_path)),
+            "--test-path",
+            "tests",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(tmp_path.parent),
+    )
+    assert result.returncode == 0, result.stdout + result.stderr

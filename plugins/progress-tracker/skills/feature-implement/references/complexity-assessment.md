@@ -1,3 +1,6 @@
+> **DEPRECATED (PT-F12):** This rubric is no longer loaded into coordinator context.
+> Scoring is now done by a haiku subagent using `complexity-scoring-haiku-prompt.md`.
+
 # Complexity Assessment Rules
 
 ## Purpose
