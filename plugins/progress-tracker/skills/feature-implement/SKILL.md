@@ -19,7 +19,7 @@ references:
   - "superpowers:test-driven-development"
   - "superpowers:requesting-code-review"
   - "superpowers:verification-before-completion"
-  - "./references/complexity-assessment.md"
+  - "./references/complexity-scoring-haiku-prompt.md"
   - "./references/superpowers-integration.md"
   - "./references/session-playbook.md"
 ---
@@ -183,12 +183,19 @@ Rules:
 
 ### Step 3: Planning Sub-Phase Flow
 
-1. Complete complexity scoring first and persist AI metrics:
+1. Spawn haiku subagent using prompt from `references/complexity-scoring-haiku-prompt.md`
+   + feature name/description as input.
+2. Parse returned JSON: {score, bucket, model, path, confidence}
+3. Apply routing rules:
+   - confidence=low → upgrade one tier: simple→standard, standard→complex (set bucket_override)
+   - force rules already applied by haiku (reflected in returned `bucket`)
+4. Persist via CLI:
    ```bash
    plugins/progress-tracker/prog set-feature-ai-metrics <feature_id> \
      --complexity-score <score> \
      --selected-model <haiku|sonnet|opus> \
-     --workflow-path <direct_tdd|plan_execute|full_design_plan_execute>
+     --workflow-path <direct_tdd|plan_execute|full_design_plan_execute> \
+     --confidence <confidence> [--bucket-override <bucket_override_if_upgraded>]
    ```
 2. If bucket is `simple`, skip planning entirely and jump straight to Step 4A.
 3. If bucket is `standard` or `complex`, generate one executable plan (include clarifications inline instead of a separate clarifying stop), then set:
@@ -207,14 +214,14 @@ Legacy phases `planning:clarifying` / `planning:draft` should be treated as `pla
 
 ### Step 4: Route by Bucket
 
-#### 4A) Simple (`0-15`)
+#### 4A) Simple (0-37)
 
 - Delegate to `progress-tracker:feature-implement-simple`.
 - The simple skill handles execution note generation and phase transition
   to `execution` internally (Step 2).
 - Keep flow RED -> GREEN -> REFACTOR.
 
-#### 4B) Standard (`16-25`)
+#### 4B) Standard (38-62)
 
 - Remain in this coordinator.
 - Default path:
@@ -248,7 +255,7 @@ Important compatibility rule:
 - Do not run branch-finalization actions from this skill path.
 - Feature completion is handled by `/prog done`.
 
-#### 4C) Complex (`26-40`)
+#### 4C) Complex (63-100)
 
 - Delegate to `progress-tracker:feature-implement-complex`.
 - Expect architecture-heavy path with explicit brainstorming + planning + execution gates.
@@ -381,8 +388,8 @@ ProjectRoot: <abs_project_root>
 
 ## Additional Resources
 
-- `references/complexity-assessment.md`:
-  - scoring rubric and forced override rules.
+- `references/complexity-scoring-haiku-prompt.md`:
+  - haiku subagent scoring prompt, v2 rubric and forced override rules.
 - `references/superpowers-integration.md`:
   - integration design and layered quality model.
 - `references/session-playbook.md`:
