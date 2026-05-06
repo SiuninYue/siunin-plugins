@@ -18,8 +18,19 @@
 - [x] Implement fail-closed release gate with sync compatibility evidence
 - [x] plan_path CLI normalization
 
-## Pending
+## In Progress
 - [ ] Complexity scoring v2: weighted rubric via haiku subagent
+  **Test steps**:
+  - Remove/deprecate complexity_analyzer.py and complexity-assessment.md
+  - Run haiku subagent scoring on 3 known features and confirm bucket matches expectation
+  - Verify ai_metrics.scoring_v2 fields are persisted in progress.json after scoring
+  - Run pytest -q tests/ to confirm zero regressions
+
+## Workflow Context
+- Phase: execution_complete
+- Next action: verify_and_complete
+- Execution context: feature/pt-f12-complexity-scoring-v2 @ pt-f12-complexity-scoring-v2 [worktree]
+- Current session context: feature/pt-f12-complexity-scoring-v2 @ pt-f12-complexity-scoring-v2 [worktree]
 
 ## Bug Backlog
 ### High Priority (🔴)

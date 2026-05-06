@@ -185,6 +185,10 @@ Rules:
 
 1. Spawn haiku subagent using prompt from `references/complexity-scoring-haiku-prompt.md`
    + feature name/description as input.
+   **If haiku subagent is unavailable** (network error, timeout, quota): fall back to inline self-scoring
+   using the legacy rubric in `references/complexity-assessment.md`. Compute score from keyword + pattern
+   heuristics as before. Mark `confidence="low"` and set `bucket_override` based on force rules to
+   compensate for the degraded scoring path.
 2. Parse returned JSON: {score, bucket, model, path, confidence}
 3. Apply routing rules:
    - confidence=low → upgrade one tier: simple→standard, standard→complex (set bucket_override)
@@ -197,17 +201,17 @@ Rules:
      --workflow-path <direct_tdd|plan_execute|full_design_plan_execute> \
      --confidence <confidence> [--bucket-override <bucket_override_if_upgraded>]
    ```
-2. If bucket is `simple`, skip planning entirely and jump straight to Step 4A.
-3. If bucket is `standard` or `complex`, generate one executable plan (include clarifications inline instead of a separate clarifying stop), then set:
+5. If bucket is `simple`, skip planning entirely and jump straight to Step 4A.
+6. If bucket is `standard` or `complex`, generate one executable plan (include clarifications inline instead of a separate clarifying stop), then set:
    ```bash
    plugins/progress-tracker/prog set-workflow-state --phase "planning:review" --plan-path <path>
    ```
-4. Output `planning:review` handoff block and STOP once for user approval/edits.
-5. After approval, set:
+7. Output `planning:review` handoff block and STOP once for user approval/edits.
+8. After approval, set:
    ```bash
    plugins/progress-tracker/prog set-workflow-state --phase "planning:approved" --plan-path <path>
    ```
-6. Route immediately by persisted bucket and continue execution in the same session.
+9. Route immediately by persisted bucket and continue execution in the same session.
 
 **Valid `--phase` values:** `planning`, `planning:review`, `planning:approved`, `planning_complete`, `execution`, `execution_complete`  
 Legacy phases `planning:clarifying` / `planning:draft` should be treated as `planning:review`.
