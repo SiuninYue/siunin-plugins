@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-05-08T23:52:51.218727Z",
+  "updated_at": "2026-05-11T16:01:04.268772Z",
   "source": {
     "generator": "progress_manager.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,8 +11,8 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1778255561600213908,
-      "size": 64772
+      "mtime_ns": 1778486363868928743,
+      "size": 83108
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
@@ -23,13 +23,13 @@
   },
   "progress": {
     "completed": 13,
-    "total": 15,
-    "percentage": 86
+    "total": 17,
+    "percentage": 76
   },
   "next_action": {
     "type": "feature",
     "feature_id": 13,
-    "feature_name": "prog-smart: AI-first intent routing skill (no backend auto-classification)",
+    "feature_name": "Unified work-item intake and profile routing (task/feature/bug) via /prog next",
     "development_stage": "pending",
     "stage_label": "待开始"
   },
@@ -47,6 +47,6 @@
   "recent_snapshot": {
     "exists": true,
     "timestamp": "2026-04-30T23:20:55.456524+08:00",
-    "relative_time": "8 天前"
+    "relative_time": "10 天前"
   }
 }

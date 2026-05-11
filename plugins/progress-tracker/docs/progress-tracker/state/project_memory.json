@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "created_at": "2026-04-12T09:38:02.910760Z",
-  "updated_at": "2026-05-06T10:51:19.582563Z",
-  "next_capability_seq": 20,
+  "updated_at": "2026-05-11T07:48:13.419171Z",
+  "next_capability_seq": 21,
   "last_synced_commit": null,
   "capabilities": [
     {
@@ -367,6 +367,22 @@
       },
       "created_at": "2026-05-06T10:51:19.582496Z",
       "updated_at": "2026-05-06T10:51:19.582496Z"
+    },
+    {
+      "cap_id": "CAP-020",
+      "fingerprint": "06a9e4f7e96b3b88",
+      "title": "Complexity scoring v2: weighted rubric via haiku subagent",
+      "summary": "Completed feature 12: Complexity scoring v2: weighted rubric via haiku subagent",
+      "tags": [],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 12,
+        "commit_hash": "901f47c",
+        "commit_range": ""
+      },
+      "created_at": "2026-05-11T07:48:13.419112Z",
+      "updated_at": "2026-05-11T07:48:13.419112Z"
     }
   ],
   "rejected_fingerprints": [],

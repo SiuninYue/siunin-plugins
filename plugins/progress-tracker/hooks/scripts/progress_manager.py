@@ -11485,9 +11485,10 @@ def main():
     if args.command in MUTATING_COMMANDS:
         if not enforce_route_preflight(args.command, sys.argv):
             return 1
-        # `done` may execute nested `prog` mutating commands from acceptance steps.
-        # Holding an outer process lock here can deadlock those nested invocations.
-        if args.command == "done":
+        # `done` and `complete` may execute nested `prog` mutating commands from
+        # acceptance steps. Holding an outer process lock here deadlocks those
+        # nested subprocess invocations (BUG-002).
+        if args.command in {"done", "complete"}:
             return _dispatch_command()
         try:
             with progress_transaction():
