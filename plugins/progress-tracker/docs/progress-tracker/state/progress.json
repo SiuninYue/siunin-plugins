@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-05-11T17:05:53.140424Z",
+  "updated_at": "2026-05-11T17:08:32.713701Z",
   "features": [
     {
       "id": 10,
@@ -2035,7 +2035,9 @@
       "investigation": {
         "root_cause": "complete 在 MUTATING_COMMANDS 中但未加入 done 的锁豁免分支（progress_manager.py:11490），导致 _dispatch_command() 被 progress_transaction() 包裹。cmd_done() 的 _run_acceptance_tests() 通过 subprocess.run 调用嵌套 prog 命令，子进程无法感知父进程持有的 fcntl.LOCK_EX 锁，等待 10 秒超时后返回 RC=9。",
         "confirmed_at": "2026-05-11T17:05:50.054542Z"
-      }
+      },
+      "fix_summary": "Fix applied (commit: ab3a38d99d090a629d71065e19ddb2d124ba249b) — progress_manager.py:11490 extend lock exemption to {done, complete}; regression test added (925 tests pass).",
+      "fixed_at": "2026-05-11T17:08:32.713544Z"
     },
     {
       "id": "BUG-003",
