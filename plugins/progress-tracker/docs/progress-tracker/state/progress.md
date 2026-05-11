@@ -39,8 +39,8 @@
 
 ## Bug Backlog
 ### Medium Priority (🟡)
-- [🔴] [BUG-003] P1: planning:review phase 未接入状态机。skill 已引入 planning:review 停点，但 wf_state_machine.py 映射只有 planning:draft/clarifying/approved，导致 compute_next_action() 对 planning:review 返回 None。关键位置: wf_state_machine.py:21-27
-- [🔴] [BUG-004] P1: 恢复策略未覆盖 planning:review，降级为 manual_review。determine_recovery_action() 只覆盖 planning:draft/clarifying/approved，writing planning:review 后走 manual_review 分支，与 skill 定义的单次审批恢复路径不一致。关键位置: progress_manager.py:6439-6462
+- [✅] [BUG-003] P1: planning:review phase 未接入状态机。wf_state_machine.py:21-27 补全 planning:review 状态映射，compute_next_action() 现在正确返回 resume_planning_draft。
+- [✅] [BUG-004] P1: 恢复策略未覆盖 planning:review。progress_manager.py:6439-6462 的 determine_recovery_action() 补全 planning:review 分支，返回单次审批恢复路径。与 BUG-003 同一次改动修复。
 
 ### Low Priority (🟢)
 - [🔴] [BUG-005] P2: complete 未走 fail-closed worktree/branch 一致性检查。一致性检查只对 next-feature 和 done 执行，complete 重定向到 cmd_done 后绕过该检查入口。关键位置: progress_manager.py:11336-11339

@@ -2042,24 +2042,28 @@
     {
       "id": "BUG-003",
       "description": "P1: planning:review phase 未接入状态机。skill 已引入 planning:review 停点，但 wf_state_machine.py 映射只有 planning:draft/clarifying/approved，导致 compute_next_action() 对 planning:review 返回 None。关键位置: wf_state_machine.py:21-27",
-      "status": "pending_investigation",
+      "status": "fixed",
       "priority": "medium",
       "category": "bug",
       "created_at": "2026-04-28T17:34:48.121330Z",
       "quick_verification": {},
       "schedule": "hotfix-2",
-      "next_action": "与 BUG-004 批量修复：在 wf_state_machine.py:21-27 补全 planning:review 状态映射，确保 compute_next_action() 返回有效值"
+      "next_action": "与 BUG-004 批量修复：在 wf_state_machine.py:21-27 补全 planning:review 状态映射，确保 compute_next_action() 返回有效值",
+      "fix_summary": "与 BUG-004 同一次改动修复：wf_state_machine.py:21-27 补全 planning:review 状态映射，compute_next_action() 现在对 planning:review 返回 resume_planning_draft",
+      "fixed_at": "2026-05-11T17:57:07"
     },
     {
       "id": "BUG-004",
       "description": "P1: 恢复策略未覆盖 planning:review，降级为 manual_review。determine_recovery_action() 只覆盖 planning:draft/clarifying/approved，writing planning:review 后走 manual_review 分支，与 skill 定义的单次审批恢复路径不一致。关键位置: progress_manager.py:6439-6462",
-      "status": "pending_investigation",
+      "status": "fixed",
       "priority": "medium",
       "category": "bug",
       "created_at": "2026-04-28T17:34:54.217426Z",
       "quick_verification": {},
       "schedule": "hotfix-2",
-      "next_action": "与 BUG-003 批量修复：在 progress_manager.py:6439-6462 的 determine_recovery_action() 补全 planning:review 分支，返回单次审批恢复路径"
+      "next_action": "与 BUG-003 批量修复：在 progress_manager.py:6439-6462 的 determine_recovery_action() 补全 planning:review 分支，返回单次审批恢复路径",
+      "fix_summary": "与 BUG-003 同一次改动修复：progress_manager.py:6439-6462 的 determine_recovery_action() 补全 planning:review 分支，返回单次审批恢复路径",
+      "fixed_at": "2026-05-11T17:57:07"
     },
     {
       "id": "BUG-005",
