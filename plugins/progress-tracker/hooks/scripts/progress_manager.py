@@ -11485,9 +11485,14 @@ def main():
     if args.command in MUTATING_COMMANDS:
         if not enforce_route_preflight(args.command, sys.argv):
             return 1
-        # `done` may execute nested `prog` mutating commands from acceptance steps.
-        # Holding an outer process lock here can deadlock those nested invocations.
-        if args.command == "done":
+        # `done` and the `complete` → cmd_done redirect path may execute nested
+        # `prog` mutating commands from acceptance steps. Holding an outer process
+        # lock here deadlocks those subprocess invocations (BUG-002).
+        # `complete --unsafe-legacy` calls complete_feature() which has no
+        # internal locking, so it still needs the outer transaction guard.
+        if args.command == "done" or (
+            args.command == "complete" and not getattr(args, "unsafe_legacy", False)
+        ):
             return _dispatch_command()
         try:
             with progress_transaction():

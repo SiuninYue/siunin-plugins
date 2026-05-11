@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-05-08T23:52:41.599630Z",
+  "updated_at": "2026-05-11T17:05:53.140424Z",
   "features": [
     {
       "id": 10,
@@ -1339,7 +1339,7 @@
         "Verify ai_metrics.scoring_v2 fields are persisted in progress.json after scoring",
         "Run pytest -q tests/ to confirm zero regressions"
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -1349,7 +1349,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "verified",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-005"
       ],
@@ -1449,8 +1449,433 @@
         "complexity_bucket": "standard",
         "selected_model": "sonnet",
         "workflow_path": "plan_execute",
-        "started_at": "2026-05-06T14:03:51.634712Z"
+        "started_at": "2026-05-06T14:03:51.634712Z",
+        "finished_at": "2026-05-11T15:48:13.335474+08:00",
+        "duration_seconds": 409461
+      },
+      "completed_at": "2026-05-11T15:48:13.335568Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-05-11T15:48:13.335577Z",
+      "commit_hash": "901f47c",
+      "plan_path": "docs/plans/2026-05-06-f12-complexity-scoring-v2.md",
+      "archive_info": {
+        "archived_at": "2026-05-11T15:48:13.404683Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-05-06-f12-complexity-scoring-v2.md",
+            "to": "docs/archive/plans/2026-05-06-f12-complexity-scoring-v2.md"
+          }
+        ]
       }
+    },
+    {
+      "id": 13,
+      "name": "Unified work-item intake and profile routing (task/feature/bug) via /prog next",
+      "test_steps": [
+        "Run: prog smart '<long discussion>' → output shows candidate list with type/confidence/profile fields; no JSON mutation occurs before confirmation.",
+        "Run: prog smart '<ambiguous input>' → exactly one clarification question printed; re-run with confirmation → record written with details/refs/next_action preserved.",
+        "Run: prog smart '<clear bug report>' → bug written to bugs[] AND routing_queue contains new bug-id with correct priority weight.",
+        "Run: prog next → P0 bug appears above standalone tasks in selection output; priority order matches P0>P1>task>feature_task>P2 policy.",
+        "Run: prog add-feature / add-bug / add-update → commands succeed without regression; /prog-fix contract unchanged."
+      ],
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-013"
+      ],
+      "change_spec": {
+        "why": "Current intake can collapse rich discussions into sparse notes. Introduce unified work-item intake with profile-aware routing so discussions are decomposed into actionable artifacts without forcing every item into full feature workflow.",
+        "in_scope": [
+          "Define work-item taxonomy used by intake: epic|feature|task|bug|spike|risk|decision|update.",
+          "Define workflow profiles: quick_task|standard_task|feature_delivery|hotfix with explicit branch/verification/done policies.",
+          "Design deterministic intake contract: candidate list -> clarification (if needed) -> explicit confirmation -> commit writes.",
+          "Design /prog next routing precedence: P0 bug > P1 bug > standalone task > active feature task > P2 bug > next feature.",
+          "Persist rich context fields (details, refs, next_action, rationale) to avoid title-only loss.",
+          "Add workflow_profile field to work-item records (tasks and features); allowed values: quick_task|standard_task|feature_delivery|hotfix; default: standard_task.",
+          "When bug intake writes to bugs[], simultaneously push bug-id into routing_queue with priority weight (P0=critical, P1=high, P2=normal).",
+          "Extend wf_state_machine.py to handle new profile states; compute_next_action() must never return None for any valid profile state."
+        ],
+        "out_of_scope": [
+          "Immediate removal of legacy features/bugs/updates collections before compatibility adapters exist.",
+          "Automatic no-confirmation mutation for ambiguous intents.",
+          "Rewriting bug lifecycle semantics in /prog-fix."
+        ],
+        "risks": [
+          "Misclassification can still occur on mixed-intent input; must enforce confidence + clarification gate.",
+          "Routing ambiguity between task and feature can confuse users without explicit output contract in /prog next.",
+          "Schema expansion without migration plan may break downstream readers."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: mixed discussion is decomposed into multiple candidate items with confidence and explicit write confirmation.",
+        "Scenario: ambiguous item is blocked from mutation until user confirms the target type/profile.",
+        "Scenario: committed items retain execution-ready fields (summary/details/refs/next_action) instead of title-only entries.",
+        "Scenario: /prog next deterministic priority order matches profile policy and current runtime context.",
+        "Scenario: existing CLI write commands remain valid and produce no regressions."
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [],
+          "pending": [
+            "docs",
+            "eng",
+            "qa"
+          ]
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "Design and land unified intake contract plus profile-based routing rules that work with current PROG functionality without breaking existing command paths.",
+        "done_criteria": [
+          "F13 contract doc defines candidate->confirm->commit flow with fail-closed ambiguity handling.",
+          "/prog next routing policy across task/feature/bug classes is documented and testable, including P0/P1/P2 bug priority order.",
+          "Input-to-record mapping preserves details/refs/next_action for long discussions.",
+          "Backward compatibility test set covers add-feature/add-bug/add-update/prog-fix.",
+          "workflow_profile field exists on work-item records with documented allowed values and default=standard_task.",
+          "Bug intake writes to routing_queue; /prog next surfaces P0 bugs above standalone tasks in selection output.",
+          "wf_state_machine.py covers all new profile states; compute_next_action() returns non-None for every valid profile state."
+        ],
+        "test_plan": [
+          "Contract tests for intake ambiguity gate (no mutation before confirmation).",
+          "Routing tests for /prog next priority and tie-breaking across profile types.",
+          "Regression tests for existing commands and schema migration fallback behavior.",
+          "Snapshot tests confirming rich discussion fields are persisted and rendered."
+        ],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "plan_path": "docs/plans/2026-05-08-f13-prog-smart-ai-routing.md"
+    },
+    {
+      "id": 14,
+      "name": "Task execution semantics and visibility (standalone task vs feature task) with profile-aware done gates",
+      "test_steps": [
+        "Run: prog next → selects quick_task; verify a short-lived branch is created automatically.",
+        "Run: prog next --done on active quick_task → squash-merge succeeds, branch deleted, exactly 1 commit added to main; no feature done gate triggered.",
+        "Run: prog next --done on feature-bound task → task marked complete, parent feature progress advances, parent feature NOT auto-closed.",
+        "Run: prog next --done on quick_task → confirm close path does not trigger MUTATING_COMMANDS outer lock (no 10s timeout / RC=9).",
+        "Run: prog status → actionable updates shown; stale P0/P1 bugs displayed as warnings; hidden-history count shown; list-updates returns full unfiltered history."
+      ],
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-014"
+      ],
+      "change_spec": {
+        "why": "Small tasks should not be forced through heavy feature completion gates. Need a clear split between standalone tasks and feature-subtasks while preserving observability in /prog status.",
+        "prerequisites": [
+          "F13 must be shipped: workflow_profile taxonomy, schema extension, and intake contract must be merged before F14 execution."
+        ],
+        "in_scope": [
+          "Define execution semantics for standalone task and feature task under current workflow_state model.",
+          "Define /prog next --done shortcut behavior for profiles that allow lightweight closure.",
+          "Define done-gate matrix by workflow_profile (none/light/standard/strict).",
+          "All workflow profiles create a short-lived branch on start; quick_task branches have minimal lifetime but still squash-merge on close — no profile commits directly to main mid-task.",
+          "Extend /prog next CLI with --done flag using argparse; flag is backward-compatible (absent = default routing behavior).",
+          "Refine status visibility to show active memo/actionable notes and hide stale history with counters; surface stale P0/P1 bug warnings (P0 pending >1d, P1 pending >3d).",
+          "Maintain full audit/history retrieval through list-updates."
+        ],
+        "out_of_scope": [
+          "Auto-completing parent feature when any child task closes.",
+          "Removing execution_complete gate for feature_delivery workflow.",
+          "Destructive cleanup of historical update records."
+        ],
+        "risks": [
+          "Over-aggressive quick close can produce false done signals without evidence checks.",
+          "If visibility filter is too strict, critical context may be hidden from status view.",
+          "Inconsistent task-parent linkage can produce orphan task states."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: standalone quick task closes in one step and does not require /prog-done on a feature.",
+        "Scenario: feature task closure updates task progress only; parent feature still requires explicit completion gate.",
+        "Scenario: profile gate matrix enforces different validation depths per item class.",
+        "Scenario: status output keeps actionable context visible while reporting hidden-history count.",
+        "Scenario: list-updates exposes complete historical notes for audit and recovery."
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [],
+          "pending": [
+            "docs",
+            "eng",
+            "qa"
+          ]
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "Implement task execution/closure semantics and visibility policy that align with profile routing while preserving current feature lifecycle guarantees.",
+        "done_criteria": [
+          "Standalone task and feature-task flows are explicitly differentiated in command behavior and docs.",
+          "Profile-based done gate rules are test-covered and deterministic.",
+          "/prog next --done flag exists in CLI; /prog next without --done produces no regression.",
+          "All profiles (including quick_task) create a branch on start and squash-merge on close; no profile writes WIP commits directly to main.",
+          "quick_task close path does not acquire MUTATING_COMMANDS outer lock (no nested lock deadlock matching BUG-002 pattern).",
+          "/prog status shows actionable updates by default, hidden history summary, and stale P0/P1 bug warnings.",
+          "Full history remains accessible through list-updates without mutation or loss."
+        ],
+        "test_plan": [
+          "Behavior tests for /prog next and /prog next --done across profile types.",
+          "Validation tests ensuring parent feature completion gate still requires execution_complete path.",
+          "Status rendering tests for active-vs-history filters and hidden-count summaries.",
+          "Audit tests for history retrieval correctness and no-drop guarantees."
+        ],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "plan_path": "docs/plans/2026-05-08-f14-note-visibility-active-vs-history.md"
+    },
+    {
+      "id": 15,
+      "name": "prog-fix skill 嵌入4阶段调试方法论",
+      "test_steps": [
+        "Scenario 3 新增结构化证据收集步骤：明确列出复现路径、错误日志、输入输出对比",
+        "Scenario 3 新增触发模式分析步骤：识别稳定触发条件和边界条件",
+        "假设建立环节加入唯一性验证检查：排除竞争假设后确认该假设是唯一成立原因",
+        "TDD 完成后加显式回归检查项：确认问题A已消失且功能B未受影响",
+        "原有 systematic-debugging / TDD / git-auto 委托调用不受影响，Scenario 1 和 Scenario 2 保持原样"
+      ],
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-015"
+      ],
+      "change_spec": {
+        "why": "Deliver prog-fix skill 嵌入4阶段调试方法论 with traceable acceptance coverage.",
+        "in_scope": [
+          "prog-fix skill 嵌入4阶段调试方法论"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: Scenario 3 新增结构化证据收集步骤：明确列出复现路径、错误日志、输入输出对比",
+        "Scenario: Scenario 3 新增触发模式分析步骤：识别稳定触发条件和边界条件",
+        "Scenario: 假设建立环节加入唯一性验证检查：排除竞争假设后确认该假设是唯一成立原因",
+        "Scenario: TDD 完成后加显式回归检查项：确认问题A已消失且功能B未受影响",
+        "Scenario: 原有 systematic-debugging / TDD / git-auto 委托调用不受影响，Scenario 1 和 Scenario 2 保持原样"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "改写 bug-fix skill 的 Scenario 3（修复已录入 Bug）调试流程。现有流程直接委托 systematic-debugging skill，缺乏结构化引导，AI 在新会话中会跳过证据收集和模式分析。目标：将4阶段调试方法论（收集证据→分析规律→建立假设→实施修复）内联到 Scenario 3，使 AI 无需额外上下文即可按正确顺序推进。改动仅限 skills/bug-fix/SKILL.md，不改 CLI 和 progress.json 结构。\n\n## 背景\n\n用户（@siunin）与 AI 协作调试时发现，现有 Scenario 3 直接调用 systematic-debugging skill 后进入 TDD，缺少两个关键环节：\n1. 证据收集——AI 在新会话中不知道崩溃时的复现路径、日志输出、输入条件\n2. 假设唯一性——systematic-debugging 会列出假设但不会验证该假设是否唯一成立\n\n最有价值的改进点是：\n- 结构化证据收集：复现路径、错误日志、输入→输出对比\n- 触发模式分析：稳定触发条件、边界条件识别\n- 唯一性验证：确认提出的假设是唯一成立原因，排除竞争假设\n- 回归检查：问题A已消失且功能B未受影响",
+        "done_criteria": [
+          "Scenario 3 新增『证据收集』步骤：明确列出需收集的项目（复现路径、错误日志、输入→输出对比），每项有明确输出物",
+          "Scenario 3 新增『触发模式分析』步骤：引导 AI 识别稳定触发条件和边界条件",
+          "假设建立环节明确要求：验证该假设是唯一成立原因，排除所有竞争假设",
+          "TDD 完成后有显式回归检查模板：确认问题A已消失且功能B未受影响（含检查清单）",
+          "原有 systematic-debugging / TDD / git-auto 委托调用保持不变，仅在前插入结构化步骤",
+          "Scenario 1（列表查看 bug）和 Scenario 2（排期/优先级）不受任何影响"
+        ],
+        "test_plan": [
+          "对比修改前后 Scenario 3 的步骤数量和覆盖项，确认4阶段均有对应步骤和输出物",
+          "用一个虚构 Bug 走读修改后的完整流程，检查每个阶段是否有明确交付标准",
+          "确认 Scenario 1 和 Scenario 2 的步骤/输出/命令无任何变化（diff = 空）"
+        ],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "plan_path": "docs/plans/2026-05-11-f15-prog-fix-debug-methodology.md"
+    },
+    {
+      "id": 16,
+      "name": "Git Squash Merge SOP — 集成到 prog-done 自动化流程",
+      "test_steps": [
+        "feature 分支有多个中间 commit 时执行 prog done，确认合入 main 后只增加 1 个 squash commit，分支自动删除",
+        "main 分支 git log 中不出现 WIP/fix typo/chore 类中间 commit，每个 feature 对应一个语义完整的 commit",
+        "project_memory.json 中 CAP 记录的 commit_hash 正确指向 squash 后的最终 commit",
+        "Feature 分支在 squash merge 完成后自动清理：删除本地分支+远程 tracking 分支，失败非阻塞",
+        "已有仓库可选执行历史 squash+hash remap 脚本，所有追踪文件中的旧 hash 正确更新为新 hash"
+      ],
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-016"
+      ],
+      "change_spec": {
+        "why": "每个 work item 无论 profile 类型（feature / task / bug）都应在合入 main 时产生恰好 1 个语义完整的 commit；WIP/调试/fix typo 类中间 commit 不应污染 main 历史。",
+        "in_scope": [
+          "Squash merge 适用于所有使用分支的 workflow profile（quick_task / standard_task / feature_delivery / hotfix）；main 始终每个 work item 对应 1 个 commit。",
+          "quick_task / standard_task squash 范围：分支创建到关闭的所有 commit → 1 commit；message 格式：task(scope): 描述。",
+          "feature_delivery squash 范围：保持原设计（feat(scope): 描述 + 详细 body）；通过完整 prog-done gate 触发。",
+          "profile-aware squash 触发点：quick_task/standard_task 走轻量关闭路径；feature_delivery 走完整 prog-done gate；两者共用同一 squash-merge 工具函数。",
+          "状态一致性：project_memory.json 和 sprint_ledger.jsonl 的 commit_hash 始终指向 squash 后的最终 commit，所有 profile 均适用。"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: feature 分支有多个中间 commit 时执行 prog done，确认合入 main 后只增加 1 个 squash commit，分支自动删除",
+        "Scenario: main 分支 git log 中不出现 WIP/fix typo/chore 类中间 commit，每个 feature 对应一个语义完整的 commit",
+        "Scenario: project_memory.json 中 CAP 记录的 commit_hash 正确指向 squash 后的最终 commit",
+        "Scenario: Feature 分支在 squash merge 完成后自动清理：删除本地分支+远程 tracking 分支，失败非阻塞",
+        "Scenario: 已有仓库可选执行历史 squash+hash remap 脚本，所有追踪文件中的旧 hash 正确更新为新 hash"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "在 prog 插件中集成全 profile Git Squash Merge 工作流，使每个 work item（feature / task / bug，无论 profile 类型）在合入 main 时只产生一个语义完整的 commit，杜绝中间调试/WIP/fix typo/chore 类碎片 commit 污染 main 分支历史。\n\n## 背景与动机\n\n当前仓库 main 分支有 379 个 commit（统计日期 2026-05-11）：\n- 163 个 feat、65 个 fix、50 个 chore、32 个 docs、25 个 merge commit\n- Feature/task 内部试错过程的快照全保留在主分支\n- 例如 F8（fail-closed release gate）有 21 个 commit、git-auto v2.2 有 15 个、F5（progressive disclosure）有 13 个\n- 这些中间 commit 对代码阅读者提供零价值，只增加 git log 噪声和 bisect 成本\n\n## 业界标准参考\n\n| 公司/项目 | 做法 |\n|-----------|------|\n| GitHub 自身 | PR squash merge，一个 PR = 一个 commit |\n| GitLab 默认 | squash merge |\n| VS Code 仓库 | rebase + merge 保持线性历史 |\n| Google/Meta/Microsoft | 同等理念：main 只保留逻辑单元 |\n\n核心理念：**main 分支只保留有意义的『逻辑单元』，不保留开发的试错过程。** 所有 profile 分支内的中间 commit 在合入后即失去价值。\n\n## 设计原则\n\n1. **所有 profile 分支**：保留中间 commit，开发过程中可自由提交\n2. **Squash merge**：合入 main 时所有中间 commit 压成一个；message 格式按 profile：feature_delivery 用 feat(scope)，task 类用 task(scope)\n3. **状态一致性**：追踪文件中的 commit_hash 始终指向 squash 后的最终 commit（非中间 commit），所有 profile 均适用\n4. **SOP 闭环**：feature_delivery 通过 prog-done gate 触发；quick_task/standard_task 通过轻量关闭路径触发；两者不可绕过",
+        "done_criteria": [
+          "git auto done 执行 squash merge：将 feature 分支所有 commit 压成一个，commit message 格式为 feat(scope): 功能描述 + 详细 body",
+          "main 分支验证：git log 确认该 feature 只增加了 1 个 commit，无 WIP/fix typo/chore 碎片混入",
+          "project_memory.json CAP 记录的 commit_hash 等于 git log main -1 --format=%H（squash 后的最终 hash）",
+          "sprint_ledger.jsonl artifact_path 和 metadata 与 squash 后的状态一致，无旧 hash 残留",
+          "Feature 分支在 squash merge 成功后自动清理：git branch -d <feature-branch> + git push origin --delete（失败非阻塞）",
+          "feature-complete SKILL.md Step 5 显式包含 squash merge 检查项，标注为不可跳过",
+          "新增测试 test_squash_merge_flow.py：覆盖成功路径、冲突路径、cleanup 失败路径",
+          "边界情况：feature 分支只有 1 个 commit 时 squash 退化为普通 merge，不产生额外操作或报错",
+          "可选工具：历史 remap 脚本将指定范围的旧 commit 压缩为新 commit 并更新所有追踪文件中的 hash 引用",
+          "quick_task 和 standard_task 关闭路径执行 squash merge：branch → 1 commit on main；commit message 格式 task(scope): 描述；WIP commit 不出现在 main。",
+          "git log main 中每个 work item（无论 profile 类型）对应且仅对应 1 个 commit；main 上不出现任何 profile 的 WIP 碎片 commit。"
+        ],
+        "test_plan": [
+          "单元测试：新增 test_squash_merge_flow.py，覆盖 merge 成功、冲突退出、cleanup 失败非阻塞三个路径",
+          "集成测试：mock 一个包含 5 个 commit 的 feature 分支，执行 git auto done，验证 main 最终新增 1 个 commit",
+          "契约测试：prog done 执行后 project_memory.json CAP hash == git log main -1 --format=%H",
+          "回归测试：现有 feature-complete 流程所有测试不受影响（squash 作为增强步骤，非替换）",
+          "手动验证：在真实 feature 分支上运行 prog done，检查 GitHub PR 页面显示 '1 commit'",
+          "边界测试：feature 分支只有 1 个 commit → squash 退化为普通 merge，无额外操作"
+        ],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "plan_path": "docs/plans/2026-05-11-f16-git-squash-merge-sop.md"
     }
   ],
   "current_feature_id": null,
@@ -1505,11 +1930,65 @@
         "doc:docs/plans/2026-05-08-f14-note-visibility-active-vs-history.md",
         "decision:active_memo_vs_history"
       ]
+    },
+    {
+      "id": "UPD-003",
+      "created_at": "2026-05-11T06:59:39.156659Z",
+      "category": "decision",
+      "summary": "F13/F14 rebaselined: unified work-item architecture with profile-driven /prog next routing",
+      "details": "Adopted two-layer execution model: standalone task flow and feature-bound flow. Introduced workflow_profile concept (quick_task/standard_task/feature_delivery/hotfix) to control branch requirement, verification depth, and done gate strictness. Intake will use candidate->clarify->confirm->commit to prevent title-only or ambiguous writes.",
+      "feature_id": 13,
+      "bug_id": null,
+      "role": "architecture",
+      "owner": "ai-collab",
+      "source": "manual",
+      "next_action": "Draft schema-compatible rollout plan and command contracts before code mutation",
+      "refs": [
+        "planning:f13_rebaseline",
+        "planning:f14_rebaseline",
+        "memo:2026-05-11-task-profile-routing"
+      ]
+    },
+    {
+      "id": "UPD-004",
+      "created_at": "2026-05-11T06:59:39.156659Z",
+      "category": "handoff",
+      "summary": "Execution strategy captured: /prog next selects tasks first, feature done gate remains explicit",
+      "details": "Agreed operational rule: /prog next should select next actionable item across classes, but only feature_delivery path requires full execution_complete + /prog-done closeout. quick_task may close via one-step action, while feature tasks advance parent progress only.",
+      "feature_id": 14,
+      "bug_id": null,
+      "role": "architecture",
+      "owner": "ai-collab",
+      "source": "manual",
+      "next_action": "Implement minimal task state fields and add profile-aware next/done behavior tests",
+      "refs": [
+        "planning:task_vs_feature_flow",
+        "memo:2026-05-11-next-done-semantics"
+      ]
+    },
+    {
+      "id": "UPD-005",
+      "created_at": "2026-05-11T08:00:00.000000Z",
+      "category": "decision",
+      "summary": "执行顺序确定：BUG-002 hotfix → BUG-003/004 hotfix → F13 → F14 → F15 → F16",
+      "details": "P0/P1 bug 不等待新 feature 开发，立即走 /prog-fix 独立修复通道。BUG-002（complete 嵌套锁死）优先级最高，单独 hotfix；BUG-003/004 共享同一根因（planning:review 未接入状态机），批量一次修复。BUG-005（P2）低优先级，随 F13 实现时回填 routing_queue 自然调度。F13 实现完成后，存量 pending bug 通过 routing_queue 回填机制进入正常调度流程。",
+      "feature_id": null,
+      "bug_id": null,
+      "role": "architecture",
+      "owner": "ai-collab",
+      "source": "manual",
+      "next_action": "立即启动 BUG-002 hotfix：定位 progress_manager.py:11145/11341 的嵌套锁路径并重构",
+      "refs": [
+        "bug:BUG-002",
+        "bug:BUG-003",
+        "bug:BUG-004",
+        "memo:2026-05-11-execution-order"
+      ]
     }
   ],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-05-06T18:51:19.564528Z",
+    "recorded_at": "2026-05-11T15:48:13.395035Z",
     "source": "finalize",
     "workspace_mode": "in_place",
     "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
@@ -1544,11 +2023,19 @@
     {
       "id": "BUG-002",
       "description": "P0: complete 重定向后被外层锁卡死。complete 走 MUTATING_COMMANDS 外层 progress_transaction()，但 cmd_done 内部路径（record_sprint_artifact、嵌套 prog 命令）会再次拿锁，导致 10 秒锁超时，RC=9。关键位置: progress_manager.py:11145, 11341",
-      "status": "pending_investigation",
+      "status": "fixed",
       "priority": "high",
       "category": "bug",
       "created_at": "2026-04-28T17:34:41.245568Z",
-      "quick_verification": {}
+      "quick_verification": {},
+      "schedule": "hotfix-1",
+      "next_action": "立即修复：定位 progress_manager.py:11145/11341，将 cmd_done 内部嵌套 prog 调用改为直接函数调用，绕过外层锁路径",
+      "updated_at": "2026-05-11T17:05:53.115309Z",
+      "root_cause": "complete 在 MUTATING_COMMANDS 中但未加入 done 的锁豁免分支（progress_manager.py:11490），导致 _dispatch_command() 被 progress_transaction() 包裹。cmd_done() 的 _run_acceptance_tests() 通过 subprocess.run 调用嵌套 prog 命令，子进程无法感知父进程持有的 fcntl.LOCK_EX 锁，等待 10 秒超时后返回 RC=9。",
+      "investigation": {
+        "root_cause": "complete 在 MUTATING_COMMANDS 中但未加入 done 的锁豁免分支（progress_manager.py:11490），导致 _dispatch_command() 被 progress_transaction() 包裹。cmd_done() 的 _run_acceptance_tests() 通过 subprocess.run 调用嵌套 prog 命令，子进程无法感知父进程持有的 fcntl.LOCK_EX 锁，等待 10 秒超时后返回 RC=9。",
+        "confirmed_at": "2026-05-11T17:05:50.054542Z"
+      }
     },
     {
       "id": "BUG-003",
@@ -1557,7 +2044,9 @@
       "priority": "medium",
       "category": "bug",
       "created_at": "2026-04-28T17:34:48.121330Z",
-      "quick_verification": {}
+      "quick_verification": {},
+      "schedule": "hotfix-2",
+      "next_action": "与 BUG-004 批量修复：在 wf_state_machine.py:21-27 补全 planning:review 状态映射，确保 compute_next_action() 返回有效值"
     },
     {
       "id": "BUG-004",
@@ -1566,7 +2055,9 @@
       "priority": "medium",
       "category": "bug",
       "created_at": "2026-04-28T17:34:54.217426Z",
-      "quick_verification": {}
+      "quick_verification": {},
+      "schedule": "hotfix-2",
+      "next_action": "与 BUG-003 批量修复：在 progress_manager.py:6439-6462 的 determine_recovery_action() 补全 planning:review 分支，返回单次审批恢复路径"
     },
     {
       "id": "BUG-005",
@@ -1575,26 +2066,11 @@
       "priority": "low",
       "category": "bug",
       "created_at": "2026-04-28T17:34:54.371818Z",
-      "quick_verification": {}
+      "quick_verification": {},
+      "schedule": "via-f13",
+      "next_action": "随 F13 实现时回填 routing_queue 自动调度；F13 done_criteria 已包含存量 pending bug 回填要求"
     }
   ],
   "current_bug_id": null,
-  "parent_project_root": ".",
-  "workflow_state": {
-    "phase": "execution_complete",
-    "updated_at": "2026-05-06T14:54:47.669642Z",
-    "plan_path": "docs/plans/2026-05-06-f12-complexity-scoring-v2.md",
-    "execution_context": {
-      "recorded_at": "2026-05-06T14:54:47.729020Z",
-      "source": "set_workflow_state",
-      "workspace_mode": "worktree",
-      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/pt-f12-complexity-scoring-v2",
-      "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/pt-f12-complexity-scoring-v2",
-      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/pt-f12-complexity-scoring-v2/plugins/progress-tracker",
-      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/pt-f12-complexity-scoring-v2",
-      "branch": "feature/pt-f12-complexity-scoring-v2",
-      "upstream": null
-    },
-    "next_action": "verify_and_complete"
-  }
+  "parent_project_root": "."
 }
