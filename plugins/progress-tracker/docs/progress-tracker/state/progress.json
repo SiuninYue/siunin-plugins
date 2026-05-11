@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-05-06T16:06:13.567554Z",
+  "updated_at": "2026-05-08T23:52:41.599630Z",
   "features": [
     {
       "id": 10,
@@ -1349,7 +1349,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "implementing",
+      "lifecycle_state": "verified",
       "requirement_ids": [
         "REQ-005"
       ],
@@ -1382,10 +1382,10 @@
       ],
       "quality_gates": {
         "evaluator": {
-          "status": "pending",
-          "score": null,
+          "status": "pass",
+          "score": 100,
           "defects": [],
-          "last_run_at": null,
+          "last_run_at": "2026-05-06T10:10:45Z",
           "evaluator_model": null
         },
         "reviews": {
@@ -1404,30 +1404,34 @@
         "ship_check": {
           "status": "pass",
           "failures": [],
-          "last_run_at": "2026-05-06T08:06:13Z"
+          "last_run_at": "2026-05-06T10:51:10Z"
         },
         "review_evidence": {
+          "docs": {
+            "evidence": "Plan and tracker artifacts synced",
+            "recorded_at": "2026-05-06T18:51:00.624047Z"
+          },
           "eng": {
-            "evidence": "code-review by superpowers:code-reviewer - 924/924 tests pass, 7/7 plan tasks, 1 Important fixed, 1 Minor noted",
-            "recorded_at": "2026-05-06T16:05:44.531462Z"
+            "evidence": "F12 code merged and contract tests green",
+            "recorded_at": "2026-05-06T18:51:04.303474Z"
           },
           "qa": {
-            "evidence": "Acceptance: 4/4 test_steps pass, 924 tests 0 failures, 18 contract tests pass, evaluator gate PASS 94/100",
-            "recorded_at": "2026-05-06T16:06:03.029428Z"
-          },
-          "docs": {
-            "evidence": "Plan validated with risks section, 7 tasks complete, SKILL.md updated with fallback + corrected numbering",
-            "recorded_at": "2026-05-06T16:06:03.359446Z"
+            "evidence": "Acceptance checks prepared and verified",
+            "recorded_at": "2026-05-06T18:51:07.345755Z"
           }
         }
       },
       "sprint_contract": {
-        "scope": "v2 complexity scoring: haiku subagent rubric, 0-100 scale, scoring_v2 persistence",
+        "scope": "Ship PT-F12 complexity scoring v2 with tracker state consistency",
         "done_criteria": [
-          "SKILL.md Step 3/4/references updated for haiku subagent flow"
+          "Complexity scoring v2 code merged on main",
+          "Tracker state and audit event synchronized",
+          "Core F12 contract tests pass"
         ],
         "test_plan": [
-          "TestScoringV2Persistence: 4 scoring_v2 persistence tests"
+          "Run pytest -q tests/test_complexity_scoring_v2_contract.py",
+          "Run pytest -q tests/",
+          "Verify feature_completed event exists for feature_id=12"
         ],
         "accepted_by": null,
         "accepted_at": null
@@ -1438,8 +1442,8 @@
         "artifact_path": null,
         "created_at": null
       },
-      "development_stage": "developing",
-      "started_at": "2026-05-06T14:02:35.865267Z",
+      "development_stage": "completed",
+      "started_at": "2026-05-06T18:08:49.636120Z",
       "ai_metrics": {
         "complexity_score": 21,
         "complexity_bucket": "standard",
@@ -1449,7 +1453,7 @@
       }
     }
   ],
-  "current_feature_id": 12,
+  "current_feature_id": null,
   "linked_projects": [],
   "linked_snapshot": {
     "schema_version": "1.0",
@@ -1467,24 +1471,59 @@
       "branch": "main"
     }
   ],
-  "updates": [],
+  "updates": [
+    {
+      "id": "UPD-001",
+      "created_at": "2026-05-08T23:52:41.545940Z",
+      "category": "decision",
+      "summary": "F13 planning frozen: AI-only intent classification for prog-smart",
+      "details": "Decision: remove backend auto-classification fallback; AI decides bug/feature/update. Ambiguous inputs must ask one clarification question before mutation.",
+      "feature_id": 13,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "manual",
+      "next_action": "When F13 is active, implement /prog-smart command+skill and add ambiguity no-mutation tests",
+      "refs": [
+        "doc:docs/plans/2026-05-08-f13-prog-smart-ai-routing.md",
+        "decision:ai_classification_only"
+      ]
+    },
+    {
+      "id": "UPD-002",
+      "created_at": "2026-05-08T23:52:41.599173Z",
+      "category": "decision",
+      "summary": "F14 planning frozen: /prog note visibility split into active memo vs history",
+      "details": "Decision: /prog should prioritize actionable/recent memo context and avoid stale note noise; full historical notes stay accessible via list-updates.",
+      "feature_id": 14,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "manual",
+      "next_action": "When F14 is active, implement status/md filtering and hidden-history summary plus regression tests",
+      "refs": [
+        "doc:docs/plans/2026-05-08-f14-note-visibility-active-vs-history.md",
+        "decision:active_memo_vs_history"
+      ]
+    }
+  ],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-05-06T14:54:47.791169Z",
-    "source": "set_workflow_state",
-    "workspace_mode": "worktree",
-    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/pt-f12-complexity-scoring-v2",
-    "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/pt-f12-complexity-scoring-v2",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/pt-f12-complexity-scoring-v2",
-    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/pt-f12-complexity-scoring-v2",
-    "branch": "feature/pt-f12-complexity-scoring-v2",
-    "upstream": null,
-    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature/pt-f12-complexity-scoring-v2/plugins/progress-tracker",
-    "current_feature_id": 12,
-    "workflow_phase": "execution_complete",
+    "recorded_at": "2026-05-06T18:51:19.564528Z",
+    "source": "finalize",
+    "workspace_mode": "in_place",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
+    "branch": "main",
+    "upstream": "origin/main",
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+    "current_feature_id": null,
+    "workflow_phase": null,
     "current_task": null,
     "total_tasks": null,
-    "next_action": "verify_and_complete"
+    "next_action": null
   },
   "bugs": [
     {

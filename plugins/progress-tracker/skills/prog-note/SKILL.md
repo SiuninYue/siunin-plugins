@@ -1,6 +1,6 @@
 ---
 name: prog-note
-description: This skill should be used when the user asks to "/prog note", "/prog-note", "record a project update", "add status update", "log decision/risk/handoff", or needs to write structured update entries into progress tracking.
+description: This skill should be used when the user asks to "/prog note", "/prog-note", "record a project update", "add status update", "log decision/risk/handoff", or asks AI to add discussion items into progress tracking and needs intent triage (bug vs feature vs update).
 model: haiku
 version: "1.0.0"
 scope: skill
@@ -15,7 +15,22 @@ references: []
 
 # Prog Note Skill
 
-Write structured updates into Progress Tracker through CLI commands only.
+Write structured updates into Progress Tracker through CLI commands only.  
+AI is the classifier. Backend CLI should only execute explicit write commands.
+
+## Intent Triage (AI-side)
+
+Before any write, classify the user intent:
+- **Bug** (symptom/failure/regression): call bug path (`/prog-fix` or `prog add-bug`).
+- **Feature/Enhancement** (new capability/change request): call `prog add-feature`.
+- **Progress Update** (status/decision/risk/handoff log): call `prog add-update`.
+
+If intent is ambiguous, **MUST ask one clarification question and STOP**.  
+Do not write anything until user confirms type.
+
+Default rule:
+- Do not auto-route ambiguous input to "idea".
+- Use update logging only when user explicitly asks to "record/note/log update".
 
 ## Input Mapping
 
@@ -35,11 +50,25 @@ If user input is unstructured, infer `summary` from the first sentence and set c
 
 ## Execution Rules
 
-1. Use `plugins/progress-tracker/prog add-update` to append an update.
+1. AI must classify first, then call only one write path (`add-bug` or `add-feature` or `add-update`).
 2. Never edit `progress.json` directly.
-3. If both `role` and `owner` are provided with `feature_id`, also call:
+3. For update path, use `plugins/progress-tracker/prog add-update`.
+4. If both `role` and `owner` are provided with `feature_id`, also call:
    - `plugins/progress-tracker/prog set-feature-owner <feature_id> <role> <owner>`
-4. On CLI failure, report the exact command and stderr summary.
+5. On CLI failure, report the exact command and stderr summary.
+
+## Feature/Bug Templates
+
+```bash
+plugins/progress-tracker/prog add-feature "<feature_name>" "<test_step_1>"
+```
+
+```bash
+plugins/progress-tracker/prog add-bug \
+  --description "<bug_description>" \
+  --status "pending_investigation" \
+  --priority "medium"
+```
 
 ## Command Templates
 

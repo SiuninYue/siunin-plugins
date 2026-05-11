@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-04-30T23:52:46.629549Z",
+  "updated_at": "2026-05-08T23:52:51.218727Z",
   "source": {
     "generator": "progress_manager.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,8 +11,8 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1777564366603563793,
-      "size": 56249
+      "mtime_ns": 1778255561600213908,
+      "size": 64772
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
@@ -22,14 +22,14 @@
     }
   },
   "progress": {
-    "completed": 12,
-    "total": 13,
-    "percentage": 92
+    "completed": 13,
+    "total": 15,
+    "percentage": 86
   },
   "next_action": {
     "type": "feature",
-    "feature_id": 12,
-    "feature_name": "Complexity scoring v2: weighted rubric via haiku subagent",
+    "feature_id": 13,
+    "feature_name": "prog-smart: AI-first intent routing skill (no backend auto-classification)",
     "development_stage": "pending",
     "stage_label": "待开始"
   },
@@ -47,6 +47,6 @@
   "recent_snapshot": {
     "exists": true,
     "timestamp": "2026-04-30T23:20:55.456524+08:00",
-    "relative_time": "31 分钟前"
+    "relative_time": "8 天前"
   }
 }

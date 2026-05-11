@@ -2,7 +2,7 @@
 
 **Created**: 2026-04-23T00:28:18.285129Z
 
-**Status**: 12/13 completed
+**Status**: 13/15 completed
 
 ## Completed
 - [x] 根目录混合宿主架构：Monorepo /prog 支持
@@ -17,20 +17,17 @@
 - [x] Enforce PROG command docs single-source parity
 - [x] Implement fail-closed release gate with sync compatibility evidence
 - [x] plan_path CLI normalization
+- [x] Complexity scoring v2: weighted rubric via haiku subagent
 
-## In Progress
-- [ ] Complexity scoring v2: weighted rubric via haiku subagent
-  **Test steps**:
-  - Remove/deprecate complexity_analyzer.py and complexity-assessment.md
-  - Run haiku subagent scoring on 3 known features and confirm bucket matches expectation
-  - Verify ai_metrics.scoring_v2 fields are persisted in progress.json after scoring
-  - Run pytest -q tests/ to confirm zero regressions
+## Pending
+- [ ] prog-smart: AI-first intent routing skill (no backend auto-classification)
+- [ ] Optimize prog-note visibility: active memo vs history
 
-## Workflow Context
-- Phase: execution_complete
-- Next action: verify_and_complete
-- Execution context: feature/pt-f12-complexity-scoring-v2 @ pt-f12-complexity-scoring-v2 [worktree]
-- Current session context: feature/pt-f12-complexity-scoring-v2 @ pt-f12-complexity-scoring-v2 [worktree]
+## Recent Updates
+- [UPD-001] decision: F13 planning frozen: AI-only intent classification for prog-smart (feature:13)
+  Next: When F13 is active, implement /prog-smart command+skill and add ambiguity no-mutation tests
+- [UPD-002] decision: F14 planning frozen: /prog note visibility split into active memo vs history (feature:14)
+  Next: When F14 is active, implement status/md filtering and hidden-history summary plus regression tests
 
 ## Bug Backlog
 ### High Priority (🔴)

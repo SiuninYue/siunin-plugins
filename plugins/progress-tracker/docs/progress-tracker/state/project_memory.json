@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "created_at": "2026-04-12T09:38:02.910760Z",
-  "updated_at": "2026-04-30T17:25:16.820018Z",
-  "next_capability_seq": 18,
+  "updated_at": "2026-05-06T10:51:19.582563Z",
+  "next_capability_seq": 20,
   "last_synced_commit": null,
   "capabilities": [
     {
@@ -335,6 +335,38 @@
       },
       "created_at": "2026-04-30T17:25:16.799683Z",
       "updated_at": "2026-04-30T17:25:16.799683Z"
+    },
+    {
+      "cap_id": "CAP-018",
+      "fingerprint": "7b6f39399d99b5aa",
+      "title": "Complexity scoring v2: weighted rubric via haiku subagent",
+      "summary": "Completed feature 12: Complexity scoring v2: weighted rubric via haiku subagent",
+      "tags": [],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 12,
+        "commit_hash": "901f47ced9f5f971e515cb8090ea354e211e4179",
+        "commit_range": ""
+      },
+      "created_at": "2026-05-06T08:12:07.789229Z",
+      "updated_at": "2026-05-06T08:12:07.789229Z"
+    },
+    {
+      "cap_id": "CAP-019",
+      "fingerprint": "c786bab8fe215970",
+      "title": "Complexity scoring v2: weighted rubric via haiku subagent",
+      "summary": "Completed feature 12: Complexity scoring v2: weighted rubric via haiku subagent",
+      "tags": [],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 12,
+        "commit_hash": "268f4a6c3c0eef64f4e9f4434d527b9566e3b2bf",
+        "commit_range": ""
+      },
+      "created_at": "2026-05-06T10:51:19.582496Z",
+      "updated_at": "2026-05-06T10:51:19.582496Z"
     }
   ],
   "rejected_fingerprints": [],

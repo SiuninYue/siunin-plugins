@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "Claude-Plugins Monorepo Test",
   "created_at": "2026-04-25T23:57:13.303927Z",
-  "updated_at": "2026-04-30T23:52:46.630474Z",
+  "updated_at": "2026-05-08T23:46:21.240416Z",
   "features": [
     {
       "id": 1,
@@ -65,9 +65,104 @@
         }
       },
       "sprint_contract": {
-        "scope": "",
-        "done_criteria": [],
-        "test_plan": [],
+        "scope": "升级 progress-tracker 插件的复杂度评分机制。现有方案用静态规则文件 complexity-assessment.md + complexity_analyzer.py 打分，已被弃用（PT-F12 中通过 haiku subagent 内联提示词替代）。本 root-level 功能的目标是确认该替换在 root 项目层面完整落地：haiku 提示词稳定可用、旧文件已清除、ai_metrics.scoring_v2 字段正确持久化、测试套件无回归。不引入新架构，仅验证 PT-F12 交付物在 root 视角的完整性。",
+        "done_criteria": [
+          "complexity_analyzer.py 已删除或明确标记 deprecated，不再被任何主流程引用",
+          "complexity-assessment.md 已归档或删除，SKILL.md 中 fallback 路径指向 haiku prompt",
+          "对3个已知特征运行 haiku subagent 评分，bucket 结果与预期一致（simple/medium/complex）",
+          "progress.json 中 ai_metrics.scoring_v2 字段在评分后正确写入（含 bucket、score、rationale）",
+          "pytest -q 全量测试通过，无回归"
+        ],
+        "test_plan": [
+          "grep -r 'complexity_analyzer' 确认无主流程引用",
+          "手动触发3个不同复杂度的特征评分，对比 bucket 结果与预期",
+          "查看 progress.json ai_metrics 字段，确认 scoring_v2 结构完整",
+          "运行 pytest -q plugins/progress-tracker/tests/ 确认全绿"
+        ],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
+    },
+    {
+      "id": 2,
+      "name": "prog-fix skill 嵌入4阶段调试方法论",
+      "test_steps": [
+        "Scenario 3 新增结构化证据收集步骤（复现路径、日志、输入输出）",
+        "Scenario 3 新增触发模式分析（边界条件、稳定触发点）",
+        "假设环节加入唯一性验证检查",
+        "TDD 阶段后加显式回归检查项（问题A修复且功能B不受影响）"
+      ],
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "change_spec": {
+        "why": "Deliver prog-fix skill 嵌入4阶段调试方法论 with traceable acceptance coverage.",
+        "in_scope": [
+          "prog-fix skill 嵌入4阶段调试方法论"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: Scenario 3 新增结构化证据收集步骤（复现路径、日志、输入输出）",
+        "Scenario: Scenario 3 新增触发模式分析（边界条件、稳定触发点）",
+        "Scenario: 假设环节加入唯一性验证检查",
+        "Scenario: TDD 阶段后加显式回归检查项（问题A修复且功能B不受影响）"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "改写 bug-fix skill 的 Scenario 3（修复已录入 Bug）调试流程。现有流程直接委托 systematic-debugging skill，缺乏结构化引导。目标：将用户提出的4阶段调试方法论（收集证据→分析规律→建立假设→实施修复）内联到 Scenario 3，使 AI 在新会话中无需额外上下文即可按正确顺序推进。改动仅限 skills/bug-fix/SKILL.md，不改 CLI 和 progress.json 结构。",
+        "done_criteria": [
+          "Scenario 3 新增『证据收集』步骤：明确列出需收集的项目（复现路径、错误日志、输入→输出对比）",
+          "Scenario 3 新增『触发模式分析』步骤：引导识别稳定触发条件和边界",
+          "假设建立环节要求验证该假设是唯一成立原因，排除竞争假设",
+          "TDD 完成后有显式回归检查项：确认问题A已消失且功能B未受影响",
+          "原有 systematic-debugging / TDD / git-auto 委托调用保持不变"
+        ],
+        "test_plan": [
+          "对比修改前后 Scenario 3 的步骤数量和覆盖项，确认4阶段均有对应步骤",
+          "用一个虚构 Bug 走读修改后的流程，检查每个阶段是否有明确输出物",
+          "确认 Scenario 1（列表）和 Scenario 2（排期）不受影响"
+        ],
         "accepted_by": null,
         "accepted_at": null
       },
@@ -107,7 +202,7 @@
   ],
   "linked_snapshot": {
     "schema_version": "1.0",
-    "updated_at": "2026-04-30T23:52:46.630435Z",
+    "updated_at": "2026-05-06T18:51:19.589544Z",
     "projects": [
       {
         "status": "ok",
@@ -130,10 +225,10 @@
         "configured_project_root": "plugins/progress-tracker",
         "project_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
         "project_name": "progress-tracker-sop-compliance-optimization",
-        "completed": 12,
-        "total": 13,
-        "completion_rate": 0.9230769230769231,
-        "updated_at": "2026-04-30T23:52:46.603347Z",
+        "completed": 13,
+        "total": 15,
+        "completion_rate": 0.8666666666666667,
+        "updated_at": "2026-05-06T18:51:19.565511Z",
         "is_stale": false,
         "active_feature_ref": null,
         "project_code": "PT",
@@ -167,7 +262,40 @@
       "branch": "main"
     }
   ],
-  "updates": [],
+  "updates": [
+    {
+      "id": "UPD-001",
+      "created_at": "2026-05-08T23:27:42.267886Z",
+      "category": "decision",
+      "summary": "设计决策：prog-fix Scenario 3 嵌入4阶段调试方法论",
+      "details": "来源：2026-05-08 对比用户 Bug Fixer 与现有 skill 的差异。现有 Scenario 3 直接调用 systematic-debugging，缺乏结构化引导，AI 在新会话中会跳过证据收集和模式分析。最有价值的两个缺口：(1)假设唯一性验证——要求排除竞争假设而非仅提出假设；(2)回归检查明确化——问题A消失且功能B不受影响。实现策略：在 SKILL.md Scenario 3 的 systematic-debugging 调用前插入『证据收集→触发模式→唯一性假设』3步，调用后补充回归检查模板，不改 Scenario 1/2 和 CLI。",
+      "feature_id": 2,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "manual",
+      "next_action": "编辑 skills/bug-fix/SKILL.md，定位 Scenario 3，在 systematic-debugging 调用前插入结构化步骤",
+      "refs": [
+        "req:REQ-002"
+      ]
+    },
+    {
+      "id": "UPD-002",
+      "created_at": "2026-05-08T23:46:21.230064Z",
+      "category": "decision",
+      "summary": "设计背景：复杂度评分 v2 的 root-level 验收",
+      "details": "PT-F12（插件层）已于 2026-04-xx 完成，核心交付：haiku subagent 内联提示词替代 complexity_analyzer.py + complexity-assessment.md。本 root feature 不做新开发，目标是从 root 视角做验收闭环：确认旧文件清除、新评分字段持久化、测试套件无回归。实现策略：直接执行 test_steps 中的4条验证，全部通过后运行 prog done 关闭本功能。风险：haiku subagent 评分结果有随机性，验收时以 bucket（simple/medium/complex）一致为准，不要求完全相同的 score 数值。",
+      "feature_id": 1,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "manual",
+      "next_action": "运行 grep -r complexity_analyzer 确认清除状态，再逐条执行 test_steps",
+      "refs": [
+        "req:REQ-001"
+      ]
+    }
+  ],
   "retrospectives": [],
   "runtime_context": {
     "recorded_at": "2026-04-26T17:16:56.642897Z",
@@ -185,5 +313,6 @@
     "current_task": null,
     "total_tasks": null,
     "next_action": null
-  }
+  },
+  "bugs": []
 }
