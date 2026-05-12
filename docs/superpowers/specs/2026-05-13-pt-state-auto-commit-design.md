@@ -44,10 +44,11 @@ Feature branch 上 `prog done` 写入了"F13 已完成、F14 为当前"的状态
 ```
 1. 读配置开关 → False 时静默跳过
 2. 检测 git 进行中操作 → 有则打印警告并跳过
-3. 逐个白名单文件/目录查 dirty status
+3. 逐个白名单文件/目录查 dirty status（cwd=repo_root，确保路径一致）
 4. 无 dirty 文件 → 直接返回 None（不创建空 commit）
-5. git commit --only -m <msg> -- <dirty_files>（via 直接 subprocess，非 safe_git_command）
-6. 返回新 commit hash，失败时返回 None（非阻塞）
+5. git add -- <dirty_files>（将 untracked 新文件 stage 进来，--only 无法提交 untracked）
+6. git commit --only -m <msg> -- <dirty_files>（via 直接 subprocess，非 safe_git_command）
+7. 返回新 commit hash，失败时返回 None（非阻塞）
 ```
 
 **实现骨架**：
@@ -120,18 +121,26 @@ STATE_DIR_NAMES = [
 
 **Dirty 检测方式**：`git status --porcelain -- <relpath>` 逐文件调用，非空输出即为 dirty。此方式能同时捕获：modified（`M`）、untracked（`??`）、新 staged（`A`）文件，覆盖首次创建的状态文件场景。
 
+**关键**：必须以 `git_root`（`git rev-parse --show-toplevel`）为 `cwd` 运行 `git status`，porcelain 输出路径才是 repo-root-relative。若以 `project_root`（如 `plugins/progress-tracker`）为 cwd，porcelain 路径仍是 repo-root-relative，但用 `project_root / parts[1]` 拼接会产生重复前缀（`plugins/progress-tracker/plugins/progress-tracker/...`）。
+
 ```python
 def _get_dirty_state_files(project_root: Path) -> List[Path]:
     progress_dir = get_progress_dir()
     dirty = []
 
+    # Resolve repo root; porcelain output is always repo-root-relative
+    git_root_str = get_git_root(cwd=str(project_root))
+    if not git_root_str:
+        return dirty
+    git_root = Path(git_root_str)
+
     for name in STATE_FILE_NAMES:
         f = progress_dir / name
         if not f.exists():
             continue
-        rel = str(f.relative_to(project_root))
+        rel = str(f.relative_to(git_root))        # repo-root-relative
         code, out, _ = _run_git(["status", "--porcelain", "--", rel],
-                                  cwd=str(project_root))
+                                  cwd=str(git_root))
         if code == 0 and out.strip():
             dirty.append(f)
 
@@ -139,15 +148,15 @@ def _get_dirty_state_files(project_root: Path) -> List[Path]:
         d = progress_dir / dir_name
         if not d.is_dir():
             continue
-        rel_dir = str(d.relative_to(project_root))
+        rel_dir = str(d.relative_to(git_root))    # repo-root-relative
         code, out, _ = _run_git(["status", "--porcelain", "--", rel_dir],
-                                  cwd=str(project_root))
+                                  cwd=str(git_root))
         if code == 0:
             for line in out.strip().splitlines():
-                # format: "XY path"
+                # format: "XY path" — path is repo-root-relative
                 parts = line.strip().split(None, 1)
                 if len(parts) == 2:
-                    dirty.append(project_root / parts[1].strip())
+                    dirty.append(git_root / parts[1].strip())  # ← git_root, not project_root
 
     return dirty
 ```
@@ -161,24 +170,38 @@ def _get_dirty_state_files(project_root: Path) -> List[Path]:
 
 `git commit --only -- <files>` 语义：创建临时 index 仅包含指定文件的工作区版本，用户已 staged 的其他改动**不受影响**，commit 后仍留在 staging area。
 
+**注意**：`git commit --only` 从工作树读取文件，但对于 **untracked（从未被 git 跟踪的新文件）**，它无法直接包含——必须先 `git add` 将其加入 index，`--only` 才能把它纳入临时 index 并提交。因此 `_git_commit_state` 在 commit 之前先运行一次精确白名单的 `git add`。
+
 ```python
 def _git_commit_state(
     state_files: List[Path], msg: str, project_root: Path
 ) -> Optional[str]:
     """
-    Commit state_files using git commit --only, bypassing safe_git_command.
+    Commit state_files using git add + git commit --only, bypassing safe_git_command.
     shell=False guarantees no injection risk despite parentheses in msg.
+    git add stages untracked new state files; --only isolates the commit from
+    any other changes the user may have staged.
     """
-    rel_paths = [str(f.relative_to(project_root)) for f in state_files]
-    cmd = ["git", "commit", "--only", "-m", msg, "--"] + rel_paths
+    git_root_str = get_git_root(cwd=str(project_root))
+    if not git_root_str:
+        print("[state-sync] Auto-commit skipped: cannot resolve repo root.")
+        return None
+    git_root = Path(git_root_str)
+    rel_paths = [str(f.relative_to(git_root)) for f in state_files]
+
     try:
+        # Stage untracked state files (no-op for already-tracked files)
+        subprocess.run(
+            ["git", "add", "--"] + rel_paths,
+            capture_output=True, check=False,
+            cwd=str(git_root), timeout=15, text=True,
+        )
+
+        # Commit only state files; leaves user's other staged changes intact
         result = subprocess.run(
-            cmd,
-            capture_output=True,
-            check=False,
-            cwd=str(project_root),
-            timeout=30,
-            text=True,
+            ["git", "commit", "--only", "-m", msg, "--"] + rel_paths,
+            capture_output=True, check=False,
+            cwd=str(git_root), timeout=30, text=True,
         )
         if result.returncode != 0:
             print(f"[state-sync] Auto-commit failed (non-blocking): {result.stderr.strip()}")
@@ -186,7 +209,7 @@ def _git_commit_state(
         r2 = subprocess.run(
             ["git", "rev-parse", "HEAD"],
             capture_output=True, check=False,
-            cwd=str(project_root), text=True,
+            cwd=str(git_root), text=True,
         )
         return r2.stdout.strip() or None
     except Exception as e:
@@ -198,21 +221,25 @@ def _git_commit_state(
 
 ### 4. 三个调用点
 
-| 调用位置 | 函数 | 行号（约） | event 值 |
-|---------|------|-----------|---------|
-| feature 完成 | `complete_feature()` | ~8714（`save_progress_md` 之后） | `"done"` |
-| feature 开始 | `set_current()` | ~6614（`save_progress_md` 之后） | `"start"` |
-| bug 标记修复 | `update_bug_status()` | ~10075（`save_progress_md` 之后，仅 `status == "fixed"` 时） | `"fix"` |
+| 调用位置 | 函数 | 精确行号 | event 值 | 说明 |
+|---------|------|---------|---------|-----|
+| feature 完成 | `cmd_done()` | ~8426 之后、~8446 之前 | `"done"` | 在 `_reset_active_progress` 之后、`_notify_parent_sync()` 之前；此时 archive/memory 操作已全部完成 |
+| feature 开始 | `set_current()` | ~6614（`save_progress_md` 之后） | `"start"` | 无变化 |
+| bug 标记修复 | `update_bug()` | ~10075（`save_progress_md` 之后，仅 `status == "fixed"` 时） | `"fix"` | 函数名为 `update_bug`（line 10020），非 `update_bug_status` |
 
-**`complete_feature()` 调用示例**：
+> **[P1 修正]** 原 spec 将调用点写为 `complete_feature()`，但该函数只在 `complete --unsafe-legacy` 路径使用（line 11945）。主路径 `/prog done` 经由 `cmd_done()`（line 8217）执行。正确调用点在 `cmd_done()` 内 `_reset_active_progress(data_post_reset)` 之后，此时所有 archive（`progress_archive/`）和 memory 写入均已完成，状态文件最终一致。
+
+**`cmd_done()` 调用示例**：
 
 ```python
-save_progress_json(data)
-save_progress_md(generate_progress_md(data))
-_auto_state_commit(feature_id, "done")   # ← 新增
+    # ... existing: _reset_active_progress(data_post_reset)   ← line ~8426
+
+    _auto_state_commit(feature_id, "done")   # ← 新增，所有状态写入完成后
+
+    _notify_parent_sync()                    # ← line ~8446，父追踪器同步
 ```
 
-**非阻塞约定**：`_auto_state_commit` 返回值（commit hash 或 None）被调用方记录到日志即可，不影响 `complete_feature` / `set_current` / `update_bug_status` 自身的返回值。
+**非阻塞约定**：`_auto_state_commit` 返回值（commit hash 或 None）被调用方记录到日志即可，不影响 `cmd_done` / `set_current` / `update_bug` 自身的返回值。
 
 ---
 
@@ -249,8 +276,9 @@ _auto_state_commit(feature_id, "done")   # ← 新增
 | 约束 | 实现方式 |
 |------|---------|
 | 只在有 diff 时 commit | `_get_dirty_state_files` 返回空列表时直接跳过 |
-| 只 git add 白名单文件 | `git commit --only -- <files>`，精确路径列表 |
-| 不带入用户 staged 改动 | `--only` 使用临时 index，用户 staged 改动不受影响 |
+| 只 git add 白名单文件 | 先 `git add -- <files>`（精确列表），再 `git commit --only -- <files>` |
+| untracked 新文件可提交 | `git add` 将 untracked 状态文件 stage，`--only` 再将其纳入临时 index |
+| 不带入用户 staged 改动 | `--only` 使用临时 index，用户其他 staged 改动不受影响 |
 | merge/rebase/cherry-pick 中跳过 | 检测 `--absolute-git-dir` 下的 marker 文件 |
 | 提交消息格式固定 | `chore(PT): state sync [F{id}: {event}] [skip ci]` |
 | 配置开关 | `settings.auto_state_commit`，默认 True |
