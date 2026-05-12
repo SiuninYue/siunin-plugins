@@ -194,6 +194,15 @@ OWNER_ROLES = ("architecture", "coding", "testing")
 _IMMUTABLE_PROTECTED_RELPATHS: frozenset[str] = frozenset({
     "docs/progress-tracker/architecture/architecture.md",
 })
+WORK_ITEM_TAXONOMY = frozenset([
+    "epic", "feature", "task", "bug", "spike", "risk", "decision", "update"
+])
+
+WORKFLOW_PROFILE_VALUES = frozenset([
+    "quick_task", "standard_task", "feature_delivery", "hotfix"
+])
+WORKFLOW_PROFILE_DEFAULT = "standard_task"
+
 UPDATE_CATEGORIES = ("status", "decision", "risk", "handoff", "assignment", "meeting")
 UPDATE_SOURCES = ("prog_update", "spm_meeting", "spm_assign", "spm_planning", "manual")
 UPDATE_REFS_INLINE_LIMIT = 12
@@ -3094,6 +3103,11 @@ def _apply_schema_defaults(data: Dict[str, Any]) -> None:
     if not isinstance(retrospectives, list):
         retrospectives = []
     data["retrospectives"] = [item for item in retrospectives if isinstance(item, dict)]
+
+    tasks = data.get("tasks")
+    if not isinstance(tasks, list):
+        tasks = []
+    data["tasks"] = [t for t in tasks if isinstance(t, dict)]
 
 
 def load_progress_json():
@@ -6778,6 +6792,189 @@ def _get_dispatched_child_feature(
     return None
 
 
+def _select_next_work_item(
+    data: Dict[str, Any],
+    project_root: Path,
+    repo_root: Path,
+) -> Optional[Dict[str, Any]]:
+    """Unified work-item selector with priority ordering.
+
+    Priority order:
+        P0 bug > P1 bug > standalone task > feature_task (child/root) > P2 bug
+
+    routing_queue scanning:
+        ``BUG-<N>``    -> resolved via ``bugs[]``; skipped if status is
+                          ``fixed`` / ``false_positive`` or if the same id is
+                          present in non-terminal ``active_routes``.
+        ``ROOT``       -> root-level pending feature (existing behavior).
+        ``<other>``    -> child project dispatch (existing behavior).
+
+    Fallback when routing_queue produces nothing:
+        1. Scan ``tasks[]`` for the first pending task.
+        2. Otherwise delegate to ``get_next_feature()``.
+
+    Note: P2 (low-priority) bugs are intentionally subordinate to child/root
+    feature dispatch. When routing_queue contains both a dispatchable child
+    project code and a P2 bug, the child feature is selected first. P2 bugs
+    are selected only when no P0/P1 bugs, tasks, or dispatchable child/root
+    features remain.
+
+    Returns ``None`` if nothing actionable is found.
+    """
+    # ------------------------------------------------------------------
+    # Step 1: active_route conflict set for BUG-* entries.
+    # Stale routes (assigned_at older than DEFAULT_LINKED_STATUS_STALE_HOURS)
+    # are treated as non-conflicting, matching the behavior of
+    # _get_dispatched_child_feature() for child project codes.
+    # ------------------------------------------------------------------
+    active_bug_ids: set = set()
+    for route in data.get("active_routes") or []:
+        if not isinstance(route, dict):
+            continue
+        status = route.get("status")
+        if status in ("done", "cancelled"):
+            continue
+        # Stale route -> not a conflict (align with _get_dispatched_child_feature)
+        assigned_at = route.get("assigned_at")
+        if assigned_at:
+            ts = _parse_iso_timestamp(assigned_at)
+            if ts is not None:
+                age_hours = (datetime.now(tz=timezone.utc) - ts).total_seconds() / 3600
+                if age_hours > DEFAULT_LINKED_STATUS_STALE_HOURS:
+                    continue
+        code = route.get("project_code", "")
+        if isinstance(code, str) and code.startswith("BUG-"):
+            active_bug_ids.add(code)
+
+    # ------------------------------------------------------------------
+    # Step 2: bucket routing_queue entries by priority tier.
+    # ------------------------------------------------------------------
+    bugs_map: Dict[str, Dict[str, Any]] = {
+        b["id"]: b
+        for b in (data.get("bugs") or [])
+        if isinstance(b, dict) and isinstance(b.get("id"), str)
+    }
+    skip_statuses = {"fixed", "false_positive"}
+
+    p0_bugs: List[tuple] = []
+    p1_bugs: List[tuple] = []
+    p2_bugs: List[tuple] = []
+    other_entries: List[str] = []
+
+    for entry in data.get("routing_queue") or []:
+        if not isinstance(entry, str):
+            continue
+        if entry.startswith("BUG-"):
+            bug = bugs_map.get(entry)
+            if bug is None:
+                continue
+            if bug.get("status") in skip_statuses:
+                continue
+            if entry in active_bug_ids:
+                continue
+            prio = bug.get("priority", "medium")
+            if prio == "high":
+                p0_bugs.append((entry, bug))
+            elif prio == "low":
+                p2_bugs.append((entry, bug))
+            else:
+                p1_bugs.append((entry, bug))
+        else:
+            other_entries.append(entry)
+
+    def _bug_item(bug_id: str, bug: Dict[str, Any], tier: str) -> Dict[str, Any]:
+        return {
+            "item_type": "bug",
+            "id": bug_id,
+            "name": bug.get("description", bug_id),
+            "priority_tier": tier,
+            "action": f"prog fix {bug_id}",
+            "dispatched_to": "bug",
+        }
+
+    def _task_item(task: Dict[str, Any]) -> Dict[str, Any]:
+        task_id = task.get("id")
+        return {
+            "item_type": "task",
+            "id": task_id,
+            "name": task.get("description", task_id),
+            "priority_tier": None,
+            "action": f"prog start-task {task_id}",
+            "dispatched_to": "task",
+        }
+
+    # ------------------------------------------------------------------
+    # Step 3: priority traversal.
+    # ------------------------------------------------------------------
+    # P0 bugs
+    for bug_id, bug in p0_bugs:
+        return _bug_item(bug_id, bug, "P0")
+
+    # P1 bugs
+    for bug_id, bug in p1_bugs:
+        return _bug_item(bug_id, bug, "P1")
+
+    # Standalone tasks (tasks[] scan) before child/root dispatch.
+    for task in data.get("tasks") or []:
+        if isinstance(task, dict) and task.get("status") == "pending":
+            return _task_item(task)
+
+    # Non-bug routing_queue entries (ROOT / child project codes).
+    if other_entries:
+        active_routes = data.get("active_routes") or []
+        linked_projects = data.get("linked_projects") or []
+        dispatch_result = _get_dispatched_child_feature(
+            other_entries,
+            active_routes,
+            linked_projects,
+            project_root,
+            repo_root,
+            parent_data=data,
+        )
+        if dispatch_result:
+            dispatched_to = dispatch_result.get("dispatched_to", "child")
+            item_type = "root" if dispatched_to == "root" else "child"
+            return {
+                "item_type": item_type,
+                "id": dispatch_result.get("next_feature_id"),
+                "name": dispatch_result.get("next_feature_name"),
+                "priority_tier": None,
+                "action": dispatch_result.get("action_required"),
+                "dispatched_to": dispatched_to,
+                "dispatch_result": dispatch_result,
+            }
+
+    # P2 bugs (lowest priority).
+    for bug_id, bug in p2_bugs:
+        return _bug_item(bug_id, bug, "P2")
+
+    # ------------------------------------------------------------------
+    # Step 4: tasks[] fallback (only when routing_queue exhausted with no
+    # actionable bug/child entry). Tasks were already attempted above, but
+    # re-check defensively in case routing_queue was empty entirely.
+    # ------------------------------------------------------------------
+    for task in data.get("tasks") or []:
+        if isinstance(task, dict) and task.get("status") == "pending":
+            return _task_item(task)
+
+    # ------------------------------------------------------------------
+    # Step 5: feature fallback via get_next_feature().
+    # ------------------------------------------------------------------
+    feature = get_next_feature()
+    if feature:
+        return {
+            "item_type": "feature",
+            "id": feature.get("id"),
+            "name": feature.get("name"),
+            "priority_tier": None,
+            "action": "prog next",
+            "dispatched_to": "feature",
+            "feature": feature,
+        }
+
+    return None
+
+
 def next_feature(output_json: bool = False, ack_planning_risk: bool = False) -> bool:
     """Print the next actionable feature (skipping completed/deferred)."""
     data = load_progress_json()
@@ -6848,36 +7045,114 @@ def next_feature(output_json: bool = False, ack_planning_risk: bool = False) -> 
                 print(payload["message"])
             return False
 
-    # RouteV1: parent dispatching
+    # RouteV1: parent dispatching (PT-F13: unified work-item selection)
     if data and data.get("tracker_role") == "parent":
         rq = data.get("routing_queue") or []
-        ar = data.get("active_routes") or []
-        lp = data.get("linked_projects") or []
-        if rq:
-            try:
-                project_root = find_project_root()
-                repo_root = _REPO_ROOT or project_root
-                dispatch_result = _get_dispatched_child_feature(
-                    rq, ar, lp, project_root, repo_root, parent_data=data
-                )
-                if dispatch_result:
-                    code = dispatch_result["child_project_code"]
-                    fid = dispatch_result["next_feature_id"]
-                    fname = dispatch_result["next_feature_name"]
-                    action = dispatch_result["action_required"]
-                    pos = dispatch_result.get("position", "?")
-                    if output_json:
-                        print(json.dumps(dispatch_result, ensure_ascii=False))
+        # Determine whether routing_queue has any non-bug entries; if it is
+        # composed entirely of BUG-* entries (all of which may be filtered),
+        # the "no actionable in queue" error is suppressed.
+        rq_has_non_bug = any(
+            isinstance(e, str) and not e.startswith("BUG-")
+            for e in rq
+        )
+        try:
+            project_root = find_project_root()
+            repo_root = _REPO_ROOT or project_root
+            work_item = _select_next_work_item(data, project_root, repo_root)
+        except Exception as exc:
+            logger.debug(f"Parent dispatch failed: {exc}")
+            work_item = None
+
+        if work_item is not None:
+            item_type = work_item.get("item_type")
+
+            if item_type == "bug":
+                bug_id = work_item["id"]
+                bug_name = work_item["name"]
+                tier = work_item.get("priority_tier")
+                action = work_item.get("action") or f"prog fix {bug_id}"
+                if output_json:
+                    print(json.dumps({
+                        "status": "ok",
+                        "item_type": "bug",
+                        "id": bug_id,
+                        "name": bug_name,
+                        "priority_tier": tier,
+                        "action": action,
+                        "feature_id": None,
+                        "test_steps": [],
+                    }, ensure_ascii=False))
+                else:
+                    tier_label = f" {tier}" if tier else ""
+                    print(f"[NEXT]{tier_label} Bug: {bug_id}")
+                    print(f"{bug_id}: {bug_name}")
+                    print(f"Run: {action}")
+                # Register bug in active_routes so /prog reflects it.
+                try:
+                    ar_list = data.get("active_routes")
+                    if not isinstance(ar_list, list):
+                        ar_list = []
+                    ar_list = [
+                        r for r in ar_list
+                        if not (isinstance(r, dict) and r.get("project_code") == bug_id)
+                    ]
+                    ar_list.append({
+                        "project_code": bug_id,
+                        "feature_ref": bug_id,
+                        "feature_name": bug_name,
+                        "assigned_at": _iso_now(),
+                        "status": "active",
+                    })
+                    data["active_routes"] = ar_list
+                    _update_runtime_context(data, source="next_dispatch")
+                    save_progress_json(data)
+                    md_content = generate_progress_md(data)
+                    save_progress_md(md_content)
+                except Exception as exc:
+                    logger.debug(f"Bug dispatch bookkeeping failed: {exc}")
+                return True
+
+            if item_type == "task":
+                task_id = work_item["id"]
+                task_name = work_item["name"]
+                action = work_item.get("action") or f"prog start-task {task_id}"
+                if output_json:
+                    print(json.dumps({
+                        "status": "ok",
+                        "item_type": "task",
+                        "id": task_id,
+                        "name": task_name,
+                        "priority_tier": None,
+                        "action": action,
+                        "feature_id": None,
+                        "test_steps": [],
+                    }, ensure_ascii=False))
+                else:
+                    print(f"[NEXT] Task: {task_id}")
+                    print(f"{task_id}: {task_name}")
+                    print(f"Run: {action}")
+                return True
+
+            if item_type in ("child", "root"):
+                dispatch_result = work_item.get("dispatch_result") or {}
+                code = dispatch_result.get("child_project_code")
+                fid = dispatch_result.get("next_feature_id")
+                fname = dispatch_result.get("next_feature_name")
+                action = dispatch_result.get("action_required")
+                pos = dispatch_result.get("position", "?")
+                if output_json:
+                    print(json.dumps(dispatch_result, ensure_ascii=False))
+                else:
+                    if code == ROOT_ROUTE_CODE:
+                        print(f"[NEXT] Root-level feature (routing_queue position {pos}):")
                     else:
-                        if code == ROOT_ROUTE_CODE:
-                            print(f"[NEXT] Root-level feature (routing_queue position {pos}):")
-                        else:
-                            print(f"[NEXT] Dispatching to [{code}] (routing_queue position {pos}):")
-                        print(f"F{fid}: {fname}")
-                        print(f"Run: {action}")
-                    # Register dispatch in active_routes + refresh linked_snapshot
-                    # so /prog reflects that this child is now active (next milestone: done).
-                    if code != ROOT_ROUTE_CODE:
+                        print(f"[NEXT] Dispatching to [{code}] (routing_queue position {pos}):")
+                    print(f"F{fid}: {fname}")
+                    print(f"Run: {action}")
+                # Register dispatch in active_routes + refresh linked_snapshot
+                # so /prog reflects that this child is now active.
+                if code and code != ROOT_ROUTE_CODE:
+                    try:
                         ar_list = data.get("active_routes")
                         if not isinstance(ar_list, list):
                             ar_list = []
@@ -6893,8 +7168,6 @@ def next_feature(output_json: bool = False, ack_planning_risk: bool = False) -> 
                             "status": "active",
                         })
                         data["active_routes"] = ar_list
-                        # Refresh linked_snapshot silently (inlined to
-                        # avoid print side-effects when output_json=True).
                         statuses = collect_linked_project_statuses(
                             data, project_root=project_root, repo_root=repo_root,
                             active_routes=ar_list,
@@ -6910,11 +7183,19 @@ def next_feature(output_json: bool = False, ack_planning_risk: bool = False) -> 
                         save_progress_json(data)
                         md_content = generate_progress_md(data)
                         save_progress_md(md_content)
-                    return True
-            except Exception as exc:
-                logger.debug(f"Parent dispatch failed: {exc}")
+                    except Exception as exc:
+                        logger.debug(f"Child dispatch bookkeeping failed: {exc}")
+                return True
 
-            # No dispatchable entry found in queue — explicit no-action return
+            # item_type == "feature": fall through to the legacy feature
+            # rendering path below so planning preflight still runs.
+
+        # No work item from unified selector. If routing_queue contained
+        # non-bug entries that could not be dispatched, surface the legacy
+        # "no actionable in queue" error (returncode 1).
+        if rq and rq_has_non_bug and (
+            work_item is None or work_item.get("item_type") not in ("feature",)
+        ):
             no_action_msg = (
                 "No actionable feature found in routing_queue. "
                 "Check queue configuration with 'prog route-status'."
@@ -6928,6 +7209,27 @@ def next_feature(output_json: bool = False, ack_planning_risk: bool = False) -> 
             else:
                 print(no_action_msg)
             return False
+
+        # If routing_queue contained only BUG-* entries that were all
+        # filtered (fixed / false_positive / active_route conflict) and
+        # nothing else is actionable, treat this as a successful no-op
+        # (exit 0) rather than an error: the queue was reviewed and the
+        # user has nothing to do.
+        if rq and not rq_has_non_bug and work_item is None:
+            no_action_msg = (
+                "No actionable work item. All routing_queue bug entries are "
+                "filtered (fixed / in-progress) and no tasks or features "
+                "remain."
+            )
+            if output_json:
+                print(json.dumps({
+                    "status": "none",
+                    "message": no_action_msg,
+                    "routing_queue": rq,
+                }, ensure_ascii=False))
+            else:
+                print(no_action_msg)
+            return True
 
     feature = get_next_feature()
     if not feature:
@@ -9236,12 +9538,74 @@ def get_next_bug_id():
     return fallback_id
 
 
-def add_bug(description: str, status: str = "pending_investigation",
-            priority: str = "medium", category: str = "bug",
-            scheduled_position: Optional[str] = None,
-            verification_results: Optional[str] = None):
+def _push_bug_to_routing_queue(data: Dict[str, Any], bug_id: str, priority: str) -> None:
+    """Insert bug_id into routing_queue at the position matching its priority tier.
+
+    Priority tier mapping (bug.priority field -> tier weight):
+        high   -> P0 (weight 0, inserted before P1/P2 bugs and all other entries)
+        medium -> P1 (weight 1, inserted before P2 bugs, after P0)
+        low    -> P2 (weight 2, appended after all P0/P1 bugs)
+
+    routing_queue entries can be:
+        - Project codes (e.g. "PT", "ROOT") -> weight 1.5 (between P1 and P2)
+        - Bug IDs ("BUG-*") -> weight depends on their priority in bugs[]
+        - Task IDs ("TASK-*") -> weight 1.5 (same as project codes for ordering purposes)
+
+    Idempotent: if bug_id is already in routing_queue, this is a no-op.
+
+    Args:
+        data: The loaded progress.json dict (will be mutated in-place).
+        bug_id: The bug ID to insert (e.g. "BUG-001").
+        priority: The bug's priority string ("high", "medium", "low").
     """
-    Add a new bug to the tracking with validation.
+    queue = data.setdefault("routing_queue", [])
+    if not isinstance(queue, list):
+        queue = []
+        data["routing_queue"] = queue
+
+    # Idempotent: bail out if already present
+    if bug_id in queue:
+        return
+
+    # Map bug priority to tier weight
+    priority_to_weight = {"high": 0.0, "medium": 1.0, "low": 2.0}
+    new_weight = priority_to_weight.get(priority, 1.0)
+
+    # Build lookup from existing bug IDs to their priorities (for queue items
+    # that are BUG-* entries — we need to know their tier weight).
+    bug_priority_map: Dict[str, str] = {}
+    for bug in data.get("bugs") or []:
+        if isinstance(bug, dict):
+            bid = bug.get("id")
+            bprio = bug.get("priority")
+            if isinstance(bid, str) and isinstance(bprio, str):
+                bug_priority_map[bid] = bprio
+
+    def _entry_weight(entry: str) -> float:
+        # BUG-* entries draw their weight from bugs[]; if the bug is missing
+        # from bugs[] for any reason, treat it as medium (1.0) as a safe default.
+        if isinstance(entry, str) and entry.startswith("BUG-"):
+            prio = bug_priority_map.get(entry, "medium")
+            return priority_to_weight.get(prio, 1.0)
+        # Project codes / TASK-* / ROOT / anything else: weight 1.5
+        return 1.5
+
+    # Find first existing entry whose weight is >= new_weight; insert before it.
+    insert_idx = len(queue)
+    for idx, entry in enumerate(queue):
+        if _entry_weight(entry) >= new_weight:
+            insert_idx = idx
+            break
+
+    queue.insert(insert_idx, bug_id)
+
+
+def _add_bug_internal(description: str, status: str = "pending_investigation",
+                      priority: str = "medium", category: str = "bug",
+                      scheduled_position: Optional[str] = None,
+                      verification_results: Optional[str] = None):
+    """
+    Add a new bug to the tracking with validation (internal).
 
     Creates a new bug entry with auto-generated ID, timestamp, and optional
     scheduling information. Updates both progress.json and progress.md.
@@ -9262,8 +9626,8 @@ def add_bug(description: str, status: str = "pending_investigation",
             results (max 10KB).
 
     Returns:
-        bool: True if bug was successfully added, False if duplicate detected
-        or validation failed.
+        Tuple[bool, Optional[str]]: (success, bug_id). On success returns
+        (True, bug_id); on duplicate / failure returns (False, None).
 
     Raises:
         ValueError: If description is empty, too long, or contains invalid
@@ -9315,7 +9679,7 @@ def add_bug(description: str, status: str = "pending_investigation",
         if normalized_bug_desc == normalized_desc:
             print(f"Duplicate bug detected: {bug.get('id')}")
             print("Use 'update-bug' to add more information or different bug.")
-            return False
+            return False, None
 
     # Generate new bug ID
     bug_id = get_next_bug_id()
@@ -9396,7 +9760,256 @@ def add_bug(description: str, status: str = "pending_investigation",
     print(f"Category: {category}")
     if scheduled_pos:
         print(f"Scheduled: {scheduled_pos}")
-    return True
+    return True, bug_id
+
+
+def add_bug(description: str, status: str = "pending_investigation",
+            priority: str = "medium", category: str = "bug",
+            scheduled_position: Optional[str] = None,
+            verification_results: Optional[str] = None) -> bool:
+    """Public wrapper around _add_bug_internal preserving the bool return type.
+
+    See `_add_bug_internal` for full documentation. This wrapper exists for
+    backward compatibility — existing callers expect a bool return value.
+    """
+    success, _ = _add_bug_internal(
+        description=description,
+        status=status,
+        priority=priority,
+        category=category,
+        scheduled_position=scheduled_position,
+        verification_results=verification_results,
+    )
+    return success
+
+
+def add_task_item(
+    description: str,
+    details: str = "",
+    refs: Optional[List[str]] = None,
+    next_action: str = "",
+    priority: str = "P1",
+    workflow_profile: str = WORKFLOW_PROFILE_DEFAULT,
+) -> Optional[str]:
+    """Write a standalone task item to tasks[].
+
+    Returns the new task ID on success, None on failure.
+    Priority values: P0, P1, P2.
+    workflow_profile must be one of WORKFLOW_PROFILE_VALUES.
+
+    Note: Callers that invoke this outside the CLI MUST hold a progress_transaction()
+    lock to avoid concurrent write races. The CLI wires mutating commands through
+    MUTATING_COMMANDS + progress_transaction() automatically.
+    """
+    if not description or not description.strip():
+        raise ValueError("Description cannot be empty")
+
+    description = description.strip()
+
+    if len(description) > 2000:
+        raise ValueError(f"Description too long ({len(description)} chars, max 2000)")
+
+    valid_priorities = ["P0", "P1", "P2"]
+    if priority not in valid_priorities:
+        raise ValueError(f"Invalid priority '{priority}'. Must be one of: {valid_priorities}")
+
+    if workflow_profile not in WORKFLOW_PROFILE_VALUES:
+        raise ValueError(
+            f"Invalid workflow_profile '{workflow_profile}'. "
+            f"Allowed: {sorted(WORKFLOW_PROFILE_VALUES)}"
+        )
+
+    # Sanitize control characters (preserve newline/tab)
+    description = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', description)
+    if details:
+        details = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', details)
+
+    # Defensive copy of refs to avoid aliasing mutation
+    refs = list(refs) if refs else []
+
+    data = load_progress_json()
+    if not data:
+        print("No progress tracking found. Use init first.")
+        return None
+
+    tasks = data.setdefault("tasks", [])
+
+    # Generate task ID
+    existing_ids = [t.get("id", "") for t in tasks if isinstance(t, dict)]
+    n = len(tasks) + 1
+    while f"TASK-{n:03d}" in existing_ids:
+        n += 1
+    task_id = f"TASK-{n:03d}"
+
+    new_task = {
+        "id": task_id,
+        "type": "task",
+        "description": description,
+        "workflow_profile": workflow_profile,
+        "status": "pending",
+        "priority": priority,
+        "details": details.strip() if details else "",
+        "refs": refs,
+        "next_action": next_action.strip() if next_action else "",
+        "created_at": _iso_now(),
+    }
+
+    tasks.append(new_task)
+    data["tasks"] = tasks
+
+    save_progress_json(data)
+    md_content = generate_progress_md(data)
+    save_progress_md(md_content)
+
+    print(f"Task recorded: {task_id}")
+    print(f"Description: {description}")
+    print(f"workflow_profile: {workflow_profile}")
+    return task_id
+
+
+# Priority mapping for smart_intake: P0/P1/P2 → high/medium/low (add_bug priority)
+_SMART_INTAKE_PRIORITY_MAP = {"P0": "high", "P1": "medium", "P2": "low"}
+
+
+def smart_intake(
+    candidate_json: str,
+    commit: Optional[str] = None,
+    workflow_profile: str = WORKFLOW_PROFILE_DEFAULT,
+) -> bool:
+    """Deterministic work-item intake executor.
+
+    Preview mode (commit=None):
+        Parse candidate_json, display type/confidence/profile fields.
+        If confidence < 0.6: print one clarification prompt, no JSON write.
+        Always returns True (success) on valid candidate, never mutates progress.json.
+
+    Commit mode (commit="bug"|"feature"|"task"|"update"):
+        Must be called inside progress_transaction() by the caller (CLI dispatch).
+        Routes to the appropriate write function based on commit type.
+        Returns True on success, False on failure.
+
+    Args:
+        candidate_json: JSON string with type, confidence, and profile fields.
+        commit: Commit target work-item type, or None for preview.
+        workflow_profile: Used only when commit="task". Ignored for all other
+            commit types and in preview mode.
+    """
+    # Parse and validate candidate_json
+    try:
+        candidate = json.loads(candidate_json)
+    except (json.JSONDecodeError, TypeError) as e:
+        print(f"Error: invalid candidate JSON: {e}")
+        return False
+
+    if not isinstance(candidate, dict):
+        print("Error: candidate JSON must be an object")
+        return False
+
+    item_type = candidate.get("type", "")
+    try:
+        confidence = float(candidate.get("confidence", 0.0))
+    except (TypeError, ValueError):
+        print("Error: confidence must be a number")
+        return False
+
+    profile = candidate.get("profile", {})
+    if not isinstance(profile, dict):
+        print("Error: profile must be an object")
+        return False
+
+    description = (profile.get("description") or "").strip()
+
+    if not description:
+        print("Error: profile.description is required")
+        return False
+
+    if item_type not in WORK_ITEM_TAXONOMY:
+        print(
+            f"Error: invalid type '{item_type}'. "
+            f"Must be one of: {sorted(WORK_ITEM_TAXONOMY)}"
+        )
+        return False
+
+    # Preview branch: zero mutation
+    if not commit:
+        print("[候选工作项]")
+        print(f"  type:        {item_type}")
+        print(f"  confidence:  {confidence:.2f}")
+        print("  profile:")
+        print(f"    description: {description}")
+        for key in ("priority", "details", "refs", "next_action"):
+            val = profile.get(key)
+            if val:
+                print(f"    {key}: {val}")
+
+        if confidence < 0.6:
+            print()
+            print(
+                "needs_clarification: 请补充信息 — 这条记录更接近 bug、"
+                "feature、task 还是 update？"
+            )
+            print("  → 确认后用 --commit <type> 重新提交")
+            return True
+
+        print()
+        print(f"→ 使用 --commit {item_type} 写入，或指定其他类型")
+        return True
+
+    # Commit branch: caller must hold progress_transaction() lock
+    if commit == "bug":
+        priority_str = profile.get("priority", "P1")
+        bug_priority = _SMART_INTAKE_PRIORITY_MAP.get(priority_str, "medium")
+        try:
+            success, bug_id = _add_bug_internal(
+                description=description,
+                priority=bug_priority,
+            )
+        except ValueError as exc:
+            print(f"Error: {exc}")
+            return False
+        if success and bug_id:
+            data = load_progress_json()
+            _push_bug_to_routing_queue(data, bug_id, bug_priority)
+            save_progress_json(data)
+            md_content = generate_progress_md(data)
+            save_progress_md(md_content)
+        return success
+
+    if commit == "task":
+        raw_priority = profile.get("priority", "P1")
+        if raw_priority not in ("P0", "P1", "P2"):
+            raw_priority = "P1"
+        task_id = add_task_item(
+            description=description,
+            details=profile.get("details", "") or "",
+            refs=profile.get("refs") or [],
+            next_action=profile.get("next_action", "") or "",
+            priority=raw_priority,
+            workflow_profile=workflow_profile,
+        )
+        return task_id is not None
+
+    if commit == "feature":
+        result = add_feature(
+            name=description,
+            test_steps=[],
+        )
+        # add_feature returns bool; treat None as False defensively.
+        return bool(result)
+
+    if commit == "update":
+        raw_category = profile.get("category", "status")
+        category = raw_category if raw_category in UPDATE_CATEGORIES else "status"
+        return add_update(
+            category=category,
+            summary=description,
+            details=profile.get("details") or None,
+            next_action=profile.get("next_action") or None,
+            refs=profile.get("refs") or None,
+        )
+
+    print(f"Error: unknown commit type '{commit}'")
+    return False
 
 
 def update_bug(bug_id: str, status: Optional[str] = None,
@@ -10651,6 +11264,46 @@ def main():
         help="Acknowledge planning preflight warnings and continue selection",
     )
 
+    # PT-F13: ``next`` alias for ``next-feature`` (unified work-item selection).
+    next_alias_parser = subparsers.add_parser(
+        "next",
+        help="Alias for next-feature (unified work-item selection)",
+    )
+    next_alias_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="output_json",
+        help="Emit machine-readable JSON output",
+    )
+    next_alias_parser.add_argument(
+        "--ack-planning-risk",
+        action="store_true",
+        dest="ack_planning_risk",
+        help="Acknowledge planning preflight warnings and continue selection",
+    )
+
+    # PT-F13: ``smart`` deterministic work-item intake executor.
+    smart_parser = subparsers.add_parser(
+        "smart",
+        help="Deterministic work-item intake executor (preview or commit)",
+    )
+    smart_parser.add_argument(
+        "--candidate-json",
+        required=True,
+        help="JSON string with type, confidence, and profile fields",
+    )
+    smart_parser.add_argument(
+        "--commit",
+        choices=["bug", "feature", "task", "update"],
+        help="Commit the candidate to the specified work-item type",
+    )
+    smart_parser.add_argument(
+        "--workflow-profile",
+        choices=sorted(WORKFLOW_PROFILE_VALUES),
+        default=WORKFLOW_PROFILE_DEFAULT,
+        help="workflow_profile for task commits",
+    )
+
     # Archive history commands
     archives_parser = subparsers.add_parser(
         "list-archives", help="List archived progress snapshots"
@@ -11257,7 +11910,7 @@ def main():
                 feature_id=args.feature_id,
                 output_json=args.output_json,
             )
-        if args.command == "next-feature":
+        if args.command in ("next-feature", "next"):
             return next_feature(
                 output_json=args.output_json,
                 ack_planning_risk=args.ack_planning_risk,
@@ -11477,10 +12130,33 @@ def main():
         parser.print_help()
         return 1
 
-    # F21: fail-closed scope consistency check for next-feature and done
-    if args.command in {"next-feature", "done"}:
+    # F21: fail-closed scope consistency check for next-feature, next, and done
+    if args.command in {"next-feature", "next", "done"}:
         if not check_worktree_branch_consistency(args.command):
             return 1
+
+    # PT-F13: `smart` is dual-mode (preview vs commit). It is intentionally
+    # NOT in MUTATING_COMMANDS to keep preview as a zero-side-effect path.
+    # Only the --commit branch runs preflight + progress_transaction().
+    if args.command == "smart":
+        if args.commit:
+            if not enforce_route_preflight("smart", sys.argv):
+                return 1
+            try:
+                with progress_transaction():
+                    return smart_intake(
+                        candidate_json=args.candidate_json,
+                        commit=args.commit,
+                        workflow_profile=args.workflow_profile,
+                    )
+            except TimeoutError as exc:
+                print(f"Error: {exc}")
+                return False
+        return smart_intake(
+            candidate_json=args.candidate_json,
+            commit=None,
+            workflow_profile=args.workflow_profile,
+        )
 
     if args.command in MUTATING_COMMANDS:
         if not enforce_route_preflight(args.command, sys.argv):

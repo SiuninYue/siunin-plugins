@@ -17,12 +17,23 @@ compute_next_action(phase, context) → str | None
 - design → "restart_from_planning"（防御性覆盖）
 - None / unknown → None（无操作）
 
+work-item intake flow（F13）：
+- intake:pending    → "classify_with_ai"
+- intake:classified → "confirm_or_clarify"
+- intake:confirmed  → "commit_work_item"
+- intake:committed  → "route_to_queue"
+
+task lifecycle（F13 定义常量，F14 接入执行语义）：
+- task:pending → "start_task"
+- task:active  → "complete_task"
+- task:done    → None（终态，无后续动作）
+
 设计约束：无 I/O，无副作用，可安全重复调用。
 """
 
 from typing import Optional
 
-_PHASE_ACTION_MAP: dict[str, str] = {
+_PHASE_ACTION_MAP: dict[str, Optional[str]] = {
     "execution_complete": "run_prog_done",
     "planning:review": "resume_planning_draft",
     "planning:draft": "resume_planning_draft",
@@ -32,6 +43,17 @@ _PHASE_ACTION_MAP: dict[str, str] = {
     "planning": "restart_from_planning",
     "design_complete": "restart_from_planning",       # 设计完成 → 进入规划
     "design": "restart_from_planning",                # 防御性覆盖
+
+    # work-item intake flow states
+    "intake:pending":    "classify_with_ai",
+    "intake:classified": "confirm_or_clarify",
+    "intake:confirmed":  "commit_work_item",
+    "intake:committed":  "route_to_queue",
+
+    # task lifecycle states (F13 defines constants, F14 wires execution)
+    "task:pending":      "start_task",
+    "task:active":       "complete_task",
+    "task:done":         None,
 }
 
 

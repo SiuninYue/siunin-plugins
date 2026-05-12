@@ -323,6 +323,19 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project_memory.py register-rejection
 
 ## Command Reference
 
+### prog-smart
+
+AI-first natural language intake for bugs, features, tasks, and updates.
+
+**Usage**: `/prog-smart <natural language description>`
+
+**Flow**: haiku classifies intent → preview candidate → confirm → `prog smart --commit <type>`
+
+**Key contract**:
+- Preview mode (no `--commit`): zero mutation, shows type/confidence/profile
+- Ambiguous input: exactly one clarification question, no write
+- Commit mode: routes to `add-bug` / `add-feature` / `add-task` / `add-update`
+
 ### validate-planning
 
 Validate preflight planning artifacts from structured updates.
