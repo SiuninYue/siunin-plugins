@@ -149,25 +149,37 @@ class TestResetActiveProgress:
         assert "0/0" in md_content or "0" in md_content
 
 
-class TestResetActiveProgressFailClosedOnAuditError:
-    """Tests for fail-closed behavior when audit event writing fails."""
+class TestResetActiveProgressBestEffortAuditError:
+    """Tests for best-effort behavior when audit event writing fails."""
 
-    def test_does_not_save_when_audit_fails(self, project_scope):
+    def test_saves_cleared_state_when_audit_fails(self, project_scope, capsys):
         data = _make_fully_completed_data()
         state_dir = project_scope["state_dir"]
         (state_dir / "progress.json").write_text(json.dumps(data))
 
         with patch.object(
             pm, "record_feature_state_event", side_effect=ValueError("audit fail")
-        ):
+        ) as mock_audit:
             pm._reset_active_progress(data)
 
-        # On-disk progress.json should still have 2 features and 1 bug (unchanged)
-        saved = json.loads((state_dir / "progress.json").read_text())
-        assert len(saved["features"]) == 2
-        assert len(saved["bugs"]) == 1
+        # audit event was attempted with project_completed
+        mock_audit.assert_called_once_with(
+            event_type="project_completed",
+            feature_id=None,
+            feature_name=None,
+        )
 
-    def test_does_not_generate_md_when_audit_fails(self, project_scope):
+        # On-disk progress.json must be cleared
+        saved = json.loads((state_dir / "progress.json").read_text())
+        assert saved["features"] == []
+        assert saved["bugs"] == []
+        assert saved["current_feature_id"] is None
+
+        # Warning was printed
+        captured = capsys.readouterr()
+        assert "[DONE] WARNING: Failed to write project_completed audit event" in captured.out
+
+    def test_regenerates_md_when_audit_fails(self, project_scope, capsys):
         data = _make_fully_completed_data()
         state_dir = project_scope["state_dir"]
         (state_dir / "progress.json").write_text(json.dumps(data))
@@ -181,6 +193,7 @@ class TestResetActiveProgressFailClosedOnAuditError:
         ):
             pm._reset_active_progress(data)
 
-        # The marker text should still exist in progress.md (unchanged)
+        # Old marker must be replaced (md was regenerated)
         md_content = (state_dir / "progress.md").read_text()
-        assert marker in md_content
+        assert marker not in md_content
+        assert "0/0" in md_content or "/0" in md_content

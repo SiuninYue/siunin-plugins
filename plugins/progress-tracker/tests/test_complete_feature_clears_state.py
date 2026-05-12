@@ -110,3 +110,26 @@ class TestCompleteFeatureClearsState:
         data = json.loads((project_scope["state_dir"] / "progress.json").read_text())
         # bugs should still be there — reset not triggered
         assert len(data["bugs"]) == 1
+
+    def test_clears_state_when_project_completed_audit_fails(self, project_scope):
+        """即使 project_completed 审计写入失败，active state 仍被清空。
+
+        仅拦截 event_type == "project_completed" 的调用，放行 feature_completed。
+        否则 _record_feature_completed_event 会先抛异常，流程在 reset 前中断。
+        """
+        _write_full_completed_project(project_scope["state_dir"], feature_count=1, last_pending=True)
+
+        original = pm.record_feature_state_event
+
+        def selective_fail(*args, **kwargs):
+            if kwargs.get("event_type") == "project_completed":
+                raise ValueError("audit fail")
+            return original(*args, **kwargs)
+
+        with patch.object(pm, "record_feature_state_event", side_effect=selective_fail):
+            pm.complete_feature(feature_id=1, skip_archive=False)
+
+        data = json.loads((project_scope["state_dir"] / "progress.json").read_text())
+        assert data["features"] == []
+        assert data["bugs"] == []
+        assert data["current_feature_id"] is None

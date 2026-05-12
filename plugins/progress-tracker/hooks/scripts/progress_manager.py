@@ -3970,16 +3970,17 @@ def archive_current_progress(reason: str) -> Optional[Dict[str, Any]]:
 def _reset_active_progress(data: Dict[str, Any]) -> None:
     """Clear active progress state after all features are completed.
 
-    Fail-closed: writes the ``project_completed`` audit boundary event FIRST.
-    If the audit write raises any exception, the function returns immediately
-    WITHOUT modifying the active state — this prevents old-cycle
-    ``feature_completed`` events from corrupting the next cycle's
-    reconcile/backfill.
+    Attempts to record ``project_completed`` as a best-effort audit boundary;
+    failure does NOT block clearing active state.  Callers that also archive
+    the completed run (e.g. ``cmd_done``) provide a complementary boundary in
+    ``progress_history.json``.
 
     Args:
         data: The in-memory progress dict (mutated in place and saved to disk).
     """
-    # 1. Fail-closed: write audit boundary event FIRST.
+    # 1. Best-effort: write audit boundary event (reconcile uses this as a
+    #    cycle marker; when absent, backfill across cycle boundaries may
+    #    misattribute events if feature IDs are reused).
     try:
         record_feature_state_event(
             event_type="project_completed",
@@ -3988,11 +3989,11 @@ def _reset_active_progress(data: Dict[str, Any]) -> None:
         )
     except Exception as exc:
         print(
-            f"Warning: _reset_active_progress: failed to write project_completed "
-            f"audit event — aborting reset to prevent state corruption. "
+            f"[DONE] WARNING: Failed to write project_completed audit event. "
+            f"State will still be cleared; completed-run archive, when present, "
+            f"preserves the active snapshot. Reconcile may not see an audit boundary. "
             f"Error: {exc}"
         )
-        return
 
     # 2. Clear tracked collections.
     data["features"] = []

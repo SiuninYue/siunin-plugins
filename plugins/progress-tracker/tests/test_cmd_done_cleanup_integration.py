@@ -414,3 +414,29 @@ def test_cmd_done_completion_state_stable_before_cleanup_runs(seeded_done_env):
         "current_feature_id must already be null when _run_post_done_cleanup is entered; "
         f"got {observed_during_cleanup.get('current_feature_id')}"
     )
+
+
+def test_cmd_done_clears_state_when_project_completed_audit_fails(seeded_done_env):
+    """prog-done 即使 project_completed 审计写入失败，active state 仍被清空。
+
+    仅拦截 event_type == "project_completed"，放行 feature_completed。
+    防止 cmd_done() 入口的 archive/reset 顺序或异常处理以后再次回归。
+    """
+    original = progress_manager.record_feature_state_event
+
+    def selective_fail(*args, **kwargs):
+        if kwargs.get("event_type") == "project_completed":
+            raise ValueError("audit fail")
+        return original(*args, **kwargs)
+
+    with patch.object(progress_manager, "record_feature_state_event",
+                      side_effect=selective_fail):
+        rc = progress_manager.cmd_done()
+
+    assert rc == 0
+
+    state_dir = seeded_done_env / "docs" / "progress-tracker" / "state"
+    data = json.loads((state_dir / "progress.json").read_text())
+    assert data["features"] == []
+    assert data["bugs"] == []
+    assert data["current_feature_id"] is None
