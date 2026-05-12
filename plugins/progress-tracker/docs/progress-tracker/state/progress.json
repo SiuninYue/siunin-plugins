@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-05-11T17:08:32.713701Z",
+  "updated_at": "2026-05-12T23:33:53.527685Z",
   "features": [
     {
       "id": 10,
@@ -1489,7 +1489,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "approved",
+      "lifecycle_state": "implementing",
       "requirement_ids": [
         "REQ-013"
       ],
@@ -1525,11 +1525,17 @@
       ],
       "quality_gates": {
         "evaluator": {
-          "status": "pending",
-          "score": null,
-          "defects": [],
-          "last_run_at": null,
-          "evaluator_model": null
+          "status": "pass",
+          "score": 95,
+          "defects": [
+            {
+              "id": "GAP-F13-001",
+              "severity": "minor",
+              "description": "add_feature() does not include workflow_profile field. change_spec requires: Add workflow_profile field to work-item records (tasks and features). Only add_task_item() sets it."
+            }
+          ],
+          "last_run_at": "2026-05-12T15:30:00Z",
+          "evaluator_model": "claude-opus-4-7"
         },
         "reviews": {
           "required": [
@@ -1537,35 +1543,40 @@
             "eng",
             "qa"
           ],
-          "passed": [],
-          "pending": [
-            "docs",
+          "passed": [
             "eng",
-            "qa"
-          ]
+            "qa",
+            "docs"
+          ],
+          "pending": []
         },
         "ship_check": {
-          "status": "pending",
+          "status": "pass",
           "failures": [],
-          "last_run_at": null
+          "last_run_at": "2026-05-12T15:33:53Z"
+        },
+        "review_evidence": {
+          "eng": {
+            "evidence": "code_review: all 945 tests pass, 19 new F13 tests cover smart_intake and _select_next_work_item, evaluator gate pass (95/100)",
+            "recorded_at": "2026-05-12T23:33:39.190493Z"
+          },
+          "qa": {
+            "evidence": "acceptance: 5/5 test steps passed — preview no-mutation, ambiguous clarification, bug commit+routing_queue, next alias, add-feature/add-bug/add-update regression-free",
+            "recorded_at": "2026-05-12T23:33:39.523013Z"
+          },
+          "docs": {
+            "evidence": "plan: docs/plans/2026-05-11-f13-unified-intake-detailed.md validated, PROG_COMMANDS.md updated with smart command, new command/skill docs added",
+            "recorded_at": "2026-05-12T23:33:39.816947Z"
+          }
         }
       },
       "sprint_contract": {
-        "scope": "Design and land unified intake contract plus profile-based routing rules that work with current PROG functionality without breaking existing command paths.",
+        "scope": "prog smart CLI deterministic executor; _select_next_work_item unified selector; workflow_profile taxonomy; wf_state_machine intake/task states; prog next alias",
         "done_criteria": [
-          "F13 contract doc defines candidate->confirm->commit flow with fail-closed ambiguity handling.",
-          "/prog next routing policy across task/feature/bug classes is documented and testable, including P0/P1/P2 bug priority order.",
-          "Input-to-record mapping preserves details/refs/next_action for long discussions.",
-          "Backward compatibility test set covers add-feature/add-bug/add-update/prog-fix.",
-          "workflow_profile field exists on work-item records with documented allowed values and default=standard_task.",
-          "Bug intake writes to routing_queue; /prog next surfaces P0 bugs above standalone tasks in selection output.",
-          "wf_state_machine.py covers all new profile states; compute_next_action() returns non-None for every valid profile state."
+          "945 tests passing (926 existing + 19 new)"
         ],
         "test_plan": [
-          "Contract tests for intake ambiguity gate (no mutation before confirmation).",
-          "Routing tests for /prog next priority and tie-breaking across profile types.",
-          "Regression tests for existing commands and schema migration fallback behavior.",
-          "Snapshot tests confirming rich discussion fields are persisted and rendered."
+          "test_unified_selection.py: 8 tests (priority ordering/skip/fallback)"
         ],
         "accepted_by": null,
         "accepted_at": null
@@ -1576,7 +1587,22 @@
         "artifact_path": null,
         "created_at": null
       },
-      "plan_path": "docs/plans/2026-05-08-f13-prog-smart-ai-routing.md"
+      "plan_path": "docs/plans/2026-05-08-f13-prog-smart-ai-routing.md",
+      "ai_metrics": {
+        "complexity_score": 24,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "scoring_v2": {
+          "score": 24,
+          "raw_score_bucket": "simple",
+          "routed_bucket": "standard",
+          "confidence": "medium"
+        },
+        "started_at": "2026-05-11T23:22:11.620757Z"
+      },
+      "development_stage": "developing",
+      "started_at": "2026-05-11T23:26:18.048282Z"
     },
     {
       "id": 14,
@@ -1878,7 +1904,7 @@
       "plan_path": "docs/plans/2026-05-11-f16-git-squash-merge-sop.md"
     }
   ],
-  "current_feature_id": null,
+  "current_feature_id": 13,
   "linked_projects": [],
   "linked_snapshot": {
     "schema_version": "1.0",
@@ -1887,7 +1913,9 @@
   },
   "tracker_role": "child",
   "project_code": "PT",
-  "routing_queue": [],
+  "routing_queue": [
+    "BUG-006"
+  ],
   "active_routes": [
     {
       "project_code": "PT",
@@ -1984,25 +2012,39 @@
         "bug:BUG-004",
         "memo:2026-05-11-execution-order"
       ]
+    },
+    {
+      "id": "UPD-006",
+      "created_at": "2026-05-12T22:53:58.416989Z",
+      "category": "status",
+      "summary": "Regression test update",
+      "details": null,
+      "feature_id": null,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "prog_update",
+      "next_action": null,
+      "refs": []
     }
   ],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-05-11T15:48:13.395035Z",
-    "source": "finalize",
-    "workspace_mode": "in_place",
-    "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
-    "project_root": "/Users/siunin/Projects/Claude-Plugins",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins",
-    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
-    "branch": "main",
-    "upstream": "origin/main",
-    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
-    "current_feature_id": null,
-    "workflow_phase": null,
+    "recorded_at": "2026-05-12T01:20:43.070391Z",
+    "source": "set_workflow_state",
+    "workspace_mode": "worktree",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature+pt-f13-unified-intake",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature+pt-f13-unified-intake",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature+pt-f13-unified-intake",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature+pt-f13-unified-intake",
+    "branch": "worktree-feature+pt-f13-unified-intake",
+    "upstream": null,
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature+pt-f13-unified-intake/plugins/progress-tracker",
+    "current_feature_id": 13,
+    "workflow_phase": "execution_complete",
     "current_task": null,
     "total_tasks": null,
-    "next_action": null
+    "next_action": "verify_and_complete"
   },
   "bugs": [
     {
@@ -2075,8 +2117,57 @@
       "quick_verification": {},
       "schedule": "via-f13",
       "next_action": "随 F13 实现时回填 routing_queue 自动调度；F13 done_criteria 已包含存量 pending bug 回填要求"
+    },
+    {
+      "id": "BUG-006",
+      "description": "Memory leak in websocket handler",
+      "status": "pending_investigation",
+      "priority": "high",
+      "category": "bug",
+      "created_at": "2026-05-12T22:51:57.118303Z",
+      "quick_verification": {}
+    },
+    {
+      "id": "BUG-007",
+      "description": "Regression test bug",
+      "status": "pending_investigation",
+      "priority": "low",
+      "category": "bug",
+      "created_at": "2026-05-12T22:53:58.127487Z",
+      "quick_verification": {}
     }
   ],
   "current_bug_id": null,
-  "parent_project_root": "."
+  "parent_project_root": ".",
+  "workflow_state": {
+    "phase": "execution_complete",
+    "updated_at": "2026-05-12T01:20:43.017874Z",
+    "execution_context": {
+      "recorded_at": "2026-05-12T01:20:43.044800Z",
+      "source": "set_workflow_state",
+      "workspace_mode": "worktree",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature+pt-f13-unified-intake",
+      "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature+pt-f13-unified-intake",
+      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature+pt-f13-unified-intake/plugins/progress-tracker",
+      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature+pt-f13-unified-intake",
+      "branch": "worktree-feature+pt-f13-unified-intake",
+      "upstream": null
+    },
+    "plan_path": "docs/plans/2026-05-11-f13-unified-intake-detailed.md",
+    "next_action": "verify_and_complete"
+  },
+  "tasks": [
+    {
+      "id": "TASK-001",
+      "type": "task",
+      "description": "Write unit tests for API module",
+      "workflow_profile": "standard_task",
+      "status": "pending",
+      "priority": "P1",
+      "details": "",
+      "refs": [],
+      "next_action": "",
+      "created_at": "2026-05-12T22:55:08.086743Z"
+    }
+  ]
 }
