@@ -2154,7 +2154,8 @@
       "upstream": null
     },
     "plan_path": "docs/plans/2026-05-11-f13-unified-intake-detailed.md",
-    "next_action": "verify_and_complete"
+    "next_action": "verify_and_complete",
+    "pending_action": "run_prog_done"
   },
   "tasks": [
     {
