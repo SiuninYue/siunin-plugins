@@ -6888,7 +6888,7 @@ def _select_next_work_item(
             "id": bug_id,
             "name": bug.get("description", bug_id),
             "priority_tier": tier,
-            "action": f"prog fix {bug_id}",
+            "action": f"/prog-fix {bug_id}",
             "dispatched_to": "bug",
         }
 
@@ -7070,7 +7070,7 @@ def next_feature(output_json: bool = False, ack_planning_risk: bool = False) -> 
                 bug_id = work_item["id"]
                 bug_name = work_item["name"]
                 tier = work_item.get("priority_tier")
-                action = work_item.get("action") or f"prog fix {bug_id}"
+                action = work_item.get("action") or f"/prog-fix {bug_id}"
                 if output_json:
                     print(json.dumps({
                         "status": "ok",
@@ -9284,7 +9284,7 @@ def set_feature_owner(feature_id: int, role: str, owner: str) -> bool:
     return True
 
 
-def add_feature(name, test_steps):
+def add_feature(name, test_steps, workflow_profile=None):
     """Add a new feature to the tracking."""
     data = load_progress_json()
     if not data:
@@ -9301,6 +9301,7 @@ def add_feature(name, test_steps):
         "id": new_id,
         "name": name,
         "test_steps": test_steps,
+        "workflow_profile": workflow_profile,
         "completed": False,
         "deferred": False,
         "defer_reason": None,
@@ -9993,6 +9994,7 @@ def smart_intake(
         result = add_feature(
             name=description,
             test_steps=[],
+            workflow_profile=workflow_profile,
         )
         # add_feature returns bool; treat None as False defensively.
         return bool(result)
