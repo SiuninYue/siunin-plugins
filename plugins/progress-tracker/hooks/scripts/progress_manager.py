@@ -9286,6 +9286,8 @@ def set_feature_owner(feature_id: int, role: str, owner: str) -> bool:
 
 def add_feature(name, test_steps, workflow_profile=None):
     """Add a new feature to the tracking."""
+    if workflow_profile is None:
+        workflow_profile = WORKFLOW_PROFILE_DEFAULT
     data = load_progress_json()
     if not data:
         print("No progress tracking found. Use init first.")
