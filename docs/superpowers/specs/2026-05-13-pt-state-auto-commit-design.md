@@ -128,11 +128,12 @@ def _get_dirty_state_files(project_root: Path) -> List[Path]:
     progress_dir = get_progress_dir()
     dirty = []
 
-    # Resolve repo root; porcelain output is always repo-root-relative
-    git_root_str = get_git_root(cwd=str(project_root))
-    if not git_root_str:
-        return dirty
-    git_root = Path(git_root_str)
+    # Resolve repo root; porcelain output is always repo-root-relative.
+    # Use _resolve_repo_root() — always available, no git_validator dependency.
+    try:
+        git_root = _resolve_repo_root(project_root)
+    except Exception:
+        return dirty  # can't resolve repo root, skip silently
 
     for name in STATE_FILE_NAMES:
         f = progress_dir / name
@@ -182,20 +183,25 @@ def _git_commit_state(
     git add stages untracked new state files; --only isolates the commit from
     any other changes the user may have staged.
     """
-    git_root_str = get_git_root(cwd=str(project_root))
-    if not git_root_str:
+    # Use _resolve_repo_root() — always available, no git_validator dependency.
+    try:
+        git_root = _resolve_repo_root(project_root)
+    except Exception:
         print("[state-sync] Auto-commit skipped: cannot resolve repo root.")
         return None
-    git_root = Path(git_root_str)
     rel_paths = [str(f.relative_to(git_root)) for f in state_files]
 
     try:
-        # Stage untracked state files (no-op for already-tracked files)
-        subprocess.run(
+        # Stage untracked state files (no-op for already-tracked files).
+        # If git add fails, abort: a partial add could produce an incomplete commit.
+        add_result = subprocess.run(
             ["git", "add", "--"] + rel_paths,
             capture_output=True, check=False,
             cwd=str(git_root), timeout=15, text=True,
         )
+        if add_result.returncode != 0:
+            print(f"[state-sync] Auto-commit skipped: git add failed: {add_result.stderr.strip()}")
+            return None
 
         # Commit only state files; leaves user's other staged changes intact
         result = subprocess.run(
@@ -227,16 +233,27 @@ def _git_commit_state(
 | feature 开始 | `set_current()` | ~6614（`save_progress_md` 之后） | `"start"` | 无变化 |
 | bug 标记修复 | `update_bug()` | ~10075（`save_progress_md` 之后，仅 `status == "fixed"` 时） | `"fix"` | 函数名为 `update_bug`（line 10020），非 `update_bug_status` |
 
-> **[P1 修正]** 原 spec 将调用点写为 `complete_feature()`，但该函数只在 `complete --unsafe-legacy` 路径使用（line 11945）。主路径 `/prog done` 经由 `cmd_done()`（line 8217）执行。正确调用点在 `cmd_done()` 内 `_reset_active_progress(data_post_reset)` 之后，此时所有 archive（`progress_archive/`）和 memory 写入均已完成，状态文件最终一致。
+> **[P1 修正]** 原 spec 将调用点写为 `complete_feature()`，但该函数只在 `complete --unsafe-legacy` 路径使用（line 11945）。主路径 `/prog done` 经由 `cmd_done()`（line 8217）执行。正确调用点在 `cmd_done()` 内 `_reset_active_progress(data_post_reset)` 之后、`_notify_parent_sync()` 之前，此时当前 tracker 的所有 archive（`progress_archive/`）和 memory 写入均已完成。
+
+**父 tracker 写回（parent writeback）明确为范围外**：
+
+`_notify_parent_sync()`（line 1291）会写入父 tracker 的 `progress.json` 和 `progress.md`（`_save_progress_payload_at_root`，line 1339），这是不同项目根目录下的文件。本次 auto-commit **不**覆盖父 tracker 状态，理由：
+
+1. `_notify_parent_sync()` 已被 `try/except` 包裹，本身是 best-effort，失败只 print WARNING
+2. 父 tracker 是独立项目，其状态由父 tracker 自己的 `prog done` 在父项目上下文中提交
+3. 将父路径纳入白名单需要跨项目根解析，超出本次功能边界
+
+`_run_post_done_cleanup()`（line 8448）检测 dirty worktree 时，若父 tracker 写回留下 dirty 文件会影响 cleanup 判断——但这是父 tracker writeback 本身的已知限制，不在本次范围内解决。
 
 **`cmd_done()` 调用示例**：
 
 ```python
     # ... existing: _reset_active_progress(data_post_reset)   ← line ~8426
 
-    _auto_state_commit(feature_id, "done")   # ← 新增，所有状态写入完成后
+    _auto_state_commit(feature_id, "done")   # ← 新增，当前 tracker 所有状态写入完成后
 
-    _notify_parent_sync()                    # ← line ~8446，父追踪器同步
+    _notify_parent_sync()                    # ← line ~8446，父 tracker 同步（范围外）
+    _run_post_done_cleanup(...)              # ← line ~8448，worktree cleanup
 ```
 
 **非阻塞约定**：`_auto_state_commit` 返回值（commit hash 或 None）被调用方记录到日志即可，不影响 `cmd_done` / `set_current` / `update_bug` 自身的返回值。
@@ -282,13 +299,16 @@ def _git_commit_state(
 | merge/rebase/cherry-pick 中跳过 | 检测 `--absolute-git-dir` 下的 marker 文件 |
 | 提交消息格式固定 | `chore(PT): state sync [F{id}: {event}] [skip ci]` |
 | 配置开关 | `settings.auto_state_commit`，默认 True |
+| git add 失败时中止 | `add_result.returncode != 0` 时 warn + return None，不执行部分 commit |
 | 非阻塞失败 | 所有错误降级为 print 警告，不影响 prog 命令返回值 |
 | worktree 兼容 | 使用 `--absolute-git-dir` 而非 `--git-dir` |
+| repo root 解析 | 使用 `_resolve_repo_root()`，不依赖 `git_validator` 可用性 |
 
 ---
 
 ## 不在本次范围内
 
+- **父 tracker 状态提交**：`_notify_parent_sync()` 写入父 tracker 文件属于父项目范围，由父项目自己的 `prog done` 负责
 - `prog init` 时 state 文件的初始 commit（init 已有自己的流程）
 - `progress_archive/` 子目录的深度追踪（只 add 新文件，不 add 已追踪文件的子目录变更到 archive 内的 archive）
 - `sprint_ledger.jsonl` 引用外部文件的完整性校验
