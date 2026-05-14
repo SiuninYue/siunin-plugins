@@ -552,12 +552,18 @@ class TestGitSquashCloseTask:
             cwd=mock_git_repo, capture_output=True, text=True,
         ).stdout.strip()
 
-        # Create a task branch with a commit
+        # Detect default branch dynamically (mock_git_repo fixture may use main or master)
+        default_branch = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=mock_git_repo, capture_output=True, text=True,
+        ).stdout.strip() or "main"
+
+        # Create a task branch with a commit, then return to default branch
         subprocess.run(["git", "checkout", "-b", "task/TASK-001"], cwd=mock_git_repo, capture_output=True)
         (mock_git_repo / "task_work.txt").write_text("some work")
         subprocess.run(["git", "add", "task_work.txt"], cwd=mock_git_repo, capture_output=True)
         subprocess.run(["git", "commit", "-m", "task work"], cwd=mock_git_repo, capture_output=True)
-        subprocess.run(["git", "checkout", "main"], cwd=mock_git_repo, capture_output=True)
+        subprocess.run(["git", "checkout", default_branch], cwd=mock_git_repo, capture_output=True)
 
         ok, commit_hash = progress_manager._git_squash_close_task(
             task_id="TASK-001",
@@ -1771,13 +1777,31 @@ python3 -m pytest plugins/progress-tracker/tests/ -x -q --tb=short 2>&1 | tail -
 
 Expected: All tests pass except the pre-existing BUG-008 failure (`test_cmd_done_clears_state_when_project_completed_audit_fails`) which is tracked separately.
 
-- [ ] **Step 3: Manual acceptance test 1** — `prog next` selects task, branch created
+- [ ] **Step 3: Manual acceptance test setup** — init scratch git repo
 
 ```bash
 cd /Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F14-task-execution-semantics
-# Init a scratch project in /tmp
 TMP_PROJ=$(mktemp -d)
+
+# git repo is required for branch creation and squash-merge
+git -C $TMP_PROJ init
+git -C $TMP_PROJ config user.email "test@example.com"
+git -C $TMP_PROJ config user.name "Test User"
+# Initial commit so HEAD exists (required for git merge --squash)
+touch $TMP_PROJ/.gitkeep
+git -C $TMP_PROJ add .gitkeep
+git -C $TMP_PROJ commit -m "init"
+
 plugins/progress-tracker/prog init "Scratch" --project-root $TMP_PROJ
+git -C $TMP_PROJ add .
+git -C $TMP_PROJ commit -m "prog init state"
+```
+
+Expected: `TMP_PROJ` is a git repo with at least 2 commits on `main` (or `master`).
+
+- [ ] **Step 4: Manual acceptance test 1** — `prog next` selects task, branch created
+
+```bash
 plugins/progress-tracker/prog add-task --description "my quick task" --project-root $TMP_PROJ
 plugins/progress-tracker/prog next --project-root $TMP_PROJ
 git -C $TMP_PROJ branch --list "task/TASK-001"
@@ -1785,7 +1809,7 @@ git -C $TMP_PROJ branch --list "task/TASK-001"
 
 Expected: `task/TASK-001` branch appears.
 
-- [ ] **Step 4: Manual acceptance test 2** — `prog next --done` squash-merges
+- [ ] **Step 5: Manual acceptance test 2** — `prog next --done` squash-merges
 
 ```bash
 plugins/progress-tracker/prog next --done --project-root $TMP_PROJ
@@ -1795,11 +1819,13 @@ git -C $TMP_PROJ branch --list "task/TASK-001"
 
 Expected: 1 new commit on main (message contains `task(TASK-001)`), branch gone.
 
-- [ ] **Step 5: Manual acceptance test 3** — feature-bound task does not auto-close feature
+- [ ] **Step 6: Manual acceptance test 3** — feature-bound task does not auto-close feature
 
 ```bash
 # Add a feature and a feature-bound task to $TMP_PROJ
-plugins/progress-tracker/prog add-feature "My Feature" --project-root $TMP_PROJ
+# add-feature requires at least one test_step positional argument (nargs='+')
+plugins/progress-tracker/prog add-feature "My Feature" "feature passes acceptance" \
+  --project-root $TMP_PROJ
 plugins/progress-tracker/prog add-task \
   --description "bound task" \
   --feature-id 1 \
@@ -1818,7 +1844,7 @@ print('current_task_id:', d.get('current_task_id'))
 
 Expected: `feature completed: False`, `current_task_id: None`.
 
-- [ ] **Step 6: Manual acceptance test 4** — `prog next --done` no MUTATING_COMMANDS lock
+- [ ] **Step 7: Manual acceptance test 4** — `prog next --done` no MUTATING_COMMANDS lock
 
 ```bash
 # Verify timing: must complete in < 5s (lock timeout is 10s)
@@ -1834,7 +1860,7 @@ time plugins/progress-tracker/prog next --done --project-root $TMP_PROJ
 
 Expected: `real  0m0.XXXs` — well under 10s even if lock is held.
 
-- [ ] **Step 7: Manual acceptance test 5** — `prog status` shows stale warnings
+- [ ] **Step 8: Manual acceptance test 5** — `prog status` shows stale warnings
 
 ```bash
 # Manually insert a stale P0 bug into $TMP_PROJ progress.json (set created_at to 5 days ago)
@@ -1854,7 +1880,7 @@ plugins/progress-tracker/prog status --project-root $TMP_PROJ
 
 Expected: `### Bug Warnings:` section with `[P0] BUG-TEST`.
 
-- [ ] **Step 8: Update workflow state to execution_complete**
+- [ ] **Step 9: Update workflow state to execution_complete**
 
 ```bash
 plugins/progress-tracker/prog set-workflow-state \
@@ -1863,7 +1889,7 @@ plugins/progress-tracker/prog set-workflow-state \
   --project-root plugins/progress-tracker
 ```
 
-- [ ] **Step 9: Final commit**
+- [ ] **Step 10: Final commit**
 
 ```bash
 git add plugins/progress-tracker/tests/test_task_execution_semantics.py
