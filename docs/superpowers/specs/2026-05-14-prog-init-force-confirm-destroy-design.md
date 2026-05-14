@@ -21,10 +21,14 @@ Prevent AI (or any caller) from accidentally destroying real project data via `p
 Trigger protection when `completed_count > 0`, where:
 
 ```python
-completed_count = sum(1 for f in existing.get("features", []) if f.get("completed"))
+features = existing.get("features") if isinstance(existing.get("features"), list) else []
+completed_count = sum(
+    1 for f in features if isinstance(f, dict) and bool(f.get("completed", False))
+)
 ```
 
 Uses the `completed` boolean field (not `status`), which is the canonical completion field in the schema.
+`isinstance(f, dict)` guards against corrupt/null entries; `bool(..., False)` makes the check explicit for truthy values.
 
 Known tradeoff: a project with features but none completed (all pending) is still overwritable with `--force` alone. Accepted — this matches the intent of the threshold.
 
@@ -40,8 +44,11 @@ def init_tracking(project_name, features=None, force=False, confirm_destroy=Fals
     if force:
         existing = load_progress_json()
         if isinstance(existing, dict) and not confirm_destroy:
+            raw_features = existing.get("features")
+            feature_list = raw_features if isinstance(raw_features, list) else []
             completed_count = sum(
-                1 for f in existing.get("features", []) if f.get("completed")
+                1 for f in feature_list
+                if isinstance(f, dict) and bool(f.get("completed", False))
             )
             if completed_count > 0:
                 project = existing.get("project_name", "unknown")
@@ -82,14 +89,24 @@ if args.command == "init":
 
 ### Change 4: Fix affected tests (Plan B — test isolation hardening)
 
-All tests that call `init_tracking(force=True)` directly must:
-1. Add `confirm_destroy=True` (tests legitimately need to reinitialize)
-2. Add `assert configure_project_scope(...) is True` before any `init_tracking` call
+`init_tracking(force=True)` calls spread across more than 3 test files. Apply the following rules uniformly across all test files:
 
-Files to update:
-- `tests/test_auto_state_commit.py` — all `TestGetDirtyStateFiles` and related tests
-- `tests/test_reinit_archive_naming.py` — all reinit tests
-- `tests/test_progress_manager.py` — `TestInitTracking` class
+**Rule A — `configure_project_scope` assertions:**
+Every test that explicitly calls `configure_project_scope(...)` must assert the return value:
+```python
+assert progress_manager.configure_project_scope(str(mock_git_repo)) is True
+```
+This catches silent failures before any state-mutating call.
+
+**Rule B — `confirm_destroy=True` additions:**
+Only add `confirm_destroy=True` to `init_tracking(force=True)` calls in tests where the existing project could plausibly have `completed_count > 0` (i.e., tests that set up features and complete them before reinitializing). Tests that initialize a fresh project with no prior data do not need the flag.
+
+Affected files include (but are not limited to):
+- `tests/test_auto_state_commit.py`
+- `tests/test_reinit_archive_naming.py`
+- `tests/test_progress_manager.py`
+
+The implementer must grep for all `init_tracking.*force=True` and `configure_project_scope` call sites and apply the rules above.
 
 ## Error Message (final form)
 
@@ -101,21 +118,38 @@ Pass confirm_destroy=True (API) or --confirm-destroy (CLI) to proceed.
 
 ## Testing
 
-Minimum required tests (TDD):
+Minimum required tests (TDD), all in new file `tests/test_init_confirm_destroy.py`:
 
 1. `test_init_force_blocked_when_completed_features_exist` — `init_tracking(force=True)` returns False when completed > 0
 2. `test_init_force_confirm_destroy_bypasses_protection` — `init_tracking(force=True, confirm_destroy=True)` proceeds normally
-3. `test_init_force_allowed_when_no_completed_features` — `init_tracking(force=True)` proceeds when all features are pending
+3. `test_init_force_allowed_when_no_completed_features` — `init_tracking(force=True)` proceeds when all features are pending (no confirm_destroy needed)
 4. `test_init_force_allowed_on_empty_project` — no regression on fresh init
 5. `test_cli_init_force_blocked_without_confirm_destroy` — CLI returns non-zero exit when data has completed features
-6. `test_cli_init_force_confirm_destroy_succeeds` — CLI proceeds with both flags
+6. `test_cli_init_force_confirm_destroy_succeeds` — CLI proceeds with `--force --confirm-destroy`
+7. `test_cli_confirm_destroy_without_force_is_noop` — `prog init --confirm-destroy "Name"` (without `--force`) behaves identically to `prog init "Name"`: no error, no special handling. The flag is silently ignored when `--force` is absent.
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `hooks/scripts/progress_manager.py` | Add `confirm_destroy` param + guard logic + CLI flag + dispatch |
-| `tests/test_progress_manager.py` | Add `confirm_destroy=True` + assert scope in existing force tests |
-| `tests/test_reinit_archive_naming.py` | Add `confirm_destroy=True` to all reinit calls |
-| `tests/test_auto_state_commit.py` | Add assert on `configure_project_scope` + `confirm_destroy=True` |
-| New: `tests/test_init_confirm_destroy.py` | 6 new TDD tests for the protection behavior |
+| `hooks/scripts/progress_manager.py` | Add `confirm_destroy` param + guard logic + CLI flag + dispatch + Usage doc update |
+| `tests/test_progress_manager.py` | Apply Rule A/B per Change 4 |
+| `tests/test_reinit_archive_naming.py` | Apply Rule A/B per Change 4 |
+| `tests/test_auto_state_commit.py` | Apply Rule A/B per Change 4 |
+| All other test files with `init_tracking.*force=True` | Apply Rule A/B per Change 4 |
+| New: `tests/test_init_confirm_destroy.py` | 7 new TDD tests for the protection behavior |
+
+### Change 5: CLI Usage doc sync
+
+File: `progress_manager.py`, top-of-file Usage comment.
+
+Update the `init` command signature from:
+```
+init [--force] <project_name>
+```
+to:
+```
+init [--force] [--confirm-destroy] <project_name>
+```
+
+This prevents CLI help text from drifting out of sync with the actual implementation.
