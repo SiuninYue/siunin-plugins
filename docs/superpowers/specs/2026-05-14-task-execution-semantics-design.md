@@ -11,7 +11,7 @@
 
 Feature 14 introduces three distinct capabilities:
 
-1. **Task execution lifecycle**: `prog next` activates a task (creating a short-lived branch for standalone quick_tasks), and `prog next --done` closes it via profile-aware paths (squash-merge for standalone; progress-advance for feature-bound).
+1. **Task execution lifecycle**: `prog next` activates a task (creating a short-lived branch for standalone tasks), and `prog next --done` closes it via profile-aware paths (squash-merge for standalone; progress-advance for feature-bound).
 2. **MUTATING_COMMANDS lock safety**: task-close path exempted from the outer `progress_transaction()` lock to avoid RC=9 / 10s timeout (BUG-002 class).
 3. **Status visibility**: stale P0/P1 bug warnings, hidden-history count in `prog status`, and unfiltered `prog list-updates`.
 
