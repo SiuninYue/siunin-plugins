@@ -2,17 +2,17 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-05-14T09:57:02.379503+00:00",
+  "updated_at": "2026-05-14T18:07:56.939367Z",
   "features": [
     {
       "id": 10,
-      "name": "\u6839\u76ee\u5f55\u6df7\u5408\u5bbf\u4e3b\u67b6\u6784\uff1aMonorepo /prog \u652f\u6301",
+      "name": "根目录混合宿主架构：Monorepo /prog 支持",
       "test_steps": [
-        "\u5728\u4ed3\u5e93\u6839\u76ee\u5f55\u8fd0\u884c prog init\uff0c\u786e\u8ba4\u751f\u6210 tracker_role=parent \u7684 progress.json \u5e76\u81ea\u52a8\u53d1\u73b0\u5b50\u63d2\u4ef6",
-        "\u5728\u6839\u76ee\u5f55\u8fd0\u884c prog\uff0c\u786e\u8ba4\u9762\u677f\u5c55\u793a\u6240\u6709\u5b50\u76ee\u5f55\u5b8c\u6210\u7387\u548c\u5f53\u524d\u6d3b\u8dc3 feature",
-        "\u5728\u6839\u76ee\u5f55\u8fd0\u884c prog next-feature\uff0c\u786e\u8ba4\u6309 routing_queue \u987a\u5e8f dispatch \u5230\u5b50\u76ee\u5f55",
-        "\u8fd0\u884c prog prioritize PT\uff0c\u786e\u8ba4\u8f93\u51fa [OK] PT moved to front \u5e76\u66f4\u65b0\u961f\u5217",
-        "\u8fd0\u884c pytest -q plugins/progress-tracker/tests/ \u786e\u8ba4\u56de\u5f52\u6d4b\u8bd5\u5168\u90e8\u901a\u8fc7"
+        "在仓库根目录运行 prog init，确认生成 tracker_role=parent 的 progress.json 并自动发现子插件",
+        "在根目录运行 prog，确认面板展示所有子目录完成率和当前活跃 feature",
+        "在根目录运行 prog next-feature，确认按 routing_queue 顺序 dispatch 到子目录",
+        "运行 prog prioritize PT，确认输出 [OK] PT moved to front 并更新队列",
+        "运行 pytest -q plugins/progress-tracker/tests/ 确认回归测试全部通过"
       ],
       "completed": true,
       "deferred": false,
@@ -29,9 +29,9 @@
         "REQ-010"
       ],
       "change_spec": {
-        "why": "Deliver \u6839\u76ee\u5f55\u6df7\u5408\u5bbf\u4e3b\u67b6\u6784\uff1aMonorepo /prog \u652f\u6301 with traceable acceptance coverage.",
+        "why": "Deliver 根目录混合宿主架构：Monorepo /prog 支持 with traceable acceptance coverage.",
         "in_scope": [
-          "\u6839\u76ee\u5f55\u6df7\u5408\u5bbf\u4e3b\u67b6\u6784\uff1aMonorepo /prog \u652f\u6301"
+          "根目录混合宿主架构：Monorepo /prog 支持"
         ],
         "out_of_scope": [
           "Unrelated refactors and behavior changes outside this feature."
@@ -41,11 +41,11 @@
         ]
       },
       "acceptance_scenarios": [
-        "Scenario: \u5728\u4ed3\u5e93\u6839\u76ee\u5f55\u8fd0\u884c prog init\uff0c\u786e\u8ba4\u751f\u6210 tracker_role=parent \u7684 progress.json \u5e76\u81ea\u52a8\u53d1\u73b0\u5b50\u63d2\u4ef6",
-        "Scenario: \u5728\u6839\u76ee\u5f55\u8fd0\u884c prog\uff0c\u786e\u8ba4\u9762\u677f\u5c55\u793a\u6240\u6709\u5b50\u76ee\u5f55\u5b8c\u6210\u7387\u548c\u5f53\u524d\u6d3b\u8dc3 feature",
-        "Scenario: \u5728\u6839\u76ee\u5f55\u8fd0\u884c prog next-feature\uff0c\u786e\u8ba4\u6309 routing_queue \u987a\u5e8f dispatch \u5230\u5b50\u76ee\u5f55",
-        "Scenario: \u8fd0\u884c prog prioritize PT\uff0c\u786e\u8ba4\u8f93\u51fa [OK] PT moved to front \u5e76\u66f4\u65b0\u961f\u5217",
-        "Scenario: \u8fd0\u884c pytest -q plugins/progress-tracker/tests/ \u786e\u8ba4\u56de\u5f52\u6d4b\u8bd5\u5168\u90e8\u901a\u8fc7"
+        "Scenario: 在仓库根目录运行 prog init，确认生成 tracker_role=parent 的 progress.json 并自动发现子插件",
+        "Scenario: 在根目录运行 prog，确认面板展示所有子目录完成率和当前活跃 feature",
+        "Scenario: 在根目录运行 prog next-feature，确认按 routing_queue 顺序 dispatch 到子目录",
+        "Scenario: 运行 prog prioritize PT，确认输出 [OK] PT moved to front 并更新队列",
+        "Scenario: 运行 pytest -q plugins/progress-tracker/tests/ 确认回归测试全部通过"
       ],
       "quality_gates": {
         "evaluator": {
@@ -169,7 +169,7 @@
           "status": "pass",
           "score": 87,
           "defects": [
-            "I-01: manual_state_override event type whitelisted but no call-site detects/records manual edits to progress.json \u2014 acceptance scenario 3 partially unmet",
+            "I-01: manual_state_override event type whitelisted but no call-site detects/records manual edits to progress.json — acceptance scenario 3 partially unmet",
             "I-02: append_audit_record temp-file pattern provides no atomicity guarantee; code misleadingly suggests atomic rename semantics",
             "I-03: state_restored event type whitelisted but never emitted",
             "S-01: _write_audit_event test helper uses mutable default arg counter=[0]",
@@ -924,10 +924,10 @@
           "All F6 target tests green (55+ tests)"
         ],
         "test_plan": [
-          "T1 RED: test_archive_docs_skips_protected_architecture_md \u2014 fails before guard implementation",
+          "T1 RED: test_archive_docs_skips_protected_architecture_md — fails before guard implementation",
           "T2 GREEN: Implement _IMMUTABLE_PROTECTED_FILES + _is_immutable_protected() guard in archive_feature_docs()",
-          "T3 GREEN: test_cmd_done_preserves_architecture_md \u2014 functional-level invariant test",
-          "T4 Verify: Run all F6 target tests \u2014 all green"
+          "T3 GREEN: test_cmd_done_preserves_architecture_md — functional-level invariant test",
+          "T4 Verify: Run all F6 target tests — all green"
         ],
         "accepted_by": null,
         "accepted_at": null
@@ -1127,7 +1127,7 @@
             {
               "id": "F8-DEVIATION-03",
               "severity": "minor",
-              "description": "__main__ block has try/except SystemExit wrapper remapping argparse exit code 2 (usage/help errors) to 8 (fail). Not in original plan. Justified: fail-closed \u2014 argparse errors should not escape as exit 2."
+              "description": "__main__ block has try/except SystemExit wrapper remapping argparse exit code 2 (usage/help errors) to 8 (fail). Not in original plan. Justified: fail-closed — argparse errors should not escape as exit 2."
             },
             {
               "id": "F8-DEVIATION-04",
@@ -1369,16 +1369,16 @@
           "Changing team dispatch or Codex integration"
         ],
         "risks": [
-          "Haiku scoring accuracy may differ from current scoring \u2014 threshold (38/63) may need calibration after rollout",
+          "Haiku scoring accuracy may differ from current scoring — threshold (38/63) may need calibration after rollout",
           "Haiku subagent unavailability: must fail open to coordinator self-scoring fallback"
         ]
       },
       "acceptance_scenarios": [
         "Scenario: Remove complexity_analyzer.py and confirm no import references remain",
-        "Scenario: Run /prog-next on 3 features of known complexity \u2014 haiku subagent scores correctly within expected bucket",
-        "Scenario: Feature scored low confidence \u2014 coordinator upgrades one tier and continues",
-        "Scenario: Haiku subagent unavailable \u2014 coordinator falls back to inline rubric self-scoring",
-        "Scenario: pytest -q tests/ \u2014 all existing tests pass, no regressions"
+        "Scenario: Run /prog-next on 3 features of known complexity — haiku subagent scores correctly within expected bucket",
+        "Scenario: Feature scored low confidence — coordinator upgrades one tier and continues",
+        "Scenario: Haiku subagent unavailable — coordinator falls back to inline rubric self-scoring",
+        "Scenario: pytest -q tests/ — all existing tests pass, no regressions"
       ],
       "quality_gates": {
         "evaluator": {
@@ -1473,11 +1473,11 @@
       "id": 13,
       "name": "Unified work-item intake and profile routing (task/feature/bug) via /prog next",
       "test_steps": [
-        "Run: prog smart '<long discussion>' \u2192 output shows candidate list with type/confidence/profile fields; no JSON mutation occurs before confirmation.",
-        "Run: prog smart '<ambiguous input>' \u2192 exactly one clarification question printed; re-run with confirmation \u2192 record written with details/refs/next_action preserved.",
-        "Run: prog smart '<clear bug report>' \u2192 bug written to bugs[] AND routing_queue contains new bug-id with correct priority weight.",
-        "Run: prog next \u2192 P0 bug appears above standalone tasks in selection output; priority order matches P0>P1>task>feature_task>P2 policy.",
-        "Run: prog add-feature / add-bug / add-update \u2192 commands succeed without regression; /prog-fix contract unchanged."
+        "Run: prog smart '<long discussion>' → output shows candidate list with type/confidence/profile fields; no JSON mutation occurs before confirmation.",
+        "Run: prog smart '<ambiguous input>' → exactly one clarification question printed; re-run with confirmation → record written with details/refs/next_action preserved.",
+        "Run: prog smart '<clear bug report>' → bug written to bugs[] AND routing_queue contains new bug-id with correct priority weight.",
+        "Run: prog next → P0 bug appears above standalone tasks in selection output; priority order matches P0>P1>task>feature_task>P2 policy.",
+        "Run: prog add-feature / add-bug / add-update → commands succeed without regression; /prog-fix contract unchanged."
       ],
       "completed": true,
       "deferred": false,
@@ -1561,7 +1561,7 @@
             "recorded_at": "2026-05-12T23:33:39.190493Z"
           },
           "qa": {
-            "evidence": "acceptance: 5/5 test steps passed \u2014 preview no-mutation, ambiguous clarification, bug commit+routing_queue, next alias, add-feature/add-bug/add-update regression-free",
+            "evidence": "acceptance: 5/5 test steps passed — preview no-mutation, ambiguous clarification, bug commit+routing_queue, next alias, add-feature/add-bug/add-update regression-free",
             "recorded_at": "2026-05-12T23:33:39.523013Z"
           },
           "docs": {
@@ -1608,11 +1608,11 @@
       "id": 14,
       "name": "Task execution semantics and visibility (standalone task vs feature task) with profile-aware done gates",
       "test_steps": [
-        "Run: prog next \u2192 selects quick_task; verify a short-lived branch is created automatically.",
-        "Run: prog next --done on active quick_task \u2192 squash-merge succeeds, branch deleted, exactly 1 commit added to main; no feature done gate triggered.",
-        "Run: prog next --done on feature-bound task \u2192 task marked complete, parent feature progress advances, parent feature NOT auto-closed.",
-        "Run: prog next --done on quick_task \u2192 confirm close path does not trigger MUTATING_COMMANDS outer lock (no 10s timeout / RC=9).",
-        "Run: prog status \u2192 actionable updates shown; stale P0/P1 bugs displayed as warnings; hidden-history count shown; list-updates returns full unfiltered history."
+        "Run: prog next → selects quick_task; verify a short-lived branch is created automatically.",
+        "Run: prog next --done on active quick_task → squash-merge succeeds, branch deleted, exactly 1 commit added to main; no feature done gate triggered.",
+        "Run: prog next --done on feature-bound task → task marked complete, parent feature progress advances, parent feature NOT auto-closed.",
+        "Run: prog next --done on quick_task → confirm close path does not trigger MUTATING_COMMANDS outer lock (no 10s timeout / RC=9).",
+        "Run: prog status → actionable updates shown; stale P0/P1 bugs displayed as warnings; hidden-history count shown; list-updates returns full unfiltered history."
       ],
       "completed": false,
       "deferred": false,
@@ -1624,7 +1624,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "approved",
+      "lifecycle_state": "implementing",
       "requirement_ids": [
         "REQ-014"
       ],
@@ -1637,7 +1637,7 @@
           "Define execution semantics for standalone task and feature task under current workflow_state model.",
           "Define /prog next --done shortcut behavior for profiles that allow lightweight closure.",
           "Define done-gate matrix by workflow_profile (none/light/standard/strict).",
-          "All workflow profiles create a short-lived branch on start; quick_task branches have minimal lifetime but still squash-merge on close \u2014 no profile commits directly to main mid-task.",
+          "All workflow profiles create a short-lived branch on start; quick_task branches have minimal lifetime but still squash-merge on close — no profile commits directly to main mid-task.",
           "Extend /prog next CLI with --done flag using argparse; flag is backward-compatible (absent = default routing behavior).",
           "Refine status visibility to show active memo/actionable notes and hide stale history with counters; surface stale P0/P1 bug warnings (P0 pending >1d, P1 pending >3d).",
           "Maintain full audit/history retrieval through list-updates."
@@ -1713,17 +1713,19 @@
         "artifact_path": null,
         "created_at": null
       },
-      "plan_path": "docs/plans/2026-05-08-f14-note-visibility-active-vs-history.md"
+      "plan_path": "docs/plans/2026-05-08-f14-note-visibility-active-vs-history.md",
+      "development_stage": "developing",
+      "started_at": "2026-05-14T18:07:56.904049Z"
     },
     {
       "id": 15,
-      "name": "prog-fix skill \u5d4c\u51654\u9636\u6bb5\u8c03\u8bd5\u65b9\u6cd5\u8bba",
+      "name": "prog-fix skill 嵌入4阶段调试方法论",
       "test_steps": [
-        "Scenario 3 \u65b0\u589e\u7ed3\u6784\u5316\u8bc1\u636e\u6536\u96c6\u6b65\u9aa4\uff1a\u660e\u786e\u5217\u51fa\u590d\u73b0\u8def\u5f84\u3001\u9519\u8bef\u65e5\u5fd7\u3001\u8f93\u5165\u8f93\u51fa\u5bf9\u6bd4",
-        "Scenario 3 \u65b0\u589e\u89e6\u53d1\u6a21\u5f0f\u5206\u6790\u6b65\u9aa4\uff1a\u8bc6\u522b\u7a33\u5b9a\u89e6\u53d1\u6761\u4ef6\u548c\u8fb9\u754c\u6761\u4ef6",
-        "\u5047\u8bbe\u5efa\u7acb\u73af\u8282\u52a0\u5165\u552f\u4e00\u6027\u9a8c\u8bc1\u68c0\u67e5\uff1a\u6392\u9664\u7ade\u4e89\u5047\u8bbe\u540e\u786e\u8ba4\u8be5\u5047\u8bbe\u662f\u552f\u4e00\u6210\u7acb\u539f\u56e0",
-        "TDD \u5b8c\u6210\u540e\u52a0\u663e\u5f0f\u56de\u5f52\u68c0\u67e5\u9879\uff1a\u786e\u8ba4\u95ee\u9898A\u5df2\u6d88\u5931\u4e14\u529f\u80fdB\u672a\u53d7\u5f71\u54cd",
-        "\u539f\u6709 systematic-debugging / TDD / git-auto \u59d4\u6258\u8c03\u7528\u4e0d\u53d7\u5f71\u54cd\uff0cScenario 1 \u548c Scenario 2 \u4fdd\u6301\u539f\u6837"
+        "Scenario 3 新增结构化证据收集步骤：明确列出复现路径、错误日志、输入输出对比",
+        "Scenario 3 新增触发模式分析步骤：识别稳定触发条件和边界条件",
+        "假设建立环节加入唯一性验证检查：排除竞争假设后确认该假设是唯一成立原因",
+        "TDD 完成后加显式回归检查项：确认问题A已消失且功能B未受影响",
+        "原有 systematic-debugging / TDD / git-auto 委托调用不受影响，Scenario 1 和 Scenario 2 保持原样"
       ],
       "completed": false,
       "deferred": false,
@@ -1740,9 +1742,9 @@
         "REQ-015"
       ],
       "change_spec": {
-        "why": "Deliver prog-fix skill \u5d4c\u51654\u9636\u6bb5\u8c03\u8bd5\u65b9\u6cd5\u8bba with traceable acceptance coverage.",
+        "why": "Deliver prog-fix skill 嵌入4阶段调试方法论 with traceable acceptance coverage.",
         "in_scope": [
-          "prog-fix skill \u5d4c\u51654\u9636\u6bb5\u8c03\u8bd5\u65b9\u6cd5\u8bba"
+          "prog-fix skill 嵌入4阶段调试方法论"
         ],
         "out_of_scope": [
           "Unrelated refactors and behavior changes outside this feature."
@@ -1752,11 +1754,11 @@
         ]
       },
       "acceptance_scenarios": [
-        "Scenario: Scenario 3 \u65b0\u589e\u7ed3\u6784\u5316\u8bc1\u636e\u6536\u96c6\u6b65\u9aa4\uff1a\u660e\u786e\u5217\u51fa\u590d\u73b0\u8def\u5f84\u3001\u9519\u8bef\u65e5\u5fd7\u3001\u8f93\u5165\u8f93\u51fa\u5bf9\u6bd4",
-        "Scenario: Scenario 3 \u65b0\u589e\u89e6\u53d1\u6a21\u5f0f\u5206\u6790\u6b65\u9aa4\uff1a\u8bc6\u522b\u7a33\u5b9a\u89e6\u53d1\u6761\u4ef6\u548c\u8fb9\u754c\u6761\u4ef6",
-        "Scenario: \u5047\u8bbe\u5efa\u7acb\u73af\u8282\u52a0\u5165\u552f\u4e00\u6027\u9a8c\u8bc1\u68c0\u67e5\uff1a\u6392\u9664\u7ade\u4e89\u5047\u8bbe\u540e\u786e\u8ba4\u8be5\u5047\u8bbe\u662f\u552f\u4e00\u6210\u7acb\u539f\u56e0",
-        "Scenario: TDD \u5b8c\u6210\u540e\u52a0\u663e\u5f0f\u56de\u5f52\u68c0\u67e5\u9879\uff1a\u786e\u8ba4\u95ee\u9898A\u5df2\u6d88\u5931\u4e14\u529f\u80fdB\u672a\u53d7\u5f71\u54cd",
-        "Scenario: \u539f\u6709 systematic-debugging / TDD / git-auto \u59d4\u6258\u8c03\u7528\u4e0d\u53d7\u5f71\u54cd\uff0cScenario 1 \u548c Scenario 2 \u4fdd\u6301\u539f\u6837"
+        "Scenario: Scenario 3 新增结构化证据收集步骤：明确列出复现路径、错误日志、输入输出对比",
+        "Scenario: Scenario 3 新增触发模式分析步骤：识别稳定触发条件和边界条件",
+        "Scenario: 假设建立环节加入唯一性验证检查：排除竞争假设后确认该假设是唯一成立原因",
+        "Scenario: TDD 完成后加显式回归检查项：确认问题A已消失且功能B未受影响",
+        "Scenario: 原有 systematic-debugging / TDD / git-auto 委托调用不受影响，Scenario 1 和 Scenario 2 保持原样"
       ],
       "quality_gates": {
         "evaluator": {
@@ -1778,19 +1780,19 @@
         }
       },
       "sprint_contract": {
-        "scope": "\u6539\u5199 bug-fix skill \u7684 Scenario 3\uff08\u4fee\u590d\u5df2\u5f55\u5165 Bug\uff09\u8c03\u8bd5\u6d41\u7a0b\u3002\u73b0\u6709\u6d41\u7a0b\u76f4\u63a5\u59d4\u6258 systematic-debugging skill\uff0c\u7f3a\u4e4f\u7ed3\u6784\u5316\u5f15\u5bfc\uff0cAI \u5728\u65b0\u4f1a\u8bdd\u4e2d\u4f1a\u8df3\u8fc7\u8bc1\u636e\u6536\u96c6\u548c\u6a21\u5f0f\u5206\u6790\u3002\u76ee\u6807\uff1a\u5c064\u9636\u6bb5\u8c03\u8bd5\u65b9\u6cd5\u8bba\uff08\u6536\u96c6\u8bc1\u636e\u2192\u5206\u6790\u89c4\u5f8b\u2192\u5efa\u7acb\u5047\u8bbe\u2192\u5b9e\u65bd\u4fee\u590d\uff09\u5185\u8054\u5230 Scenario 3\uff0c\u4f7f AI \u65e0\u9700\u989d\u5916\u4e0a\u4e0b\u6587\u5373\u53ef\u6309\u6b63\u786e\u987a\u5e8f\u63a8\u8fdb\u3002\u6539\u52a8\u4ec5\u9650 skills/bug-fix/SKILL.md\uff0c\u4e0d\u6539 CLI \u548c progress.json \u7ed3\u6784\u3002\n\n## \u80cc\u666f\n\n\u7528\u6237\uff08@siunin\uff09\u4e0e AI \u534f\u4f5c\u8c03\u8bd5\u65f6\u53d1\u73b0\uff0c\u73b0\u6709 Scenario 3 \u76f4\u63a5\u8c03\u7528 systematic-debugging skill \u540e\u8fdb\u5165 TDD\uff0c\u7f3a\u5c11\u4e24\u4e2a\u5173\u952e\u73af\u8282\uff1a\n1. \u8bc1\u636e\u6536\u96c6\u2014\u2014AI \u5728\u65b0\u4f1a\u8bdd\u4e2d\u4e0d\u77e5\u9053\u5d29\u6e83\u65f6\u7684\u590d\u73b0\u8def\u5f84\u3001\u65e5\u5fd7\u8f93\u51fa\u3001\u8f93\u5165\u6761\u4ef6\n2. \u5047\u8bbe\u552f\u4e00\u6027\u2014\u2014systematic-debugging \u4f1a\u5217\u51fa\u5047\u8bbe\u4f46\u4e0d\u4f1a\u9a8c\u8bc1\u8be5\u5047\u8bbe\u662f\u5426\u552f\u4e00\u6210\u7acb\n\n\u6700\u6709\u4ef7\u503c\u7684\u6539\u8fdb\u70b9\u662f\uff1a\n- \u7ed3\u6784\u5316\u8bc1\u636e\u6536\u96c6\uff1a\u590d\u73b0\u8def\u5f84\u3001\u9519\u8bef\u65e5\u5fd7\u3001\u8f93\u5165\u2192\u8f93\u51fa\u5bf9\u6bd4\n- \u89e6\u53d1\u6a21\u5f0f\u5206\u6790\uff1a\u7a33\u5b9a\u89e6\u53d1\u6761\u4ef6\u3001\u8fb9\u754c\u6761\u4ef6\u8bc6\u522b\n- \u552f\u4e00\u6027\u9a8c\u8bc1\uff1a\u786e\u8ba4\u63d0\u51fa\u7684\u5047\u8bbe\u662f\u552f\u4e00\u6210\u7acb\u539f\u56e0\uff0c\u6392\u9664\u7ade\u4e89\u5047\u8bbe\n- \u56de\u5f52\u68c0\u67e5\uff1a\u95ee\u9898A\u5df2\u6d88\u5931\u4e14\u529f\u80fdB\u672a\u53d7\u5f71\u54cd",
+        "scope": "改写 bug-fix skill 的 Scenario 3（修复已录入 Bug）调试流程。现有流程直接委托 systematic-debugging skill，缺乏结构化引导，AI 在新会话中会跳过证据收集和模式分析。目标：将4阶段调试方法论（收集证据→分析规律→建立假设→实施修复）内联到 Scenario 3，使 AI 无需额外上下文即可按正确顺序推进。改动仅限 skills/bug-fix/SKILL.md，不改 CLI 和 progress.json 结构。\n\n## 背景\n\n用户（@siunin）与 AI 协作调试时发现，现有 Scenario 3 直接调用 systematic-debugging skill 后进入 TDD，缺少两个关键环节：\n1. 证据收集——AI 在新会话中不知道崩溃时的复现路径、日志输出、输入条件\n2. 假设唯一性——systematic-debugging 会列出假设但不会验证该假设是否唯一成立\n\n最有价值的改进点是：\n- 结构化证据收集：复现路径、错误日志、输入→输出对比\n- 触发模式分析：稳定触发条件、边界条件识别\n- 唯一性验证：确认提出的假设是唯一成立原因，排除竞争假设\n- 回归检查：问题A已消失且功能B未受影响",
         "done_criteria": [
-          "Scenario 3 \u65b0\u589e\u300e\u8bc1\u636e\u6536\u96c6\u300f\u6b65\u9aa4\uff1a\u660e\u786e\u5217\u51fa\u9700\u6536\u96c6\u7684\u9879\u76ee\uff08\u590d\u73b0\u8def\u5f84\u3001\u9519\u8bef\u65e5\u5fd7\u3001\u8f93\u5165\u2192\u8f93\u51fa\u5bf9\u6bd4\uff09\uff0c\u6bcf\u9879\u6709\u660e\u786e\u8f93\u51fa\u7269",
-          "Scenario 3 \u65b0\u589e\u300e\u89e6\u53d1\u6a21\u5f0f\u5206\u6790\u300f\u6b65\u9aa4\uff1a\u5f15\u5bfc AI \u8bc6\u522b\u7a33\u5b9a\u89e6\u53d1\u6761\u4ef6\u548c\u8fb9\u754c\u6761\u4ef6",
-          "\u5047\u8bbe\u5efa\u7acb\u73af\u8282\u660e\u786e\u8981\u6c42\uff1a\u9a8c\u8bc1\u8be5\u5047\u8bbe\u662f\u552f\u4e00\u6210\u7acb\u539f\u56e0\uff0c\u6392\u9664\u6240\u6709\u7ade\u4e89\u5047\u8bbe",
-          "TDD \u5b8c\u6210\u540e\u6709\u663e\u5f0f\u56de\u5f52\u68c0\u67e5\u6a21\u677f\uff1a\u786e\u8ba4\u95ee\u9898A\u5df2\u6d88\u5931\u4e14\u529f\u80fdB\u672a\u53d7\u5f71\u54cd\uff08\u542b\u68c0\u67e5\u6e05\u5355\uff09",
-          "\u539f\u6709 systematic-debugging / TDD / git-auto \u59d4\u6258\u8c03\u7528\u4fdd\u6301\u4e0d\u53d8\uff0c\u4ec5\u5728\u524d\u63d2\u5165\u7ed3\u6784\u5316\u6b65\u9aa4",
-          "Scenario 1\uff08\u5217\u8868\u67e5\u770b bug\uff09\u548c Scenario 2\uff08\u6392\u671f/\u4f18\u5148\u7ea7\uff09\u4e0d\u53d7\u4efb\u4f55\u5f71\u54cd"
+          "Scenario 3 新增『证据收集』步骤：明确列出需收集的项目（复现路径、错误日志、输入→输出对比），每项有明确输出物",
+          "Scenario 3 新增『触发模式分析』步骤：引导 AI 识别稳定触发条件和边界条件",
+          "假设建立环节明确要求：验证该假设是唯一成立原因，排除所有竞争假设",
+          "TDD 完成后有显式回归检查模板：确认问题A已消失且功能B未受影响（含检查清单）",
+          "原有 systematic-debugging / TDD / git-auto 委托调用保持不变，仅在前插入结构化步骤",
+          "Scenario 1（列表查看 bug）和 Scenario 2（排期/优先级）不受任何影响"
         ],
         "test_plan": [
-          "\u5bf9\u6bd4\u4fee\u6539\u524d\u540e Scenario 3 \u7684\u6b65\u9aa4\u6570\u91cf\u548c\u8986\u76d6\u9879\uff0c\u786e\u8ba44\u9636\u6bb5\u5747\u6709\u5bf9\u5e94\u6b65\u9aa4\u548c\u8f93\u51fa\u7269",
-          "\u7528\u4e00\u4e2a\u865a\u6784 Bug \u8d70\u8bfb\u4fee\u6539\u540e\u7684\u5b8c\u6574\u6d41\u7a0b\uff0c\u68c0\u67e5\u6bcf\u4e2a\u9636\u6bb5\u662f\u5426\u6709\u660e\u786e\u4ea4\u4ed8\u6807\u51c6",
-          "\u786e\u8ba4 Scenario 1 \u548c Scenario 2 \u7684\u6b65\u9aa4/\u8f93\u51fa/\u547d\u4ee4\u65e0\u4efb\u4f55\u53d8\u5316\uff08diff = \u7a7a\uff09"
+          "对比修改前后 Scenario 3 的步骤数量和覆盖项，确认4阶段均有对应步骤和输出物",
+          "用一个虚构 Bug 走读修改后的完整流程，检查每个阶段是否有明确交付标准",
+          "确认 Scenario 1 和 Scenario 2 的步骤/输出/命令无任何变化（diff = 空）"
         ],
         "accepted_by": null,
         "accepted_at": null
@@ -1805,13 +1807,13 @@
     },
     {
       "id": 16,
-      "name": "Git Squash Merge SOP \u2014 \u96c6\u6210\u5230 prog-done \u81ea\u52a8\u5316\u6d41\u7a0b",
+      "name": "Git Squash Merge SOP — 集成到 prog-done 自动化流程",
       "test_steps": [
-        "feature \u5206\u652f\u6709\u591a\u4e2a\u4e2d\u95f4 commit \u65f6\u6267\u884c prog done\uff0c\u786e\u8ba4\u5408\u5165 main \u540e\u53ea\u589e\u52a0 1 \u4e2a squash commit\uff0c\u5206\u652f\u81ea\u52a8\u5220\u9664",
-        "main \u5206\u652f git log \u4e2d\u4e0d\u51fa\u73b0 WIP/fix typo/chore \u7c7b\u4e2d\u95f4 commit\uff0c\u6bcf\u4e2a feature \u5bf9\u5e94\u4e00\u4e2a\u8bed\u4e49\u5b8c\u6574\u7684 commit",
-        "project_memory.json \u4e2d CAP \u8bb0\u5f55\u7684 commit_hash \u6b63\u786e\u6307\u5411 squash \u540e\u7684\u6700\u7ec8 commit",
-        "Feature \u5206\u652f\u5728 squash merge \u5b8c\u6210\u540e\u81ea\u52a8\u6e05\u7406\uff1a\u5220\u9664\u672c\u5730\u5206\u652f+\u8fdc\u7a0b tracking \u5206\u652f\uff0c\u5931\u8d25\u975e\u963b\u585e",
-        "\u5df2\u6709\u4ed3\u5e93\u53ef\u9009\u6267\u884c\u5386\u53f2 squash+hash remap \u811a\u672c\uff0c\u6240\u6709\u8ffd\u8e2a\u6587\u4ef6\u4e2d\u7684\u65e7 hash \u6b63\u786e\u66f4\u65b0\u4e3a\u65b0 hash"
+        "feature 分支有多个中间 commit 时执行 prog done，确认合入 main 后只增加 1 个 squash commit，分支自动删除",
+        "main 分支 git log 中不出现 WIP/fix typo/chore 类中间 commit，每个 feature 对应一个语义完整的 commit",
+        "project_memory.json 中 CAP 记录的 commit_hash 正确指向 squash 后的最终 commit",
+        "Feature 分支在 squash merge 完成后自动清理：删除本地分支+远程 tracking 分支，失败非阻塞",
+        "已有仓库可选执行历史 squash+hash remap 脚本，所有追踪文件中的旧 hash 正确更新为新 hash"
       ],
       "completed": false,
       "deferred": false,
@@ -1828,13 +1830,13 @@
         "REQ-016"
       ],
       "change_spec": {
-        "why": "\u6bcf\u4e2a work item \u65e0\u8bba profile \u7c7b\u578b\uff08feature / task / bug\uff09\u90fd\u5e94\u5728\u5408\u5165 main \u65f6\u4ea7\u751f\u6070\u597d 1 \u4e2a\u8bed\u4e49\u5b8c\u6574\u7684 commit\uff1bWIP/\u8c03\u8bd5/fix typo \u7c7b\u4e2d\u95f4 commit \u4e0d\u5e94\u6c61\u67d3 main \u5386\u53f2\u3002",
+        "why": "每个 work item 无论 profile 类型（feature / task / bug）都应在合入 main 时产生恰好 1 个语义完整的 commit；WIP/调试/fix typo 类中间 commit 不应污染 main 历史。",
         "in_scope": [
-          "Squash merge \u9002\u7528\u4e8e\u6240\u6709\u4f7f\u7528\u5206\u652f\u7684 workflow profile\uff08quick_task / standard_task / feature_delivery / hotfix\uff09\uff1bmain \u59cb\u7ec8\u6bcf\u4e2a work item \u5bf9\u5e94 1 \u4e2a commit\u3002",
-          "quick_task / standard_task squash \u8303\u56f4\uff1a\u5206\u652f\u521b\u5efa\u5230\u5173\u95ed\u7684\u6240\u6709 commit \u2192 1 commit\uff1bmessage \u683c\u5f0f\uff1atask(scope): \u63cf\u8ff0\u3002",
-          "feature_delivery squash \u8303\u56f4\uff1a\u4fdd\u6301\u539f\u8bbe\u8ba1\uff08feat(scope): \u63cf\u8ff0 + \u8be6\u7ec6 body\uff09\uff1b\u901a\u8fc7\u5b8c\u6574 prog-done gate \u89e6\u53d1\u3002",
-          "profile-aware squash \u89e6\u53d1\u70b9\uff1aquick_task/standard_task \u8d70\u8f7b\u91cf\u5173\u95ed\u8def\u5f84\uff1bfeature_delivery \u8d70\u5b8c\u6574 prog-done gate\uff1b\u4e24\u8005\u5171\u7528\u540c\u4e00 squash-merge \u5de5\u5177\u51fd\u6570\u3002",
-          "\u72b6\u6001\u4e00\u81f4\u6027\uff1aproject_memory.json \u548c sprint_ledger.jsonl \u7684 commit_hash \u59cb\u7ec8\u6307\u5411 squash \u540e\u7684\u6700\u7ec8 commit\uff0c\u6240\u6709 profile \u5747\u9002\u7528\u3002"
+          "Squash merge 适用于所有使用分支的 workflow profile（quick_task / standard_task / feature_delivery / hotfix）；main 始终每个 work item 对应 1 个 commit。",
+          "quick_task / standard_task squash 范围：分支创建到关闭的所有 commit → 1 commit；message 格式：task(scope): 描述。",
+          "feature_delivery squash 范围：保持原设计（feat(scope): 描述 + 详细 body）；通过完整 prog-done gate 触发。",
+          "profile-aware squash 触发点：quick_task/standard_task 走轻量关闭路径；feature_delivery 走完整 prog-done gate；两者共用同一 squash-merge 工具函数。",
+          "状态一致性：project_memory.json 和 sprint_ledger.jsonl 的 commit_hash 始终指向 squash 后的最终 commit，所有 profile 均适用。"
         ],
         "out_of_scope": [
           "Unrelated refactors and behavior changes outside this feature."
@@ -1844,11 +1846,11 @@
         ]
       },
       "acceptance_scenarios": [
-        "Scenario: feature \u5206\u652f\u6709\u591a\u4e2a\u4e2d\u95f4 commit \u65f6\u6267\u884c prog done\uff0c\u786e\u8ba4\u5408\u5165 main \u540e\u53ea\u589e\u52a0 1 \u4e2a squash commit\uff0c\u5206\u652f\u81ea\u52a8\u5220\u9664",
-        "Scenario: main \u5206\u652f git log \u4e2d\u4e0d\u51fa\u73b0 WIP/fix typo/chore \u7c7b\u4e2d\u95f4 commit\uff0c\u6bcf\u4e2a feature \u5bf9\u5e94\u4e00\u4e2a\u8bed\u4e49\u5b8c\u6574\u7684 commit",
-        "Scenario: project_memory.json \u4e2d CAP \u8bb0\u5f55\u7684 commit_hash \u6b63\u786e\u6307\u5411 squash \u540e\u7684\u6700\u7ec8 commit",
-        "Scenario: Feature \u5206\u652f\u5728 squash merge \u5b8c\u6210\u540e\u81ea\u52a8\u6e05\u7406\uff1a\u5220\u9664\u672c\u5730\u5206\u652f+\u8fdc\u7a0b tracking \u5206\u652f\uff0c\u5931\u8d25\u975e\u963b\u585e",
-        "Scenario: \u5df2\u6709\u4ed3\u5e93\u53ef\u9009\u6267\u884c\u5386\u53f2 squash+hash remap \u811a\u672c\uff0c\u6240\u6709\u8ffd\u8e2a\u6587\u4ef6\u4e2d\u7684\u65e7 hash \u6b63\u786e\u66f4\u65b0\u4e3a\u65b0 hash"
+        "Scenario: feature 分支有多个中间 commit 时执行 prog done，确认合入 main 后只增加 1 个 squash commit，分支自动删除",
+        "Scenario: main 分支 git log 中不出现 WIP/fix typo/chore 类中间 commit，每个 feature 对应一个语义完整的 commit",
+        "Scenario: project_memory.json 中 CAP 记录的 commit_hash 正确指向 squash 后的最终 commit",
+        "Scenario: Feature 分支在 squash merge 完成后自动清理：删除本地分支+远程 tracking 分支，失败非阻塞",
+        "Scenario: 已有仓库可选执行历史 squash+hash remap 脚本，所有追踪文件中的旧 hash 正确更新为新 hash"
       ],
       "quality_gates": {
         "evaluator": {
@@ -1870,27 +1872,27 @@
         }
       },
       "sprint_contract": {
-        "scope": "\u5728 prog \u63d2\u4ef6\u4e2d\u96c6\u6210\u5168 profile Git Squash Merge \u5de5\u4f5c\u6d41\uff0c\u4f7f\u6bcf\u4e2a work item\uff08feature / task / bug\uff0c\u65e0\u8bba profile \u7c7b\u578b\uff09\u5728\u5408\u5165 main \u65f6\u53ea\u4ea7\u751f\u4e00\u4e2a\u8bed\u4e49\u5b8c\u6574\u7684 commit\uff0c\u675c\u7edd\u4e2d\u95f4\u8c03\u8bd5/WIP/fix typo/chore \u7c7b\u788e\u7247 commit \u6c61\u67d3 main \u5206\u652f\u5386\u53f2\u3002\n\n## \u80cc\u666f\u4e0e\u52a8\u673a\n\n\u5f53\u524d\u4ed3\u5e93 main \u5206\u652f\u6709 379 \u4e2a commit\uff08\u7edf\u8ba1\u65e5\u671f 2026-05-11\uff09\uff1a\n- 163 \u4e2a feat\u300165 \u4e2a fix\u300150 \u4e2a chore\u300132 \u4e2a docs\u300125 \u4e2a merge commit\n- Feature/task \u5185\u90e8\u8bd5\u9519\u8fc7\u7a0b\u7684\u5feb\u7167\u5168\u4fdd\u7559\u5728\u4e3b\u5206\u652f\n- \u4f8b\u5982 F8\uff08fail-closed release gate\uff09\u6709 21 \u4e2a commit\u3001git-auto v2.2 \u6709 15 \u4e2a\u3001F5\uff08progressive disclosure\uff09\u6709 13 \u4e2a\n- \u8fd9\u4e9b\u4e2d\u95f4 commit \u5bf9\u4ee3\u7801\u9605\u8bfb\u8005\u63d0\u4f9b\u96f6\u4ef7\u503c\uff0c\u53ea\u589e\u52a0 git log \u566a\u58f0\u548c bisect \u6210\u672c\n\n## \u4e1a\u754c\u6807\u51c6\u53c2\u8003\n\n| \u516c\u53f8/\u9879\u76ee | \u505a\u6cd5 |\n|-----------|------|\n| GitHub \u81ea\u8eab | PR squash merge\uff0c\u4e00\u4e2a PR = \u4e00\u4e2a commit |\n| GitLab \u9ed8\u8ba4 | squash merge |\n| VS Code \u4ed3\u5e93 | rebase + merge \u4fdd\u6301\u7ebf\u6027\u5386\u53f2 |\n| Google/Meta/Microsoft | \u540c\u7b49\u7406\u5ff5\uff1amain \u53ea\u4fdd\u7559\u903b\u8f91\u5355\u5143 |\n\n\u6838\u5fc3\u7406\u5ff5\uff1a**main \u5206\u652f\u53ea\u4fdd\u7559\u6709\u610f\u4e49\u7684\u300e\u903b\u8f91\u5355\u5143\u300f\uff0c\u4e0d\u4fdd\u7559\u5f00\u53d1\u7684\u8bd5\u9519\u8fc7\u7a0b\u3002** \u6240\u6709 profile \u5206\u652f\u5185\u7684\u4e2d\u95f4 commit \u5728\u5408\u5165\u540e\u5373\u5931\u53bb\u4ef7\u503c\u3002\n\n## \u8bbe\u8ba1\u539f\u5219\n\n1. **\u6240\u6709 profile \u5206\u652f**\uff1a\u4fdd\u7559\u4e2d\u95f4 commit\uff0c\u5f00\u53d1\u8fc7\u7a0b\u4e2d\u53ef\u81ea\u7531\u63d0\u4ea4\n2. **Squash merge**\uff1a\u5408\u5165 main \u65f6\u6240\u6709\u4e2d\u95f4 commit \u538b\u6210\u4e00\u4e2a\uff1bmessage \u683c\u5f0f\u6309 profile\uff1afeature_delivery \u7528 feat(scope)\uff0ctask \u7c7b\u7528 task(scope)\n3. **\u72b6\u6001\u4e00\u81f4\u6027**\uff1a\u8ffd\u8e2a\u6587\u4ef6\u4e2d\u7684 commit_hash \u59cb\u7ec8\u6307\u5411 squash \u540e\u7684\u6700\u7ec8 commit\uff08\u975e\u4e2d\u95f4 commit\uff09\uff0c\u6240\u6709 profile \u5747\u9002\u7528\n4. **SOP \u95ed\u73af**\uff1afeature_delivery \u901a\u8fc7 prog-done gate \u89e6\u53d1\uff1bquick_task/standard_task \u901a\u8fc7\u8f7b\u91cf\u5173\u95ed\u8def\u5f84\u89e6\u53d1\uff1b\u4e24\u8005\u4e0d\u53ef\u7ed5\u8fc7",
+        "scope": "在 prog 插件中集成全 profile Git Squash Merge 工作流，使每个 work item（feature / task / bug，无论 profile 类型）在合入 main 时只产生一个语义完整的 commit，杜绝中间调试/WIP/fix typo/chore 类碎片 commit 污染 main 分支历史。\n\n## 背景与动机\n\n当前仓库 main 分支有 379 个 commit（统计日期 2026-05-11）：\n- 163 个 feat、65 个 fix、50 个 chore、32 个 docs、25 个 merge commit\n- Feature/task 内部试错过程的快照全保留在主分支\n- 例如 F8（fail-closed release gate）有 21 个 commit、git-auto v2.2 有 15 个、F5（progressive disclosure）有 13 个\n- 这些中间 commit 对代码阅读者提供零价值，只增加 git log 噪声和 bisect 成本\n\n## 业界标准参考\n\n| 公司/项目 | 做法 |\n|-----------|------|\n| GitHub 自身 | PR squash merge，一个 PR = 一个 commit |\n| GitLab 默认 | squash merge |\n| VS Code 仓库 | rebase + merge 保持线性历史 |\n| Google/Meta/Microsoft | 同等理念：main 只保留逻辑单元 |\n\n核心理念：**main 分支只保留有意义的『逻辑单元』，不保留开发的试错过程。** 所有 profile 分支内的中间 commit 在合入后即失去价值。\n\n## 设计原则\n\n1. **所有 profile 分支**：保留中间 commit，开发过程中可自由提交\n2. **Squash merge**：合入 main 时所有中间 commit 压成一个；message 格式按 profile：feature_delivery 用 feat(scope)，task 类用 task(scope)\n3. **状态一致性**：追踪文件中的 commit_hash 始终指向 squash 后的最终 commit（非中间 commit），所有 profile 均适用\n4. **SOP 闭环**：feature_delivery 通过 prog-done gate 触发；quick_task/standard_task 通过轻量关闭路径触发；两者不可绕过",
         "done_criteria": [
-          "git auto done \u6267\u884c squash merge\uff1a\u5c06 feature \u5206\u652f\u6240\u6709 commit \u538b\u6210\u4e00\u4e2a\uff0ccommit message \u683c\u5f0f\u4e3a feat(scope): \u529f\u80fd\u63cf\u8ff0 + \u8be6\u7ec6 body",
-          "main \u5206\u652f\u9a8c\u8bc1\uff1agit log \u786e\u8ba4\u8be5 feature \u53ea\u589e\u52a0\u4e86 1 \u4e2a commit\uff0c\u65e0 WIP/fix typo/chore \u788e\u7247\u6df7\u5165",
-          "project_memory.json CAP \u8bb0\u5f55\u7684 commit_hash \u7b49\u4e8e git log main -1 --format=%H\uff08squash \u540e\u7684\u6700\u7ec8 hash\uff09",
-          "sprint_ledger.jsonl artifact_path \u548c metadata \u4e0e squash \u540e\u7684\u72b6\u6001\u4e00\u81f4\uff0c\u65e0\u65e7 hash \u6b8b\u7559",
-          "Feature \u5206\u652f\u5728 squash merge \u6210\u529f\u540e\u81ea\u52a8\u6e05\u7406\uff1agit branch -d <feature-branch> + git push origin --delete\uff08\u5931\u8d25\u975e\u963b\u585e\uff09",
-          "feature-complete SKILL.md Step 5 \u663e\u5f0f\u5305\u542b squash merge \u68c0\u67e5\u9879\uff0c\u6807\u6ce8\u4e3a\u4e0d\u53ef\u8df3\u8fc7",
-          "\u65b0\u589e\u6d4b\u8bd5 test_squash_merge_flow.py\uff1a\u8986\u76d6\u6210\u529f\u8def\u5f84\u3001\u51b2\u7a81\u8def\u5f84\u3001cleanup \u5931\u8d25\u8def\u5f84",
-          "\u8fb9\u754c\u60c5\u51b5\uff1afeature \u5206\u652f\u53ea\u6709 1 \u4e2a commit \u65f6 squash \u9000\u5316\u4e3a\u666e\u901a merge\uff0c\u4e0d\u4ea7\u751f\u989d\u5916\u64cd\u4f5c\u6216\u62a5\u9519",
-          "\u53ef\u9009\u5de5\u5177\uff1a\u5386\u53f2 remap \u811a\u672c\u5c06\u6307\u5b9a\u8303\u56f4\u7684\u65e7 commit \u538b\u7f29\u4e3a\u65b0 commit \u5e76\u66f4\u65b0\u6240\u6709\u8ffd\u8e2a\u6587\u4ef6\u4e2d\u7684 hash \u5f15\u7528",
-          "quick_task \u548c standard_task \u5173\u95ed\u8def\u5f84\u6267\u884c squash merge\uff1abranch \u2192 1 commit on main\uff1bcommit message \u683c\u5f0f task(scope): \u63cf\u8ff0\uff1bWIP commit \u4e0d\u51fa\u73b0\u5728 main\u3002",
-          "git log main \u4e2d\u6bcf\u4e2a work item\uff08\u65e0\u8bba profile \u7c7b\u578b\uff09\u5bf9\u5e94\u4e14\u4ec5\u5bf9\u5e94 1 \u4e2a commit\uff1bmain \u4e0a\u4e0d\u51fa\u73b0\u4efb\u4f55 profile \u7684 WIP \u788e\u7247 commit\u3002"
+          "git auto done 执行 squash merge：将 feature 分支所有 commit 压成一个，commit message 格式为 feat(scope): 功能描述 + 详细 body",
+          "main 分支验证：git log 确认该 feature 只增加了 1 个 commit，无 WIP/fix typo/chore 碎片混入",
+          "project_memory.json CAP 记录的 commit_hash 等于 git log main -1 --format=%H（squash 后的最终 hash）",
+          "sprint_ledger.jsonl artifact_path 和 metadata 与 squash 后的状态一致，无旧 hash 残留",
+          "Feature 分支在 squash merge 成功后自动清理：git branch -d <feature-branch> + git push origin --delete（失败非阻塞）",
+          "feature-complete SKILL.md Step 5 显式包含 squash merge 检查项，标注为不可跳过",
+          "新增测试 test_squash_merge_flow.py：覆盖成功路径、冲突路径、cleanup 失败路径",
+          "边界情况：feature 分支只有 1 个 commit 时 squash 退化为普通 merge，不产生额外操作或报错",
+          "可选工具：历史 remap 脚本将指定范围的旧 commit 压缩为新 commit 并更新所有追踪文件中的 hash 引用",
+          "quick_task 和 standard_task 关闭路径执行 squash merge：branch → 1 commit on main；commit message 格式 task(scope): 描述；WIP commit 不出现在 main。",
+          "git log main 中每个 work item（无论 profile 类型）对应且仅对应 1 个 commit；main 上不出现任何 profile 的 WIP 碎片 commit。"
         ],
         "test_plan": [
-          "\u5355\u5143\u6d4b\u8bd5\uff1a\u65b0\u589e test_squash_merge_flow.py\uff0c\u8986\u76d6 merge \u6210\u529f\u3001\u51b2\u7a81\u9000\u51fa\u3001cleanup \u5931\u8d25\u975e\u963b\u585e\u4e09\u4e2a\u8def\u5f84",
-          "\u96c6\u6210\u6d4b\u8bd5\uff1amock \u4e00\u4e2a\u5305\u542b 5 \u4e2a commit \u7684 feature \u5206\u652f\uff0c\u6267\u884c git auto done\uff0c\u9a8c\u8bc1 main \u6700\u7ec8\u65b0\u589e 1 \u4e2a commit",
-          "\u5951\u7ea6\u6d4b\u8bd5\uff1aprog done \u6267\u884c\u540e project_memory.json CAP hash == git log main -1 --format=%H",
-          "\u56de\u5f52\u6d4b\u8bd5\uff1a\u73b0\u6709 feature-complete \u6d41\u7a0b\u6240\u6709\u6d4b\u8bd5\u4e0d\u53d7\u5f71\u54cd\uff08squash \u4f5c\u4e3a\u589e\u5f3a\u6b65\u9aa4\uff0c\u975e\u66ff\u6362\uff09",
-          "\u624b\u52a8\u9a8c\u8bc1\uff1a\u5728\u771f\u5b9e feature \u5206\u652f\u4e0a\u8fd0\u884c prog done\uff0c\u68c0\u67e5 GitHub PR \u9875\u9762\u663e\u793a '1 commit'",
-          "\u8fb9\u754c\u6d4b\u8bd5\uff1afeature \u5206\u652f\u53ea\u6709 1 \u4e2a commit \u2192 squash \u9000\u5316\u4e3a\u666e\u901a merge\uff0c\u65e0\u989d\u5916\u64cd\u4f5c"
+          "单元测试：新增 test_squash_merge_flow.py，覆盖 merge 成功、冲突退出、cleanup 失败非阻塞三个路径",
+          "集成测试：mock 一个包含 5 个 commit 的 feature 分支，执行 git auto done，验证 main 最终新增 1 个 commit",
+          "契约测试：prog done 执行后 project_memory.json CAP hash == git log main -1 --format=%H",
+          "回归测试：现有 feature-complete 流程所有测试不受影响（squash 作为增强步骤，非替换）",
+          "手动验证：在真实 feature 分支上运行 prog done，检查 GitHub PR 页面显示 '1 commit'",
+          "边界测试：feature 分支只有 1 个 commit → squash 退化为普通 merge，无额外操作"
         ],
         "accepted_by": null,
         "accepted_at": null
@@ -1904,7 +1906,7 @@
       "plan_path": "docs/plans/2026-05-11-f16-git-squash-merge-sop.md"
     }
   ],
-  "current_feature_id": null,
+  "current_feature_id": 14,
   "linked_projects": [],
   "linked_snapshot": {
     "schema_version": "1.0",
@@ -1998,14 +2000,14 @@
       "id": "UPD-005",
       "created_at": "2026-05-11T08:00:00.000000Z",
       "category": "decision",
-      "summary": "\u6267\u884c\u987a\u5e8f\u786e\u5b9a\uff1aBUG-002 hotfix \u2192 BUG-003/004 hotfix \u2192 F13 \u2192 F14 \u2192 F15 \u2192 F16",
-      "details": "P0/P1 bug \u4e0d\u7b49\u5f85\u65b0 feature \u5f00\u53d1\uff0c\u7acb\u5373\u8d70 /prog-fix \u72ec\u7acb\u4fee\u590d\u901a\u9053\u3002BUG-002\uff08complete \u5d4c\u5957\u9501\u6b7b\uff09\u4f18\u5148\u7ea7\u6700\u9ad8\uff0c\u5355\u72ec hotfix\uff1bBUG-003/004 \u5171\u4eab\u540c\u4e00\u6839\u56e0\uff08planning:review \u672a\u63a5\u5165\u72b6\u6001\u673a\uff09\uff0c\u6279\u91cf\u4e00\u6b21\u4fee\u590d\u3002BUG-005\uff08P2\uff09\u4f4e\u4f18\u5148\u7ea7\uff0c\u968f F13 \u5b9e\u73b0\u65f6\u56de\u586b routing_queue \u81ea\u7136\u8c03\u5ea6\u3002F13 \u5b9e\u73b0\u5b8c\u6210\u540e\uff0c\u5b58\u91cf pending bug \u901a\u8fc7 routing_queue \u56de\u586b\u673a\u5236\u8fdb\u5165\u6b63\u5e38\u8c03\u5ea6\u6d41\u7a0b\u3002",
+      "summary": "执行顺序确定：BUG-002 hotfix → BUG-003/004 hotfix → F13 → F14 → F15 → F16",
+      "details": "P0/P1 bug 不等待新 feature 开发，立即走 /prog-fix 独立修复通道。BUG-002（complete 嵌套锁死）优先级最高，单独 hotfix；BUG-003/004 共享同一根因（planning:review 未接入状态机），批量一次修复。BUG-005（P2）低优先级，随 F13 实现时回填 routing_queue 自然调度。F13 实现完成后，存量 pending bug 通过 routing_queue 回填机制进入正常调度流程。",
       "feature_id": null,
       "bug_id": null,
       "role": "architecture",
       "owner": "ai-collab",
       "source": "manual",
-      "next_action": "\u7acb\u5373\u542f\u52a8 BUG-002 hotfix\uff1a\u5b9a\u4f4d progress_manager.py:11145/11341 \u7684\u5d4c\u5957\u9501\u8def\u5f84\u5e76\u91cd\u6784",
+      "next_action": "立即启动 BUG-002 hotfix：定位 progress_manager.py:11145/11341 的嵌套锁路径并重构",
       "refs": [
         "bug:BUG-002",
         "bug:BUG-003",
@@ -2030,93 +2032,93 @@
   ],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-05-13T01:24:03.326480Z",
-    "source": "session_start",
+    "recorded_at": "2026-05-14T18:07:56.938949Z",
+    "source": "set_current",
     "workspace_mode": "in_place",
     "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
     "project_root": "/Users/siunin/Projects/Claude-Plugins",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins",
     "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
     "branch": "main",
     "upstream": "origin/main",
     "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
-    "current_feature_id": 13,
-    "workflow_phase": "execution_complete",
+    "current_feature_id": 14,
+    "workflow_phase": "planning",
     "current_task": null,
     "total_tasks": null,
-    "next_action": "verify_and_complete"
+    "next_action": null
   },
   "bugs": [
     {
       "id": "BUG-001",
-      "description": "Python falsy trap: current_feature_id=0 \u88ab not \u8bef\u5224\u4e3a None\uff0c\u5bfc\u81f4 set-workflow-state/auto_checkpoint/wf_auto_driver/route_status \u7b49\u51fd\u6570\u5728 feature ID \u4e3a 0 \u65f6\u5f02\u5e38\u8df3\u8fc7",
+      "description": "Python falsy trap: current_feature_id=0 被 not 误判为 None，导致 set-workflow-state/auto_checkpoint/wf_auto_driver/route_status 等函数在 feature ID 为 0 时异常跳过",
       "status": "fixed",
       "priority": "high",
       "category": "bug",
       "created_at": "2026-04-24T15:21:20.997557Z",
       "quick_verification": {},
       "updated_at": "2026-04-24T15:21:47.589961Z",
-      "root_cause": "Python truthy/falsy trap: not 0 == True\uff0c\u5bfc\u81f4 ID=0 \u7684 feature \u88ab\u8bef\u5224\u4e3a\u4e0d\u5b58\u5728",
+      "root_cause": "Python truthy/falsy trap: not 0 == True，导致 ID=0 的 feature 被误判为不存在",
       "investigation": {
-        "root_cause": "Python truthy/falsy trap: not 0 == True\uff0c\u5bfc\u81f4 ID=0 \u7684 feature \u88ab\u8bef\u5224\u4e3a\u4e0d\u5b58\u5728",
+        "root_cause": "Python truthy/falsy trap: not 0 == True，导致 ID=0 的 feature 被误判为不存在",
         "confirmed_at": "2026-04-24T15:21:47.589970Z"
       }
     },
     {
       "id": "BUG-002",
-      "description": "P0: complete \u91cd\u5b9a\u5411\u540e\u88ab\u5916\u5c42\u9501\u5361\u6b7b\u3002complete \u8d70 MUTATING_COMMANDS \u5916\u5c42 progress_transaction()\uff0c\u4f46 cmd_done \u5185\u90e8\u8def\u5f84\uff08record_sprint_artifact\u3001\u5d4c\u5957 prog \u547d\u4ee4\uff09\u4f1a\u518d\u6b21\u62ff\u9501\uff0c\u5bfc\u81f4 10 \u79d2\u9501\u8d85\u65f6\uff0cRC=9\u3002\u5173\u952e\u4f4d\u7f6e: progress_manager.py:11145, 11341",
+      "description": "P0: complete 重定向后被外层锁卡死。complete 走 MUTATING_COMMANDS 外层 progress_transaction()，但 cmd_done 内部路径（record_sprint_artifact、嵌套 prog 命令）会再次拿锁，导致 10 秒锁超时，RC=9。关键位置: progress_manager.py:11145, 11341",
       "status": "fixed",
       "priority": "high",
       "category": "bug",
       "created_at": "2026-04-28T17:34:41.245568Z",
       "quick_verification": {},
       "schedule": "hotfix-1",
-      "next_action": "\u7acb\u5373\u4fee\u590d\uff1a\u5b9a\u4f4d progress_manager.py:11145/11341\uff0c\u5c06 cmd_done \u5185\u90e8\u5d4c\u5957 prog \u8c03\u7528\u6539\u4e3a\u76f4\u63a5\u51fd\u6570\u8c03\u7528\uff0c\u7ed5\u8fc7\u5916\u5c42\u9501\u8def\u5f84",
+      "next_action": "立即修复：定位 progress_manager.py:11145/11341，将 cmd_done 内部嵌套 prog 调用改为直接函数调用，绕过外层锁路径",
       "updated_at": "2026-05-11T17:05:53.115309Z",
-      "root_cause": "complete \u5728 MUTATING_COMMANDS \u4e2d\u4f46\u672a\u52a0\u5165 done \u7684\u9501\u8c41\u514d\u5206\u652f\uff08progress_manager.py:11490\uff09\uff0c\u5bfc\u81f4 _dispatch_command() \u88ab progress_transaction() \u5305\u88f9\u3002cmd_done() \u7684 _run_acceptance_tests() \u901a\u8fc7 subprocess.run \u8c03\u7528\u5d4c\u5957 prog \u547d\u4ee4\uff0c\u5b50\u8fdb\u7a0b\u65e0\u6cd5\u611f\u77e5\u7236\u8fdb\u7a0b\u6301\u6709\u7684 fcntl.LOCK_EX \u9501\uff0c\u7b49\u5f85 10 \u79d2\u8d85\u65f6\u540e\u8fd4\u56de RC=9\u3002",
+      "root_cause": "complete 在 MUTATING_COMMANDS 中但未加入 done 的锁豁免分支（progress_manager.py:11490），导致 _dispatch_command() 被 progress_transaction() 包裹。cmd_done() 的 _run_acceptance_tests() 通过 subprocess.run 调用嵌套 prog 命令，子进程无法感知父进程持有的 fcntl.LOCK_EX 锁，等待 10 秒超时后返回 RC=9。",
       "investigation": {
-        "root_cause": "complete \u5728 MUTATING_COMMANDS \u4e2d\u4f46\u672a\u52a0\u5165 done \u7684\u9501\u8c41\u514d\u5206\u652f\uff08progress_manager.py:11490\uff09\uff0c\u5bfc\u81f4 _dispatch_command() \u88ab progress_transaction() \u5305\u88f9\u3002cmd_done() \u7684 _run_acceptance_tests() \u901a\u8fc7 subprocess.run \u8c03\u7528\u5d4c\u5957 prog \u547d\u4ee4\uff0c\u5b50\u8fdb\u7a0b\u65e0\u6cd5\u611f\u77e5\u7236\u8fdb\u7a0b\u6301\u6709\u7684 fcntl.LOCK_EX \u9501\uff0c\u7b49\u5f85 10 \u79d2\u8d85\u65f6\u540e\u8fd4\u56de RC=9\u3002",
+        "root_cause": "complete 在 MUTATING_COMMANDS 中但未加入 done 的锁豁免分支（progress_manager.py:11490），导致 _dispatch_command() 被 progress_transaction() 包裹。cmd_done() 的 _run_acceptance_tests() 通过 subprocess.run 调用嵌套 prog 命令，子进程无法感知父进程持有的 fcntl.LOCK_EX 锁，等待 10 秒超时后返回 RC=9。",
         "confirmed_at": "2026-05-11T17:05:50.054542Z"
       },
-      "fix_summary": "Fix applied (commit: ab3a38d99d090a629d71065e19ddb2d124ba249b) \u2014 progress_manager.py:11490 extend lock exemption to {done, complete}; regression test added (925 tests pass).",
+      "fix_summary": "Fix applied (commit: ab3a38d99d090a629d71065e19ddb2d124ba249b) — progress_manager.py:11490 extend lock exemption to {done, complete}; regression test added (925 tests pass).",
       "fixed_at": "2026-05-11T17:08:32.713544Z"
     },
     {
       "id": "BUG-003",
-      "description": "P1: planning:review phase \u672a\u63a5\u5165\u72b6\u6001\u673a\u3002skill \u5df2\u5f15\u5165 planning:review \u505c\u70b9\uff0c\u4f46 wf_state_machine.py \u6620\u5c04\u53ea\u6709 planning:draft/clarifying/approved\uff0c\u5bfc\u81f4 compute_next_action() \u5bf9 planning:review \u8fd4\u56de None\u3002\u5173\u952e\u4f4d\u7f6e: wf_state_machine.py:21-27",
+      "description": "P1: planning:review phase 未接入状态机。skill 已引入 planning:review 停点，但 wf_state_machine.py 映射只有 planning:draft/clarifying/approved，导致 compute_next_action() 对 planning:review 返回 None。关键位置: wf_state_machine.py:21-27",
       "status": "fixed",
       "priority": "medium",
       "category": "bug",
       "created_at": "2026-04-28T17:34:48.121330Z",
       "quick_verification": {},
       "schedule": "hotfix-2",
-      "next_action": "\u4e0e BUG-004 \u6279\u91cf\u4fee\u590d\uff1a\u5728 wf_state_machine.py:21-27 \u8865\u5168 planning:review \u72b6\u6001\u6620\u5c04\uff0c\u786e\u4fdd compute_next_action() \u8fd4\u56de\u6709\u6548\u503c",
-      "fix_summary": "\u4e0e BUG-004 \u540c\u4e00\u6b21\u6539\u52a8\u4fee\u590d\uff1awf_state_machine.py:21-27 \u8865\u5168 planning:review \u72b6\u6001\u6620\u5c04\uff0ccompute_next_action() \u73b0\u5728\u5bf9 planning:review \u8fd4\u56de resume_planning_draft",
+      "next_action": "与 BUG-004 批量修复：在 wf_state_machine.py:21-27 补全 planning:review 状态映射，确保 compute_next_action() 返回有效值",
+      "fix_summary": "与 BUG-004 同一次改动修复：wf_state_machine.py:21-27 补全 planning:review 状态映射，compute_next_action() 现在对 planning:review 返回 resume_planning_draft",
       "fixed_at": "2026-05-11T17:57:07"
     },
     {
       "id": "BUG-004",
-      "description": "P1: \u6062\u590d\u7b56\u7565\u672a\u8986\u76d6 planning:review\uff0c\u964d\u7ea7\u4e3a manual_review\u3002determine_recovery_action() \u53ea\u8986\u76d6 planning:draft/clarifying/approved\uff0cwriting planning:review \u540e\u8d70 manual_review \u5206\u652f\uff0c\u4e0e skill \u5b9a\u4e49\u7684\u5355\u6b21\u5ba1\u6279\u6062\u590d\u8def\u5f84\u4e0d\u4e00\u81f4\u3002\u5173\u952e\u4f4d\u7f6e: progress_manager.py:6439-6462",
+      "description": "P1: 恢复策略未覆盖 planning:review，降级为 manual_review。determine_recovery_action() 只覆盖 planning:draft/clarifying/approved，writing planning:review 后走 manual_review 分支，与 skill 定义的单次审批恢复路径不一致。关键位置: progress_manager.py:6439-6462",
       "status": "fixed",
       "priority": "medium",
       "category": "bug",
       "created_at": "2026-04-28T17:34:54.217426Z",
       "quick_verification": {},
       "schedule": "hotfix-2",
-      "next_action": "\u4e0e BUG-003 \u6279\u91cf\u4fee\u590d\uff1a\u5728 progress_manager.py:6439-6462 \u7684 determine_recovery_action() \u8865\u5168 planning:review \u5206\u652f\uff0c\u8fd4\u56de\u5355\u6b21\u5ba1\u6279\u6062\u590d\u8def\u5f84",
-      "fix_summary": "\u4e0e BUG-003 \u540c\u4e00\u6b21\u6539\u52a8\u4fee\u590d\uff1aprogress_manager.py:6439-6462 \u7684 determine_recovery_action() \u8865\u5168 planning:review \u5206\u652f\uff0c\u8fd4\u56de\u5355\u6b21\u5ba1\u6279\u6062\u590d\u8def\u5f84",
+      "next_action": "与 BUG-003 批量修复：在 progress_manager.py:6439-6462 的 determine_recovery_action() 补全 planning:review 分支，返回单次审批恢复路径",
+      "fix_summary": "与 BUG-003 同一次改动修复：progress_manager.py:6439-6462 的 determine_recovery_action() 补全 planning:review 分支，返回单次审批恢复路径",
       "fixed_at": "2026-05-11T17:57:07"
     },
     {
       "id": "BUG-005",
-      "description": "P2: complete \u672a\u8d70 fail-closed worktree/branch \u4e00\u81f4\u6027\u68c0\u67e5\u3002\u4e00\u81f4\u6027\u68c0\u67e5\u53ea\u5bf9 next-feature \u548c done \u6267\u884c\uff0ccomplete \u91cd\u5b9a\u5411\u5230 cmd_done \u540e\u7ed5\u8fc7\u8be5\u68c0\u67e5\u5165\u53e3\u3002\u5173\u952e\u4f4d\u7f6e: progress_manager.py:11336-11339",
+      "description": "P2: complete 未走 fail-closed worktree/branch 一致性检查。一致性检查只对 next-feature 和 done 执行，complete 重定向到 cmd_done 后绕过该检查入口。关键位置: progress_manager.py:11336-11339",
       "status": "pending_investigation",
       "priority": "low",
       "category": "bug",
       "created_at": "2026-04-28T17:34:54.371818Z",
       "quick_verification": {},
       "schedule": "via-f13",
-      "next_action": "\u968f F13 \u5b9e\u73b0\u65f6\u56de\u586b routing_queue \u81ea\u52a8\u8c03\u5ea6\uff1bF13 done_criteria \u5df2\u5305\u542b\u5b58\u91cf pending bug \u56de\u586b\u8981\u6c42"
+      "next_action": "随 F13 实现时回填 routing_queue 自动调度；F13 done_criteria 已包含存量 pending bug 回填要求"
     },
     {
       "id": "BUG-006",
@@ -2139,7 +2141,6 @@
   ],
   "current_bug_id": null,
   "parent_project_root": ".",
-  "workflow_state": null,
   "tasks": [
     {
       "id": "TASK-001",
@@ -2153,5 +2154,9 @@
       "next_action": "",
       "created_at": "2026-05-12T22:55:08.086743Z"
     }
-  ]
+  ],
+  "workflow_state": {
+    "phase": "planning",
+    "updated_at": "2026-05-14T18:07:56.904060Z"
+  }
 }
