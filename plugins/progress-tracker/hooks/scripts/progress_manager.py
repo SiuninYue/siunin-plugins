@@ -6,7 +6,7 @@ This script handles initialization, status checking, and state updates for
 feature-based progress tracking.
 
 Usage:
-    python3 progress_manager.py init [--force] <project_name>
+    python3 progress_manager.py init [--force] [--confirm-destroy] <project_name>
     python3 progress_manager.py status
     python3 progress_manager.py check
     python3 progress_manager.py reconcile [--json]
@@ -11433,6 +11433,12 @@ def main():
     init_parser.add_argument(
         "--force", action="store_true", help="Force re-initialization"
     )
+    init_parser.add_argument(
+        "--confirm-destroy",
+        action="store_true",
+        dest="confirm_destroy",
+        help="Required when --force is used and the project has completed features.",
+    )
 
     # Status command
     status_parser = subparsers.add_parser("status", help="Show progress status")
@@ -12079,7 +12085,11 @@ def main():
 
     def _dispatch_command() -> Any:
         if args.command == "init":
-            return init_tracking(args.project_name, force=args.force)
+            return init_tracking(
+                args.project_name,
+                force=args.force,
+                confirm_destroy=getattr(args, "confirm_destroy", False),
+            )
         if args.command == "status":
             return status(output_json=args.output_json)
         if args.command == "check":
