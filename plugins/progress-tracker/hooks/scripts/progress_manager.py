@@ -5875,6 +5875,51 @@ def _git_commit_state(
         return None
 
 
+def _auto_state_commit(ref: str, event: str) -> "Optional[str]":
+    """Auto-commit dirty state files after a prog lifecycle command succeeds.
+
+    Non-blocking: all failures print a warning and return None without
+    raising or affecting the caller's return value.
+
+    Args:
+        ref:   Human-readable reference, e.g. "F3" (feature) or "BUG-001".
+        event: Lifecycle event name, e.g. "done", "start", "fix".
+    """
+    data = load_progress_json()
+    if not data:
+        return None
+    if not data.get("settings", {}).get("auto_state_commit", True):
+        return None
+
+    # Resolve project root first — needed as cwd for all git calls.
+    project_root = find_project_root()
+
+    # Detect in-progress git operations (worktree-safe: --absolute-git-dir).
+    # Pass cwd=project_root to avoid detecting the wrong repo in multi-project setups.
+    code, git_dir_str, _ = _run_git(["rev-parse", "--absolute-git-dir"],
+                                     cwd=str(project_root))
+    if code == 0:
+        git_dir = Path(git_dir_str.strip())
+        for marker in ("MERGE_HEAD", "REBASE_HEAD", "CHERRY_PICK_HEAD"):
+            if (git_dir / marker).exists():
+                print(
+                    f"[state-sync] Skip: {marker} in progress. "
+                    "Resolve git operation, then commit state files manually."
+                )
+                return None
+        for dir_marker in ("rebase-merge", "rebase-apply"):
+            if (git_dir / dir_marker).is_dir():
+                print(f"[state-sync] Skip: {dir_marker} in progress.")
+                return None
+
+    dirty = _get_dirty_state_files(project_root)
+    if not dirty:
+        return None
+
+    msg = f"chore(PT): state sync [{ref}: {event}] [skip ci]"
+    return _git_commit_state(dirty, msg, project_root)
+
+
 def _parse_worktree_list_output(output: str) -> List[Dict[str, str]]:
     """
     Parse `git worktree list --porcelain` output.

@@ -205,3 +205,86 @@ class TestGitCommitState:
             mock_git_repo,
         )
         assert result is None
+
+
+class TestAutoStateCommit:
+    def test_returns_none_when_config_disabled(self, mock_git_repo):
+        progress_manager.configure_project_scope(str(mock_git_repo))
+        progress_manager.init_tracking("Test", force=True)
+        data = progress_manager.load_progress_json()
+        data["settings"] = {"auto_state_commit": False}
+        progress_manager.save_progress_json(data)
+
+        result = progress_manager._auto_state_commit("F1", "done")
+        assert result is None
+
+    def test_returns_none_during_merge(self, mock_git_repo):
+        progress_manager.configure_project_scope(str(mock_git_repo))
+        progress_manager.init_tracking("Test", force=True)
+        (mock_git_repo / ".git" / "MERGE_HEAD").write_text("deadbeef")
+
+        result = progress_manager._auto_state_commit("F1", "done")
+        assert result is None
+        (mock_git_repo / ".git" / "MERGE_HEAD").unlink()
+
+    def test_returns_none_during_rebase(self, mock_git_repo):
+        progress_manager.configure_project_scope(str(mock_git_repo))
+        progress_manager.init_tracking("Test", force=True)
+        rebase_dir = mock_git_repo / ".git" / "rebase-merge"
+        rebase_dir.mkdir()
+
+        result = progress_manager._auto_state_commit("F1", "done")
+        assert result is None
+        rebase_dir.rmdir()
+
+    def test_returns_none_when_no_dirty_files(self, mock_git_repo):
+        progress_manager.configure_project_scope(str(mock_git_repo))
+        progress_manager.init_tracking("Test", force=True)
+        subprocess.run(["git", "add", "."], cwd=mock_git_repo, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "init state"], cwd=mock_git_repo, capture_output=True)
+
+        result = progress_manager._auto_state_commit("F1", "done")
+        assert result is None
+
+    def test_creates_commit_with_correct_message(self, mock_git_repo):
+        progress_manager.configure_project_scope(str(mock_git_repo))
+        progress_manager.init_tracking("Test", force=True)
+        subprocess.run(["git", "add", "."], cwd=mock_git_repo, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "init state"], cwd=mock_git_repo, capture_output=True)
+
+        # Dirty state
+        state_dir = mock_git_repo / "docs" / "progress-tracker" / "state"
+        progress_json = state_dir / "progress.json"
+        data = json.loads(progress_json.read_text())
+        data["_test"] = True
+        progress_json.write_text(json.dumps(data))
+
+        result = progress_manager._auto_state_commit("F3", "done")
+
+        assert result is not None
+        log = subprocess.run(
+            ["git", "log", "--oneline", "-1"],
+            cwd=mock_git_repo, capture_output=True, text=True,
+        ).stdout
+        assert "chore(PT): state sync [F3: done] [skip ci]" in log
+
+    def test_defaults_to_enabled_when_settings_key_absent(self, mock_git_repo):
+        progress_manager.configure_project_scope(str(mock_git_repo))
+        progress_manager.init_tracking("Test", force=True)
+        subprocess.run(["git", "add", "."], cwd=mock_git_repo, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "init state"], cwd=mock_git_repo, capture_output=True)
+
+        # Remove settings key entirely (old project without settings)
+        data = progress_manager.load_progress_json()
+        data.pop("settings", None)
+        progress_manager.save_progress_json(data)
+
+        # Dirty state
+        state_dir = mock_git_repo / "docs" / "progress-tracker" / "state"
+        progress_json = state_dir / "progress.json"
+        pdata = json.loads(progress_json.read_text())
+        pdata["_test"] = True
+        progress_json.write_text(json.dumps(pdata))
+
+        result = progress_manager._auto_state_commit("F1", "done")
+        assert result is not None  # enabled by default
