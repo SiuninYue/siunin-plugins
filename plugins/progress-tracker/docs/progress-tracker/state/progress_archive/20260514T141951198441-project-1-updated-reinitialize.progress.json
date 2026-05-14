@@ -1,0 +1,25 @@
+{
+  "schema_version": "2.1",
+  "project_name": "Project 1 Updated",
+  "created_at": "2026-05-14T14:19:33.534271Z",
+  "updated_at": "2026-05-14T14:19:33.670715Z",
+  "features": [],
+  "current_feature_id": null,
+  "settings": {
+    "auto_state_commit": true
+  },
+  "parent_project_root": ".",
+  "linked_projects": [],
+  "linked_snapshot": {
+    "schema_version": "1.0",
+    "updated_at": "2026-05-14T14:19:33.670532Z",
+    "projects": []
+  },
+  "tracker_role": "standalone",
+  "project_code": null,
+  "routing_queue": [],
+  "active_routes": [],
+  "updates": [],
+  "retrospectives": [],
+  "tasks": []
+}

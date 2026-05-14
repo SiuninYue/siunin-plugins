@@ -1,0 +1,68 @@
+# Project Progress: progress-tracker-sop-compliance-optimization
+
+**Created**: 2026-04-23T00:28:18.285129Z
+
+**Status**: 13/17 completed
+
+## Completed
+- [x] 根目录混合宿主架构：Monorepo /prog 支持
+- [x] Robust Progress State Architecture - Event Sourcing & Reconciliation
+- [x] Baseline compliance scan for frontmatter and routable descriptions
+- [x] Refactor progress_manager into modular command helpers
+- [x] Normalize skill frontmatter to SOP-compliant shape
+- [x] Enforce plugin metadata traceability fields
+- [x] Add explicit model declaration checks for required skill scopes
+- [x] Apply progressive disclosure budget to oversized SKILL files
+- [x] Harden command lifecycle boundaries and architecture immutability guard
+- [x] Enforce PROG command docs single-source parity
+- [x] Implement fail-closed release gate with sync compatibility evidence
+- [x] plan_path CLI normalization
+- [x] Complexity scoring v2: weighted rubric via haiku subagent
+
+## In Progress
+- [ ] Unified work-item intake and profile routing (task/feature/bug) via /prog next
+  **Test steps**:
+  - Run: prog smart '<long discussion>' → output shows candidate list with type/confidence/profile fields; no JSON mutation occurs before confirmation.
+  - Run: prog smart '<ambiguous input>' → exactly one clarification question printed; re-run with confirmation → record written with details/refs/next_action preserved.
+  - Run: prog smart '<clear bug report>' → bug written to bugs[] AND routing_queue contains new bug-id with correct priority weight.
+  - Run: prog next → P0 bug appears above standalone tasks in selection output; priority order matches P0>P1>task>feature_task>P2 policy.
+  - Run: prog add-feature / add-bug / add-update → commands succeed without regression; /prog-fix contract unchanged.
+
+## Pending
+- [ ] Task execution semantics and visibility (standalone task vs feature task) with profile-aware done gates
+- [ ] prog-fix skill 嵌入4阶段调试方法论
+- [ ] Git Squash Merge SOP — 集成到 prog-done 自动化流程
+
+## Workflow Context
+- Phase: execution_complete
+- Next action: verify_and_complete
+- Execution context: worktree-feature+pt-f13-unified-intake @ feature+pt-f13-unified-intake [worktree]
+- Current session context: worktree-feature+pt-f13-unified-intake @ feature+pt-f13-unified-intake [worktree]
+
+## Recent Updates
+- [UPD-002] decision: F14 planning frozen: /prog note visibility split into active memo vs history (feature:14)
+  Next: When F14 is active, implement status/md filtering and hidden-history summary plus regression tests
+- [UPD-003] decision: F13/F14 rebaselined: unified work-item architecture with profile-driven /prog next routing (feature:13) [architecture=ai-collab]
+  Next: Draft schema-compatible rollout plan and command contracts before code mutation
+- [UPD-004] handoff: Execution strategy captured: /prog next selects tasks first, feature done gate remains explicit (feature:14) [architecture=ai-collab]
+  Next: Implement minimal task state fields and add profile-aware next/done behavior tests
+- [UPD-005] decision: 执行顺序确定：BUG-002 hotfix → BUG-003/004 hotfix → F13 → F14 → F15 → F16 [architecture=ai-collab]
+  Next: 立即启动 BUG-002 hotfix：定位 progress_manager.py:11145/11341 的嵌套锁路径并重构
+- [UPD-006] status: Regression test update
+
+## Bug Backlog
+### High Priority (🔴)
+- [🔴] [BUG-006] Memory leak in websocket handler
+
+### Low Priority (🟢)
+- [🔴] [BUG-005] P2: complete 未走 fail-closed worktree/branch 一致性检查。一致性检查只对 next-feature 和 done 执行，complete 重定向到 cmd_done 后绕过该检查入口。关键位置: progress_manager.py:11336-11339
+- [🔴] [BUG-007] Regression test bug
+
+### Fixed (✅)
+- [x] [BUG-001] Python falsy trap: current_feature_id=0 被 not 误判为 None，导致 set-workflow-state/auto_checkpoint/wf_auto_driver/route_status 等函数在 feature ID 为 0 时异常跳过
+- [x] [BUG-002] P0: complete 重定向后被外层锁卡死。complete 走 MUTATING_COMMANDS 外层 progress_transaction()，但 cmd_done 内部路径（record_sprint_artifact、嵌套 prog 命令）会再次拿锁，导致 10 秒锁超时，RC=9。关键位置: progress_manager.py:11145, 11341
+  Fix: Fix applied (commit: ab3a38d99d090a629d71065e19ddb2d124ba249b) — progress_manager.py:11490 extend lock exemption to {done, complete}; regression test added (925 tests pass).
+- [x] [BUG-003] P1: planning:review phase 未接入状态机。skill 已引入 planning:review 停点，但 wf_state_machine.py 映射只有 planning:draft/clarifying/approved，导致 compute_next_action() 对 planning:review 返回 None。关键位置: wf_state_machine.py:21-27
+  Fix: 与 BUG-004 同一次改动修复：wf_state_machine.py:21-27 补全 planning:review 状态映射，compute_next_action() 现在对 planning:review 返回 resume_planning_draft
+- [x] [BUG-004] P1: 恢复策略未覆盖 planning:review，降级为 manual_review。determine_recovery_action() 只覆盖 planning:draft/clarifying/approved，writing planning:review 后走 manual_review 分支，与 skill 定义的单次审批恢复路径不一致。关键位置: progress_manager.py:6439-6462
+  Fix: 与 BUG-003 同一次改动修复：progress_manager.py:6439-6462 的 determine_recovery_action() 补全 planning:review 分支，返回单次审批恢复路径

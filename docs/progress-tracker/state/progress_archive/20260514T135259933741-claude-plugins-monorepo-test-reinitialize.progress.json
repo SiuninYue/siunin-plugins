@@ -1,0 +1,115 @@
+{
+  "schema_version": "2.1",
+  "project_name": "Claude-Plugins Monorepo Test",
+  "created_at": "2026-04-25T23:57:13.303927Z",
+  "updated_at": "2026-05-11T15:51:07.547053Z",
+  "features": [],
+  "current_feature_id": null,
+  "tracker_role": "parent",
+  "project_code": "ROOT",
+  "routing_queue": [
+    "ROOT",
+    "PT",
+    "NO",
+    "SPM"
+  ],
+  "linked_projects": [
+    {
+      "project_root": "plugins/note-organizer",
+      "project_code": "NO",
+      "label": "Note Organizer Plugin"
+    },
+    {
+      "project_root": "plugins/progress-tracker",
+      "project_code": "PT",
+      "label": "progress-tracker-sop-compliance-optimization"
+    },
+    {
+      "project_root": "plugins/super-product-manager",
+      "project_code": "SPM",
+      "label": "SPM-PROG Harness Linkage"
+    }
+  ],
+  "linked_snapshot": {
+    "schema_version": "1.0",
+    "updated_at": "2026-05-11T15:51:07.546951Z",
+    "projects": [
+      {
+        "status": "ok",
+        "configured_project_root": "plugins/note-organizer",
+        "project_root": "/Users/siunin/Projects/Claude-Plugins/plugins/note-organizer",
+        "project_name": "Note Organizer Plugin",
+        "completed": 0,
+        "total": 0,
+        "completion_rate": 0.0,
+        "updated_at": "2026-04-26T16:44:49.829991Z",
+        "is_stale": true,
+        "active_feature_ref": null,
+        "project_code": "NO",
+        "child_project_code": "NO",
+        "workspace": "in_place",
+        "route_status": "idle"
+      },
+      {
+        "status": "ok",
+        "configured_project_root": "plugins/progress-tracker",
+        "project_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+        "project_name": "progress-tracker-sop-compliance-optimization",
+        "completed": 13,
+        "total": 17,
+        "completion_rate": 0.7647058823529411,
+        "updated_at": "2026-05-11T15:51:07.539259Z",
+        "is_stale": false,
+        "active_feature_ref": null,
+        "project_code": "PT",
+        "child_project_code": "PT",
+        "workspace": "in_place",
+        "route_status": "active"
+      },
+      {
+        "status": "ok",
+        "configured_project_root": "plugins/super-product-manager",
+        "project_root": "/Users/siunin/Projects/Claude-Plugins/plugins/super-product-manager",
+        "project_name": "SPM-PROG Harness Linkage",
+        "completed": 0,
+        "total": 0,
+        "completion_rate": 0.0,
+        "updated_at": "2026-04-26T16:44:44.098105Z",
+        "is_stale": true,
+        "active_feature_ref": null,
+        "project_code": "SPM",
+        "child_project_code": "SPM",
+        "workspace": "in_place",
+        "route_status": "idle"
+      }
+    ]
+  },
+  "active_routes": [
+    {
+      "project_code": "PT",
+      "feature_ref": "PT-F11",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+      "branch": "main"
+    }
+  ],
+  "updates": [],
+  "retrospectives": [],
+  "runtime_context": {
+    "recorded_at": "2026-04-26T17:16:56.642897Z",
+    "source": "route_select",
+    "workspace_mode": "in_place",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
+    "branch": "main",
+    "upstream": "origin/main",
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins",
+    "current_feature_id": null,
+    "workflow_phase": null,
+    "current_task": null,
+    "total_tasks": null,
+    "next_action": null
+  },
+  "bugs": []
+}

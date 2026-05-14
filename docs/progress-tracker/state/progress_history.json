@@ -1,0 +1,27 @@
+[
+  {
+    "archive_id": "20260514T135259933741-claude-plugins-monorepo-test-reinitialize",
+    "archived_at": "2026-05-14T13:52:59.937824Z",
+    "reason": "reinitialize",
+    "project_name": "Claude-Plugins Monorepo Test",
+    "total_features": 0,
+    "completed_features": 0,
+    "current_feature_id": null,
+    "progress_json": "progress_archive/20260514T135259933741-claude-plugins-monorepo-test-reinitialize.progress.json",
+    "progress_md": "progress_archive/20260514T135259933741-claude-plugins-monorepo-test-reinitialize.progress.md",
+    "status_summary_v1": null,
+    "status_summary_legacy": null,
+    "archived_artifacts": [
+      {
+        "kind": "progress_json",
+        "source_path": "docs/progress-tracker/state/progress.json",
+        "archive_path": "progress_archive/20260514T135259933741-claude-plugins-monorepo-test-reinitialize.progress.json"
+      },
+      {
+        "kind": "progress_md",
+        "source_path": "docs/progress-tracker/state/progress.md",
+        "archive_path": "progress_archive/20260514T135259933741-claude-plugins-monorepo-test-reinitialize.progress.md"
+      }
+    ]
+  }
+]
