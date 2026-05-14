@@ -402,3 +402,34 @@ class TestCallSiteSetCurrent:
             progress_manager.set_current(1)
 
         mock_asc.assert_called_once_with("F1", "start")
+
+
+class TestCallSiteUpdateBug:
+    def _add_bug_and_get_id(self) -> str:
+        """Helper: add a bug and return its auto-generated ID (e.g. 'BUG-001')."""
+        progress_manager.add_bug(description="Something broken", priority="medium")
+        data = progress_manager.load_progress_json()
+        return data["bugs"][-1]["id"]
+
+    def test_update_bug_calls_auto_state_commit_when_fixed(self, mock_git_repo):
+        progress_manager.configure_project_scope(str(mock_git_repo))
+        progress_manager.init_tracking("Test", force=True)
+        bug_id = self._add_bug_and_get_id()
+
+        with patch.object(progress_manager, "_auto_state_commit") as mock_asc:
+            progress_manager.update_bug(bug_id, status="fixed",
+                                        fix_summary="Fixed the thing")
+
+        mock_asc.assert_called_once_with(bug_id, "fix")
+
+    def test_update_bug_does_not_call_auto_state_commit_for_other_statuses(
+        self, mock_git_repo
+    ):
+        progress_manager.configure_project_scope(str(mock_git_repo))
+        progress_manager.init_tracking("Test", force=True)
+        bug_id = self._add_bug_and_get_id()
+
+        with patch.object(progress_manager, "_auto_state_commit") as mock_asc:
+            progress_manager.update_bug(bug_id, status="investigating")
+
+        mock_asc.assert_not_called()

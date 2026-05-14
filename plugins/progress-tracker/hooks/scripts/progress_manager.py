@@ -10263,6 +10263,8 @@ def update_bug(bug_id: str, status: Optional[str] = None,
         save_progress_json(data)
         md_content = generate_progress_md(data)
         save_progress_md(md_content)
+        if status == "fixed":
+            _auto_state_commit(bug_id, "fix")
         print(f"Bug {bug_id} updated.")
         if status:
             print(f"Status: {status}")
