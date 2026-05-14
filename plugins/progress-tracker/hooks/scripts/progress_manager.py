@@ -5809,6 +5809,66 @@ def _get_dirty_state_files(project_root: Path) -> list:
     return dirty
 
 
+def _git_commit_state(
+    state_files: list, msg: str, project_root: Path
+) -> "Optional[str]":
+    """Commit state_files using git add + git commit --only.
+
+    Uses subprocess.run directly (not safe_git_command) because the commit
+    message contains parentheses, which safe_git_command rejects as dangerous
+    shell metacharacters. shell=False ensures no injection risk.
+
+    git add stages untracked files; --only isolates the commit so any files
+    the user has staged are left untouched.
+    """
+    try:
+        git_root = _resolve_repo_root(project_root)
+    except Exception:
+        print("[state-sync] Auto-commit skipped: cannot resolve repo root.")
+        return None
+
+    try:
+        rel_paths = [str(f.relative_to(git_root)) for f in state_files]
+    except ValueError as exc:
+        print(f"[state-sync] Auto-commit skipped: path resolution error: {exc}")
+        return None
+
+    try:
+        add_result = subprocess.run(
+            ["git", "add", "--"] + rel_paths,
+            capture_output=True, check=False,
+            cwd=str(git_root), timeout=15, text=True,
+        )
+        if add_result.returncode != 0:
+            print(
+                f"[state-sync] Auto-commit skipped: git add failed: "
+                f"{add_result.stderr.strip()}"
+            )
+            return None
+
+        commit_result = subprocess.run(
+            ["git", "commit", "--only", "-m", msg, "--"] + rel_paths,
+            capture_output=True, check=False,
+            cwd=str(git_root), timeout=30, text=True,
+        )
+        if commit_result.returncode != 0:
+            print(
+                f"[state-sync] Auto-commit failed (non-blocking): "
+                f"{commit_result.stderr.strip()}"
+            )
+            return None
+
+        hash_result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            capture_output=True, check=False,
+            cwd=str(git_root), text=True,
+        )
+        return hash_result.stdout.strip() or None
+    except Exception as exc:
+        print(f"[state-sync] Auto-commit error (non-blocking): {exc}")
+        return None
+
+
 def _parse_worktree_list_output(output: str) -> List[Dict[str, str]]:
     """
     Parse `git worktree list --porcelain` output.
