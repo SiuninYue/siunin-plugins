@@ -670,7 +670,7 @@ python -m pytest tests/test_auto_state_commit.py::TestAutoStateCommit -v
 python -m pytest tests/test_auto_state_commit.py -v
 ```
 
-期望：全部通过（当前 16 tests：Task 1×3 + Task 2×6 + Task 3×4 + Task 4×6 - 含删除场景）
+期望：全部通过（当前 19 tests：Task 1×3 + Task 2×6 + Task 3×4 + Task 4×6）
 
 - [ ] **Step 6: Commit**
 
