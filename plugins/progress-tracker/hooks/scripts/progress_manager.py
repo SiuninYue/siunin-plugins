@@ -5751,6 +5751,64 @@ def _run_git(args: List[str], cwd: Optional[str] = None, timeout: int = 5) -> Tu
         return 1, "", str(e)
 
 
+def _get_dirty_state_files(project_root: Path) -> list:
+    """Return list of state files (whitelist only) that have uncommitted changes.
+
+    Uses git status --porcelain with cwd=repo_root so paths in output are
+    consistently repo-root-relative, avoiding double-prefix bugs when
+    project_root is a subdirectory (e.g. plugins/progress-tracker).
+    """
+    progress_dir = get_progress_dir()
+    dirty: list = []
+
+    try:
+        git_root = _resolve_repo_root(project_root)
+    except Exception:
+        return dirty
+
+    for name in STATE_FILE_NAMES:
+        f = progress_dir / name
+        # No exists() guard: deleted tracked files must be included (they show
+        # as "D " in porcelain output and must be committed to record the deletion).
+        # Files that never existed and were never tracked → empty porcelain output → skipped.
+        try:
+            rel = str(f.relative_to(git_root))
+        except ValueError:
+            continue
+        code, out, _ = _run_git(["status", "--porcelain", "--", rel], cwd=str(git_root))
+        if code == 0 and out.strip():
+            dirty.append(f)
+
+    for dir_name in STATE_DIR_NAMES:
+        d = progress_dir / dir_name
+        # No is_dir() guard: deleted directories with tracked files show up in porcelain.
+        try:
+            rel_dir = str(d.relative_to(git_root))
+        except ValueError:
+            continue
+        code, out, _ = _run_git(["status", "--porcelain", "--", rel_dir], cwd=str(git_root))
+        if code == 0:
+            for line in out.strip().splitlines():
+                parts = line.strip().split(None, 1)
+                if len(parts) == 2:
+                    file_path = parts[1].strip()
+                    # If path ends with '/', it's an untracked directory.
+                    # Recursively list all files within it.
+                    if file_path.endswith('/'):
+                        dir_path = git_root / file_path
+                        if dir_path.is_dir():
+                            for item in dir_path.rglob('*'):
+                                if item.is_file():
+                                    dirty.append(item)
+                        else:
+                            # Directory doesn't exist, add the path as-is
+                            dirty.append(git_root / file_path)
+                    else:
+                        dirty.append(git_root / file_path)
+
+    return dirty
+
+
 def _parse_worktree_list_output(output: str) -> List[Dict[str, str]]:
     """
     Parse `git worktree list --porcelain` output.
