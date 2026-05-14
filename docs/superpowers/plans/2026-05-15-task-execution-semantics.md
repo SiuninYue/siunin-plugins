@@ -612,9 +612,19 @@ def _git_squash_close_task(
 
     cwd = str(project_root)
 
-    # Resolve base branch
+    # Resolve base branch: _detect_default_branch first, then explicit main→master fallback.
     if base_branch is None:
-        base_branch = _detect_default_branch(project_root) or "main"
+        base_branch = _detect_default_branch(project_root)
+    if not base_branch:
+        for _candidate in ("main", "master"):
+            _rc_br, _, _ = _run_git(
+                ["show-ref", "--verify", "--quiet", f"refs/heads/{_candidate}"], cwd=cwd
+            )
+            if _rc_br == 0:
+                base_branch = _candidate
+                break
+    if not base_branch:
+        return False, "cannot determine default branch (tried main and master)"
 
     # Pre-condition 1: branch must exist
     rc, _, _ = _run_git(["show-ref", "--verify", "--quiet", f"refs/heads/{branch}"], cwd=cwd)
@@ -649,11 +659,18 @@ def _git_squash_close_task(
     rc, commit_hash, _ = _run_git(["rev-parse", "HEAD"], cwd=cwd)
     commit_hash = commit_hash.strip() if rc == 0 else ""
 
-    # Step 5: delete task branch
+    # Step 5: delete task branch (fatal — part of atomic contract)
     rc, _, err = _run_git(["branch", "-d", branch], cwd=cwd)
     if rc != 0:
-        # Non-fatal: log warning but don't fail the close
-        logger.warning(f"Could not delete branch {branch}: {err}")
+        # The squash commit IS on base_branch. Business state is NOT modified yet.
+        # Return False so the caller leaves the task as "pending".
+        # The user must manually delete the branch then retry.
+        return (
+            False,
+            f"squash commit succeeded ({commit_hash[:8] if commit_hash else '?'}) "
+            f"but branch deletion failed: {err}. "
+            f"Manually run: git branch -d {branch}  then retry: prog next --done"
+        )
 
     return True, commit_hash
 ```
@@ -1124,11 +1141,13 @@ class TestGhostCommandProtection:
         assert "done" in combined  # Did you mean: done?
 
     def test_wf_state_machine_task_pending_action_is_not_start_task(self):
-        """wf_state_machine must not reference the ghost command."""
+        """wf_state_machine must not reference the ghost command.
+        Uses _PHASE_ACTION_MAP — the actual module-level dict (no WF_STATE_TRANSITIONS)."""
         import wf_state_machine
-        action = wf_state_machine.WF_STATE_TRANSITIONS.get("task:pending")
-        assert action != "start_task"
-        assert action is not None
+        # _PHASE_ACTION_MAP is the static mapping; compute_next_action() delegates to it.
+        action = wf_state_machine._PHASE_ACTION_MAP.get("task:pending")
+        assert action != "start_task", "ghost command 'start_task' still in state machine"
+        assert action is not None, "task:pending must have an action mapping"
 ```
 
 - [ ] **Step 2: Run tests — verify RED**
@@ -1192,27 +1211,39 @@ def _suggest_command(unknown: str, valid_commands: List[str]) -> Optional[str]:
 ```python
 class _ProgressArgumentParser(argparse.ArgumentParser):
     """ArgumentParser subclass that provides ghost-command and edit-distance
-    'Did you mean?' suggestions on unknown subcommand errors."""
+    'Did you mean?' suggestions on unknown *subcommand* errors.
+
+    Design notes:
+    - Does NOT use `self._subparsers` (unstable internal).
+    - Valid command names are registered explicitly via register_commands() in main().
+    - Only intercepts errors whose message contains "argument command: invalid choice:"
+      so non-command errors (e.g., bad flag values) are unaffected.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._registered_commands: List[str] = []
+
+    def register_commands(self, commands: List[str]) -> None:
+        """Called in main() after all subparsers are added."""
+        self._registered_commands = list(commands)
 
     def error(self, message: str) -> None:
         import re
-        # Extract the unknown command from the standard argparse error message.
-        match = re.search(r"invalid choice: '([^']+)'", message)
-        if match:
-            unknown = match.group(1)
-            valid = [a.option_string if hasattr(a, 'option_string') else a
-                     for a in self._subparsers._group_actions[0].choices.keys()
-                     ] if self._subparsers else []
-            valid = list(self._subparsers._group_actions[0].choices.keys()) if self._subparsers else []
-            suggestion = _suggest_command(unknown, valid)
-            self.print_usage(sys.stderr)
-            if suggestion:
-                sys.stderr.write(f"{self.prog}: error: unknown command '{unknown}'\n")
-                sys.stderr.write(f"Did you mean: '{suggestion}'?\n")
-                sys.stderr.write(f"Run: {self.prog} {suggestion.split()[0]} --help\n")
-            else:
-                sys.stderr.write(f"{self.prog}: error: {message}\n")
-            sys.exit(2)
+        # Only intercept errors from the top-level 'command' positional argument.
+        if "argument command: invalid choice:" in message:
+            match = re.search(r"invalid choice: '([^']+)'", message)
+            if match:
+                unknown = match.group(1)
+                suggestion = _suggest_command(unknown, self._registered_commands)
+                self.print_usage(sys.stderr)
+                if suggestion:
+                    sys.stderr.write(f"{self.prog}: error: unknown command '{unknown}'\n")
+                    sys.stderr.write(f"Did you mean: '{suggestion}'?\n")
+                    sys.stderr.write(f"Run: {self.prog} {suggestion.split()[0]} --help\n")
+                else:
+                    sys.stderr.write(f"{self.prog}: error: {message}\n")
+                sys.exit(2)
         super().error(message)
 ```
 
@@ -1220,6 +1251,14 @@ class _ProgressArgumentParser(argparse.ArgumentParser):
 
 ```python
     parser = _ProgressArgumentParser(description="Progress Tracker Manager")
+```
+
+**3d-bis. Register command names after all subparsers are defined** (add immediately before `args = parser.parse_args()` at line ~12077):
+
+```python
+    # PT-F14: register valid subcommand names for ghost-command suggestions.
+    parser.register_commands(list(subparsers.choices.keys()))
+    args = parser.parse_args()
 ```
 
 **3e. Fix `wf_state_machine.py` line 54** — open the file and change:
@@ -1756,7 +1795,46 @@ git -C $TMP_PROJ branch --list "task/TASK-001"
 
 Expected: 1 new commit on main (message contains `task(TASK-001)`), branch gone.
 
-- [ ] **Step 5: Manual acceptance test 5** — `prog status` shows stale warnings
+- [ ] **Step 5: Manual acceptance test 3** — feature-bound task does not auto-close feature
+
+```bash
+# Add a feature and a feature-bound task to $TMP_PROJ
+plugins/progress-tracker/prog add-feature "My Feature" --project-root $TMP_PROJ
+plugins/progress-tracker/prog add-task \
+  --description "bound task" \
+  --feature-id 1 \
+  --project-root $TMP_PROJ
+plugins/progress-tracker/prog next --project-root $TMP_PROJ
+plugins/progress-tracker/prog next --done --project-root $TMP_PROJ
+# Inspect progress.json: feature must NOT be completed
+python3 -c "
+import json; from pathlib import Path
+d = json.loads(Path('$TMP_PROJ/docs/progress-tracker/state/progress.json').read_text())
+f = next(f for f in d['features'] if f['id'] == 1)
+print('feature completed:', f.get('completed'))
+print('current_task_id:', d.get('current_task_id'))
+"
+```
+
+Expected: `feature completed: False`, `current_task_id: None`.
+
+- [ ] **Step 6: Manual acceptance test 4** — `prog next --done` no MUTATING_COMMANDS lock
+
+```bash
+# Verify timing: must complete in < 5s (lock timeout is 10s)
+time plugins/progress-tracker/prog add-task --description "timing task" --project-root $TMP_PROJ
+time plugins/progress-tracker/prog next --project-root $TMP_PROJ
+# In a separate shell, hold the lock for 12s:
+# python3 -c "import fcntl, time, pathlib; p=pathlib.Path('$TMP_PROJ/docs/progress-tracker/state/progress.lock').open('w'); fcntl.flock(p, fcntl.LOCK_EX); time.sleep(12)" &
+# LOCK_PID=$!
+# Then run next --done and confirm it completes without timeout:
+time plugins/progress-tracker/prog next --done --project-root $TMP_PROJ
+# kill $LOCK_PID 2>/dev/null
+```
+
+Expected: `real  0m0.XXXs` — well under 10s even if lock is held.
+
+- [ ] **Step 7: Manual acceptance test 5** — `prog status` shows stale warnings
 
 ```bash
 # Manually insert a stale P0 bug into $TMP_PROJ progress.json (set created_at to 5 days ago)
@@ -1776,7 +1854,7 @@ plugins/progress-tracker/prog status --project-root $TMP_PROJ
 
 Expected: `### Bug Warnings:` section with `[P0] BUG-TEST`.
 
-- [ ] **Step 6: Update workflow state to execution_complete**
+- [ ] **Step 8: Update workflow state to execution_complete**
 
 ```bash
 plugins/progress-tracker/prog set-workflow-state \
@@ -1785,7 +1863,7 @@ plugins/progress-tracker/prog set-workflow-state \
   --project-root plugins/progress-tracker
 ```
 
-- [ ] **Step 7: Final commit**
+- [ ] **Step 9: Final commit**
 
 ```bash
 git add plugins/progress-tracker/tests/test_task_execution_semantics.py
