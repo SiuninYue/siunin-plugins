@@ -23,7 +23,7 @@
 
 **`mock_git_repo` fixture**（`tests/conftest.py:110`）：创建真实临时 git 仓库，已做初始 commit，`temp_dir` 即 repo root。
 
-**`configure_project_scope`**：必须在每个使用 `progress_manager` 的测试中调用，将模块状态指向临时目录。
+**`configure_project_scope`**（`progress_manager.py:400`）：必须在每个使用 `progress_manager` 的测试中调用，将模块状态指向临时目录。签名为 `configure_project_scope(project_root_arg: Optional[str])`，调用时传字符串路径：`configure_project_scope(str(mock_git_repo))`。**不能**用关键字参数 `project_root=...`（会 TypeError）。
 
 **`_resolve_repo_root(project_root: Path) -> Path`**（`progress_manager.py:2223`）：始终可用，不依赖 `git_validator`。
 
@@ -152,7 +152,7 @@ git commit -m "test+feat(PT): add STATE_FILE_NAMES / STATE_DIR_NAMES constants"
 ```python
 class TestGetDirtyStateFiles:
     def test_detects_modified_tracked_file(self, mock_git_repo):
-        progress_manager.configure_project_scope(project_root=mock_git_repo)
+        progress_manager.configure_project_scope(str(mock_git_repo))
         progress_manager.init_tracking("Test", force=True)
         subprocess.run(["git", "add", "."], cwd=mock_git_repo, capture_output=True)
         subprocess.run(["git", "commit", "-m", "init state"], cwd=mock_git_repo, capture_output=True)
@@ -167,7 +167,7 @@ class TestGetDirtyStateFiles:
         assert any("progress.json" in str(f) for f in dirty)
 
     def test_detects_untracked_new_state_file(self, mock_git_repo):
-        progress_manager.configure_project_scope(project_root=mock_git_repo)
+        progress_manager.configure_project_scope(str(mock_git_repo))
         progress_manager.init_tracking("Test", force=True)
         subprocess.run(["git", "add", "."], cwd=mock_git_repo, capture_output=True)
         subprocess.run(["git", "commit", "-m", "init state"], cwd=mock_git_repo, capture_output=True)
@@ -179,7 +179,7 @@ class TestGetDirtyStateFiles:
         assert any("audit.log" in str(f) for f in dirty)
 
     def test_excludes_progress_lock(self, mock_git_repo):
-        progress_manager.configure_project_scope(project_root=mock_git_repo)
+        progress_manager.configure_project_scope(str(mock_git_repo))
         progress_manager.init_tracking("Test", force=True)
         subprocess.run(["git", "add", "."], cwd=mock_git_repo, capture_output=True)
         subprocess.run(["git", "commit", "-m", "init state"], cwd=mock_git_repo, capture_output=True)
@@ -191,7 +191,7 @@ class TestGetDirtyStateFiles:
         assert all("progress.lock" not in str(f) for f in dirty)
 
     def test_returns_empty_when_state_is_clean(self, mock_git_repo):
-        progress_manager.configure_project_scope(project_root=mock_git_repo)
+        progress_manager.configure_project_scope(str(mock_git_repo))
         progress_manager.init_tracking("Test", force=True)
         subprocess.run(["git", "add", "."], cwd=mock_git_repo, capture_output=True)
         subprocess.run(["git", "commit", "-m", "init state"], cwd=mock_git_repo, capture_output=True)
@@ -200,7 +200,7 @@ class TestGetDirtyStateFiles:
         assert dirty == []
 
     def test_detects_new_file_in_test_reports_dir(self, mock_git_repo):
-        progress_manager.configure_project_scope(project_root=mock_git_repo)
+        progress_manager.configure_project_scope(str(mock_git_repo))
         progress_manager.init_tracking("Test", force=True)
         subprocess.run(["git", "add", "."], cwd=mock_git_repo, capture_output=True)
         subprocess.run(["git", "commit", "-m", "init state"], cwd=mock_git_repo, capture_output=True)
@@ -212,6 +212,21 @@ class TestGetDirtyStateFiles:
 
         dirty = progress_manager._get_dirty_state_files(mock_git_repo)
         assert any("report-f1.json" in str(f) for f in dirty)
+
+    def test_detects_deleted_tracked_state_file(self, mock_git_repo):
+        """Deleted tracked state files must appear in dirty list (valid state change)."""
+        progress_manager.configure_project_scope(str(mock_git_repo))
+        progress_manager.init_tracking("Test", force=True)
+        state_dir = mock_git_repo / "docs" / "progress-tracker" / "state"
+        (state_dir / "audit.log").write_text("entry\n")
+        subprocess.run(["git", "add", "."], cwd=mock_git_repo, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "init state"], cwd=mock_git_repo, capture_output=True)
+
+        # Delete a tracked state file
+        (state_dir / "audit.log").unlink()
+
+        dirty = progress_manager._get_dirty_state_files(mock_git_repo)
+        assert any("audit.log" in str(f) for f in dirty)
 ```
 
 - [ ] **Step 2: 运行测试，确认失败**
@@ -244,8 +259,9 @@ def _get_dirty_state_files(project_root: Path) -> list:
 
     for name in STATE_FILE_NAMES:
         f = progress_dir / name
-        if not f.exists():
-            continue
+        # No exists() guard: deleted tracked files must be included (they show
+        # as "D " in porcelain output and must be committed to record the deletion).
+        # Files that never existed and were never tracked → empty porcelain output → skipped.
         try:
             rel = str(f.relative_to(git_root))
         except ValueError:
@@ -256,8 +272,7 @@ def _get_dirty_state_files(project_root: Path) -> list:
 
     for dir_name in STATE_DIR_NAMES:
         d = progress_dir / dir_name
-        if not d.is_dir():
-            continue
+        # No is_dir() guard: deleted directories with tracked files show up in porcelain.
         try:
             rel_dir = str(d.relative_to(git_root))
         except ValueError:
@@ -278,7 +293,7 @@ def _get_dirty_state_files(project_root: Path) -> list:
 python -m pytest tests/test_auto_state_commit.py::TestGetDirtyStateFiles -v
 ```
 
-期望：5 tests PASSED
+期望：6 tests PASSED
 
 - [ ] **Step 5: Commit**
 
@@ -303,7 +318,7 @@ git commit -m "test+feat(PT): implement _get_dirty_state_files with whitelist de
 ```python
 class TestGitCommitState:
     def test_creates_commit_for_modified_state_file(self, mock_git_repo):
-        progress_manager.configure_project_scope(project_root=mock_git_repo)
+        progress_manager.configure_project_scope(str(mock_git_repo))
         progress_manager.init_tracking("Test", force=True)
         subprocess.run(["git", "add", "."], cwd=mock_git_repo, capture_output=True)
         subprocess.run(["git", "commit", "-m", "init state"], cwd=mock_git_repo, capture_output=True)
@@ -328,7 +343,7 @@ class TestGitCommitState:
         assert "state sync [F1: done]" in log
 
     def test_commits_untracked_new_file(self, mock_git_repo):
-        progress_manager.configure_project_scope(project_root=mock_git_repo)
+        progress_manager.configure_project_scope(str(mock_git_repo))
         progress_manager.init_tracking("Test", force=True)
         subprocess.run(["git", "add", "."], cwd=mock_git_repo, capture_output=True)
         subprocess.run(["git", "commit", "-m", "init state"], cwd=mock_git_repo, capture_output=True)
@@ -351,7 +366,7 @@ class TestGitCommitState:
         assert "audit.log" in show
 
     def test_does_not_include_user_staged_files(self, mock_git_repo):
-        progress_manager.configure_project_scope(project_root=mock_git_repo)
+        progress_manager.configure_project_scope(str(mock_git_repo))
         progress_manager.init_tracking("Test", force=True)
         subprocess.run(["git", "add", "."], cwd=mock_git_repo, capture_output=True)
         subprocess.run(["git", "commit", "-m", "init state"], cwd=mock_git_repo, capture_output=True)
@@ -381,7 +396,7 @@ class TestGitCommitState:
         assert "my_code.py" in status
 
     def test_returns_none_when_nothing_to_commit(self, mock_git_repo):
-        progress_manager.configure_project_scope(project_root=mock_git_repo)
+        progress_manager.configure_project_scope(str(mock_git_repo))
         progress_manager.init_tracking("Test", force=True)
         subprocess.run(["git", "add", "."], cwd=mock_git_repo, capture_output=True)
         subprocess.run(["git", "commit", "-m", "init state"], cwd=mock_git_repo, capture_output=True)
@@ -502,7 +517,7 @@ git commit -m "test+feat(PT): implement _git_commit_state with git add + --only"
 ```python
 class TestAutoStateCommit:
     def test_returns_none_when_config_disabled(self, mock_git_repo):
-        progress_manager.configure_project_scope(project_root=mock_git_repo)
+        progress_manager.configure_project_scope(str(mock_git_repo))
         progress_manager.init_tracking("Test", force=True)
         data = progress_manager.load_progress_json()
         data["settings"] = {"auto_state_commit": False}
@@ -512,7 +527,7 @@ class TestAutoStateCommit:
         assert result is None
 
     def test_returns_none_during_merge(self, mock_git_repo):
-        progress_manager.configure_project_scope(project_root=mock_git_repo)
+        progress_manager.configure_project_scope(str(mock_git_repo))
         progress_manager.init_tracking("Test", force=True)
         (mock_git_repo / ".git" / "MERGE_HEAD").write_text("deadbeef")
 
@@ -521,7 +536,7 @@ class TestAutoStateCommit:
         (mock_git_repo / ".git" / "MERGE_HEAD").unlink()
 
     def test_returns_none_during_rebase(self, mock_git_repo):
-        progress_manager.configure_project_scope(project_root=mock_git_repo)
+        progress_manager.configure_project_scope(str(mock_git_repo))
         progress_manager.init_tracking("Test", force=True)
         rebase_dir = mock_git_repo / ".git" / "rebase-merge"
         rebase_dir.mkdir()
@@ -531,7 +546,7 @@ class TestAutoStateCommit:
         rebase_dir.rmdir()
 
     def test_returns_none_when_no_dirty_files(self, mock_git_repo):
-        progress_manager.configure_project_scope(project_root=mock_git_repo)
+        progress_manager.configure_project_scope(str(mock_git_repo))
         progress_manager.init_tracking("Test", force=True)
         subprocess.run(["git", "add", "."], cwd=mock_git_repo, capture_output=True)
         subprocess.run(["git", "commit", "-m", "init state"], cwd=mock_git_repo, capture_output=True)
@@ -540,7 +555,7 @@ class TestAutoStateCommit:
         assert result is None
 
     def test_creates_commit_with_correct_message(self, mock_git_repo):
-        progress_manager.configure_project_scope(project_root=mock_git_repo)
+        progress_manager.configure_project_scope(str(mock_git_repo))
         progress_manager.init_tracking("Test", force=True)
         subprocess.run(["git", "add", "."], cwd=mock_git_repo, capture_output=True)
         subprocess.run(["git", "commit", "-m", "init state"], cwd=mock_git_repo, capture_output=True)
@@ -562,7 +577,7 @@ class TestAutoStateCommit:
         assert "chore(PT): state sync [F3: done] [skip ci]" in log
 
     def test_defaults_to_enabled_when_settings_key_absent(self, mock_git_repo):
-        progress_manager.configure_project_scope(project_root=mock_git_repo)
+        progress_manager.configure_project_scope(str(mock_git_repo))
         progress_manager.init_tracking("Test", force=True)
         subprocess.run(["git", "add", "."], cwd=mock_git_repo, capture_output=True)
         subprocess.run(["git", "commit", "-m", "init state"], cwd=mock_git_repo, capture_output=True)
@@ -612,8 +627,13 @@ def _auto_state_commit(ref: str, event: str) -> "Optional[str]":
     if not data.get("settings", {}).get("auto_state_commit", True):
         return None
 
-    # Detect in-progress git operations (worktree-safe: --absolute-git-dir)
-    code, git_dir_str, _ = _run_git(["rev-parse", "--absolute-git-dir"])
+    # Resolve project root first — needed as cwd for all git calls.
+    project_root = find_project_root()
+
+    # Detect in-progress git operations (worktree-safe: --absolute-git-dir).
+    # Pass cwd=project_root to avoid detecting the wrong repo in multi-project setups.
+    code, git_dir_str, _ = _run_git(["rev-parse", "--absolute-git-dir"],
+                                     cwd=str(project_root))
     if code == 0:
         git_dir = Path(git_dir_str.strip())
         for marker in ("MERGE_HEAD", "REBASE_HEAD", "CHERRY_PICK_HEAD"):
@@ -628,7 +648,6 @@ def _auto_state_commit(ref: str, event: str) -> "Optional[str]":
                 print(f"[state-sync] Skip: {dir_marker} in progress.")
                 return None
 
-    project_root = find_project_root()
     dirty = _get_dirty_state_files(project_root)
     if not dirty:
         return None
@@ -651,7 +670,7 @@ python -m pytest tests/test_auto_state_commit.py::TestAutoStateCommit -v
 python -m pytest tests/test_auto_state_commit.py -v
 ```
 
-期望：全部通过（当前 14 tests）
+期望：全部通过（当前 16 tests：Task 1×3 + Task 2×6 + Task 3×4 + Task 4×6 - 含删除场景）
 
 - [ ] **Step 6: Commit**
 
@@ -676,7 +695,7 @@ git commit -m "test+feat(PT): implement _auto_state_commit orchestrator"
 ```python
 class TestInitTrackingSettings:
     def test_init_tracking_writes_auto_state_commit_true(self, mock_git_repo):
-        progress_manager.configure_project_scope(project_root=mock_git_repo)
+        progress_manager.configure_project_scope(str(mock_git_repo))
         progress_manager.init_tracking("Test Project", force=True)
 
         data = progress_manager.load_progress_json()
@@ -737,32 +756,96 @@ git commit -m "test+feat(PT): init_tracking writes settings.auto_state_commit=tr
 
 ```python
 class TestCallSiteCmdDone:
-    def test_cmd_done_calls_auto_state_commit(self, mock_git_repo):
-        """_auto_state_commit is called with F<id> ref after cmd_done succeeds."""
-        progress_manager.configure_project_scope(project_root=mock_git_repo)
-        progress_manager.init_tracking("Test", force=True)
-        progress_manager.add_feature("Feature 1", ["step 1"])
-        progress_manager.set_current(1)
+    """Use seeded-JSON strategy: quality gates must be in progress.json because
+    cmd_done() reads them directly (lines 8327-8366), not via patchable functions."""
+
+    _FEATURE_ID = 1
+
+    def _seed_gated_env(self, tmp_path: Path) -> None:
+        """Write fully-gated progress.json + plan document into tmp_path."""
+        plan_path = f"docs/plans/2026-01-01-feature-{self._FEATURE_ID}.md"
+        plan_abs = tmp_path / plan_path
+        plan_abs.parent.mkdir(parents=True, exist_ok=True)
+        plan_abs.write_text(
+            "# Feature Plan\n\n## Tasks\n\n- [ ] step\n\n"
+            "## Acceptance Mapping\n\n- passes\n\n## Risks\n\n- none\n",
+            encoding="utf-8",
+        )
+        feature = {
+            "id": self._FEATURE_ID,
+            "name": "Test Feature",
+            "completed": False,
+            "deferred": False,
+            "lifecycle_state": "implementing",
+            "development_stage": "developing",
+            "change_spec": {"why": "test", "in_scope": [], "out_of_scope": [], "risks": []},
+            "requirement_ids": ["REQ-001"],
+            "acceptance_scenarios": [],
+            "acceptance_criteria": [],
+            "integration_status": None,
+            "quality_gates": {
+                "evaluator": {
+                    "status": "pass", "score": 100, "defects": [],
+                    "last_run_at": "2026-01-01T00:00:00Z", "evaluator_model": None,
+                },
+                "ship_check": {
+                    "status": "pass", "failures": [],
+                    "last_run_at": "2026-01-01T00:00:00Z",
+                },
+                "reviews": {"required": ["eng"], "passed": ["eng"], "pending": []},
+            },
+            "sprint_contract": {
+                "scope": "test", "done_criteria": ["passes"],
+                "test_plan": ["pytest"], "accepted_by": "test",
+                "accepted_at": "2026-01-01T00:00:00Z",
+            },
+            "handoff": {
+                "from_phase": None, "to_phase": None,
+                "artifact_path": None, "created_at": None,
+            },
+        }
+        data = {
+            "schema_version": "2.1",
+            "project_name": "test",
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z",
+            "features": [feature],
+            "current_feature_id": self._FEATURE_ID,
+            "updates": [], "retrospectives": [], "runtime_context": {},
+            "linked_projects": [], "linked_snapshot": {},
+            "tracker_role": "standalone", "project_code": None,
+            "routing_queue": [], "active_routes": [],
+            "bugs": [], "current_bug_id": None,
+            "workflow_state": {
+                "phase": "execution_complete", "plan_path": plan_path
+            },
+            "settings": {"auto_state_commit": True},
+        }
+        state_dir = tmp_path / "docs" / "progress-tracker" / "state"
+        state_dir.mkdir(parents=True, exist_ok=True)
+        (state_dir / "progress.json").write_text(json.dumps(data))
+
+    def test_cmd_done_calls_auto_state_commit(self, tmp_path):
+        """_auto_state_commit is called with F<id> after cmd_done clears all gates."""
+        self._seed_gated_env(tmp_path)
+        worktree_ctx = {
+            "branch": "feature/test", "workspace_mode": "direct", "worktree_path": None
+        }
 
         with (
-            patch.object(progress_manager, "_validate_done_preconditions",
-                         return_value=(True, "", 0, {"id": 1, "name": "Feature 1"})),
-            patch.object(progress_manager, "_validate_completion_reconcile",
-                         return_value=(True, "", 0)),
-            patch.object(progress_manager, "_validate_completion_plan_document",
-                         return_value=(True, "", 0)),
-            patch.object(progress_manager, "require_sprint_contract"),
-            patch.object(progress_manager, "_run_acceptance_tests",
-                         return_value=(True, [])),
-            patch.object(progress_manager, "_save_done_test_report", return_value=None),
-            patch.object(progress_manager, "record_sprint_artifact"),
-            patch.object(progress_manager, "_notify_parent_sync"),
-            patch.object(progress_manager, "_run_post_done_cleanup"),
+            patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE", tmp_path),
+            patch("progress_manager.require_sprint_contract", return_value=None),
+            patch("progress_manager._run_acceptance_tests", return_value=(True, [])),
+            patch("progress_manager._save_done_test_report", return_value=None),
+            patch("progress_manager.record_sprint_artifact", return_value=None),
+            patch("progress_manager._notify_parent_sync", return_value=None),
+            patch("progress_manager._run_post_done_cleanup"),
+            patch("progress_manager.collect_git_context", return_value=worktree_ctx),
             patch.object(progress_manager, "_auto_state_commit") as mock_asc,
         ):
             progress_manager.cmd_done()
 
-        mock_asc.assert_called_once_with("F1", "done")
+        mock_asc.assert_called_once_with(f"F{self._FEATURE_ID}", "done")
 ```
 
 - [ ] **Step 2: 运行测试，确认失败**
@@ -771,7 +854,7 @@ class TestCallSiteCmdDone:
 python -m pytest "tests/test_auto_state_commit.py::TestCallSiteCmdDone" -v
 ```
 
-期望：`AssertionError: Expected call not found`
+期望：`AssertionError: Expected call not found`（`_auto_state_commit` 还未被接入 cmd_done）
 
 - [ ] **Step 3: 在 `cmd_done` 中插入调用**
 
@@ -832,7 +915,7 @@ git commit -m "test+feat(PT): wire _auto_state_commit into cmd_done"
 ```python
 class TestCallSiteSetCurrent:
     def test_set_current_calls_auto_state_commit(self, mock_git_repo):
-        progress_manager.configure_project_scope(project_root=mock_git_repo)
+        progress_manager.configure_project_scope(str(mock_git_repo))
         progress_manager.init_tracking("Test", force=True)
         progress_manager.add_feature("Feature 1", ["step 1"])
 
@@ -906,7 +989,7 @@ class TestCallSiteUpdateBug:
         return data["bugs"][-1]["id"]
 
     def test_update_bug_calls_auto_state_commit_when_fixed(self, mock_git_repo):
-        progress_manager.configure_project_scope(project_root=mock_git_repo)
+        progress_manager.configure_project_scope(str(mock_git_repo))
         progress_manager.init_tracking("Test", force=True)
         bug_id = self._add_bug_and_get_id()
 
@@ -919,7 +1002,7 @@ class TestCallSiteUpdateBug:
     def test_update_bug_does_not_call_auto_state_commit_for_other_statuses(
         self, mock_git_repo
     ):
-        progress_manager.configure_project_scope(project_root=mock_git_repo)
+        progress_manager.configure_project_scope(str(mock_git_repo))
         progress_manager.init_tracking("Test", force=True)
         bug_id = self._add_bug_and_get_id()
 
@@ -1014,4 +1097,12 @@ git commit -m "test+feat(PT): wire _auto_state_commit into update_bug (fixed onl
 - `_git_commit_state(state_files: list, msg: str, project_root: Path)` — 在 `_auto_state_commit` 中以 `dirty: list` 传入，一致。
 - `_get_dirty_state_files(project_root: Path) -> list` — 在 `_auto_state_commit` 中调用，一致。
 
+**`configure_project_scope` 签名**：`configure_project_scope(project_root_arg: Optional[str])`，必须传字符串，不能用关键字 `project_root=`。
+
 **`add_bug` 签名**：第一个参数是 `description: str`，无 `name`/`bug_id` 参数，ID 自动生成（格式 `BUG-NNN`）。测试中通过加载 `data["bugs"][-1]["id"]` 获取实际 ID。
+
+**Task 6 strategy**：用 seeded JSON + `_PROJECT_ROOT_OVERRIDE` 绕过直接读 JSON 的 evaluator/review/ship_check gate（lines 8327-8366），不用 `mock_git_repo`（call-site 测试不需要真实 git repo）。
+
+**`_auto_state_commit` git-dir cwd**：`project_root` 前移至 git-dir 检测之前，`_run_git(["rev-parse", "--absolute-git-dir"], cwd=str(project_root))` 绑定正确 scope。
+
+**`_get_dirty_state_files` 删除文件**：去掉 `exists()`/`is_dir()` guard，`git status --porcelain` 天然报告删除（`D `）。Task 2 加了 `test_detects_deleted_tracked_state_file` 覆盖此路径。
