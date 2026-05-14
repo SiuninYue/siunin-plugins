@@ -288,3 +288,12 @@ class TestAutoStateCommit:
 
         result = progress_manager._auto_state_commit("F1", "done")
         assert result is not None  # enabled by default
+
+
+class TestInitTrackingSettings:
+    def test_init_tracking_writes_auto_state_commit_true(self, mock_git_repo):
+        progress_manager.configure_project_scope(str(mock_git_repo))
+        progress_manager.init_tracking("Test Project", force=True)
+
+        data = progress_manager.load_progress_json()
+        assert data.get("settings", {}).get("auto_state_commit") is True

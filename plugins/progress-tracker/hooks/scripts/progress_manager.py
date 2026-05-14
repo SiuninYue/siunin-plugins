@@ -5146,6 +5146,7 @@ def init_tracking(project_name, features=None, force=False):
         "updated_at": now,
         "features": features or [],
         "current_feature_id": None,
+        "settings": {"auto_state_commit": True},
     }
     if existing_parent_root:
         data["parent_project_root"] = existing_parent_root
