@@ -5099,7 +5099,7 @@ def _cmd_wf_auto_driver() -> bool:
     return True
 
 
-def init_tracking(project_name, features=None, force=False):
+def init_tracking(project_name, features=None, force=False, confirm_destroy=False):
     """
     Initialize progress tracking for a project.
 
@@ -5107,6 +5107,7 @@ def init_tracking(project_name, features=None, force=False):
         project_name: Name of the project to track
         features: Optional list of feature dicts with keys: name, test_steps
         force: Force re-initialization even if tracking exists
+        confirm_destroy: Required when force=True and completed features exist
     """
     progress_dir = get_progress_dir()
     json_path = progress_dir / PROGRESS_JSON
@@ -5126,6 +5127,21 @@ def init_tracking(project_name, features=None, force=False):
     if force:
         existing = load_progress_json()
         if isinstance(existing, dict):
+            if not confirm_destroy:
+                raw_features = existing.get("features")
+                feature_list = raw_features if isinstance(raw_features, list) else []
+                completed_count = sum(
+                    1 for f in feature_list
+                    if isinstance(f, dict) and bool(f.get("completed", False))
+                )
+                if completed_count > 0:
+                    project = existing.get("project_name", "unknown")
+                    print(
+                        f"ERROR: {completed_count} completed feature(s) detected in "
+                        f"'{project}'. Refusing to overwrite real project data.\n"
+                        "Pass confirm_destroy=True (API) or --confirm-destroy (CLI) to proceed."
+                    )
+                    return False
             raw = existing.get("parent_project_root")
             if isinstance(raw, str) and raw.strip():
                 existing_parent_root = raw.strip()
