@@ -294,8 +294,8 @@ class TestProgressInit:
         assert result is False
 
     def test_init_tracking_existing_with_force(self, progress_file):
-        """Should re-initialize when force is True."""
-        result = progress_manager.init_tracking("New Project", force=True)
+        """Should re-initialize when force is True (with confirm_destroy for completed data)."""
+        result = progress_manager.init_tracking("New Project", force=True, confirm_destroy=True)
         assert result is True
 
         data = progress_manager.load_progress_json()
