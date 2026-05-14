@@ -6799,6 +6799,8 @@ def set_current(feature_id):
     md_content = generate_progress_md(data)
     save_progress_md(md_content)
 
+    _auto_state_commit(f"F{feature_id}", "start")
+
     print(f"Set current feature: {feature.get('name', 'Unknown')}")
     return True
 
