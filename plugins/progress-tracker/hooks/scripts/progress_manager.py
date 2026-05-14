@@ -8611,6 +8611,8 @@ def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False
         if data_post_reset:
             _reset_active_progress(data_post_reset)
 
+    _auto_state_commit(f"F{feature_id}", "done")
+
     print(f"[DONE] Feature {feature_id} completed")
     if resolved_commit:
         print(f"[DONE] Commit: {resolved_commit}")

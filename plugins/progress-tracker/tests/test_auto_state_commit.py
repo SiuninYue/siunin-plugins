@@ -297,3 +297,96 @@ class TestInitTrackingSettings:
 
         data = progress_manager.load_progress_json()
         assert data.get("settings", {}).get("auto_state_commit") is True
+
+
+class TestCallSiteCmdDone:
+    """Use seeded-JSON strategy: quality gates must be in progress.json because
+    cmd_done() reads them directly (lines 8327-8366), not via patchable functions."""
+
+    _FEATURE_ID = 1
+
+    def _seed_gated_env(self, tmp_path: Path) -> None:
+        """Write fully-gated progress.json + plan document into tmp_path."""
+        plan_path = f"docs/plans/2026-01-01-feature-{self._FEATURE_ID}.md"
+        plan_abs = tmp_path / plan_path
+        plan_abs.parent.mkdir(parents=True, exist_ok=True)
+        plan_abs.write_text(
+            "# Feature Plan\n\n## Tasks\n\n- [ ] step\n\n"
+            "## Acceptance Mapping\n\n- passes\n\n## Risks\n\n- none\n",
+            encoding="utf-8",
+        )
+        feature = {
+            "id": self._FEATURE_ID,
+            "name": "Test Feature",
+            "completed": False,
+            "deferred": False,
+            "lifecycle_state": "implementing",
+            "development_stage": "developing",
+            "change_spec": {"why": "test", "in_scope": [], "out_of_scope": [], "risks": []},
+            "requirement_ids": ["REQ-001"],
+            "acceptance_scenarios": [],
+            "acceptance_criteria": [],
+            "integration_status": None,
+            "quality_gates": {
+                "evaluator": {
+                    "status": "pass", "score": 100, "defects": [],
+                    "last_run_at": "2026-01-01T00:00:00Z", "evaluator_model": None,
+                },
+                "ship_check": {
+                    "status": "pass", "failures": [],
+                    "last_run_at": "2026-01-01T00:00:00Z",
+                },
+                "reviews": {"required": ["eng"], "passed": ["eng"], "pending": []},
+            },
+            "sprint_contract": {
+                "scope": "test", "done_criteria": ["passes"],
+                "test_plan": ["pytest"], "accepted_by": "test",
+                "accepted_at": "2026-01-01T00:00:00Z",
+            },
+            "handoff": {
+                "from_phase": None, "to_phase": None,
+                "artifact_path": None, "created_at": None,
+            },
+        }
+        data = {
+            "schema_version": "2.1",
+            "project_name": "test",
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z",
+            "features": [feature],
+            "current_feature_id": self._FEATURE_ID,
+            "updates": [], "retrospectives": [], "runtime_context": {},
+            "linked_projects": [], "linked_snapshot": {},
+            "tracker_role": "standalone", "project_code": None,
+            "routing_queue": [], "active_routes": [],
+            "bugs": [], "current_bug_id": None,
+            "workflow_state": {
+                "phase": "execution_complete", "plan_path": plan_path
+            },
+            "settings": {"auto_state_commit": True},
+        }
+        state_dir = tmp_path / "docs" / "progress-tracker" / "state"
+        state_dir.mkdir(parents=True, exist_ok=True)
+        (state_dir / "progress.json").write_text(json.dumps(data))
+
+    def test_cmd_done_calls_auto_state_commit(self, tmp_path):
+        """_auto_state_commit is called with F<id> after cmd_done clears all gates."""
+        self._seed_gated_env(tmp_path)
+        worktree_ctx = {
+            "branch": "feature/test", "workspace_mode": "direct", "worktree_path": None
+        }
+
+        with (
+            patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE", tmp_path),
+            patch("progress_manager.require_sprint_contract", return_value=None),
+            patch("progress_manager._run_acceptance_tests", return_value=(True, [])),
+            patch("progress_manager._save_done_test_report", return_value=None),
+            patch("progress_manager.record_sprint_artifact", return_value=None),
+            patch("progress_manager._notify_parent_sync", return_value=None),
+            patch("progress_manager._run_post_done_cleanup"),
+            patch("progress_manager.collect_git_context", return_value=worktree_ctx),
+            patch.object(progress_manager, "_auto_state_commit") as mock_asc,
+        ):
+            progress_manager.cmd_done()
+
+        mock_asc.assert_called_once_with(f"F{self._FEATURE_ID}", "done")
