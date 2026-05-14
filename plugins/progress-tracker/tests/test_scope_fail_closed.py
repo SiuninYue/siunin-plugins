@@ -83,7 +83,7 @@ def test_monorepo_root_creates_tracker_when_scope_is_repo_root(temp_dir, capsys)
 
     # Initialize root tracker first
     os.chdir(temp_dir)
-    progress_manager.configure_project_scope(None)
+    assert progress_manager.configure_project_scope(None) is True
     progress_manager.init_tracking("Root Tracker", force=True)
     progress_manager._PROJECT_ROOT_OVERRIDE = None
     progress_manager._REPO_ROOT = None
