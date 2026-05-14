@@ -2,7 +2,8 @@
 
 **Date:** 2026-05-14  
 **Feature:** PT-F14 — Task execution semantics and visibility (standalone task vs feature task) with profile-aware done gates  
-**Status:** Approved for implementation
+**Status:** Approved for implementation  
+**Spec location:** `docs/superpowers/specs/2026-05-14-task-execution-semantics-design.md` (relative to project root, inside the feature worktree)
 
 ---
 
@@ -59,6 +60,9 @@ Old `progress.json` files missing either field are treated as:
 |---------------------|-----------|------------|
 | `null` | Standalone quick_task | Branch creation + squash-merge |
 | `<int>` | Feature-bound task | Progress-advance on parent feature only |
+
+**"Profile-aware" clarification:**  
+"Profile-aware done gates" in the feature title refers to `workflow_profile` constraints at task *creation* time (the mutual exclusion of `quick_task` + `--feature-id`), **not** to branching the close path on `workflow_profile` at runtime. The close-path discriminant is solely `parent_feature_id`. All standalone tasks (regardless of `workflow_profile`) follow the squash-merge path. This is intentional: `workflow_profile` governs AI model routing and planning depth, not git branching semantics.
 
 ---
 
@@ -135,7 +139,23 @@ Did you mean: 'next --done'?
 Run: prog next --help
 ```
 
-"Did you mean" is only shown when the Levenshtein edit-distance between the unknown subcommand and the closest candidate is ≤ 2. Above 2: only `--help` is shown (no suggestion).
+**Two-tier suggestion strategy:**
+
+1. **Ghost-command alias table** (highest priority): A `_GHOST_COMMAND_ALIASES` dict maps known deprecated/non-existent commands to their correct replacements. Always shown when matched, regardless of edit-distance.
+   ```python
+   _GHOST_COMMAND_ALIASES = {
+       "start-task": "next --done",
+       # add future ghost commands here
+   }
+   ```
+2. **General edit-distance fallback**: For commands NOT in the alias table, "Did you mean" is shown only when Levenshtein edit-distance ≤ 2 to the closest valid subcommand. Above 2: only `--help` shown.
+
+Example output for `prog start-task TASK-001`:
+```
+Error: unknown command 'start-task'
+Did you mean: 'next --done'?   ← from alias table
+Run: prog next --help
+```
 
 ---
 
@@ -195,10 +215,13 @@ def _close_feature_bound_task(task: dict, output_json: bool = False) -> int:
     4. Clear current_task_id, write progress.json
     """
 
-def _git_squash_close_task(task_id: str, branch: str, base_branch: str = "main") -> tuple[bool, str]:
+def _git_squash_close_task(task_id: str, branch: str, base_branch: Optional[str] = None) -> tuple[bool, str]:
     """Execute git squash-merge sequence.
 
     Commit message format: "task(<task_id>): close standalone task"
+
+    base_branch: if None, resolved via _detect_default_branch(project_root);
+    falls back to "main" → "master" if detection fails.
 
     Pre-conditions checked (fail-closed):
     - branch exists in local repo
@@ -289,20 +312,21 @@ Only shown when at least one stale bug exists.
 
 ## Section 5: AI Command Hygiene
 
-### PROG_COMMANDS.md (new reference document)
+### PROG_COMMANDS.md — extend existing single source
 
-Path: `plugins/progress-tracker/docs/reference/PROG_COMMANDS.md`
+Path: `plugins/progress-tracker/docs/PROG_COMMANDS.md` (single source per STANDARDS.md line 152).  
+**Do NOT create a new file at `docs/reference/`**; the generation script (`generate_prog_docs.py` line 75) hardcodes this path.
 
-Contents:
-- Whitelist of all valid `prog` subcommands with signatures
-- RC semantics table (RC=0/1/2)
-- Explicit note: `prog start-task` does NOT exist; use `prog next --done`
+Changes to `docs/PROG_COMMANDS.md`:
+- Add entries for `prog next --done`, `prog add-task --feature-id`, updated `prog list-updates`
+- Add RC semantics table section (RC=0/1/2)
+- Add explicit Ghost Commands section: "`prog start-task` does NOT exist → use `prog next --done`"
 
 ### Skill layer constraints
 
 Added to relevant skill files (`prog-next`, `feature-implement`):
 - Check `prog <subcmd> --help` before first use of any unfamiliar subcommand.
-- Only use commands from PROG_COMMANDS.md whitelist.
+- Only use commands documented in `docs/PROG_COMMANDS.md` (whitelist).
 - On RC=2 error: read stderr suggestion, do NOT retry original command.
 
 ---
