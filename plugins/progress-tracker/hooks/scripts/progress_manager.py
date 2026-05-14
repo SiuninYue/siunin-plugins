@@ -159,6 +159,22 @@ PROGRESS_MD = "progress.md"
 CHECKPOINTS_JSON = "checkpoints.json"
 CHECKPOINT_MAX_ENTRIES = 50
 CHECKPOINT_INTERVAL_SECONDS = 1800
+# State files managed by progress-tracker (whitelist for auto-commit)
+STATE_FILE_NAMES = [
+    PROGRESS_JSON,
+    PROGRESS_MD,
+    CHECKPOINTS_JSON,
+    PROGRESS_HISTORY_JSON,
+    "sprint_ledger.jsonl",
+    "status_summary.v1.json",
+    "audit.log",
+    "project_memory.json",
+    "migration_log.json",
+]
+STATE_DIR_NAMES = [
+    "test_reports",
+    "progress_archive",
+]
 # Superpowers writing-plans standard: docs/plans/
 PLAN_PATH_PREFIX = "docs/plans/"
 VALID_PLAN_PREFIXES = (PLAN_PATH_PREFIX,)
