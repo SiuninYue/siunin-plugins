@@ -159,3 +159,5 @@ docs/ops/guardrails-backup-*.json
 !.claude/progress.md
 !.claude/project_memory.json
 .worktrees/
+.claude/worktrees/
+.gstack-ref/

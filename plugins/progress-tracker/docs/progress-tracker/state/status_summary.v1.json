@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-05-11T16:01:04.268772Z",
+  "updated_at": "2026-05-14T14:19:51.363981Z",
   "source": {
     "generator": "progress_manager.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,27 +11,27 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1778486363868928743,
-      "size": 83108
+      "mtime_ns": 1778739591293355228,
+      "size": 569
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
       "exists": true,
-      "mtime_ns": 1777562455501257288,
-      "size": 8590
+      "mtime_ns": 1778736682715749512,
+      "size": 9782
     }
   },
   "progress": {
-    "completed": 13,
-    "total": 17,
-    "percentage": 76
+    "completed": 0,
+    "total": 0,
+    "percentage": 0
   },
   "next_action": {
-    "type": "feature",
-    "feature_id": 13,
-    "feature_name": "Unified work-item intake and profile routing (task/feature/bug) via /prog next",
-    "development_stage": "pending",
-    "stage_label": "待开始"
+    "type": "none",
+    "feature_id": null,
+    "feature_name": "无待办功能",
+    "development_stage": null,
+    "stage_label": null
   },
   "plan_health": {
     "status": "N/A",
@@ -39,14 +39,14 @@
     "message": "无活跃计划"
   },
   "risk_blocker": {
-    "has_risk": true,
-    "high_priority_bugs": 1,
+    "has_risk": false,
+    "high_priority_bugs": 0,
     "blocked_count": 0,
-    "message": "1 个高优先级 bug"
+    "message": "正常"
   },
   "recent_snapshot": {
     "exists": true,
-    "timestamp": "2026-04-30T23:20:55.456524+08:00",
-    "relative_time": "10 天前"
+    "timestamp": "2026-05-14T13:31:22.612467+08:00",
+    "relative_time": "48 分钟前"
   }
 }

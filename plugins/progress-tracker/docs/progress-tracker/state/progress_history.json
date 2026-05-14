@@ -28,5 +28,125 @@
         "archive_path": "progress_archive/20260422T212857585260-prog-parent-coordination-archive-completed.status-summary.v1.json"
       }
     ]
+  },
+  {
+    "archive_id": "20260514T135233532459-progress-tracker-sop-compliance-optimization-reinitialize",
+    "archived_at": "2026-05-14T13:52:33.535585Z",
+    "reason": "reinitialize",
+    "project_name": "progress-tracker-sop-compliance-optimization",
+    "total_features": 17,
+    "completed_features": 13,
+    "current_feature_id": 13,
+    "progress_json": "progress_archive/20260514T135233532459-progress-tracker-sop-compliance-optimization-reinitialize.progress.json",
+    "progress_md": "progress_archive/20260514T135233532459-progress-tracker-sop-compliance-optimization-reinitialize.progress.md",
+    "status_summary_v1": "progress_archive/20260514T135233532459-progress-tracker-sop-compliance-optimization-reinitialize.status-summary.v1.json",
+    "status_summary_legacy": null,
+    "archived_artifacts": [
+      {
+        "kind": "progress_json",
+        "source_path": "docs/progress-tracker/state/progress.json",
+        "archive_path": "progress_archive/20260514T135233532459-progress-tracker-sop-compliance-optimization-reinitialize.progress.json"
+      },
+      {
+        "kind": "progress_md",
+        "source_path": "docs/progress-tracker/state/progress.md",
+        "archive_path": "progress_archive/20260514T135233532459-progress-tracker-sop-compliance-optimization-reinitialize.progress.md"
+      },
+      {
+        "kind": "status_summary_v1",
+        "source_path": "docs/progress-tracker/state/status_summary.v1.json",
+        "archive_path": "progress_archive/20260514T135233532459-progress-tracker-sop-compliance-optimization-reinitialize.status-summary.v1.json"
+      }
+    ]
+  },
+  {
+    "archive_id": "20260514T141933123093-test-reinitialize",
+    "archived_at": "2026-05-14T14:19:33.124620Z",
+    "reason": "reinitialize",
+    "project_name": "Test",
+    "total_features": 0,
+    "completed_features": 0,
+    "current_feature_id": null,
+    "progress_json": "progress_archive/20260514T141933123093-test-reinitialize.progress.json",
+    "progress_md": "progress_archive/20260514T141933123093-test-reinitialize.progress.md",
+    "status_summary_v1": "progress_archive/20260514T141933123093-test-reinitialize.status-summary.v1.json",
+    "status_summary_legacy": null,
+    "archived_artifacts": [
+      {
+        "kind": "progress_json",
+        "source_path": "docs/progress-tracker/state/progress.json",
+        "archive_path": "progress_archive/20260514T141933123093-test-reinitialize.progress.json"
+      },
+      {
+        "kind": "progress_md",
+        "source_path": "docs/progress-tracker/state/progress.md",
+        "archive_path": "progress_archive/20260514T141933123093-test-reinitialize.progress.md"
+      },
+      {
+        "kind": "status_summary_v1",
+        "source_path": "docs/progress-tracker/state/status_summary.v1.json",
+        "archive_path": "progress_archive/20260514T141933123093-test-reinitialize.status-summary.v1.json"
+      }
+    ]
+  },
+  {
+    "archive_id": "20260514T141933473452-project-1-reinitialize",
+    "archived_at": "2026-05-14T14:19:33.474851Z",
+    "reason": "reinitialize",
+    "project_name": "Project 1",
+    "total_features": 0,
+    "completed_features": 0,
+    "current_feature_id": null,
+    "progress_json": "progress_archive/20260514T141933473452-project-1-reinitialize.progress.json",
+    "progress_md": "progress_archive/20260514T141933473452-project-1-reinitialize.progress.md",
+    "status_summary_v1": "progress_archive/20260514T141933473452-project-1-reinitialize.status-summary.v1.json",
+    "status_summary_legacy": null,
+    "archived_artifacts": [
+      {
+        "kind": "progress_json",
+        "source_path": "docs/progress-tracker/state/progress.json",
+        "archive_path": "progress_archive/20260514T141933473452-project-1-reinitialize.progress.json"
+      },
+      {
+        "kind": "progress_md",
+        "source_path": "docs/progress-tracker/state/progress.md",
+        "archive_path": "progress_archive/20260514T141933473452-project-1-reinitialize.progress.md"
+      },
+      {
+        "kind": "status_summary_v1",
+        "source_path": "docs/progress-tracker/state/status_summary.v1.json",
+        "archive_path": "progress_archive/20260514T141933473452-project-1-reinitialize.status-summary.v1.json"
+      }
+    ]
+  },
+  {
+    "archive_id": "20260514T141951198441-project-1-updated-reinitialize",
+    "archived_at": "2026-05-14T14:19:51.200295Z",
+    "reason": "reinitialize",
+    "project_name": "Project 1 Updated",
+    "total_features": 0,
+    "completed_features": 0,
+    "current_feature_id": null,
+    "progress_json": "progress_archive/20260514T141951198441-project-1-updated-reinitialize.progress.json",
+    "progress_md": "progress_archive/20260514T141951198441-project-1-updated-reinitialize.progress.md",
+    "status_summary_v1": "progress_archive/20260514T141951198441-project-1-updated-reinitialize.status-summary.v1.json",
+    "status_summary_legacy": null,
+    "archived_artifacts": [
+      {
+        "kind": "progress_json",
+        "source_path": "docs/progress-tracker/state/progress.json",
+        "archive_path": "progress_archive/20260514T141951198441-project-1-updated-reinitialize.progress.json"
+      },
+      {
+        "kind": "progress_md",
+        "source_path": "docs/progress-tracker/state/progress.md",
+        "archive_path": "progress_archive/20260514T141951198441-project-1-updated-reinitialize.progress.md"
+      },
+      {
+        "kind": "status_summary_v1",
+        "source_path": "docs/progress-tracker/state/status_summary.v1.json",
+        "archive_path": "progress_archive/20260514T141951198441-project-1-updated-reinitialize.status-summary.v1.json"
+      }
+    ]
   }
 ]

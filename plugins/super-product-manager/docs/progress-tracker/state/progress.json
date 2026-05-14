@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "SPM-PROG Harness Linkage",
   "created_at": "2026-04-09T01:18:09.247847Z",
-  "updated_at": "2026-04-26T16:44:44.098105Z",
+  "updated_at": "2026-05-14T13:53:00.149696Z",
   "features": [],
   "current_feature_id": null,
   "updates": [],
@@ -36,5 +36,6 @@
   "active_routes": [],
   "parent_project_root": ".",
   "bugs": [],
-  "current_bug_id": null
+  "current_bug_id": null,
+  "tasks": []
 }
