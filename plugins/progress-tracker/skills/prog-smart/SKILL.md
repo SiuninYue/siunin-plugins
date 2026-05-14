@@ -52,3 +52,11 @@ prog smart --candidate-json '<json>' --commit feature
 prog smart --candidate-json '<json>' --commit task
 prog smart --candidate-json '<json>' --commit update
 ```
+
+## Common Mistakes
+
+| 错误 ❌ | 正确 ✅ |
+|----------|--------|
+| `--json` | `--candidate-json` |
+| 直接 `--commit` 跳过预览 | 先预览，用户确认后再 `--commit` |
+| `--type bug` | `--commit bug` |

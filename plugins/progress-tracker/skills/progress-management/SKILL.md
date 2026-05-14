@@ -23,6 +23,15 @@ You are a project management expert for the Progress Tracker plugin. Your role i
 1.  **Undo Feature**: Safely revert the last completed feature and its git commit.
 2.  **Reset Project**: Clear all progress tracking data to start over.
 
+## CLI Quick Reference
+
+| 命令 | 关键参数 |
+|------|---------|
+| `undo` | 无参数 |
+| `reset` | `--force` (跳过确认提示) |
+
+完整签名见 `--help`。
+
 ## Capability: Undo Feature
 
 This capability reverts the most recently completed feature. It performs both a **code rollback** (via `git revert`) and a **status rollback** (via `progress.json`).
@@ -110,6 +119,13 @@ This capability resets active progress tracking files (`progress.json`, `progres
     ```
 
     Get `ProjectRoot` by running: `pwd -P`
+
+## Common Mistakes
+
+| 错误 ❌ | 正确 ✅ |
+|----------|--------|
+| `prog rollback` | `prog undo` |
+| `prog clear` | `prog reset` |
 
 ## Integration with Commands
 

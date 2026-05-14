@@ -285,9 +285,16 @@ Use the Skill tool with these exact parameters:
 WAIT for the skill to complete.
 </CRITICAL>
 
-## Progress Manager Extensions
+## CLI Quick Reference
 
-Four CLI commands: `add-bug`, `update-bug`, `list-bugs`, `remove-bug`. Full command signatures and bug data schema (progress.json structure) in [`references/integration.md`](references/integration.md).
+| 命令 | 关键参数 |
+|------|---------|
+| `add-bug` | `--description` (必填), `--status` (可选) |
+| `update-bug` | `--bug-id`, `--status`, `--fix-summary` |
+| `list-bugs` | 无参数 |
+| `remove-bug` | `--bug-id` |
+
+完整签名和其他参数见 `--help` 或 [`references/integration.md`](references/integration.md)。
 
 ## Priority and Scheduling Algorithms
 
@@ -319,6 +326,15 @@ Similar bug exists: BUG-XXX
 2. Create new report
 3. Cancel
 ```
+
+## Common Mistakes
+
+| 错误 ❌ | 正确 ✅ |
+|----------|--------|
+| `prog bug` | `prog add-bug` |
+| `--title "..."` | `--description "..."` |
+| `--severity P2` | 严重程度写进 description 文本 |
+| `prog fix-bug` | `prog update-bug` |
 
 ## Key Reminders
 
