@@ -5861,9 +5861,15 @@ def _git_commit_state(
         hash_result = subprocess.run(
             ["git", "rev-parse", "HEAD"],
             capture_output=True, check=False,
-            cwd=str(git_root), text=True,
+            cwd=str(git_root), text=True, timeout=5,
         )
+        if hash_result.returncode != 0:
+            print(f"[state-sync] Failed to retrieve commit hash: {hash_result.stderr.strip()}")
+            return None
         return hash_result.stdout.strip() or None
+    except subprocess.TimeoutExpired as exc:
+        print(f"[state-sync] Auto-commit timeout (repository may be unresponsive): {exc}")
+        return None
     except Exception as exc:
         print(f"[state-sync] Auto-commit error (non-blocking): {exc}")
         return None
