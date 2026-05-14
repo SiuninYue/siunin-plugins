@@ -135,7 +135,7 @@ Did you mean: 'next --done'?
 Run: prog next --help
 ```
 
-"Did you mean" is only shown when similarity exceeds a minimum threshold (e.g., edit-distance ≤ 2 or token overlap ≥ 0.5). Below threshold: only `--help` is shown.
+"Did you mean" is only shown when the Levenshtein edit-distance between the unknown subcommand and the closest candidate is ≤ 2. Above 2: only `--help` is shown (no suggestion).
 
 ---
 
@@ -188,7 +188,9 @@ def _close_feature_bound_task(task: dict, output_json: bool = False) -> int:
     """Close a feature-bound task (no git operations).
 
     1. Mark task.status = "completed"
-    2. Advance parent feature task-progress counter (completed_task_count++)
+    2. Parent feature "task progress" is derived dynamically — no new field added to
+       the feature record. Progress = count of tasks[] with matching parent_feature_id
+       and status=completed. No feature state transition occurs.
     3. Do NOT auto-close or transition parent feature state
     4. Clear current_task_id, write progress.json
     """
@@ -208,8 +210,10 @@ def _git_squash_close_task(task_id: str, branch: str, base_branch: str = "main")
     3. git commit -m "task(<task_id>): close standalone task"
     4. git branch -d <branch>
 
-    Returns: (success: bool, commit_hash: str)
-    Guarantees: main branch has exactly +1 commit on success.
+    Returns: (success: bool, value: str)
+      success=True  → value = commit hash (from `git rev-parse HEAD`)
+      success=False → value = human-readable error message (e.g., "working tree dirty")
+    Guarantees: base_branch has exactly +1 commit on success.
     """
 ```
 
@@ -272,7 +276,7 @@ Only shown when at least one stale bug exists.
   +7 more updates (run: prog list-updates)
 ```
 
-- `updates` list sorted ascending by timestamp before slicing `[-5:]`.
+- `updates` list sorted ascending by `created_at` (ISO string sort) before slicing `[-5:]`.
 - "+N more" line only shown when `len(updates) > 5`; N = `len(updates) - 5`.
 
 ### `list_updates()` changes
