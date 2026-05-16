@@ -1,6 +1,6 @@
 ---
 name: bug-fix
-description: This skill should be used when the user asks to "fix a bug", "report a bug", "/prog-fix", "investigate bug", or mentions debugging workflow within progress-tracker plugin. Manages bug discovery, verification, scheduling, and TDD-based fixing.
+description: Use when a bug is reported, discovered, or needs investigation — including /prog-fix, "something is broken", "debug this", "failing test", or any request to investigate, record, schedule, or fix a bug. Invoke even when the user doesn't say "bug" explicitly.
 version: "1.0.0"
 scope: skill
 inputs:
@@ -27,15 +27,7 @@ Manage bug lifecycle from discovery to resolution through systematic debugging a
 
 ## Purpose
 
-Coordinate bug handling within progress-tracker plugin: quick verification, smart scheduling into feature timeline, and orchestrate Superpowers skills for systematic debugging and TDD fixes.
-
-## When to Use
-
-Invoke this skill when:
-- User runs `/prog-fix` command
-- User reports a bug during feature implementation
-- Bug needs to be recorded and scheduled into itinerary
-- Recorded bug requires investigation or fixing
+Coordinate bug handling: quick verification, smart scheduling into feature timeline, and orchestrate Superpowers skills for systematic debugging and TDD fixes.
 
 ## Bug Lifecycle
 
@@ -87,9 +79,9 @@ Display bugs sorted by priority with:
 3. Report new bug
 ```
 
-### Scenario 2: Bug Description - Three-Phase Flow
+### Scenario 2: Bug Description - Three-Step Flow
 
-#### Phase 1: Quick Verification (Under 30 seconds)
+#### Step 1: Quick Verification (Under 30 seconds)
 
 Perform fast preliminary check:
 
@@ -98,13 +90,13 @@ Perform fast preliminary check:
 
 Analyzing: "<bug description>"
 
-**Step 1**: Search related code...
+**Check 1**: Search related code...
 → Use Grep tool for keywords from bug description
 
-**Step 2**: Check known issues...
+**Check 2**: Check known issues...
 → Compare with existing bugs in progress.json
 
-**Step 3**: Assess reproducibility...
+**Check 3**: Assess reproducibility...
 → Evaluate based on description clarity
 
 ### Verification Results
@@ -128,7 +120,7 @@ OR
 🔴 **Uncertain**: Needs investigation
 ```
 
-#### Phase 2: User Confirmation
+#### Step 2: User Confirmation
 
 ```markdown
 ### How would you like to proceed?
@@ -150,11 +142,11 @@ Your choice [1/2/3]?
 ```
 
 Handle user choice:
-- **[1]**: Proceed to Phase 3 (Smart Scheduling)
+- **[1]**: Proceed to Step 3 (Smart Scheduling)
 - **[2]**: Invoke `systematic-debugging`
 - **[3]**: Exit
 
-#### Phase 3: Smart Scheduling
+#### Step 3: Smart Scheduling
 
 Analyze impact and recommend insertion point:
 
@@ -230,8 +222,51 @@ Ready for TDD fix.
 🔧 **Fix In Progress**
 
 Resume fixing?
+```
 
-### Proceeding with Systematic Debugging...
+**Route by current bug state before executing phases:**
+- `pending_investigation` / `investigating` → run **Phase 1 → 2 → 3 → 4** (full flow)
+- `confirmed` → skip to **Phase 4** (root cause already known, go straight to TDD fix)
+- `fixing` → resume from **Phase 4** (TDD already started, continue from where it left off)
+
+---
+
+#### Phase 1: 结构化证据收集 (Evidence Collection)
+
+Collect structured evidence before starting investigation:
+
+```markdown
+## 📋 Phase 1: 结构化证据收集
+
+**复现路径 (Reproduction Path)**:
+→ List exact steps to reproduce: environment setup, input sequence, trigger action
+
+**错误日志 (Error Logs)**:
+→ Collect relevant log output, stack traces, error messages
+
+**输入输出对比 (Input/Output Comparison)**:
+→ Document expected vs actual: what was input, what was returned vs what was expected
+```
+
+---
+
+#### Phase 2: 触发模式分析 (Trigger Pattern Analysis)
+
+Analyze when and how the bug triggers:
+
+```markdown
+## 🔍 Phase 2: 触发模式分析
+
+**稳定触发条件 (Stable Trigger Conditions)**:
+→ Conditions that reliably reproduce the bug every time (e.g., specific input, state)
+
+**边界条件 (Boundary Conditions)**:
+→ Edge cases where behavior changes — empty/null values, limit inputs, concurrent access
+```
+
+---
+
+#### Phase 3: Systematic Debugging + 假设唯一性验证
 
 <CRITICAL>
 DO NOT just describe or mention the skill. You MUST invoke it using the Skill tool.
@@ -245,7 +280,29 @@ WAIT for the skill to complete.
 
 After investigation completes, update bug status:
 → plugins/progress-tracker/prog update-bug --bug-id "BUG-XXX" --status "confirmed"
+</CRITICAL>
 
+Once systematic-debugging completes and returns a root cause, perform **唯一性验证 (Hypothesis Uniqueness Check)** before proceeding to Phase 4:
+
+```markdown
+## ✅ 假设唯一性验证
+
+**Proposed Root Cause**: <hypothesis from systematic-debugging>
+
+**竞争假设排除 (Competing Hypotheses)**:
+→ List all other hypotheses that could explain the same symptoms
+→ For each competing hypothesis: state the evidence that disproves it
+→ Confirm all competing hypotheses are eliminated
+
+**结论**: This hypothesis is the unique cause — no other explanation survives the evidence.
+Only proceed to Phase 4 after uniqueness is confirmed.
+```
+
+---
+
+#### Phase 4: TDD Fix + 回归检查 (Regression Check)
+
+<CRITICAL>
 For confirmed bugs requiring TDD fix:
 Use the Skill tool with these exact parameters:
   - skill: "test-driven-development"
@@ -256,28 +313,38 @@ WAIT for the skill to complete.
 After TDD completes, update bug status:
 → plugins/progress-tracker/prog update-bug --bug-id "BUG-XXX" --status "fixed"
   (This automatically updates both progress.json and progress.md)
+</CRITICAL>
 
-Next, create a commit for the bug fix using git-auto:
+After TDD completes, run **显式回归检查 (Explicit Regression Check)**:
+
+```markdown
+## 🔁 回归检查
+
+1. ✅ **问题A 已消失 (Bug gone)**: Confirm the original failure case no longer reproduces
+   → Re-run the reproduction path (from Phase 1 if you ran it, otherwise reproduce manually) — expect it to pass now
+
+2. ✅ **功能B 未受影响 (No side-effect regressions)**: Run full test suite
+   → Confirm no adjacent features were broken by the fix
+```
+
+---
+
+#### Phase 5: Commit & Review
 
 <CRITICAL>
+DO NOT skip this phase. Both sub-steps are mandatory.
+
+**5a — Commit via git-auto:**
 Use the Skill tool with these exact parameters:
   - skill: "progress-tracker:git-auto"
   - args: "auto"
 
 WAIT for the skill to complete and return the result.
 
-The git-auto skill will:
-- Detect that this is a bug fix
-- Create fix branch if needed
-- Commit with proper message
-- Push and create PR for review
-
-After receiving the commit hash, update the bug:
+The git-auto skill detects this is a bug fix, creates a fix branch if needed, commits with a proper message, and pushes for review. After receiving the commit hash, update the bug:
 → plugins/progress-tracker/prog update-bug --bug-id "BUG-XXX" --fix-summary "Fix applied (commit: <commit_hash>)"
-  (This automatically updates both progress.json and progress.md)
-</CRITICAL>
 
-Finally, verify the fix with code review:
+**5b — Code review:**
 Use the Skill tool with these exact parameters:
   - skill: "requesting-code-review"
   - args: "Verify bug fix for: <bug>"
