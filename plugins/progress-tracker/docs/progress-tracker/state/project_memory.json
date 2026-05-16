@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "created_at": "2026-04-12T09:38:02.910760Z",
-  "updated_at": "2026-05-16T14:14:13.602392Z",
-  "next_capability_seq": 22,
+  "updated_at": "2026-05-16T18:00:23.689724Z",
+  "next_capability_seq": 23,
   "last_synced_commit": null,
   "capabilities": [
     {
@@ -399,6 +399,22 @@
       },
       "created_at": "2026-05-16T14:14:13.602363Z",
       "updated_at": "2026-05-16T14:14:13.602363Z"
+    },
+    {
+      "cap_id": "CAP-022",
+      "fingerprint": "8998963e0bf13223",
+      "title": "prog-fix skill 嵌入4阶段调试方法论",
+      "summary": "Completed feature 15: prog-fix skill 嵌入4阶段调试方法论",
+      "tags": [],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 15,
+        "commit_hash": "4f12d69",
+        "commit_range": ""
+      },
+      "created_at": "2026-05-16T18:00:23.689689Z",
+      "updated_at": "2026-05-16T18:00:23.689689Z"
     }
   ],
   "rejected_fingerprints": [],

@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-05-18T01:15:25.328211Z",
+  "updated_at": "2026-05-17T02:00:23.635602Z",
   "features": [
     {
       "id": 10,
@@ -1764,7 +1764,7 @@
         "TDD 完成后加显式回归检查项：确认问题A已消失且功能B未受影响",
         "原有 systematic-debugging / TDD / git-auto 委托调用不受影响，Scenario 1 和 Scenario 2 保持原样"
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -1774,7 +1774,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "implementing",
+      "lifecycle_state": "verified",
       "requirement_ids": [
         "REQ-015"
       ],
@@ -1799,11 +1799,12 @@
       ],
       "quality_gates": {
         "evaluator": {
-          "status": "pending",
-          "score": null,
+          "status": "pass",
+          "score": 90,
           "defects": [],
-          "last_run_at": null,
-          "evaluator_model": null
+          "last_run_at": "2026-05-16T18:00:18.541043+00:00",
+          "evaluator_model": "claude-sonnet-4-6",
+          "note": "Recovery backfill — F15 merged via PR #49 (4f12d69), worktree cleaned up"
         },
         "reviews": {
           "required": [
@@ -1856,7 +1857,7 @@
         "created_at": null
       },
       "plan_path": "docs/plans/2026-05-11-f15-prog-fix-debug-methodology.md",
-      "development_stage": "developing",
+      "development_stage": "completed",
       "started_at": "2026-05-16T22:53:31.243640Z",
       "ai_metrics": {
         "complexity_score": 20,
@@ -1869,8 +1870,14 @@
           "routed_bucket": "simple",
           "confidence": "high"
         },
-        "started_at": "2026-05-16T23:07:11.458758Z"
-      }
+        "started_at": "2026-05-16T23:07:11.458758Z",
+        "finished_at": "2026-05-17T02:00:23.575183+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-05-17T02:00:23.575218Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-05-17T02:00:23.575221Z",
+      "commit_hash": "4f12d69"
     },
     {
       "id": 16,
@@ -1921,16 +1928,11 @@
       ],
       "quality_gates": {
         "evaluator": {
-          "status": "pass",
-          "score": 88,
-          "defects": [
-            "LOW: squash-remap-history.sh uses unquoted variables in sed pattern — hash values should be validated/quoted to prevent sed metacharacter interpretation",
-            "LOW: squash-remap-history.sh TRACKER_DIR hardcodes 'plugins/progress-tracker' prefix under REPO_ROOT — breaks if plugin is installed elsewhere",
-            "LOW: git_validator.py is_working_directory_clean() returns True (clean) on command failure — silent false-negative; should return False or raise",
-            "INFO: No automated test covering acceptance scenario 3 (CAP commit_hash in project_memory.json points to squash commit) — verified by skill doc only"
-          ],
-          "last_run_at": "2026-05-17T17:15:25.327530+00:00",
-          "evaluator_model": "claude-sonnet-4-6"
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
         },
         "reviews": {
           "required": [],
@@ -2109,7 +2111,7 @@
       "started_at": null
     }
   ],
-  "current_feature_id": 15,
+  "current_feature_id": null,
   "linked_projects": [],
   "linked_snapshot": {
     "schema_version": "1.0",
@@ -2235,21 +2237,21 @@
   ],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-05-16T23:07:24.361765Z",
-    "source": "set_workflow_state",
-    "workspace_mode": "worktree",
-    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F15-prog-fix-skill-debug-methodology",
-    "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F15-prog-fix-skill-debug-methodology",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F15-prog-fix-skill-debug-methodology",
-    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feat+PT-F15-prog-fix-skill-debug-methodology",
-    "branch": "worktree-feat+PT-F15-prog-fix-skill-debug-methodology",
-    "upstream": null,
-    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F15-prog-fix-skill-debug-methodology/plugins/progress-tracker",
-    "current_feature_id": 15,
-    "workflow_phase": "execution_complete",
+    "recorded_at": "2026-05-17T02:00:23.613168Z",
+    "source": "finalize",
+    "workspace_mode": "in_place",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
+    "branch": "main",
+    "upstream": "origin/main",
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+    "current_feature_id": null,
+    "workflow_phase": null,
     "current_task": null,
     "total_tasks": null,
-    "next_action": "verify_and_complete"
+    "next_action": null
   },
   "bugs": [
     {
@@ -2394,22 +2396,5 @@
       "created_at": "2026-05-12T22:55:08.086743Z"
     }
   ],
-  "current_task_id": "TASK-001",
-  "workflow_state": {
-    "phase": "execution_complete",
-    "updated_at": "2026-05-16T23:07:24.317348Z",
-    "next_action": "verify_and_complete",
-    "execution_context": {
-      "recorded_at": "2026-05-16T23:07:24.339677Z",
-      "source": "set_workflow_state",
-      "workspace_mode": "worktree",
-      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F15-prog-fix-skill-debug-methodology",
-      "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F15-prog-fix-skill-debug-methodology",
-      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F15-prog-fix-skill-debug-methodology/plugins/progress-tracker",
-      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feat+PT-F15-prog-fix-skill-debug-methodology",
-      "branch": "worktree-feat+PT-F15-prog-fix-skill-debug-methodology",
-      "upstream": null
-    },
-    "pending_action": "run_prog_done"
-  }
+  "current_task_id": "TASK-001"
 }
