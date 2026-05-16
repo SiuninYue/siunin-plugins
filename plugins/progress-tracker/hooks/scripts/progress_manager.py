@@ -9036,7 +9036,7 @@ def _collect_ship_signals(feature: dict) -> dict:
     evaluator = quality_gates.get("evaluator", {})
     reviews = quality_gates.get("reviews", {})
     defects = evaluator.get("defects", [])
-    failed_tests = len([d for d in defects if d.get("severity") == "critical"])
+    failed_tests = len([d for d in defects if isinstance(d, dict) and d.get("severity") == "critical"])
     return {
         "test_coverage": 1.0,
         "test_results": {"passed": 1, "failed": failed_tests, "skipped": 0},
