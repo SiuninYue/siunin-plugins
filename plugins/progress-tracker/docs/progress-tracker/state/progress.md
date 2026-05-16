@@ -2,7 +2,7 @@
 
 **Created**: 2026-04-23T00:28:18.285129Z
 
-**Status**: 14/18 completed
+**Status**: 15/18 completed
 
 ## Completed
 - [x] 根目录混合宿主架构：Monorepo /prog 支持
@@ -19,24 +19,12 @@
 - [x] plan_path CLI normalization
 - [x] Complexity scoring v2: weighted rubric via haiku subagent
 - [x] Unified work-item intake and profile routing (task/feature/bug) via /prog next
-
-## In Progress
-- [ ] Task execution semantics and visibility (standalone task vs feature task) with profile-aware done gates
-  **Test steps**:
-  - Run: prog next → selects quick_task; verify a short-lived branch is created automatically.
-  - Run: prog next --done on active quick_task → squash-merge succeeds, branch deleted, exactly 1 commit added to main; no feature done gate triggered.
-  - Run: prog next --done on feature-bound task → task marked complete, parent feature progress advances, parent feature NOT auto-closed.
-  - Run: prog next --done on quick_task → confirm close path does not trigger MUTATING_COMMANDS outer lock (no 10s timeout / RC=9).
-  - Run: prog status → actionable updates shown; stale P0/P1 bugs displayed as warnings; hidden-history count shown; list-updates returns full unfiltered history.
+- [x] Task execution semantics and visibility (standalone task vs feature task) with profile-aware done gates
 
 ## Pending
 - [ ] prog-fix skill 嵌入4阶段调试方法论
 - [ ] Git Squash Merge SOP — 集成到 prog-done 自动化流程
 - [ ] Parent-Child Route 同步：子插件 set_current/done 回写父 active_routes
-
-## Workflow Context
-- Phase: planning
-- Current session context: main @ Claude-Plugins [in_place]
 
 ## Recent Updates
 - [UPD-002] decision: F14 planning frozen: /prog note visibility split into active memo vs history (feature:14)

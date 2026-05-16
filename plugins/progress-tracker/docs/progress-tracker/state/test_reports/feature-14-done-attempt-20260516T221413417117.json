@@ -1,0 +1,7 @@
+{
+  "feature_id": 14,
+  "feature_name": "Task execution semantics and visibility (standalone task vs feature task) with profile-aware done gates",
+  "done_attempt_at": "2026-05-16T22:14:13.417166Z",
+  "overall_success": true,
+  "results": []
+}

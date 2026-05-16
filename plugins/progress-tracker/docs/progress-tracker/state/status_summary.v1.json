@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-05-16T19:22:09.367775Z",
+  "updated_at": "2026-05-16T22:14:13.614203Z",
   "source": {
     "generator": "progress_manager.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,8 +11,8 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1778924795261309284,
-      "size": 99095
+      "mtime_ns": 1778940853595542699,
+      "size": 101857
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
@@ -22,16 +22,16 @@
     }
   },
   "progress": {
-    "completed": 14,
+    "completed": 15,
     "total": 18,
-    "percentage": 77
+    "percentage": 83
   },
   "next_action": {
     "type": "feature",
-    "feature_id": 14,
-    "feature_name": "Task execution semantics and visibility (standalone task vs feature task) with profile-aware done gates",
-    "development_stage": "developing",
-    "stage_label": "开发中"
+    "feature_id": 15,
+    "feature_name": "prog-fix skill 嵌入4阶段调试方法论",
+    "development_stage": "pending",
+    "stage_label": "待开始"
   },
   "plan_health": {
     "status": "N/A",
@@ -47,6 +47,6 @@
   "recent_snapshot": {
     "exists": true,
     "timestamp": "2026-05-16T16:13:32.793984+08:00",
-    "relative_time": "3 小时前"
+    "relative_time": "6 小时前"
   }
 }
