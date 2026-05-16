@@ -32,7 +32,7 @@
 ## Pending
 - [ ] prog-fix skill 嵌入4阶段调试方法论
 - [ ] Git Squash Merge SOP — 集成到 prog-done 自动化流程
-- [ ] Parent-Child Route 同步：子插件 set_current/done 回写父 active_routes (depends on: F14 + F16)
+- [ ] Parent-Child Route 同步：子插件 set_current/done 回写父 active_routes
 
 ## Workflow Context
 - Phase: planning
@@ -52,6 +52,10 @@
 ## Bug Backlog
 ### High Priority (🔴)
 - [🔴] [BUG-006] Memory leak in websocket handler
+
+### Medium Priority (🟡)
+- [🔴] [BUG-008] [DEBT] F14: AC-3 profile gate matrix — mutual exclusivity tested but different validation-depth per profile not explicitly validated
+- [🔴] [BUG-009] [DEBT] F14: _git_squash_close_task error-recovery branches (checkout/merge/commit failures) not covered by tests
 
 ### Low Priority (🟢)
 - [🔴] [BUG-005] P2: complete 未走 fail-closed worktree/branch 一致性检查。一致性检查只对 next-feature 和 done 执行，complete 重定向到 cmd_done 后绕过该检查入口。关键位置: progress_manager.py:11336-11339

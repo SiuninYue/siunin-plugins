@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-05-11T16:01:04.268772Z",
+  "updated_at": "2026-05-16T19:22:09.367775Z",
   "source": {
     "generator": "progress_manager.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,27 +11,27 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1778486363868928743,
-      "size": 83108
+      "mtime_ns": 1778924795261309284,
+      "size": 99095
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
       "exists": true,
-      "mtime_ns": 1777562455501257288,
-      "size": 8590
+      "mtime_ns": 1778923165557159174,
+      "size": 12502
     }
   },
   "progress": {
-    "completed": 13,
-    "total": 17,
-    "percentage": 76
+    "completed": 14,
+    "total": 18,
+    "percentage": 77
   },
   "next_action": {
     "type": "feature",
-    "feature_id": 13,
-    "feature_name": "Unified work-item intake and profile routing (task/feature/bug) via /prog next",
-    "development_stage": "pending",
-    "stage_label": "待开始"
+    "feature_id": 14,
+    "feature_name": "Task execution semantics and visibility (standalone task vs feature task) with profile-aware done gates",
+    "development_stage": "developing",
+    "stage_label": "开发中"
   },
   "plan_health": {
     "status": "N/A",
@@ -46,7 +46,7 @@
   },
   "recent_snapshot": {
     "exists": true,
-    "timestamp": "2026-04-30T23:20:55.456524+08:00",
-    "relative_time": "10 天前"
+    "timestamp": "2026-05-16T16:13:32.793984+08:00",
+    "relative_time": "3 小时前"
   }
 }

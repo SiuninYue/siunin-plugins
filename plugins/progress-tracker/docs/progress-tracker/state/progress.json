@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-05-16T07:35:39.082425+00:00",
+  "updated_at": "2026-05-16T22:01:29.937663Z",
   "features": [
     {
       "id": 10,
@@ -1662,11 +1662,15 @@
       ],
       "quality_gates": {
         "evaluator": {
-          "status": "pending",
-          "score": null,
-          "defects": [],
-          "last_run_at": null,
-          "evaluator_model": null
+          "status": "pass",
+          "score": 75,
+          "defects": [
+            "AC-3 (profile gate matrix) partially covered: tests verify quick_task/feature-id exclusivity but not different validation-depth behaviours per workflow profile",
+            "Defensive branches in _get_stale_bugs() not covered (non-dict, missing ts, naive datetime)",
+            "Error-recovery branches in _git_squash_close_task() not covered (checkout/merge/commit/delete failures)"
+          ],
+          "last_run_at": "2026-05-16T11:26:51.211398+00:00",
+          "evaluator_model": "deepseek-v4-pro:cloud"
         },
         "reviews": {
           "required": [
@@ -1674,17 +1678,31 @@
             "eng",
             "qa"
           ],
-          "passed": [],
-          "pending": [
+          "passed": [
             "docs",
             "eng",
             "qa"
-          ]
+          ],
+          "pending": []
         },
         "ship_check": {
-          "status": "pending",
+          "status": "pass",
           "failures": [],
-          "last_run_at": null
+          "last_run_at": "2026-05-16T14:01:29Z"
+        },
+        "review_evidence": {
+          "docs": {
+            "evidence": "plan: docs/superpowers/plans/2026-05-15-task-execution-semantics.md, validated by validate-plan",
+            "recorded_at": "2026-05-16T21:41:06.423880Z"
+          },
+          "eng": {
+            "evidence": "code-reviewed: 1 CRITICAL + 5 IMPORTANT fixed, 39/39 tests pass, no unresolved findings",
+            "recorded_at": "2026-05-16T21:41:06.726683Z"
+          },
+          "qa": {
+            "evidence": "acceptance: all 5 test steps verified, 39/39 tests pass, evaluator gate status=pass score=75",
+            "recorded_at": "2026-05-16T21:41:07.010131Z"
+          }
         }
       },
       "sprint_contract": {
@@ -2267,6 +2285,24 @@
       "priority": "low",
       "category": "bug",
       "created_at": "2026-05-12T22:53:58.127487Z",
+      "quick_verification": {}
+    },
+    {
+      "id": "BUG-008",
+      "description": "F14: AC-3 profile gate matrix — mutual exclusivity tested but different validation-depth per profile not explicitly validated",
+      "status": "pending_investigation",
+      "priority": "medium",
+      "category": "technical_debt",
+      "created_at": "2026-05-16T21:40:55.663538Z",
+      "quick_verification": {}
+    },
+    {
+      "id": "BUG-009",
+      "description": "F14: _git_squash_close_task error-recovery branches (checkout/merge/commit failures) not covered by tests",
+      "status": "pending_investigation",
+      "priority": "medium",
+      "category": "technical_debt",
+      "created_at": "2026-05-16T21:40:55.937172Z",
       "quick_verification": {}
     }
   ],
