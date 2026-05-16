@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "Test",
   "created_at": "2026-05-14T13:53:00.008608Z",
-  "updated_at": "2026-05-14T13:53:00.217045Z",
+  "updated_at": "2026-05-14T18:07:54.432180Z",
   "features": [],
   "current_feature_id": null,
   "tracker_role": "parent",
@@ -35,7 +35,14 @@
     "updated_at": null,
     "projects": []
   },
-  "active_routes": [],
+  "active_routes": [
+    {
+      "project_code": "PT",
+      "feature_ref": "PT-F14",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+      "branch": "main"
+    }
+  ],
   "updates": [],
   "retrospectives": [],
   "tasks": [],

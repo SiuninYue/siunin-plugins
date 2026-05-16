@@ -278,6 +278,7 @@ MUTATING_COMMANDS = {
     "sync-runtime-context",
     "restore-archive",
     "add-bug",
+    "add-task",
     "update-bug",
     "remove-bug",
     "prioritize",
@@ -294,6 +295,12 @@ ROUTE_PREFLIGHT_EXEMPT_COMMANDS = {
     "init",
     "link-project",
     "route-select",
+}
+
+# Ghost-command alias table. Maps deprecated/non-existent command names to
+# their correct replacements. Takes priority over edit-distance suggestions.
+_GHOST_COMMAND_ALIASES: Dict[str, str] = {
+    "start-task": "next --done",
 }
 
 # Bug field standards (for consistency)
@@ -5491,6 +5498,47 @@ def _display_root_dashboard(
     return True
 
 
+def _get_stale_bugs(data: dict, now: datetime) -> List[dict]:
+    """Return P0/P1 bugs exceeding their stale threshold.
+
+    Thresholds (strict >): P0 (priority=high) => 3 days; P1 (priority=medium) => 7 days.
+    Excludes: fixed, false_positive. Time base: updated_at preferred, fallback created_at.
+    Output: P0 first, then P1; same priority sorted by stale_days descending.
+    """
+    THRESHOLDS = {"high": 3, "medium": 7}
+    TERMINAL = {"fixed", "false_positive"}
+
+    result = []
+    for bug in data.get("bugs") or []:
+        if not isinstance(bug, dict):
+            continue
+        priority = bug.get("priority", "low")
+        if priority not in THRESHOLDS:
+            continue
+        if bug.get("status") in TERMINAL:
+            continue
+        raw_ts = bug.get("updated_at") or bug.get("created_at")
+        if not raw_ts:
+            continue
+        try:
+            ts = datetime.fromisoformat(raw_ts)
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+        except (ValueError, TypeError):
+            logger.warning(f"Skipping bug {bug.get('id')}: unparseable timestamp {raw_ts!r}")
+            continue
+        stale_days = (now - ts).total_seconds() / 86400
+        if stale_days > THRESHOLDS[priority]:
+            result.append({**bug, "_stale_days": stale_days, "_priority": priority})
+
+    def _sort_key(b):
+        tier = 0 if b["_priority"] == "high" else 1
+        return (tier, -b["_stale_days"])
+
+    result.sort(key=_sort_key)
+    return result
+
+
 def status(output_json: bool = False) -> bool:
     """Display current progress status."""
     data = load_progress_json()
@@ -5669,10 +5717,29 @@ def status(output_json: bool = False) -> bool:
                 defer_line += f" (group: {defer_group})"
             print(defer_line)
 
+    # Stale P0/P1 bug warnings
+    stale_bugs = _get_stale_bugs(data, datetime.now(tz=timezone.utc))
+    if stale_bugs:
+        print("\n### Bug Warnings:")
+        for bug in stale_bugs:
+            tier = "P0" if bug.get("_priority") == "high" else "P1"
+            desc = (bug.get("description") or "")[:60]
+            days = int(bug.get("_stale_days", 0))
+            raw_ts = bug.get("updated_at") or bug.get("created_at") or ""
+            last_date = raw_ts[:10] if raw_ts else "unknown"
+            print(f"  [{tier}] {bug.get('id')}: {desc} (stale {days}d, last: {last_date})")
+
     updates = data.get("updates", [])
     if updates:
-        print("\n### Recent Updates:")
-        for update in updates[-5:]:
+        # Sort ascending by created_at before slicing so [-5:] gets the most recent 5.
+        def _upd_ts(u):
+            return u.get("created_at") or ""
+        sorted_updates = sorted(updates, key=_upd_ts)
+        shown = sorted_updates[-5:]
+        total_count = len(updates)
+        hidden = total_count - len(shown)
+        print(f"\n### Recent Updates (showing {len(shown)}/{total_count}):")
+        for update in shown:
             line = (
                 f"  [{update.get('id', 'UPD-???')}] "
                 f"{update.get('category', 'status')}: {update.get('summary', '')}"
@@ -5682,6 +5749,8 @@ def status(output_json: bool = False) -> bool:
             if update.get("role") and update.get("owner"):
                 line += f" [{update['role']}={update['owner']}]"
             print(line)
+        if hidden > 0:
+            print(f"  +{hidden} more updates (run: prog list-updates)")
 
     if deferred and not remaining and not in_progress:
         print("\nUse `prog resume --all` or `prog resume --defer-group <group>` to continue deferred features.")
@@ -6011,6 +6080,85 @@ def _detect_default_branch(project_root: Path) -> Optional[str]:
             return candidate
 
     return None
+
+
+def _git_squash_close_task(
+    task_id: str,
+    branch: str,
+    project_root: Optional[Path] = None,
+    base_branch: Optional[str] = None,
+) -> Tuple[bool, str]:
+    """Execute git squash-merge sequence for a standalone task branch.
+
+    Returns (True, commit_hash) on success, (False, error_message) on failure.
+    On success, base_branch has exactly +1 commit and branch is deleted.
+    """
+    if project_root is None:
+        project_root = find_project_root()
+
+    cwd = str(project_root)
+
+    # Resolve base branch
+    if base_branch is None:
+        base_branch = _detect_default_branch(project_root)
+    if not base_branch:
+        for _candidate in ("main", "master"):
+            _rc_br, _, _ = _run_git(
+                ["show-ref", "--verify", "--quiet", f"refs/heads/{_candidate}"], cwd=cwd
+            )
+            if _rc_br == 0:
+                base_branch = _candidate
+                break
+    if not base_branch:
+        return False, "cannot determine default branch (tried main and master)"
+
+    # Pre-condition 1: branch must exist
+    rc, _, _ = _run_git(["show-ref", "--verify", "--quiet", f"refs/heads/{branch}"], cwd=cwd)
+    if rc != 0:
+        return False, f"branch '{branch}' not found in local repo"
+
+    # Pre-condition 2: working tree must be clean
+    rc, stdout, _ = _run_git(["status", "--porcelain"], cwd=cwd)
+    if rc != 0 or stdout.strip():
+        return False, f"working tree is dirty; commit or stash changes first"
+
+    # Step 1: checkout base branch
+    rc, _, err = _run_git(["checkout", base_branch], cwd=cwd)
+    if rc != 0:
+        return False, f"checkout {base_branch} failed: {err}"
+
+    # Step 2: squash merge
+    rc, _, err = _run_git(["merge", "--squash", branch], cwd=cwd)
+    if rc != 0:
+        # Roll back any partial index changes
+        _run_git(["reset", "--mixed", "HEAD"], cwd=cwd)
+        return False, f"git merge --squash failed: {err}"
+
+    # Step 3: commit
+    commit_msg = f"squash merge {task_id}: close standalone task"
+    rc, _, err = _run_git(["commit", "-m", commit_msg], cwd=cwd)
+    if rc != 0:
+        _run_git(["reset", "--mixed", "HEAD"], cwd=cwd)
+        return False, f"git commit failed: {err}"
+
+    # Step 4: get commit hash
+    rc, commit_hash, _ = _run_git(["rev-parse", "HEAD"], cwd=cwd)
+    commit_hash = commit_hash.strip() if rc == 0 else ""
+
+    # Step 5: delete task branch.
+    # Uses -D (force) rather than -d (safe) because squash-merge creates a new
+    # commit that does not reference the original branch, so -d's "is-merged?"
+    # safety check would always fail. This is a deliberate deviation from the
+    # plan's `git branch -d` to match squash-merge semantics.
+    rc, _, err = _run_git(["branch", "-D", branch], cwd=cwd)
+    if rc != 0:
+        logger.warning(
+            f"squash commit {commit_hash[:8] if commit_hash else '?'} succeeded "
+            f"but branch '{branch}' deletion failed: {err}. "
+            f"Manual cleanup may be needed: git branch -D {branch}"
+        )
+
+    return True, commit_hash
 
 
 def _local_and_origin_ref_candidates(ref: str) -> Tuple[str, ...]:
@@ -7125,7 +7273,7 @@ def _select_next_work_item(
             "id": task_id,
             "name": task.get("description", task_id),
             "priority_tier": None,
-            "action": f"prog start-task {task_id}",
+            "action": "prog next --done",
             "dispatched_to": "task",
         }
 
@@ -7341,7 +7489,48 @@ def next_feature(output_json: bool = False, ack_planning_risk: bool = False) -> 
             if item_type == "task":
                 task_id = work_item["id"]
                 task_name = work_item["name"]
-                action = work_item.get("action") or f"prog start-task {task_id}"
+                # Look up full task record to check parent_feature_id.
+                tasks = data.get("tasks") or []
+                task_record = next(
+                    (t for t in tasks if isinstance(t, dict) and t.get("id") == task_id),
+                    None,
+                )
+                parent_fid = task_record.get("parent_feature_id") if task_record else None
+                is_standalone = parent_fid is None
+
+                original_branch = None
+                if is_standalone:
+                    # Create short-lived branch before activating.
+                    branch_name = f"task/{task_id}"
+                    git_dir = project_root / ".git"
+                    if git_dir.exists():
+                        rc_orig, orig_out, _ = _run_git(
+                            ["rev-parse", "--abbrev-ref", "HEAD"], cwd=str(project_root)
+                        )
+                        if rc_orig == 0:
+                            original_branch = orig_out.strip()
+                        rc, _, err = _run_git(
+                            ["checkout", "-b", branch_name],
+                            cwd=str(project_root),
+                        )
+                        if rc != 0:
+                            print(f"Error: could not create branch {branch_name}: {err}")
+                            return False
+
+                # Persist current_task_id after branch (standalone) or immediately (feature-bound).
+                try:
+                    data["current_task_id"] = task_id
+                    data["updated_at"] = _iso_now()
+                    save_progress_json(data)
+                except Exception as exc:
+                    # Roll back branch creation for standalone tasks.
+                    if is_standalone and original_branch:
+                        _run_git(["checkout", original_branch], cwd=str(project_root))
+                        _run_git(["branch", "-D", branch_name], cwd=str(project_root))
+                    print(f"Error: failed to save task state: {exc}", file=sys.stderr)
+                    return False
+
+                action = "prog next --done"
                 if output_json:
                     print(json.dumps({
                         "status": "ok",
@@ -7350,11 +7539,11 @@ def next_feature(output_json: bool = False, ack_planning_risk: bool = False) -> 
                         "name": task_name,
                         "priority_tier": None,
                         "action": action,
-                        "feature_id": None,
+                        "feature_id": parent_fid,
                         "test_steps": [],
                     }, ensure_ascii=False))
                 else:
-                    print(f"[NEXT] Task: {task_id}")
+                    print(f"Task selected: {task_id}")
                     print(f"{task_id}: {task_name}")
                     print(f"Run: {action}")
                 return True
@@ -7455,6 +7644,70 @@ def next_feature(output_json: bool = False, ack_planning_risk: bool = False) -> 
                 }, ensure_ascii=False))
             else:
                 print(no_action_msg)
+            return True
+
+    # Standalone task activation (non-parent / leaf projects).
+    if data:
+        tasks = data.get("tasks") or []
+        pending_task = next(
+            (t for t in tasks if isinstance(t, dict) and t.get("status") == "pending"),
+            None,
+        )
+        if pending_task is not None:
+            task_id = pending_task.get("id")
+            task_name = pending_task.get("description", task_id)
+            parent_fid = pending_task.get("parent_feature_id")
+            is_standalone = parent_fid is None
+
+            original_branch = None
+            if is_standalone:
+                project_root = find_project_root()
+                branch_name = f"task/{task_id}"
+                # Only attempt branch creation inside a git repo.
+                git_dir = project_root / ".git"
+                if git_dir.exists():
+                    rc_orig, orig_out, _ = _run_git(
+                        ["rev-parse", "--abbrev-ref", "HEAD"], cwd=str(project_root)
+                    )
+                    if rc_orig == 0:
+                        original_branch = orig_out.strip()
+                    rc, _, err = _run_git(
+                        ["checkout", "-b", branch_name],
+                        cwd=str(project_root),
+                    )
+                    if rc != 0:
+                        print(f"Error: could not create branch {branch_name}: {err}")
+                        return False
+
+            # Persist current_task_id.
+            try:
+                data["current_task_id"] = task_id
+                data["updated_at"] = _iso_now()
+                save_progress_json(data)
+            except Exception as exc:
+                # Roll back branch creation for standalone tasks.
+                if is_standalone and original_branch:
+                    _run_git(["checkout", original_branch], cwd=str(project_root))
+                    _run_git(["branch", "-D", branch_name], cwd=str(project_root))
+                print(f"Error: failed to save task state: {exc}", file=sys.stderr)
+                return False
+
+            action = "prog next --done"
+            if output_json:
+                print(json.dumps({
+                    "status": "ok",
+                    "item_type": "task",
+                    "id": task_id,
+                    "name": task_name,
+                    "priority_tier": None,
+                    "action": action,
+                    "feature_id": parent_fid,
+                    "test_steps": [],
+                }, ensure_ascii=False))
+            else:
+                print(f"Task selected: {task_id}")
+                print(f"{task_id}: {task_name}")
+                print(f"Run: {action}")
             return True
 
     feature = get_next_feature()
@@ -8439,6 +8692,101 @@ def _get_head_commit() -> Optional[str]:
     return None
 
 
+def _close_current_task(output_json: bool = False) -> int:
+    """Main dispatch for `prog next --done`. Returns RC 0/1/2."""
+    data = load_progress_json()
+    if not data:
+        msg = "No progress tracking found"
+        if output_json:
+            print(json.dumps({"status": "error", "closed_task_id": None, "message": msg}))
+        else:
+            print(f"Error: {msg}")
+        return 1
+
+    current_task_id = data.get("current_task_id")
+    if not current_task_id:
+        msg = "No active task. Run `prog next` to select a task first."
+        if output_json:
+            print(json.dumps({"status": "error", "closed_task_id": None, "message": msg}))
+        else:
+            print(f"Error: {msg}\nRepair: run `prog next` to activate a task.")
+        return 1
+
+    tasks = data.get("tasks") or []
+    task = next((t for t in tasks if isinstance(t, dict) and t.get("id") == current_task_id), None)
+
+    if task is None:
+        msg = f"Task {current_task_id} not found — clearing stale current_task_id."
+        data["current_task_id"] = None
+        save_progress_json(data)
+        if output_json:
+            print(json.dumps({"status": "error", "closed_task_id": current_task_id, "message": msg}))
+        else:
+            print(f"Error: {msg}")
+        return 1
+
+    if task.get("status") == "completed":
+        msg = f"Task {current_task_id} is already completed."
+        if output_json:
+            print(json.dumps({"status": "error", "closed_task_id": current_task_id, "message": msg}))
+        else:
+            print(f"Error: {msg}\nRepair: run `prog next` to select the next task.")
+        return 1
+
+    parent_fid = task.get("parent_feature_id")
+    if parent_fid is None:
+        return _close_standalone_task(task, data, output_json=output_json)
+    else:
+        return _close_feature_bound_task(task, data, output_json=output_json)
+
+
+def _close_standalone_task(task: dict, data: dict, output_json: bool = False) -> int:
+    """Close a standalone task via git squash-merge. Atomic: git first, state second."""
+    task_id = task["id"]
+    branch = f"task/{task_id}"
+    project_root = find_project_root()
+
+    ok, value = _git_squash_close_task(
+        task_id=task_id, branch=branch, project_root=project_root
+    )
+    if not ok:
+        msg = f"Git squash-merge failed: {value}"
+        if output_json:
+            print(json.dumps({"status": "error", "closed_task_id": task_id, "message": msg}))
+        else:
+            print(f"Error: {msg}")
+        return 1
+
+    # Git succeeded — now update business state
+    task["status"] = "completed"
+    data["current_task_id"] = None
+    data["updated_at"] = _iso_now()
+    save_progress_json(data)
+
+    msg = f"Task {task_id} closed. Squash commit: {value}"
+    if output_json:
+        print(json.dumps({"status": "ok", "closed_task_id": task_id, "message": msg}))
+    else:
+        print(f"[DONE] {msg}")
+    return 0
+
+
+def _close_feature_bound_task(task: dict, data: dict, output_json: bool = False) -> int:
+    """Close a feature-bound task: mark complete, no git ops, no feature auto-close."""
+    task_id = task["id"]
+    task["status"] = "completed"
+    data["current_task_id"] = None
+    data["updated_at"] = _iso_now()
+    save_progress_json(data)
+
+    msg = f"Task {task_id} marked complete. Parent feature not auto-closed."
+    if output_json:
+        print(json.dumps({"status": "ok", "closed_task_id": task_id, "message": msg}))
+    else:
+        print(f"[DONE] {msg}")
+    return 0
+
+
 def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False,
              no_cleanup: bool = False) -> int:
     """Close current feature through deterministic acceptance gatekeeping."""
@@ -8688,7 +9036,7 @@ def _collect_ship_signals(feature: dict) -> dict:
     evaluator = quality_gates.get("evaluator", {})
     reviews = quality_gates.get("reviews", {})
     defects = evaluator.get("defects", [])
-    failed_tests = len([d for d in defects if d.get("severity") == "critical"])
+    failed_tests = len([d for d in defects if isinstance(d, dict) and d.get("severity") == "critical"])
     return {
         "test_coverage": 1.0,
         "test_results": {"passed": 1, "failed": failed_tests, "skipped": 0},
@@ -9388,8 +9736,8 @@ def add_update(
     return True
 
 
-def list_updates(limit: int = 10) -> bool:
-    """List the latest structured updates."""
+def list_updates(limit: int = 0) -> bool:
+    """List the latest structured updates. limit=0 means show all."""
     data = load_progress_json()
     if not data:
         print("No progress tracking found")
@@ -9400,8 +9748,12 @@ def list_updates(limit: int = 10) -> bool:
         print("No updates recorded.")
         return True
 
-    safe_limit = max(1, limit)
-    print(f"Showing latest {min(safe_limit, len(updates))} update(s):")
+    if limit < 0:
+        print("Error: --limit must be 0 (all) or a positive integer")
+        return False
+
+    safe_limit = len(updates) if limit == 0 else min(len(updates), limit)
+    print(f"Showing {safe_limit} of {len(updates)} update(s):")
     for item in updates[-safe_limit:]:
         line = f"- [{item.get('id', 'UPD-???')}] {item.get('category', 'status')}: {item.get('summary', '')}"
         source = str(item.get("source") or "").strip()
@@ -9411,19 +9763,7 @@ def list_updates(limit: int = 10) -> bool:
             line += f" (feature:{item['feature_id']})"
         if item.get("role") and item.get("owner"):
             line += f" [{item['role']}={item['owner']}]"
-        overflow_count = item.get("refs_overflow_count")
-        if not isinstance(overflow_count, int) or overflow_count < 0:
-            overflow_refs = item.get("refs_overflow")
-            if isinstance(overflow_refs, list):
-                overflow_count = len(
-                    [
-                        ref
-                        for ref in overflow_refs
-                        if isinstance(ref, str) and ref.strip()
-                    ]
-                )
-            else:
-                overflow_count = 0
+        overflow_count = item.get("refs_overflow_count", 0) or 0
         if overflow_count > 0:
             line += f" [+{overflow_count} refs overflow]"
         print(line)
@@ -10021,6 +10361,7 @@ def add_task_item(
     next_action: str = "",
     priority: str = "P1",
     workflow_profile: str = WORKFLOW_PROFILE_DEFAULT,
+    parent_feature_id: Optional[int] = None,
 ) -> Optional[str]:
     """Write a standalone task item to tasks[].
 
@@ -10063,6 +10404,13 @@ def add_task_item(
         print("No progress tracking found. Use init first.")
         return None
 
+    # Validate parent_feature_id if provided (single load, no TOCTOU window).
+    if parent_feature_id is not None:
+        features = data.get("features", [])
+        if not any(f.get("id") == parent_feature_id for f in features):
+            print(f"Error: feature {parent_feature_id} not found")
+            return None
+
     tasks = data.setdefault("tasks", [])
 
     # Generate task ID
@@ -10083,6 +10431,7 @@ def add_task_item(
         "refs": refs,
         "next_action": next_action.strip() if next_action else "",
         "created_at": _iso_now(),
+        "parent_feature_id": parent_feature_id,
     }
 
     tasks.append(new_task)
@@ -11438,8 +11787,72 @@ def check_worktree_branch_consistency(command: str) -> bool:
     return False
 
 
+def _suggest_command(unknown: str, valid_commands: List[str]) -> Optional[str]:
+    """Return best suggestion for an unknown command, or None if no good match.
+
+    Priority:
+    1. Ghost-command alias table (always shown when matched).
+    2. Levenshtein edit-distance <= 2 to closest valid command.
+    """
+    if unknown in _GHOST_COMMAND_ALIASES:
+        return _GHOST_COMMAND_ALIASES[unknown]
+
+    def _edit_distance(a: str, b: str) -> int:
+        m, n = len(a), len(b)
+        dp = list(range(n + 1))
+        for i in range(1, m + 1):
+            prev = dp[0]
+            dp[0] = i
+            for j in range(1, n + 1):
+                temp = dp[j]
+                if a[i - 1] == b[j - 1]:
+                    dp[j] = prev
+                else:
+                    dp[j] = 1 + min(prev, dp[j], dp[j - 1])
+                prev = temp
+        return dp[n]
+
+    best, best_dist = None, 3  # threshold: distance must be <= 2
+    for cmd in valid_commands:
+        d = _edit_distance(unknown, cmd)
+        if d < best_dist:
+            best, best_dist = cmd, d
+    return best  # None if nothing within threshold
+
+
+class _ProgressArgumentParser(argparse.ArgumentParser):
+    """ArgumentParser subclass that provides ghost-command and edit-distance
+    'Did you mean?' suggestions on unknown *subcommand* errors.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._registered_commands: List[str] = []
+
+    def register_commands(self, commands: List[str]) -> None:
+        """Called in main() after all subparsers are added."""
+        self._registered_commands = list(commands)
+
+    def error(self, message: str) -> None:
+        import re
+        if "argument command: invalid choice:" in message:
+            match = re.search(r"invalid choice: '([^']+)'", message)
+            if match:
+                unknown = match.group(1)
+                suggestion = _suggest_command(unknown, self._registered_commands)
+                self.print_usage(sys.stderr)
+                if suggestion:
+                    sys.stderr.write(f"{self.prog}: error: unknown command '{unknown}'\n")
+                    sys.stderr.write(f"Did you mean: '{suggestion}'?\n")
+                    sys.stderr.write(f"Run: {self.prog} {suggestion.split()[0]} --help\n")
+                else:
+                    sys.stderr.write(f"{self.prog}: error: {message}\n")
+                sys.exit(2)
+        super().error(message)
+
+
 def main():
-    parser = argparse.ArgumentParser(description="Progress Tracker Manager")
+    parser = _ProgressArgumentParser(description="Progress Tracker Manager")
     parser.add_argument(
         "--project-root",
         help=(
@@ -11520,6 +11933,39 @@ def main():
         action="store_true",
         dest="ack_planning_risk",
         help="Acknowledge planning preflight warnings and continue selection",
+    )
+    next_alias_parser.add_argument(
+        "--done",
+        action="store_true",
+        dest="done",
+        help="Close the current active task (prog next --done)",
+    )
+
+    # PT-F14: `add-task` direct task creation CLI.
+    add_task_parser = subparsers.add_parser(
+        "add-task",
+        help="Create a new task item",
+    )
+    add_task_parser.add_argument(
+        "--description", required=True, help="Task description"
+    )
+    add_task_parser.add_argument(
+        "--feature-id", type=int, dest="feature_id", default=None,
+        help="Bind to parent feature ID (mutually exclusive with --workflow-profile quick_task)",
+    )
+    add_task_parser.add_argument(
+        "--workflow-profile",
+        choices=sorted(WORKFLOW_PROFILE_VALUES),
+        default=WORKFLOW_PROFILE_DEFAULT,
+        dest="workflow_profile",
+        help="Workflow profile",
+    )
+    add_task_parser.add_argument(
+        "--priority", choices=["P0", "P1", "P2"], default="P1",
+        help="Task priority",
+    )
+    add_task_parser.add_argument(
+        "--details", default="", help="Extended details",
     )
 
     # PT-F13: ``smart`` deterministic work-item intake executor.
@@ -11774,7 +12220,7 @@ def main():
     )
 
     list_updates_parser = subparsers.add_parser("list-updates", help="List recent updates")
-    list_updates_parser.add_argument("--limit", type=int, default=10, help="Max updates to show")
+    list_updates_parser.add_argument("--limit", type=int, default=0, help="Max updates (0=all)")
 
     set_owner_parser = subparsers.add_parser(
         "set-feature-owner", help="Assign feature owner for a role"
@@ -12096,6 +12542,9 @@ def main():
     subparsers.add_parser("install-git-hooks",
                           help="Install post-merge hook for auto reconcile-state")
 
+    # PT-F14: register valid subcommand names for ghost-command suggestions.
+    parser.register_commands(list(subparsers.choices.keys()))
+
     args = parser.parse_args()
 
     scope_project_root = args.project_root
@@ -12267,6 +12716,9 @@ def main():
                 refs=args.refs,
             )
         if args.command == "list-updates":
+            if args.limit < 0:
+                print("Error: --limit must be 0 (all) or a positive integer", file=sys.stderr)
+                return 2
             return list_updates(limit=args.limit)
         if args.command == "set-feature-owner":
             return set_feature_owner(args.feature_id, args.role, args.owner)
@@ -12358,6 +12810,19 @@ def main():
                 logger.error(f"Unexpected error adding bug: {e}")
                 print(f"Error: Failed to add bug - {e}")
                 return False
+        if args.command == "add-task":
+            # Mutual exclusion: --feature-id + quick_task profile
+            if args.feature_id is not None and args.workflow_profile == "quick_task":
+                print("Error: --feature-id and --workflow-profile quick_task are mutually exclusive")
+                return 2
+            task_id = add_task_item(
+                description=args.description,
+                details=args.details,
+                priority=args.priority,
+                workflow_profile=args.workflow_profile,
+                parent_feature_id=args.feature_id,
+            )
+            return 0 if task_id is not None else 1
         if args.command == "update-bug":
             return update_bug(
                 bug_id=args.bug_id,
@@ -12375,7 +12840,8 @@ def main():
         return 1
 
     # F21: fail-closed scope consistency check for next-feature, next, and done
-    if args.command in {"next-feature", "next", "done"}:
+    # next --done is a task close, not a feature selection — skip branch check.
+    if args.command in {"next-feature", "next", "done"} and not getattr(args, "done", False):
         if not check_worktree_branch_consistency(args.command):
             return 1
 
@@ -12401,6 +12867,11 @@ def main():
             commit=None,
             workflow_profile=args.workflow_profile,
         )
+
+    # PT-F14: `next --done` closes the current task. Like `done`, it bypasses
+    # the outer progress_transaction() lock to avoid BUG-002 class deadlocks.
+    if args.command == "next" and getattr(args, "done", False):
+        return _close_current_task(output_json=getattr(args, "output_json", False))
 
     if args.command in MUTATING_COMMANDS:
         if not enforce_route_preflight(args.command, sys.argv):
