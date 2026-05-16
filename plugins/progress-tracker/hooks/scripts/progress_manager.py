@@ -5525,6 +5525,7 @@ def _get_stale_bugs(data: dict, now: datetime) -> List[dict]:
             if ts.tzinfo is None:
                 ts = ts.replace(tzinfo=timezone.utc)
         except (ValueError, TypeError):
+            logger.warning(f"Skipping bug {bug.get('id')}: unparseable timestamp {raw_ts!r}")
             continue
         stale_days = (now - ts).total_seconds() / 86400
         if stale_days > THRESHOLDS[priority]:
@@ -6144,14 +6145,17 @@ def _git_squash_close_task(
     rc, commit_hash, _ = _run_git(["rev-parse", "HEAD"], cwd=cwd)
     commit_hash = commit_hash.strip() if rc == 0 else ""
 
-    # Step 5: delete task branch (force delete; squash merge doesn't create merge commit)
+    # Step 5: delete task branch.
+    # Uses -D (force) rather than -d (safe) because squash-merge creates a new
+    # commit that does not reference the original branch, so -d's "is-merged?"
+    # safety check would always fail. This is a deliberate deviation from the
+    # plan's `git branch -d` to match squash-merge semantics.
     rc, _, err = _run_git(["branch", "-D", branch], cwd=cwd)
     if rc != 0:
-        return (
-            False,
-            f"squash commit succeeded ({commit_hash[:8] if commit_hash else '?'}) "
-            f"but branch deletion failed: {err}. "
-            f"Manually run: git branch -D {branch}  then retry: prog next --done"
+        logger.warning(
+            f"squash commit {commit_hash[:8] if commit_hash else '?'} succeeded "
+            f"but branch '{branch}' deletion failed: {err}. "
+            f"Manual cleanup may be needed: git branch -D {branch}"
         )
 
     return True, commit_hash
@@ -7494,16 +7498,24 @@ def next_feature(output_json: bool = False, ack_planning_risk: bool = False) -> 
                 parent_fid = task_record.get("parent_feature_id") if task_record else None
                 is_standalone = parent_fid is None
 
+                original_branch = None
                 if is_standalone:
                     # Create short-lived branch before activating.
                     branch_name = f"task/{task_id}"
-                    rc, _, err = _run_git(
-                        ["checkout", "-b", branch_name],
-                        cwd=str(project_root),
-                    )
-                    if rc != 0:
-                        print(f"Error: could not create branch {branch_name}: {err}")
-                        return False
+                    git_dir = project_root / ".git"
+                    if git_dir.exists():
+                        rc_orig, orig_out, _ = _run_git(
+                            ["rev-parse", "--abbrev-ref", "HEAD"], cwd=str(project_root)
+                        )
+                        if rc_orig == 0:
+                            original_branch = orig_out.strip()
+                        rc, _, err = _run_git(
+                            ["checkout", "-b", branch_name],
+                            cwd=str(project_root),
+                        )
+                        if rc != 0:
+                            print(f"Error: could not create branch {branch_name}: {err}")
+                            return False
 
                 # Persist current_task_id after branch (standalone) or immediately (feature-bound).
                 try:
@@ -7511,7 +7523,12 @@ def next_feature(output_json: bool = False, ack_planning_risk: bool = False) -> 
                     data["updated_at"] = _iso_now()
                     save_progress_json(data)
                 except Exception as exc:
-                    logger.debug(f"Task activation bookkeeping failed: {exc}")
+                    # Roll back branch creation for standalone tasks.
+                    if is_standalone and original_branch:
+                        _run_git(["checkout", original_branch], cwd=str(project_root))
+                        _run_git(["branch", "-D", branch_name], cwd=str(project_root))
+                    print(f"Error: failed to save task state: {exc}", file=sys.stderr)
+                    return False
 
                 action = "prog next --done"
                 if output_json:
@@ -7642,12 +7659,18 @@ def next_feature(output_json: bool = False, ack_planning_risk: bool = False) -> 
             parent_fid = pending_task.get("parent_feature_id")
             is_standalone = parent_fid is None
 
+            original_branch = None
             if is_standalone:
                 project_root = find_project_root()
                 branch_name = f"task/{task_id}"
                 # Only attempt branch creation inside a git repo.
                 git_dir = project_root / ".git"
                 if git_dir.exists():
+                    rc_orig, orig_out, _ = _run_git(
+                        ["rev-parse", "--abbrev-ref", "HEAD"], cwd=str(project_root)
+                    )
+                    if rc_orig == 0:
+                        original_branch = orig_out.strip()
                     rc, _, err = _run_git(
                         ["checkout", "-b", branch_name],
                         cwd=str(project_root),
@@ -7662,7 +7685,12 @@ def next_feature(output_json: bool = False, ack_planning_risk: bool = False) -> 
                 data["updated_at"] = _iso_now()
                 save_progress_json(data)
             except Exception as exc:
-                logger.debug(f"Task activation bookkeeping failed: {exc}")
+                # Roll back branch creation for standalone tasks.
+                if is_standalone and original_branch:
+                    _run_git(["checkout", original_branch], cwd=str(project_root))
+                    _run_git(["branch", "-D", branch_name], cwd=str(project_root))
+                print(f"Error: failed to save task state: {exc}", file=sys.stderr)
+                return False
 
             action = "prog next --done"
             if output_json:
@@ -10371,19 +10399,17 @@ def add_task_item(
     # Defensive copy of refs to avoid aliasing mutation
     refs = list(refs) if refs else []
 
-    # Validate parent_feature_id if provided
-    if parent_feature_id is not None:
-        data_check = load_progress_json()
-        if data_check:
-            features = data_check.get("features", [])
-            if not any(f.get("id") == parent_feature_id for f in features):
-                print(f"Error: feature {parent_feature_id} not found")
-                return None
-
     data = load_progress_json()
     if not data:
         print("No progress tracking found. Use init first.")
         return None
+
+    # Validate parent_feature_id if provided (single load, no TOCTOU window).
+    if parent_feature_id is not None:
+        features = data.get("features", [])
+        if not any(f.get("id") == parent_feature_id for f in features):
+            print(f"Error: feature {parent_feature_id} not found")
+            return None
 
     tasks = data.setdefault("tasks", [])
 
