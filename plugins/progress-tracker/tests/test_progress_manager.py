@@ -1508,6 +1508,70 @@ class TestGitSyncPreflight:
         assert "dirty_on_default_branch" in report["reason_codes"]
         assert report["default_branch"] == "main"
 
+    def test_git_auto_preflight_surfaces_existing_worktree_candidates(self):
+        """Should keep REQUIRE_WORKTREE and surface reusable worktree candidates."""
+        fake_context = {
+            "project_root": "/tmp/repo",
+            "worktree_path": "/tmp/repo",
+            "workspace_mode": "in_place",
+            "branch": "main",
+        }
+        fake_sync = {
+            "status": "warning",
+            "project_root": "/tmp/repo",
+            "issues": [],
+        }
+        candidates = [
+            {
+                "worktree_path": "/tmp/repo/.worktrees/feature-42",
+                "project_root": "/tmp/repo",
+                "branch": "feature/42",
+                "current_feature_id": 42,
+            }
+        ]
+        with patch("progress_manager.collect_git_context", return_value=fake_context), patch(
+            "progress_manager.analyze_git_sync_risks", return_value=fake_sync
+        ), patch("progress_manager._detect_default_branch", return_value="main"), patch(
+            "progress_manager.find_project_root", return_value=Path("/tmp/repo")
+        ), patch(
+            "progress_manager.load_progress_json", return_value={"current_feature_id": 42}
+        ), patch(
+            "progress_manager._find_existing_worktree_candidates_for_feature",
+            return_value=candidates,
+        ):
+            report = progress_manager.analyze_git_auto_preflight()
+
+        assert report["decision"] == "REQUIRE_WORKTREE"
+        assert "default_branch_feature_work" in report["reason_codes"]
+        assert "existing_worktree_found" in report["reason_codes"]
+        assert report["existing_worktree_candidates"] == candidates
+
+    def test_git_auto_preflight_delegates_when_worktree_branch_behind_default(self):
+        """Should delegate when current worktree branch is behind default branch."""
+        fake_context = {
+            "project_root": "/tmp/repo",
+            "worktree_path": "/tmp/repo/.worktrees/feature-42",
+            "workspace_mode": "worktree",
+            "branch": "feature/42",
+        }
+        fake_sync = {
+            "status": "ok",
+            "project_root": "/tmp/repo",
+            "issues": [],
+        }
+        with patch("progress_manager.collect_git_context", return_value=fake_context), patch(
+            "progress_manager.analyze_git_sync_risks", return_value=fake_sync
+        ), patch("progress_manager._detect_default_branch", return_value="main"), patch(
+            "progress_manager._count_branch_commits_behind", return_value=3
+        ):
+            report = progress_manager.analyze_git_auto_preflight()
+
+        assert report["decision"] == "DELEGATE_GIT_AUTO"
+        assert "branch_behind_default" in report["reason_codes"]
+        assert report["status"] == "warning"
+        issue_ids = {issue["id"] for issue in report["issues"]}
+        assert "branch_behind_default" in issue_ids
+
     def test_git_auto_preflight_delegates_on_worktree_conflict(self):
         """Should delegate to git-auto when branch is checked out elsewhere."""
         fake_context = {

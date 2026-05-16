@@ -6053,6 +6053,143 @@ def _parse_worktree_list_output(output: str) -> List[Dict[str, str]]:
     return entries
 
 
+def _extract_branch_name_from_worktree_ref(ref: Optional[str]) -> Optional[str]:
+    """Normalize a worktree porcelain branch ref to a branch name."""
+    if not isinstance(ref, str):
+        return None
+    normalized = ref.strip()
+    if not normalized:
+        return None
+    prefix = "refs/heads/"
+    if normalized.startswith(prefix):
+        return normalized[len(prefix):]
+    return normalized
+
+
+def _count_branch_commits_behind(
+    branch: str,
+    target_branch: str,
+    project_root: Path,
+) -> Optional[int]:
+    """
+    Count commits that `branch` is behind `target_branch`.
+
+    Returns None when refs are unavailable or probe fails.
+    """
+    source_refs = _local_and_origin_ref_candidates(branch)
+    target_refs = _local_and_origin_ref_candidates(target_branch)
+    if not source_refs or not target_refs:
+        return None
+
+    for source_ref in source_refs:
+        for target_ref in target_refs:
+            exit_code, stdout, _ = _run_git(
+                ["rev-list", "--count", f"{source_ref}..{target_ref}"],
+                cwd=str(project_root),
+                timeout=8,
+            )
+            if exit_code != 0:
+                continue
+            count_text = stdout.strip()
+            if count_text.isdigit():
+                return int(count_text)
+
+    return None
+
+
+def _find_existing_worktree_candidates_for_feature(
+    *,
+    repo_root: Path,
+    tracker_project_root: Path,
+    current_worktree: Path,
+    current_feature_id: Optional[int],
+) -> List[Dict[str, Any]]:
+    """
+    Find other worktrees that already track the same active feature id.
+
+    The lookup preserves project scope by resolving tracker_project_root relative
+    to repo_root, then probing the same relative path in each linked worktree.
+    """
+    if current_feature_id is None:
+        return []
+
+    try:
+        project_rel = tracker_project_root.resolve().relative_to(repo_root.resolve())
+    except ValueError:
+        return []
+
+    exit_code, stdout, _ = _run_git(
+        ["worktree", "list", "--porcelain"],
+        cwd=str(repo_root),
+        timeout=10,
+    )
+    if exit_code != 0 or not stdout.strip():
+        return []
+
+    candidates: List[Dict[str, Any]] = []
+    for entry in _parse_worktree_list_output(stdout):
+        worktree_path_raw = entry.get("worktree")
+        if not worktree_path_raw:
+            continue
+
+        worktree_path = Path(worktree_path_raw)
+        try:
+            resolved_worktree = worktree_path.resolve()
+        except Exception:
+            resolved_worktree = worktree_path
+
+        if resolved_worktree == current_worktree.resolve():
+            continue
+
+        candidate_project_root = (
+            resolved_worktree if project_rel == Path(".") else resolved_worktree / project_rel
+        )
+        progress_file = (
+            candidate_project_root
+            / "docs"
+            / "progress-tracker"
+            / "state"
+            / PROGRESS_JSON
+        )
+        if not progress_file.exists():
+            continue
+
+        try:
+            with open(progress_file, "r", encoding="utf-8") as handle:
+                data = json.load(handle)
+        except (OSError, json.JSONDecodeError):
+            continue
+
+        if data.get("current_feature_id") != current_feature_id:
+            continue
+
+        matching_feature: Optional[Dict[str, Any]] = None
+        features = data.get("features")
+        if isinstance(features, list):
+            for feature in features:
+                if isinstance(feature, dict) and feature.get("id") == current_feature_id:
+                    matching_feature = feature
+                    break
+
+        if isinstance(matching_feature, dict):
+            if matching_feature.get("completed", False):
+                continue
+            if _is_feature_deferred(matching_feature):
+                continue
+
+        candidates.append(
+            {
+                "worktree_path": str(resolved_worktree),
+                "project_root": str(candidate_project_root),
+                "branch": _extract_branch_name_from_worktree_ref(entry.get("branch")),
+                "current_feature_id": current_feature_id,
+            }
+        )
+
+    candidates.sort(key=lambda item: str(item.get("worktree_path") or ""))
+    return candidates
+
+
 def _detect_default_branch(project_root: Path) -> Optional[str]:
     """
     Detect repository default branch using origin/HEAD when available.
@@ -6459,7 +6596,10 @@ def analyze_git_auto_preflight() -> Dict[str, Any]:
         or sync_report.get("project_root")
         or str(find_project_root())
     )
-    project_root = Path(project_root_raw)
+    project_root = Path(project_root_raw).resolve()
+    tracker_project_root = find_project_root().resolve()
+    current_worktree_raw = git_context.get("worktree_path") or project_root_raw
+    current_worktree = Path(current_worktree_raw).resolve()
     default_branch = _detect_default_branch(project_root)
 
     branch = git_context.get("branch") or sync_report.get("branch")
@@ -6476,15 +6616,48 @@ def analyze_git_auto_preflight() -> Dict[str, Any]:
         "operation_in_progress",
         "branch_diverged",
         "branch_checked_out_elsewhere",
+        "branch_behind_default",
     }
+
+    default_branch_candidates = {candidate for candidate in (default_branch, "main", "master") if candidate}
+    on_default_branch = branch in default_branch_candidates
+    existing_worktree_candidates: List[Dict[str, Any]] = []
+
+    if (
+        workspace_mode == "worktree"
+        and branch
+        and default_branch
+        and branch not in default_branch_candidates
+    ):
+        behind_default = _count_branch_commits_behind(
+            branch=branch,
+            target_branch=default_branch,
+            project_root=project_root,
+        )
+        if behind_default is not None and behind_default > 0:
+            issues.append(
+                {
+                    "id": "branch_behind_default",
+                    "level": "warning",
+                    "message": (
+                        f"Worktree branch '{branch}' is behind default branch "
+                        f"'{default_branch}' by {behind_default} commit(s)."
+                    ),
+                    "recommendation": (
+                        f"Rebase before continuing: git fetch origin && git rebase {default_branch}"
+                    ),
+                    "behind_count": behind_default,
+                }
+            )
+            issue_ids.add("branch_behind_default")
+            if status == "ok":
+                status = "warning"
+
     triggered_delegate_ids = sorted(
         issue_id
         for issue_id in issue_ids
         if issue_id in delegate_issue_ids
     )
-
-    default_branch_candidates = {candidate for candidate in (default_branch, "main", "master") if candidate}
-    on_default_branch = branch in default_branch_candidates
 
     if triggered_delegate_ids:
         decision = "DELEGATE_GIT_AUTO"
@@ -6493,8 +6666,23 @@ def analyze_git_auto_preflight() -> Dict[str, Any]:
         decision = "DELEGATE_GIT_AUTO"
         reason_codes.append("critical_sync_risk")
     elif on_default_branch and workspace_mode != "worktree":
+        current_feature_id: Optional[int] = None
+        progress_data = load_progress_json()
+        if isinstance(progress_data, dict):
+            raw_feature_id = progress_data.get("current_feature_id")
+            if isinstance(raw_feature_id, int):
+                current_feature_id = raw_feature_id
+
+        existing_worktree_candidates = _find_existing_worktree_candidates_for_feature(
+            repo_root=project_root,
+            tracker_project_root=tracker_project_root,
+            current_worktree=current_worktree,
+            current_feature_id=current_feature_id,
+        )
         decision = "REQUIRE_WORKTREE"
         reason_codes.append("default_branch_feature_work")
+        if existing_worktree_candidates:
+            reason_codes.append("existing_worktree_found")
         if "dirty_worktree" in issue_ids:
             reason_codes.append("dirty_on_default_branch")
     else:
@@ -6509,6 +6697,7 @@ def analyze_git_auto_preflight() -> Dict[str, Any]:
         "reason_codes": reason_codes,
         "default_branch": default_branch,
         "project_root": str(project_root),
+        "existing_worktree_candidates": existing_worktree_candidates,
     }
 
 
