@@ -282,3 +282,133 @@ class TestGitSquashCloseTask:
             cwd=mock_git_repo, capture_output=True, text=True,
         ).stdout
         assert branches.strip() == ""
+
+
+# ---------------------------------------------------------------------------
+# Task 4: _close_current_task() + _close_standalone_task() + _close_feature_bound_task()
+# ---------------------------------------------------------------------------
+
+class TestCloseCurrentTask:
+    def test_close_fails_rc1_when_no_current_task_id(self, tmp_path):
+        _init_project(tmp_path)
+        progress_manager._PROJECT_ROOT_OVERRIDE = tmp_path
+        rc = progress_manager._close_current_task()
+        assert rc == 1
+
+    def test_close_fails_rc1_when_current_task_id_points_to_missing_task(self, tmp_path):
+        _init_project(tmp_path)
+        progress_manager._PROJECT_ROOT_OVERRIDE = tmp_path
+        data = progress_manager.load_progress_json()
+        data["current_task_id"] = "TASK-999"
+        progress_manager.save_progress_json(data)
+        rc = progress_manager._close_current_task()
+        assert rc == 1
+
+    def test_close_fails_rc1_when_task_already_completed(self, tmp_path):
+        _init_project(tmp_path)
+        progress_manager._PROJECT_ROOT_OVERRIDE = tmp_path
+        progress_manager.add_task_item(description="done already")
+        data = progress_manager.load_progress_json()
+        data["tasks"][0]["status"] = "completed"
+        data["current_task_id"] = "TASK-001"
+        progress_manager.save_progress_json(data)
+        rc = progress_manager._close_current_task()
+        assert rc == 1
+
+    def test_close_standalone_task_marks_completed_and_clears_current_task_id(self, tmp_path):
+        _init_project(tmp_path)
+        progress_manager._PROJECT_ROOT_OVERRIDE = tmp_path
+        progress_manager.add_task_item(description="standalone")
+        data = progress_manager.load_progress_json()
+        data["current_task_id"] = "TASK-001"
+        progress_manager.save_progress_json(data)
+
+        with patch.object(
+            progress_manager, "_git_squash_close_task",
+            return_value=(True, "deadbeef"),
+        ):
+            rc = progress_manager._close_current_task()
+
+        assert rc == 0
+        data = progress_manager.load_progress_json()
+        task = data["tasks"][0]
+        assert task["status"] == "completed"
+        assert data.get("current_task_id") is None
+
+    def test_close_standalone_git_failure_does_not_modify_state(self, tmp_path):
+        _init_project(tmp_path)
+        progress_manager._PROJECT_ROOT_OVERRIDE = tmp_path
+        progress_manager.add_task_item(description="standalone")
+        data = progress_manager.load_progress_json()
+        data["current_task_id"] = "TASK-001"
+        progress_manager.save_progress_json(data)
+
+        with patch.object(
+            progress_manager, "_git_squash_close_task",
+            return_value=(False, "merge conflict"),
+        ):
+            rc = progress_manager._close_current_task()
+
+        assert rc == 1
+        data = progress_manager.load_progress_json()
+        assert data["tasks"][0]["status"] == "pending"  # unchanged
+        assert data.get("current_task_id") == "TASK-001"  # unchanged
+
+    def test_close_feature_bound_task_marks_completed_no_git(self, tmp_path):
+        _init_project(tmp_path)
+        progress_manager._PROJECT_ROOT_OVERRIDE = tmp_path
+        fid = _add_feature(tmp_path)
+        progress_manager.add_task_item(description="bounded", parent_feature_id=fid)
+        data = progress_manager.load_progress_json()
+        data["current_task_id"] = "TASK-001"
+        progress_manager.save_progress_json(data)
+
+        git_called = []
+        with patch.object(
+            progress_manager, "_git_squash_close_task",
+            side_effect=lambda **kw: git_called.append(True) or (True, ""),
+        ):
+            rc = progress_manager._close_current_task()
+
+        assert rc == 0
+        assert git_called == []  # git must NOT be called for feature-bound
+        data = progress_manager.load_progress_json()
+        assert data["tasks"][0]["status"] == "completed"
+        assert data.get("current_task_id") is None
+
+    def test_close_feature_bound_task_does_not_auto_close_parent_feature(self, tmp_path):
+        _init_project(tmp_path)
+        progress_manager._PROJECT_ROOT_OVERRIDE = tmp_path
+        fid = _add_feature(tmp_path)
+        progress_manager.add_task_item(description="bounded", parent_feature_id=fid)
+        data = progress_manager.load_progress_json()
+        data["current_task_id"] = "TASK-001"
+        progress_manager.save_progress_json(data)
+
+        rc = progress_manager._close_current_task()
+
+        data = progress_manager.load_progress_json()
+        feature = next(f for f in data["features"] if f["id"] == fid)
+        assert feature.get("completed") is not True
+        assert feature.get("lifecycle_state") != "completed"
+
+    def test_close_json_output_contract(self, tmp_path, capsys):
+        _init_project(tmp_path)
+        progress_manager._PROJECT_ROOT_OVERRIDE = tmp_path
+        progress_manager.add_task_item(description="task")
+        data = progress_manager.load_progress_json()
+        data["current_task_id"] = "TASK-001"
+        progress_manager.save_progress_json(data)
+
+        with patch.object(
+            progress_manager, "_git_squash_close_task",
+            return_value=(True, "abc123"),
+        ):
+            rc = progress_manager._close_current_task(output_json=True)
+
+        out = capsys.readouterr().out
+        payload = json.loads(out.strip().split("\n")[-1])
+        assert "status" in payload
+        assert "closed_task_id" in payload
+        assert "message" in payload
+        assert rc == 0

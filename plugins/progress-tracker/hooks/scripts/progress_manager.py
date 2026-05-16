@@ -8597,6 +8597,101 @@ def _get_head_commit() -> Optional[str]:
     return None
 
 
+def _close_current_task(output_json: bool = False) -> int:
+    """Main dispatch for `prog next --done`. Returns RC 0/1/2."""
+    data = load_progress_json()
+    if not data:
+        msg = "No progress tracking found"
+        if output_json:
+            print(json.dumps({"status": "error", "closed_task_id": None, "message": msg}))
+        else:
+            print(f"Error: {msg}")
+        return 1
+
+    current_task_id = data.get("current_task_id")
+    if not current_task_id:
+        msg = "No active task. Run `prog next` to select a task first."
+        if output_json:
+            print(json.dumps({"status": "error", "closed_task_id": None, "message": msg}))
+        else:
+            print(f"Error: {msg}\nRepair: run `prog next` to activate a task.")
+        return 1
+
+    tasks = data.get("tasks") or []
+    task = next((t for t in tasks if isinstance(t, dict) and t.get("id") == current_task_id), None)
+
+    if task is None:
+        msg = f"Task {current_task_id} not found — clearing stale current_task_id."
+        data["current_task_id"] = None
+        save_progress_json(data)
+        if output_json:
+            print(json.dumps({"status": "error", "closed_task_id": current_task_id, "message": msg}))
+        else:
+            print(f"Error: {msg}")
+        return 1
+
+    if task.get("status") == "completed":
+        msg = f"Task {current_task_id} is already completed."
+        if output_json:
+            print(json.dumps({"status": "error", "closed_task_id": current_task_id, "message": msg}))
+        else:
+            print(f"Error: {msg}\nRepair: run `prog next` to select the next task.")
+        return 1
+
+    parent_fid = task.get("parent_feature_id")
+    if parent_fid is None:
+        return _close_standalone_task(task, data, output_json=output_json)
+    else:
+        return _close_feature_bound_task(task, data, output_json=output_json)
+
+
+def _close_standalone_task(task: dict, data: dict, output_json: bool = False) -> int:
+    """Close a standalone task via git squash-merge. Atomic: git first, state second."""
+    task_id = task["id"]
+    branch = f"task/{task_id}"
+    project_root = find_project_root()
+
+    ok, value = _git_squash_close_task(
+        task_id=task_id, branch=branch, project_root=project_root
+    )
+    if not ok:
+        msg = f"Git squash-merge failed: {value}"
+        if output_json:
+            print(json.dumps({"status": "error", "closed_task_id": task_id, "message": msg}))
+        else:
+            print(f"Error: {msg}")
+        return 1
+
+    # Git succeeded — now update business state
+    task["status"] = "completed"
+    data["current_task_id"] = None
+    data["updated_at"] = _iso_now()
+    save_progress_json(data)
+
+    msg = f"Task {task_id} closed. Squash commit: {value}"
+    if output_json:
+        print(json.dumps({"status": "ok", "closed_task_id": task_id, "message": msg}))
+    else:
+        print(f"[DONE] {msg}")
+    return 0
+
+
+def _close_feature_bound_task(task: dict, data: dict, output_json: bool = False) -> int:
+    """Close a feature-bound task: mark complete, no git ops, no feature auto-close."""
+    task_id = task["id"]
+    task["status"] = "completed"
+    data["current_task_id"] = None
+    data["updated_at"] = _iso_now()
+    save_progress_json(data)
+
+    msg = f"Task {task_id} marked complete. Parent feature not auto-closed."
+    if output_json:
+        print(json.dumps({"status": "ok", "closed_task_id": task_id, "message": msg}))
+    else:
+        print(f"[DONE] {msg}")
+    return 0
+
+
 def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False,
              no_cleanup: bool = False) -> int:
     """Close current feature through deterministic acceptance gatekeeping."""
