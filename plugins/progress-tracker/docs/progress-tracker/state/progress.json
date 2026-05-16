@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-05-16T22:01:29.937663Z",
+  "updated_at": "2026-05-16T22:14:13.595044Z",
   "features": [
     {
       "id": 10,
@@ -1614,7 +1614,7 @@
         "Run: prog next --done on quick_task → confirm close path does not trigger MUTATING_COMMANDS outer lock (no 10s timeout / RC=9).",
         "Run: prog status → actionable updates shown; stale P0/P1 bugs displayed as warnings; hidden-history count shown; list-updates returns full unfiltered history."
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -1624,7 +1624,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "implementing",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-014"
       ],
@@ -1731,9 +1731,28 @@
         "artifact_path": null,
         "created_at": null
       },
-      "plan_path": "docs/plans/2026-05-08-f14-note-visibility-active-vs-history.md",
-      "development_stage": "developing",
-      "started_at": "2026-05-14T18:07:56.904049Z"
+      "plan_path": "docs/plans/2026-05-15-task-execution-semantics.md",
+      "development_stage": "completed",
+      "started_at": "2026-05-14T18:07:56.904049Z",
+      "ai_metrics": {
+        "started_at": "2026-05-16T22:14:13.551571+08:00",
+        "finished_at": "2026-05-16T22:14:13.551571+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-05-16T22:14:13.551604Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-05-16T22:14:13.551610Z",
+      "commit_hash": "17912d8a4838d1a3356283af36eef953e6a7921c",
+      "archive_info": {
+        "archived_at": "2026-05-16T22:14:13.594902Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-05-15-task-execution-semantics.md",
+            "to": "docs/archive/plans/2026-05-15-task-execution-semantics.md"
+          }
+        ]
+      }
     },
     {
       "id": 15,
@@ -2055,7 +2074,7 @@
       "started_at": null
     }
   ],
-  "current_feature_id": 14,
+  "current_feature_id": null,
   "linked_projects": [],
   "linked_snapshot": {
     "schema_version": "1.0",
@@ -2181,18 +2200,18 @@
   ],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-05-14T18:07:56.938949Z",
-    "source": "set_current",
-    "workspace_mode": "in_place",
-    "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
-    "project_root": "/Users/siunin/Projects/Claude-Plugins",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins",
-    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
-    "branch": "main",
-    "upstream": "origin/main",
-    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
-    "current_feature_id": 14,
-    "workflow_phase": "planning",
+    "recorded_at": "2026-05-16T22:14:13.590174Z",
+    "source": "finalize",
+    "workspace_mode": "worktree",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F14-task-execution-semantics",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F14-task-execution-semantics",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F14-task-execution-semantics",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feat+PT-F14-task-execution-semantics",
+    "branch": "worktree-feat+PT-F14-task-execution-semantics",
+    "upstream": "origin/worktree-feat+PT-F14-task-execution-semantics",
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F14-task-execution-semantics/plugins/progress-tracker",
+    "current_feature_id": null,
+    "workflow_phase": null,
     "current_task": null,
     "total_tasks": null,
     "next_action": null
@@ -2321,10 +2340,5 @@
       "next_action": "",
       "created_at": "2026-05-12T22:55:08.086743Z"
     }
-  ],
-  "workflow_state": {
-    "phase": "planning",
-    "updated_at": "2026-05-14T18:07:56.904060Z",
-    "pending_action": "restart_from_planning"
-  }
+  ]
 }

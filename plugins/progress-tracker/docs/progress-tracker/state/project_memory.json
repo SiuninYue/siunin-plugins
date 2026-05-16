@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "created_at": "2026-04-12T09:38:02.910760Z",
-  "updated_at": "2026-05-11T07:48:13.419171Z",
-  "next_capability_seq": 21,
+  "updated_at": "2026-05-16T14:14:13.602392Z",
+  "next_capability_seq": 22,
   "last_synced_commit": null,
   "capabilities": [
     {
@@ -383,6 +383,22 @@
       },
       "created_at": "2026-05-11T07:48:13.419112Z",
       "updated_at": "2026-05-11T07:48:13.419112Z"
+    },
+    {
+      "cap_id": "CAP-021",
+      "fingerprint": "a5236919850aadf3",
+      "title": "Task execution semantics and visibility (standalone task vs feature task) with profile-aware done gates",
+      "summary": "Completed feature 14: Task execution semantics and visibility (standalone task vs feature task) with profile-aware done gates",
+      "tags": [],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 14,
+        "commit_hash": "17912d8a4838d1a3356283af36eef953e6a7921c",
+        "commit_range": ""
+      },
+      "created_at": "2026-05-16T14:14:13.602363Z",
+      "updated_at": "2026-05-16T14:14:13.602363Z"
     }
   ],
   "rejected_fingerprints": [],

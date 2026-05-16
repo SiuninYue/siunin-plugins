@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "Test",
   "created_at": "2026-05-14T13:53:00.008608Z",
-  "updated_at": "2026-05-14T18:07:54.432180Z",
+  "updated_at": "2026-05-16T22:14:13.616048Z",
   "features": [],
   "current_feature_id": null,
   "tracker_role": "parent",
@@ -32,8 +32,57 @@
   ],
   "linked_snapshot": {
     "schema_version": "1.0",
-    "updated_at": null,
-    "projects": []
+    "updated_at": "2026-05-16T22:14:13.615920Z",
+    "projects": [
+      {
+        "status": "ok",
+        "configured_project_root": "plugins/note-organizer",
+        "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F14-task-execution-semantics/plugins/note-organizer",
+        "project_name": "Note Organizer Plugin",
+        "completed": 0,
+        "total": 0,
+        "completion_rate": 0.0,
+        "updated_at": "2026-05-14T13:53:00.143696Z",
+        "is_stale": true,
+        "active_feature_ref": null,
+        "project_code": "NO",
+        "child_project_code": "NO",
+        "workspace": "in_place",
+        "route_status": "idle"
+      },
+      {
+        "status": "ok",
+        "configured_project_root": "plugins/progress-tracker",
+        "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F14-task-execution-semantics/plugins/progress-tracker",
+        "project_name": "progress-tracker-sop-compliance-optimization",
+        "completed": 15,
+        "total": 18,
+        "completion_rate": 0.8333333333333334,
+        "updated_at": "2026-05-16T22:14:13.595044Z",
+        "is_stale": false,
+        "active_feature_ref": null,
+        "project_code": "PT",
+        "child_project_code": "PT",
+        "workspace": "worktree",
+        "route_status": "active"
+      },
+      {
+        "status": "ok",
+        "configured_project_root": "plugins/super-product-manager",
+        "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F14-task-execution-semantics/plugins/super-product-manager",
+        "project_name": "SPM-PROG Harness Linkage",
+        "completed": 0,
+        "total": 0,
+        "completion_rate": 0.0,
+        "updated_at": "2026-05-14T13:53:00.149696Z",
+        "is_stale": true,
+        "active_feature_ref": null,
+        "project_code": "SPM",
+        "child_project_code": "SPM",
+        "workspace": "in_place",
+        "route_status": "idle"
+      }
+    ]
   },
   "active_routes": [
     {
