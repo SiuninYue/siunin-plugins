@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-05-16T22:41:30.451516Z",
+  "updated_at": "2026-05-16T22:53:31.274337Z",
   "features": [
     {
       "id": 10,
@@ -1774,7 +1774,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "approved",
+      "lifecycle_state": "implementing",
       "requirement_ids": [
         "REQ-015"
       ],
@@ -1806,9 +1806,17 @@
           "evaluator_model": null
         },
         "reviews": {
-          "required": [],
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
           "passed": [],
-          "pending": []
+          "pending": [
+            "docs",
+            "eng",
+            "qa"
+          ]
         },
         "ship_check": {
           "status": "pending",
@@ -1840,7 +1848,9 @@
         "artifact_path": null,
         "created_at": null
       },
-      "plan_path": "docs/plans/2026-05-11-f15-prog-fix-debug-methodology.md"
+      "plan_path": "docs/plans/2026-05-11-f15-prog-fix-debug-methodology.md",
+      "development_stage": "developing",
+      "started_at": "2026-05-16T22:53:31.243640Z"
     },
     {
       "id": 16,
@@ -2074,7 +2084,7 @@
       "started_at": null
     }
   ],
-  "current_feature_id": null,
+  "current_feature_id": 15,
   "linked_projects": [],
   "linked_snapshot": {
     "schema_version": "1.0",
@@ -2200,18 +2210,18 @@
   ],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-05-16T22:14:13.590174Z",
-    "source": "finalize",
-    "workspace_mode": "worktree",
-    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F14-task-execution-semantics",
-    "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F14-task-execution-semantics",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F14-task-execution-semantics",
-    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feat+PT-F14-task-execution-semantics",
-    "branch": "worktree-feat+PT-F14-task-execution-semantics",
-    "upstream": "origin/worktree-feat+PT-F14-task-execution-semantics",
-    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F14-task-execution-semantics/plugins/progress-tracker",
-    "current_feature_id": null,
-    "workflow_phase": null,
+    "recorded_at": "2026-05-16T22:53:31.273955Z",
+    "source": "set_current",
+    "workspace_mode": "in_place",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
+    "branch": "main",
+    "upstream": "origin/main",
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+    "current_feature_id": 15,
+    "workflow_phase": "planning",
     "current_task": null,
     "total_tasks": null,
     "next_action": null
@@ -2358,5 +2368,10 @@
       "next_action": "",
       "created_at": "2026-05-12T22:55:08.086743Z"
     }
-  ]
+  ],
+  "current_task_id": "TASK-001",
+  "workflow_state": {
+    "phase": "planning",
+    "updated_at": "2026-05-16T22:53:31.243652Z"
+  }
 }

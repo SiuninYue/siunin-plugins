@@ -21,10 +21,22 @@
 - [x] Unified work-item intake and profile routing (task/feature/bug) via /prog next
 - [x] Task execution semantics and visibility (standalone task vs feature task) with profile-aware done gates
 
-## Pending
+## In Progress
 - [ ] prog-fix skill 嵌入4阶段调试方法论
+  **Test steps**:
+  - Scenario 3 新增结构化证据收集步骤：明确列出复现路径、错误日志、输入输出对比
+  - Scenario 3 新增触发模式分析步骤：识别稳定触发条件和边界条件
+  - 假设建立环节加入唯一性验证检查：排除竞争假设后确认该假设是唯一成立原因
+  - TDD 完成后加显式回归检查项：确认问题A已消失且功能B未受影响
+  - 原有 systematic-debugging / TDD / git-auto 委托调用不受影响，Scenario 1 和 Scenario 2 保持原样
+
+## Pending
 - [ ] Git Squash Merge SOP — 集成到 prog-done 自动化流程
 - [ ] Parent-Child Route 同步：子插件 set_current/done 回写父 active_routes
+
+## Workflow Context
+- Phase: planning
+- Current session context: main @ Claude-Plugins [in_place]
 
 ## Recent Updates
 - [UPD-002] decision: F14 planning frozen: /prog note visibility split into active memo vs history (feature:14)
