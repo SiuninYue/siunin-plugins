@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-05-16T22:14:13.595044Z",
+  "updated_at": "2026-05-16T22:41:30.451516Z",
   "features": [
     {
       "id": 10,
@@ -2322,6 +2322,24 @@
       "priority": "medium",
       "category": "technical_debt",
       "created_at": "2026-05-16T21:40:55.937172Z",
+      "quick_verification": {}
+    },
+    {
+      "id": "BUG-010",
+      "description": "P0: standalone task 分支从当前 HEAD 创建而非默认分支，可能把无关改动一起 squash 到默认分支",
+      "status": "fixed",
+      "priority": "high",
+      "category": "bug",
+      "created_at": "2026-05-16T22:41:30.281847Z",
+      "quick_verification": {}
+    },
+    {
+      "id": "BUG-011",
+      "description": "P0: squash merge/commit 失败后回滚不完整 — reset --mixed 不清理 worktree 冲突内容，未切回原分支",
+      "status": "fixed",
+      "priority": "high",
+      "category": "bug",
+      "created_at": "2026-05-16T22:41:30.451435Z",
       "quick_verification": {}
     }
   ],
