@@ -6267,15 +6267,19 @@ def _git_squash_close_task(
     # Step 2: squash merge
     rc, _, err = _run_git(["merge", "--squash", branch], cwd=cwd)
     if rc != 0:
-        # Roll back any partial index changes
-        _run_git(["reset", "--mixed", "HEAD"], cwd=cwd)
+        # Hard-reset to clean index + worktree (safe: pre-condition 2
+        # guarantees a clean working tree at entry), then return to the
+        # task branch so the user isn't stranded on the base branch.
+        _run_git(["reset", "--hard", "HEAD"], cwd=cwd)
+        _run_git(["checkout", branch], cwd=cwd)
         return False, f"git merge --squash failed: {err}"
 
     # Step 3: commit
     commit_msg = f"squash merge {task_id}: close standalone task"
     rc, _, err = _run_git(["commit", "-m", commit_msg], cwd=cwd)
     if rc != 0:
-        _run_git(["reset", "--mixed", "HEAD"], cwd=cwd)
+        _run_git(["reset", "--hard", "HEAD"], cwd=cwd)
+        _run_git(["checkout", branch], cwd=cwd)
         return False, f"git commit failed: {err}"
 
     # Step 4: get commit hash
@@ -7698,8 +7702,11 @@ def next_feature(output_json: bool = False, ack_planning_risk: bool = False) -> 
                         )
                         if rc_orig == 0:
                             original_branch = orig_out.strip()
+                        # Branch from the default branch, not current HEAD,
+                        # to avoid carrying unrelated changes into the squash merge.
+                        task_base = _detect_default_branch(project_root) or "main"
                         rc, _, err = _run_git(
-                            ["checkout", "-b", branch_name],
+                            ["checkout", "-b", branch_name, task_base],
                             cwd=str(project_root),
                         )
                         if rc != 0:
@@ -7860,8 +7867,11 @@ def next_feature(output_json: bool = False, ack_planning_risk: bool = False) -> 
                     )
                     if rc_orig == 0:
                         original_branch = orig_out.strip()
+                    # Branch from the default branch, not current HEAD,
+                    # to avoid carrying unrelated changes into the squash merge.
+                    task_base = _detect_default_branch(project_root) or "main"
                     rc, _, err = _run_git(
-                        ["checkout", "-b", branch_name],
+                        ["checkout", "-b", branch_name, task_base],
                         cwd=str(project_root),
                     )
                     if rc != 0:
