@@ -178,3 +178,107 @@ class TestNextFeatureTaskActivation:
             progress_manager.next_feature()
         data = progress_manager.load_progress_json()
         assert data.get("current_task_id") is None
+
+
+# ---------------------------------------------------------------------------
+# Task 3: _git_squash_close_task() helper
+# ---------------------------------------------------------------------------
+
+class TestGitSquashCloseTask:
+    def test_squash_close_succeeds_and_returns_commit_hash(self, mock_git_repo):
+        """Unit: mock _run_git to verify call sequence."""
+        progress_manager.configure_project_scope(str(mock_git_repo))
+        progress_manager._PROJECT_ROOT_OVERRIDE = mock_git_repo
+
+        call_log = []
+        def fake_run_git(args, cwd=None, timeout=5):
+            call_log.append(args)
+            if args[0] == "rev-parse":
+                return 0, "abc123", ""
+            return 0, "", ""
+
+        with patch.object(progress_manager, "_run_git", side_effect=fake_run_git):
+            ok, value = progress_manager._git_squash_close_task(
+                task_id="TASK-001",
+                branch="task/TASK-001",
+                project_root=mock_git_repo,
+            )
+
+        assert ok is True
+        assert value == "abc123"
+        # Verify sequence: show-ref (branch check), status, checkout, merge --squash, commit, branch -d
+        cmds = [c[0] for c in call_log]
+        assert "checkout" in cmds
+        assert "merge" in cmds
+        assert "commit" in cmds
+        assert "branch" in cmds
+
+    def test_squash_close_fails_if_branch_missing(self, mock_git_repo):
+        progress_manager.configure_project_scope(str(mock_git_repo))
+        progress_manager._PROJECT_ROOT_OVERRIDE = mock_git_repo
+
+        def fake_run_git(args, cwd=None, timeout=5):
+            if args[0] == "show-ref":
+                return 1, "", "not found"  # branch does not exist
+            return 0, "", ""
+
+        with patch.object(progress_manager, "_run_git", side_effect=fake_run_git):
+            ok, msg = progress_manager._git_squash_close_task(
+                task_id="TASK-001",
+                branch="task/TASK-001",
+                project_root=mock_git_repo,
+            )
+
+        assert ok is False
+        assert "not found" in msg.lower() or "branch" in msg.lower()
+
+    def test_squash_close_integration(self, mock_git_repo):
+        """Integration: real git ops — verifies main+1 commit and branch deleted."""
+        import subprocess
+        progress_manager.configure_project_scope(str(mock_git_repo))
+        progress_manager._PROJECT_ROOT_OVERRIDE = mock_git_repo
+        progress_manager.init_tracking("Test", force=True)
+        subprocess.run(["git", "add", "."], cwd=mock_git_repo, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "init"], cwd=mock_git_repo, capture_output=True)
+
+        # Get commit count on main before
+        before = subprocess.run(
+            ["git", "rev-list", "--count", "HEAD"],
+            cwd=mock_git_repo, capture_output=True, text=True,
+        ).stdout.strip()
+
+        # Detect default branch dynamically (mock_git_repo fixture may use main or master)
+        default_branch = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=mock_git_repo, capture_output=True, text=True,
+        ).stdout.strip() or "main"
+
+        # Create a task branch with a commit, then return to default branch
+        subprocess.run(["git", "checkout", "-b", "task/TASK-001"], cwd=mock_git_repo, capture_output=True)
+        (mock_git_repo / "task_work.txt").write_text("some work")
+        subprocess.run(["git", "add", "task_work.txt"], cwd=mock_git_repo, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "task work"], cwd=mock_git_repo, capture_output=True)
+        subprocess.run(["git", "checkout", default_branch], cwd=mock_git_repo, capture_output=True)
+
+        ok, commit_hash = progress_manager._git_squash_close_task(
+            task_id="TASK-001",
+            branch="task/TASK-001",
+            project_root=mock_git_repo,
+        )
+
+        assert ok is True
+        assert len(commit_hash) >= 7
+
+        # main has exactly +1 commit
+        after = subprocess.run(
+            ["git", "rev-list", "--count", "HEAD"],
+            cwd=mock_git_repo, capture_output=True, text=True,
+        ).stdout.strip()
+        assert int(after) == int(before) + 1
+
+        # task branch is deleted
+        branches = subprocess.run(
+            ["git", "branch", "--list", "task/TASK-001"],
+            cwd=mock_git_repo, capture_output=True, text=True,
+        ).stdout
+        assert branches.strip() == ""

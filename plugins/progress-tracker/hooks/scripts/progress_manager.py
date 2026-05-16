@@ -6014,6 +6014,82 @@ def _detect_default_branch(project_root: Path) -> Optional[str]:
     return None
 
 
+def _git_squash_close_task(
+    task_id: str,
+    branch: str,
+    project_root: Optional[Path] = None,
+    base_branch: Optional[str] = None,
+) -> Tuple[bool, str]:
+    """Execute git squash-merge sequence for a standalone task branch.
+
+    Returns (True, commit_hash) on success, (False, error_message) on failure.
+    On success, base_branch has exactly +1 commit and branch is deleted.
+    """
+    if project_root is None:
+        project_root = find_project_root()
+
+    cwd = str(project_root)
+
+    # Resolve base branch
+    if base_branch is None:
+        base_branch = _detect_default_branch(project_root)
+    if not base_branch:
+        for _candidate in ("main", "master"):
+            _rc_br, _, _ = _run_git(
+                ["show-ref", "--verify", "--quiet", f"refs/heads/{_candidate}"], cwd=cwd
+            )
+            if _rc_br == 0:
+                base_branch = _candidate
+                break
+    if not base_branch:
+        return False, "cannot determine default branch (tried main and master)"
+
+    # Pre-condition 1: branch must exist
+    rc, _, _ = _run_git(["show-ref", "--verify", "--quiet", f"refs/heads/{branch}"], cwd=cwd)
+    if rc != 0:
+        return False, f"branch '{branch}' not found in local repo"
+
+    # Pre-condition 2: working tree must be clean
+    rc, stdout, _ = _run_git(["status", "--porcelain"], cwd=cwd)
+    if rc != 0 or stdout.strip():
+        return False, f"working tree is dirty; commit or stash changes first"
+
+    # Step 1: checkout base branch
+    rc, _, err = _run_git(["checkout", base_branch], cwd=cwd)
+    if rc != 0:
+        return False, f"checkout {base_branch} failed: {err}"
+
+    # Step 2: squash merge
+    rc, _, err = _run_git(["merge", "--squash", branch], cwd=cwd)
+    if rc != 0:
+        # Roll back any partial index changes
+        _run_git(["reset", "--mixed", "HEAD"], cwd=cwd)
+        return False, f"git merge --squash failed: {err}"
+
+    # Step 3: commit
+    commit_msg = f"squash merge {task_id}: close standalone task"
+    rc, _, err = _run_git(["commit", "-m", commit_msg], cwd=cwd)
+    if rc != 0:
+        _run_git(["reset", "--mixed", "HEAD"], cwd=cwd)
+        return False, f"git commit failed: {err}"
+
+    # Step 4: get commit hash
+    rc, commit_hash, _ = _run_git(["rev-parse", "HEAD"], cwd=cwd)
+    commit_hash = commit_hash.strip() if rc == 0 else ""
+
+    # Step 5: delete task branch (force delete; squash merge doesn't create merge commit)
+    rc, _, err = _run_git(["branch", "-D", branch], cwd=cwd)
+    if rc != 0:
+        return (
+            False,
+            f"squash commit succeeded ({commit_hash[:8] if commit_hash else '?'}) "
+            f"but branch deletion failed: {err}. "
+            f"Manually run: git branch -D {branch}  then retry: prog next --done"
+        )
+
+    return True, commit_hash
+
+
 def _local_and_origin_ref_candidates(ref: str) -> Tuple[str, ...]:
     """Return deduplicated local+origin ref candidates for ancestry checks."""
     normalized = str(ref or "").strip()
