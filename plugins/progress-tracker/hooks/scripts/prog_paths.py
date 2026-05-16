@@ -113,9 +113,15 @@ def resolve_target_project_root(
     - else if cwd is under repo/plugins/<name>: select that plugin root
     - else if repo has plugins/: fail (ambiguous)
     - else: use repo root (single-project repo)
+
+    Environment:
+    - PROGRESS_TRACKER_SKIP_REPO_CHECK=1: bypass repo-root validation when
+      --project-root is provided, using it directly. For test use only.
     """
     current = (cwd or Path.cwd()).resolve()
     repo_root = resolve_repo_root(current)
+
+    _skip_repo_check = __import__("os").environ.get("PROGRESS_TRACKER_SKIP_REPO_CHECK") == "1"
 
     if project_root_arg:
         raw_candidate = Path(project_root_arg)
@@ -134,7 +140,7 @@ def resolve_target_project_root(
         for candidate in candidate_paths:
             if not candidate.exists() or not candidate.is_dir():
                 continue
-            if not _is_relative_to(candidate, repo_root):
+            if not _skip_repo_check and not _is_relative_to(candidate, repo_root):
                 raise ProjectRootResolutionError(
                     f"--project-root must be inside repository root: {repo_root}"
                 )

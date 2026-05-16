@@ -278,6 +278,7 @@ MUTATING_COMMANDS = {
     "sync-runtime-context",
     "restore-archive",
     "add-bug",
+    "add-task",
     "update-bug",
     "remove-bug",
     "prioritize",
@@ -10021,6 +10022,7 @@ def add_task_item(
     next_action: str = "",
     priority: str = "P1",
     workflow_profile: str = WORKFLOW_PROFILE_DEFAULT,
+    parent_feature_id: Optional[int] = None,
 ) -> Optional[str]:
     """Write a standalone task item to tasks[].
 
@@ -10058,6 +10060,15 @@ def add_task_item(
     # Defensive copy of refs to avoid aliasing mutation
     refs = list(refs) if refs else []
 
+    # Validate parent_feature_id if provided
+    if parent_feature_id is not None:
+        data_check = load_progress_json()
+        if data_check:
+            features = data_check.get("features", [])
+            if not any(f.get("id") == parent_feature_id for f in features):
+                print(f"Error: feature {parent_feature_id} not found")
+                return None
+
     data = load_progress_json()
     if not data:
         print("No progress tracking found. Use init first.")
@@ -10083,6 +10094,7 @@ def add_task_item(
         "refs": refs,
         "next_action": next_action.strip() if next_action else "",
         "created_at": _iso_now(),
+        "parent_feature_id": parent_feature_id,
     }
 
     tasks.append(new_task)
@@ -11522,6 +11534,33 @@ def main():
         help="Acknowledge planning preflight warnings and continue selection",
     )
 
+    # PT-F14: `add-task` direct task creation CLI.
+    add_task_parser = subparsers.add_parser(
+        "add-task",
+        help="Create a new task item",
+    )
+    add_task_parser.add_argument(
+        "--description", required=True, help="Task description"
+    )
+    add_task_parser.add_argument(
+        "--feature-id", type=int, dest="feature_id", default=None,
+        help="Bind to parent feature ID (mutually exclusive with --workflow-profile quick_task)",
+    )
+    add_task_parser.add_argument(
+        "--workflow-profile",
+        choices=sorted(WORKFLOW_PROFILE_VALUES),
+        default=WORKFLOW_PROFILE_DEFAULT,
+        dest="workflow_profile",
+        help="Workflow profile",
+    )
+    add_task_parser.add_argument(
+        "--priority", choices=["P0", "P1", "P2"], default="P1",
+        help="Task priority",
+    )
+    add_task_parser.add_argument(
+        "--details", default="", help="Extended details",
+    )
+
     # PT-F13: ``smart`` deterministic work-item intake executor.
     smart_parser = subparsers.add_parser(
         "smart",
@@ -12358,6 +12397,19 @@ def main():
                 logger.error(f"Unexpected error adding bug: {e}")
                 print(f"Error: Failed to add bug - {e}")
                 return False
+        if args.command == "add-task":
+            # Mutual exclusion: --feature-id + quick_task profile
+            if args.feature_id is not None and args.workflow_profile == "quick_task":
+                print("Error: --feature-id and --workflow-profile quick_task are mutually exclusive")
+                return 2
+            task_id = add_task_item(
+                description=args.description,
+                details=args.details,
+                priority=args.priority,
+                workflow_profile=args.workflow_profile,
+                parent_feature_id=args.feature_id,
+            )
+            return 0 if task_id is not None else 1
         if args.command == "update-bug":
             return update_bug(
                 bug_id=args.bug_id,
