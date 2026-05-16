@@ -37,6 +37,40 @@ Record a structured progress update (status/decision/risk/handoff/assignment/mee
 
 Start the next pending feature with deterministic complexity routing.
 
+### `/progress-tracker:prog-next` — `prog next --done`
+
+Close the currently active task.
+
+- **Standalone task** (`parent_feature_id=null`): squash-merges the task branch into the default branch, deletes the branch, adds exactly 1 commit. No feature done-gate is triggered.
+- **Feature-bound task** (`parent_feature_id` set): marks the task completed and advances parent feature task-progress counter. Parent feature is **not** auto-closed.
+
+**RC semantics:** 0 = success; 1 = precondition failure (no active task, invalid state); 2 = parameter error.
+
+```bash
+prog next --done           # close current task (human-readable output)
+prog next --done --json    # machine-readable: {"status","closed_task_id","message"}
+```
+
+### `/progress-tracker:prog-add-task` — `prog add-task`
+
+Create a new task item.
+
+```bash
+prog add-task --description "Fix typo in README"
+prog add-task --description "Implement login" --feature-id 3
+prog add-task --description "Quick cleanup" --workflow-profile quick_task --priority P0
+```
+
+**Constraints:**
+- `--feature-id` must reference an existing feature (RC=1 if not found).
+- `--feature-id` and `--workflow-profile quick_task` are mutually exclusive (RC=2).
+
+### Ghost Commands (do NOT use)
+
+| Command | Correct replacement |
+|---------|---------------------|
+| `prog start-task <id>` | `prog next --done` |
+
 ### `/progress-tracker:prog-done` (alias: `/prog-done`)
 
 Run acceptance verification and complete the current feature.
@@ -124,7 +158,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-feature <nam
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py undo
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py reset [--force]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-update --category <category> --summary "<summary>" [--details "<details>"] [--feature-id <id>] [--bug-id <BUG-ID>] [--role <role>] [--owner "<owner>"] [--source <source>] [--next-action "<next>"] [--ref <token> ...]
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-updates [--limit <n>]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-updates [--limit <n>]  (--limit 0 = all)
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-feature-owner <feature_id> <architecture|coding|testing> "<owner|none>"
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-bug --description "<desc>" [--status <status>] [--priority <high|medium|low>] [--category <bug|technical_debt>]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug --bug-id "BUG-XXX" [--status <status>] [--root-cause "<cause>"] [--fix-summary "<summary>"]
@@ -262,7 +296,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-feature <nam
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py undo
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py reset [--force]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-update --category <category> --summary "<summary>" [--details "<details>"] [--feature-id <id>] [--bug-id <BUG-ID>] [--role <role>] [--owner "<owner>"] [--source <source>] [--next-action "<next>"] [--ref <token> ...]
-python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-updates [--limit <n>]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-updates [--limit <n>]  (--limit 0 = all)
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-feature-owner <feature_id> <architecture|coding|testing> "<owner|none>"
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-bug --description "<desc>" [--status <status>] [--priority <high|medium|low>] [--category <bug|technical_debt>]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug --bug-id "BUG-XXX" [--status <status>] [--root-cause "<cause>"] [--fix-summary "<summary>"]
