@@ -175,9 +175,10 @@ STATE_DIR_NAMES = [
     "test_reports",
     "progress_archive",
 ]
-# Superpowers writing-plans standard: docs/plans/
+# Superpowers writing-plans standard: docs/plans/ and docs/superpowers/plans/
 PLAN_PATH_PREFIX = "docs/plans/"
-VALID_PLAN_PREFIXES = (PLAN_PATH_PREFIX,)
+SUPERPOWERS_PLAN_PATH_PREFIX = "docs/superpowers/plans/"
+VALID_PLAN_PREFIXES = (PLAN_PATH_PREFIX, SUPERPOWERS_PLAN_PATH_PREFIX)
 PROGRESS_ARCHIVE_MAX_ENTRIES = 200
 PROGRESS_LOCK_FILE = "progress.lock"
 PROGRESS_LOCK_TIMEOUT_SECONDS = 10.0
@@ -577,8 +578,9 @@ def validate_plan_path(
     """
     Validate workflow plan path shape and optional existence.
 
-    Accepted format:
-    - docs/plans/<YYYY-MM-DD-name>.md  (Superpowers writing-plans standard)
+    Accepted formats:
+    - docs/plans/<YYYY-MM-DD-name>.md
+    - docs/superpowers/plans/<YYYY-MM-DD-name>.md  (writing-plans skill)
     """
     if plan_path is None:
         return {"valid": True, "normalized_path": None, "error": None}
@@ -598,7 +600,10 @@ def validate_plan_path(
         return {
             "valid": False,
             "normalized_path": None,
-            "error": f"plan_path must be a relative path under '{PLAN_PATH_PREFIX}' ending with .md (e.g. {PLAN_PATH_PREFIX}YYYY-MM-DD-name.md)",
+            "error": (
+                f"plan_path must be under '{PLAN_PATH_PREFIX}' or "
+                f"'{SUPERPOWERS_PLAN_PATH_PREFIX}' ending with .md"
+            ),
         }
 
     if not normalized.endswith(".md"):
@@ -616,14 +621,31 @@ def validate_plan_path(
         }
 
     if require_exists:
-        base_root = target_root or find_project_root()
+        base_root = (target_root or find_project_root()).resolve()
         absolute_path = base_root / normalized
         if not absolute_path.exists():
-            return {
-                "valid": False,
-                "normalized_path": None,
-                "error": f"plan_path does not exist: {normalized}",
-            }
+            # Walk up to git root to find plan files written by writing-plans
+            # skill at the repo/worktree root level (e.g. docs/superpowers/plans/).
+            found = False
+            try:
+                git_root = _resolve_repo_root(base_root).resolve()
+            except Exception:
+                git_root = None
+            cursor = base_root
+            while True:
+                cursor = cursor.parent
+                if (cursor / normalized).exists():
+                    found = True
+                    break
+                # Stop after checking git root (or filesystem root).
+                if (git_root is not None and cursor == git_root) or cursor == cursor.parent:
+                    break
+            if not found:
+                return {
+                    "valid": False,
+                    "normalized_path": None,
+                    "error": f"plan_path does not exist: {normalized}",
+                }
 
     return {"valid": True, "normalized_path": normalized, "error": None}
 

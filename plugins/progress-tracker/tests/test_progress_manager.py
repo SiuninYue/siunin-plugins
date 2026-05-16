@@ -1711,6 +1711,56 @@ class TestWorkflowStateEdgeCases:
         result = progress_manager._normalize_plan_path_cli_arg("", temp_dir)
         assert result == ""
 
+    def test_validate_plan_path_accepts_superpowers_plans(self):
+        """Should accept docs/superpowers/plans/ paths (writing-plans skill standard)."""
+        result = progress_manager.validate_plan_path(
+            "docs/superpowers/plans/2026-05-15-feature.md"
+        )
+        assert result["valid"] is True
+        assert result["normalized_path"] == "docs/superpowers/plans/2026-05-15-feature.md"
+
+    def test_validate_plan_path_finds_plan_in_parent_dir(self, tmp_path):
+        """Should find plan file located in a parent directory (monorepo/worktree case)."""
+        from pathlib import Path
+        # Simulate plugin project_root
+        plugin_root = tmp_path / "plugins" / "my-plugin"
+        plugin_root.mkdir(parents=True)
+        state_dir = plugin_root / "docs" / "progress-tracker" / "state"
+        state_dir.mkdir(parents=True)
+        (state_dir / "progress.json").write_text(
+            json.dumps({"project_name": "Test", "features": []}), encoding="utf-8"
+        )
+
+        # Plan is at repo root level (parent of plugin dir)
+        plans_dir = tmp_path / "docs" / "superpowers" / "plans"
+        plans_dir.mkdir(parents=True)
+        plan_file = plans_dir / "2026-05-15-feature.md"
+        plan_file.write_text("# Plan", encoding="utf-8")
+
+        # Validate from plugin_root; should find plan by walking up to repo root
+        result = progress_manager.validate_plan_path(
+            "docs/superpowers/plans/2026-05-15-feature.md",
+            require_exists=True,
+            target_root=plugin_root,
+        )
+        assert result["valid"] is True
+
+    def test_set_workflow_state_accepts_superpowers_plan_path(self, in_progress_file):
+        """set_workflow_state should accept docs/superpowers/plans/ paths."""
+        plans_dir = Path("docs/superpowers/plans")
+        plans_dir.mkdir(parents=True)
+        (plans_dir / "f14-plan.md").write_text("# Plan\n\n**Goal:** Test\n", encoding="utf-8")
+
+        result = progress_manager.set_workflow_state(
+            phase="planning:review",
+            plan_path="docs/superpowers/plans/f14-plan.md",
+        )
+        assert result is True
+
+        data = progress_manager.load_progress_json()
+        assert data["workflow_state"]["plan_path"] == "docs/superpowers/plans/f14-plan.md"
+        assert data["workflow_state"]["phase"] == "planning:review"
+
     def test_set_workflow_state_execution_requires_existing_plan(self, in_progress_file):
         """Should fail if execution phase references a missing plan file."""
         result = progress_manager.set_workflow_state(
