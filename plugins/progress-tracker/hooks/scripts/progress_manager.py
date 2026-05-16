@@ -7126,7 +7126,7 @@ def _select_next_work_item(
             "id": task_id,
             "name": task.get("description", task_id),
             "priority_tier": None,
-            "action": f"prog start-task {task_id}",
+            "action": "prog next --done",
             "dispatched_to": "task",
         }
 
@@ -7342,7 +7342,35 @@ def next_feature(output_json: bool = False, ack_planning_risk: bool = False) -> 
             if item_type == "task":
                 task_id = work_item["id"]
                 task_name = work_item["name"]
-                action = work_item.get("action") or f"prog start-task {task_id}"
+                # Look up full task record to check parent_feature_id.
+                tasks = data.get("tasks") or []
+                task_record = next(
+                    (t for t in tasks if isinstance(t, dict) and t.get("id") == task_id),
+                    None,
+                )
+                parent_fid = task_record.get("parent_feature_id") if task_record else None
+                is_standalone = parent_fid is None
+
+                if is_standalone:
+                    # Create short-lived branch before activating.
+                    branch_name = f"task/{task_id}"
+                    rc, _, err = _run_git(
+                        ["checkout", "-b", branch_name],
+                        cwd=str(project_root),
+                    )
+                    if rc != 0:
+                        print(f"Error: could not create branch {branch_name}: {err}")
+                        return False
+
+                # Persist current_task_id after branch (standalone) or immediately (feature-bound).
+                try:
+                    data["current_task_id"] = task_id
+                    data["updated_at"] = _iso_now()
+                    save_progress_json(data)
+                except Exception as exc:
+                    logger.debug(f"Task activation bookkeeping failed: {exc}")
+
+                action = "prog next --done"
                 if output_json:
                     print(json.dumps({
                         "status": "ok",
@@ -7351,11 +7379,11 @@ def next_feature(output_json: bool = False, ack_planning_risk: bool = False) -> 
                         "name": task_name,
                         "priority_tier": None,
                         "action": action,
-                        "feature_id": None,
+                        "feature_id": parent_fid,
                         "test_steps": [],
                     }, ensure_ascii=False))
                 else:
-                    print(f"[NEXT] Task: {task_id}")
+                    print(f"Task selected: {task_id}")
                     print(f"{task_id}: {task_name}")
                     print(f"Run: {action}")
                 return True
@@ -7456,6 +7484,59 @@ def next_feature(output_json: bool = False, ack_planning_risk: bool = False) -> 
                 }, ensure_ascii=False))
             else:
                 print(no_action_msg)
+            return True
+
+    # Standalone task activation (non-parent / leaf projects).
+    if data:
+        tasks = data.get("tasks") or []
+        pending_task = next(
+            (t for t in tasks if isinstance(t, dict) and t.get("status") == "pending"),
+            None,
+        )
+        if pending_task is not None:
+            task_id = pending_task.get("id")
+            task_name = pending_task.get("description", task_id)
+            parent_fid = pending_task.get("parent_feature_id")
+            is_standalone = parent_fid is None
+
+            if is_standalone:
+                project_root = find_project_root()
+                branch_name = f"task/{task_id}"
+                # Only attempt branch creation inside a git repo.
+                git_dir = project_root / ".git"
+                if git_dir.exists():
+                    rc, _, err = _run_git(
+                        ["checkout", "-b", branch_name],
+                        cwd=str(project_root),
+                    )
+                    if rc != 0:
+                        print(f"Error: could not create branch {branch_name}: {err}")
+                        return False
+
+            # Persist current_task_id.
+            try:
+                data["current_task_id"] = task_id
+                data["updated_at"] = _iso_now()
+                save_progress_json(data)
+            except Exception as exc:
+                logger.debug(f"Task activation bookkeeping failed: {exc}")
+
+            action = "prog next --done"
+            if output_json:
+                print(json.dumps({
+                    "status": "ok",
+                    "item_type": "task",
+                    "id": task_id,
+                    "name": task_name,
+                    "priority_tier": None,
+                    "action": action,
+                    "feature_id": parent_fid,
+                    "test_steps": [],
+                }, ensure_ascii=False))
+            else:
+                print(f"Task selected: {task_id}")
+                print(f"{task_id}: {task_name}")
+                print(f"Run: {action}")
             return True
 
     feature = get_next_feature()
