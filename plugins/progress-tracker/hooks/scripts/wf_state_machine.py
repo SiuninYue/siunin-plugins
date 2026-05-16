@@ -24,7 +24,7 @@ work-item intake flow（F13）：
 - intake:committed  → "route_to_queue"
 
 task lifecycle（F13 定义常量，F14 接入执行语义）：
-- task:pending → "start_task"
+- task:pending → "next"
 - task:active  → "complete_task"
 - task:done    → None（终态，无后续动作）
 
@@ -51,7 +51,7 @@ _PHASE_ACTION_MAP: dict[str, Optional[str]] = {
     "intake:committed":  "route_to_queue",
 
     # task lifecycle states (F13 defines constants, F14 wires execution)
-    "task:pending":      "start_task",
+    "task:pending":      "next",
     "task:active":       "complete_task",
     "task:done":         None,
 }

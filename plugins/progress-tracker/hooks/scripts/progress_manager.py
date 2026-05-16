@@ -297,6 +297,12 @@ ROUTE_PREFLIGHT_EXEMPT_COMMANDS = {
     "route-select",
 }
 
+# Ghost-command alias table. Maps deprecated/non-existent command names to
+# their correct replacements. Takes priority over edit-distance suggestions.
+_GHOST_COMMAND_ALIASES: Dict[str, str] = {
+    "start-task": "next --done",
+}
+
 # Bug field standards (for consistency)
 BUG_REQUIRED_FIELDS = ["id", "description", "status", "priority", "created_at"]
 BUG_OPTIONAL_FIELDS = [
@@ -11702,8 +11708,72 @@ def check_worktree_branch_consistency(command: str) -> bool:
     return False
 
 
+def _suggest_command(unknown: str, valid_commands: List[str]) -> Optional[str]:
+    """Return best suggestion for an unknown command, or None if no good match.
+
+    Priority:
+    1. Ghost-command alias table (always shown when matched).
+    2. Levenshtein edit-distance <= 2 to closest valid command.
+    """
+    if unknown in _GHOST_COMMAND_ALIASES:
+        return _GHOST_COMMAND_ALIASES[unknown]
+
+    def _edit_distance(a: str, b: str) -> int:
+        m, n = len(a), len(b)
+        dp = list(range(n + 1))
+        for i in range(1, m + 1):
+            prev = dp[0]
+            dp[0] = i
+            for j in range(1, n + 1):
+                temp = dp[j]
+                if a[i - 1] == b[j - 1]:
+                    dp[j] = prev
+                else:
+                    dp[j] = 1 + min(prev, dp[j], dp[j - 1])
+                prev = temp
+        return dp[n]
+
+    best, best_dist = None, 3  # threshold: distance must be <= 2
+    for cmd in valid_commands:
+        d = _edit_distance(unknown, cmd)
+        if d < best_dist:
+            best, best_dist = cmd, d
+    return best  # None if nothing within threshold
+
+
+class _ProgressArgumentParser(argparse.ArgumentParser):
+    """ArgumentParser subclass that provides ghost-command and edit-distance
+    'Did you mean?' suggestions on unknown *subcommand* errors.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._registered_commands: List[str] = []
+
+    def register_commands(self, commands: List[str]) -> None:
+        """Called in main() after all subparsers are added."""
+        self._registered_commands = list(commands)
+
+    def error(self, message: str) -> None:
+        import re
+        if "argument command: invalid choice:" in message:
+            match = re.search(r"invalid choice: '([^']+)'", message)
+            if match:
+                unknown = match.group(1)
+                suggestion = _suggest_command(unknown, self._registered_commands)
+                self.print_usage(sys.stderr)
+                if suggestion:
+                    sys.stderr.write(f"{self.prog}: error: unknown command '{unknown}'\n")
+                    sys.stderr.write(f"Did you mean: '{suggestion}'?\n")
+                    sys.stderr.write(f"Run: {self.prog} {suggestion.split()[0]} --help\n")
+                else:
+                    sys.stderr.write(f"{self.prog}: error: {message}\n")
+                sys.exit(2)
+        super().error(message)
+
+
 def main():
-    parser = argparse.ArgumentParser(description="Progress Tracker Manager")
+    parser = _ProgressArgumentParser(description="Progress Tracker Manager")
     parser.add_argument(
         "--project-root",
         help=(
@@ -11784,6 +11854,12 @@ def main():
         action="store_true",
         dest="ack_planning_risk",
         help="Acknowledge planning preflight warnings and continue selection",
+    )
+    next_alias_parser.add_argument(
+        "--done",
+        action="store_true",
+        dest="done",
+        help="Close the current active task (prog next --done)",
     )
 
     # PT-F14: `add-task` direct task creation CLI.
@@ -12387,6 +12463,9 @@ def main():
     subparsers.add_parser("install-git-hooks",
                           help="Install post-merge hook for auto reconcile-state")
 
+    # PT-F14: register valid subcommand names for ghost-command suggestions.
+    parser.register_commands(list(subparsers.choices.keys()))
+
     args = parser.parse_args()
 
     scope_project_root = args.project_root
@@ -12679,7 +12758,8 @@ def main():
         return 1
 
     # F21: fail-closed scope consistency check for next-feature, next, and done
-    if args.command in {"next-feature", "next", "done"}:
+    # next --done is a task close, not a feature selection — skip branch check.
+    if args.command in {"next-feature", "next", "done"} and not getattr(args, "done", False):
         if not check_worktree_branch_consistency(args.command):
             return 1
 
@@ -12705,6 +12785,11 @@ def main():
             commit=None,
             workflow_profile=args.workflow_profile,
         )
+
+    # PT-F14: `next --done` closes the current task. Like `done`, it bypasses
+    # the outer progress_transaction() lock to avoid BUG-002 class deadlocks.
+    if args.command == "next" and getattr(args, "done", False):
+        return _close_current_task(output_json=getattr(args, "output_json", False))
 
     if args.command in MUTATING_COMMANDS:
         if not enforce_route_preflight(args.command, sys.argv):

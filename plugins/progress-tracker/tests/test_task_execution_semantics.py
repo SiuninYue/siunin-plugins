@@ -412,3 +412,98 @@ class TestCloseCurrentTask:
         assert "closed_task_id" in payload
         assert "message" in payload
         assert rc == 0
+
+
+# ---------------------------------------------------------------------------
+# Task 5: next --done CLI flag + lock exemption
+# ---------------------------------------------------------------------------
+
+class TestNextDoneCLI:
+    def test_next_done_flag_closes_task_via_cli(self, tmp_path):
+        _init_project(tmp_path)
+        progress_manager._PROJECT_ROOT_OVERRIDE = tmp_path
+        fid = _add_feature(tmp_path)
+        progress_manager.add_task_item(description="task", parent_feature_id=fid)
+        data = progress_manager.load_progress_json()
+        data["current_task_id"] = "TASK-001"
+        progress_manager.save_progress_json(data)
+
+        result = subprocess.run(
+            [
+                "python3", str(SCRIPT_DIR / "progress_manager.py"),
+                "--project-root", str(tmp_path),
+                "next", "--done",
+            ],
+            capture_output=True, text=True,
+            env={**__import__("os").environ, "PROGRESS_TRACKER_SKIP_REPO_CHECK": "1"},
+        )
+
+        assert result.returncode == 0
+
+    def test_next_done_does_not_hold_mutating_lock(self, tmp_path):
+        """next --done must not time out due to MUTATING_COMMANDS outer lock."""
+        import time
+        _init_project(tmp_path)
+        progress_manager._PROJECT_ROOT_OVERRIDE = tmp_path
+        fid = _add_feature(tmp_path)
+        progress_manager.add_task_item(description="task", parent_feature_id=fid)
+        data = progress_manager.load_progress_json()
+        data["current_task_id"] = "TASK-001"
+        progress_manager.save_progress_json(data)
+
+        start = time.monotonic()
+        result = subprocess.run(
+            [
+                "python3", str(SCRIPT_DIR / "progress_manager.py"),
+                "--project-root", str(tmp_path),
+                "next", "--done",
+            ],
+            capture_output=True, text=True,
+            timeout=5,
+            env={**__import__("os").environ, "PROGRESS_TRACKER_SKIP_REPO_CHECK": "1"},
+        )
+        elapsed = time.monotonic() - start
+
+        assert result.returncode == 0
+        assert elapsed < 5.0
+
+
+# ---------------------------------------------------------------------------
+# Task 6: Ghost command protection + wf_state_machine fix
+# ---------------------------------------------------------------------------
+
+class TestGhostCommandProtection:
+    def test_start_task_shows_did_you_mean(self):
+        result = subprocess.run(
+            ["python3", str(SCRIPT_DIR / "progress_manager.py"), "start-task", "TASK-001"],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 2
+        assert "next --done" in result.stderr or "next --done" in result.stdout
+
+    def test_low_similarity_command_no_did_you_mean(self):
+        result = subprocess.run(
+            ["python3", str(SCRIPT_DIR / "progress_manager.py"), "xyzfrobnicate"],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 2
+        # Should NOT show "Did you mean" for a completely unrelated command
+        combined = result.stdout + result.stderr
+        assert "Did you mean" not in combined
+
+    def test_typo_close_to_done_shows_suggestion(self):
+        """Edit-distance fallback: 'dne' is distance 1 from 'done'."""
+        result = subprocess.run(
+            ["python3", str(SCRIPT_DIR / "progress_manager.py"), "dne"],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 2
+        combined = result.stdout + result.stderr
+        assert "done" in combined
+
+    def test_wf_state_machine_task_pending_action_is_not_start_task(self):
+        """wf_state_machine must not reference the ghost command."""
+        import wf_state_machine
+        action = wf_state_machine._PHASE_ACTION_MAP.get("task:pending")
+        assert action != "start_task", "ghost command 'start_task' still in state machine"
+        assert action is not None, "task:pending must have an action mapping"
