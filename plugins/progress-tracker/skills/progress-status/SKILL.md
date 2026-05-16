@@ -286,7 +286,19 @@ Get `ProjectRoot` by running: `pwd -P`
 Also display context alignment when available:
 - 顶层 `workflow_state.execution_context` (where the workflow last advanced)
 - `runtime_context` (current session snapshot)
-- If mismatch, warn and recommend switching to the recorded worktree/branch before continuing.
+- If mismatch, auto-switch to the recorded worktree/branch:
+  1. Check for uncommitted changes (`git status --porcelain`).
+  2. If working tree is clean and `execution_context.worktree_path` differs from current:
+     - Print: `⚠ 当前在 <current_branch>，但活跃工作区在 <worktree_path> (<target_branch>)`
+     - Print: `→ 自动切换到工作区...`
+     - `cd <worktree_path>` and verify accessibility.
+  3. If working tree is clean and only branch differs (same worktree):
+     - Print: `⚠ 当前在 <current_branch>，活跃分支是 <target_branch>`
+     - Print: `→ 自动切换分支...`
+     - Run: `git switch <target_branch>`
+  4. If working tree has uncommitted changes:
+     - Print warning: `⚠ 当前有未提交的更改，无法自动切换。请先 commit 或 stash。`
+     - Print the recorded worktree/branch info so the user can switch manually.
 
 ### All Features Complete
 
