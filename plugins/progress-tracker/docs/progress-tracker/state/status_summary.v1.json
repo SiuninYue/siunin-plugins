@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-05-16T22:52:56.627652Z",
+  "updated_at": "2026-05-17T02:00:23.943788Z",
   "source": {
     "generator": "progress_manager.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,8 +11,8 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1778943169924947877,
-      "size": 102565
+      "mtime_ns": 1778954423636658996,
+      "size": 102196
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
@@ -22,14 +22,14 @@
     }
   },
   "progress": {
-    "completed": 15,
+    "completed": 16,
     "total": 18,
-    "percentage": 83
+    "percentage": 88
   },
   "next_action": {
     "type": "feature",
-    "feature_id": 15,
-    "feature_name": "prog-fix skill 嵌入4阶段调试方法论",
+    "feature_id": 16,
+    "feature_name": "Git Squash Merge SOP — 集成到 prog-done 自动化流程",
     "development_stage": "pending",
     "stage_label": "待开始"
   },
@@ -47,6 +47,6 @@
   "recent_snapshot": {
     "exists": true,
     "timestamp": "2026-05-16T16:13:32.793984+08:00",
-    "relative_time": "6 小时前"
+    "relative_time": "9 小时前"
   }
 }
