@@ -5498,6 +5498,46 @@ def _display_root_dashboard(
     return True
 
 
+def _get_stale_bugs(data: dict, now: datetime) -> List[dict]:
+    """Return P0/P1 bugs exceeding their stale threshold.
+
+    Thresholds (strict >): P0 (priority=high) => 3 days; P1 (priority=medium) => 7 days.
+    Excludes: fixed, false_positive. Time base: updated_at preferred, fallback created_at.
+    Output: P0 first, then P1; same priority sorted by stale_days descending.
+    """
+    THRESHOLDS = {"high": 3, "medium": 7}
+    TERMINAL = {"fixed", "false_positive"}
+
+    result = []
+    for bug in data.get("bugs") or []:
+        if not isinstance(bug, dict):
+            continue
+        priority = bug.get("priority", "low")
+        if priority not in THRESHOLDS:
+            continue
+        if bug.get("status") in TERMINAL:
+            continue
+        raw_ts = bug.get("updated_at") or bug.get("created_at")
+        if not raw_ts:
+            continue
+        try:
+            ts = datetime.fromisoformat(raw_ts)
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+        except (ValueError, TypeError):
+            continue
+        stale_days = (now - ts).total_seconds() / 86400
+        if stale_days > THRESHOLDS[priority]:
+            result.append({**bug, "_stale_days": stale_days, "_priority": priority})
+
+    def _sort_key(b):
+        tier = 0 if b["_priority"] == "high" else 1
+        return (tier, -b["_stale_days"])
+
+    result.sort(key=_sort_key)
+    return result
+
+
 def status(output_json: bool = False) -> bool:
     """Display current progress status."""
     data = load_progress_json()
@@ -5676,10 +5716,29 @@ def status(output_json: bool = False) -> bool:
                 defer_line += f" (group: {defer_group})"
             print(defer_line)
 
+    # Stale P0/P1 bug warnings
+    stale_bugs = _get_stale_bugs(data, datetime.now(tz=timezone.utc))
+    if stale_bugs:
+        print("\n### Bug Warnings:")
+        for bug in stale_bugs:
+            tier = "P0" if bug.get("_priority") == "high" else "P1"
+            desc = (bug.get("description") or "")[:60]
+            days = int(bug.get("_stale_days", 0))
+            raw_ts = bug.get("updated_at") or bug.get("created_at") or ""
+            last_date = raw_ts[:10] if raw_ts else "unknown"
+            print(f"  [{tier}] {bug.get('id')}: {desc} (stale {days}d, last: {last_date})")
+
     updates = data.get("updates", [])
     if updates:
-        print("\n### Recent Updates:")
-        for update in updates[-5:]:
+        # Sort ascending by created_at before slicing so [-5:] gets the most recent 5.
+        def _upd_ts(u):
+            return u.get("created_at") or ""
+        sorted_updates = sorted(updates, key=_upd_ts)
+        shown = sorted_updates[-5:]
+        total_count = len(updates)
+        hidden = total_count - len(shown)
+        print(f"\n### Recent Updates (showing {len(shown)}/{total_count}):")
+        for update in shown:
             line = (
                 f"  [{update.get('id', 'UPD-???')}] "
                 f"{update.get('category', 'status')}: {update.get('summary', '')}"
@@ -5689,6 +5748,8 @@ def status(output_json: bool = False) -> bool:
             if update.get("role") and update.get("owner"):
                 line += f" [{update['role']}={update['owner']}]"
             print(line)
+        if hidden > 0:
+            print(f"  +{hidden} more updates (run: prog list-updates)")
 
     if deferred and not remaining and not in_progress:
         print("\nUse `prog resume --all` or `prog resume --defer-group <group>` to continue deferred features.")
@@ -9647,8 +9708,8 @@ def add_update(
     return True
 
 
-def list_updates(limit: int = 10) -> bool:
-    """List the latest structured updates."""
+def list_updates(limit: int = 0) -> bool:
+    """List the latest structured updates. limit=0 means show all."""
     data = load_progress_json()
     if not data:
         print("No progress tracking found")
@@ -9659,8 +9720,12 @@ def list_updates(limit: int = 10) -> bool:
         print("No updates recorded.")
         return True
 
-    safe_limit = max(1, limit)
-    print(f"Showing latest {min(safe_limit, len(updates))} update(s):")
+    if limit < 0:
+        print("Error: --limit must be 0 (all) or a positive integer")
+        return False
+
+    safe_limit = len(updates) if limit == 0 else min(len(updates), limit)
+    print(f"Showing {safe_limit} of {len(updates)} update(s):")
     for item in updates[-safe_limit:]:
         line = f"- [{item.get('id', 'UPD-???')}] {item.get('category', 'status')}: {item.get('summary', '')}"
         source = str(item.get("source") or "").strip()
@@ -9670,19 +9735,7 @@ def list_updates(limit: int = 10) -> bool:
             line += f" (feature:{item['feature_id']})"
         if item.get("role") and item.get("owner"):
             line += f" [{item['role']}={item['owner']}]"
-        overflow_count = item.get("refs_overflow_count")
-        if not isinstance(overflow_count, int) or overflow_count < 0:
-            overflow_refs = item.get("refs_overflow")
-            if isinstance(overflow_refs, list):
-                overflow_count = len(
-                    [
-                        ref
-                        for ref in overflow_refs
-                        if isinstance(ref, str) and ref.strip()
-                    ]
-                )
-            else:
-                overflow_count = 0
+        overflow_count = item.get("refs_overflow_count", 0) or 0
         if overflow_count > 0:
             line += f" [+{overflow_count} refs overflow]"
         print(line)
@@ -12141,7 +12194,7 @@ def main():
     )
 
     list_updates_parser = subparsers.add_parser("list-updates", help="List recent updates")
-    list_updates_parser.add_argument("--limit", type=int, default=10, help="Max updates to show")
+    list_updates_parser.add_argument("--limit", type=int, default=0, help="Max updates (0=all)")
 
     set_owner_parser = subparsers.add_parser(
         "set-feature-owner", help="Assign feature owner for a role"
@@ -12637,6 +12690,9 @@ def main():
                 refs=args.refs,
             )
         if args.command == "list-updates":
+            if args.limit < 0:
+                print("Error: --limit must be 0 (all) or a positive integer", file=sys.stderr)
+                return 2
             return list_updates(limit=args.limit)
         if args.command == "set-feature-owner":
             return set_feature_owner(args.feature_id, args.role, args.owner)

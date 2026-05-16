@@ -507,3 +507,179 @@ class TestGhostCommandProtection:
         action = wf_state_machine._PHASE_ACTION_MAP.get("task:pending")
         assert action != "start_task", "ghost command 'start_task' still in state machine"
         assert action is not None, "task:pending must have an action mapping"
+
+
+# ---------------------------------------------------------------------------
+# Task 7: _get_stale_bugs() + status() stale bug warnings
+# ---------------------------------------------------------------------------
+
+class TestStaleBugs:
+    def _make_bug(self, priority: str, days_old: int, status: str = "confirmed") -> dict:
+        ts = (datetime.now(tz=timezone.utc) - timedelta(days=days_old)).isoformat()
+        return {
+            "id": f"BUG-{priority}-{days_old}d",
+            "description": f"{priority} bug {days_old}d old",
+            "priority": {"high": "high", "medium": "medium", "low": "low"}[priority],
+            "status": status,
+            "created_at": ts,
+        }
+
+    def test_get_stale_bugs_p0_threshold_3_days(self, tmp_path):
+        _init_project(tmp_path)
+        progress_manager._PROJECT_ROOT_OVERRIDE = tmp_path
+        data = progress_manager.load_progress_json()
+        now = datetime.now(tz=timezone.utc)
+        data["bugs"] = [
+            self._make_bug("high", 4),   # P0, 4d > 3d => stale
+            self._make_bug("high", 2),   # P0, 2d <= 3d => not stale
+            self._make_bug("high", 3),   # P0, exactly 3d => NOT stale (strict >)
+        ]
+        progress_manager.save_progress_json(data)
+        stale = progress_manager._get_stale_bugs(data, now)
+        assert len(stale) == 1
+        assert stale[0]["id"] == "BUG-high-4d"
+
+    def test_get_stale_bugs_p1_threshold_7_days(self, tmp_path):
+        _init_project(tmp_path)
+        progress_manager._PROJECT_ROOT_OVERRIDE = tmp_path
+        data = progress_manager.load_progress_json()
+        now = datetime.now(tz=timezone.utc)
+        data["bugs"] = [
+            self._make_bug("medium", 8),   # P1, 8d > 7d => stale
+            self._make_bug("medium", 7),   # P1, exactly 7d => not stale
+            self._make_bug("medium", 6),   # P1, 6d <= 7d => not stale
+        ]
+        progress_manager.save_progress_json(data)
+        stale = progress_manager._get_stale_bugs(data, now)
+        assert len(stale) == 1
+        assert stale[0]["id"] == "BUG-medium-8d"
+
+    def test_get_stale_bugs_excludes_terminal_status(self, tmp_path):
+        _init_project(tmp_path)
+        progress_manager._PROJECT_ROOT_OVERRIDE = tmp_path
+        data = progress_manager.load_progress_json()
+        now = datetime.now(tz=timezone.utc)
+        data["bugs"] = [
+            self._make_bug("high", 10, status="fixed"),
+            self._make_bug("high", 10, status="false_positive"),
+            self._make_bug("high", 10, status="confirmed"),
+        ]
+        progress_manager.save_progress_json(data)
+        stale = progress_manager._get_stale_bugs(data, now)
+        ids = [b["id"] for b in stale]
+        assert "BUG-high-10d" in ids
+        assert len(stale) == 1  # only the "confirmed" one
+
+    def test_get_stale_bugs_p0_before_p1_order(self, tmp_path):
+        _init_project(tmp_path)
+        progress_manager._PROJECT_ROOT_OVERRIDE = tmp_path
+        data = progress_manager.load_progress_json()
+        now = datetime.now(tz=timezone.utc)
+        data["bugs"] = [
+            {"id": "BUG-P1", "description": "p1", "priority": "medium", "status": "confirmed",
+             "created_at": (now - timedelta(days=10)).isoformat()},
+            {"id": "BUG-P0", "description": "p0", "priority": "high", "status": "confirmed",
+             "created_at": (now - timedelta(days=5)).isoformat()},
+        ]
+        progress_manager.save_progress_json(data)
+        stale = progress_manager._get_stale_bugs(data, now)
+        assert stale[0]["id"] == "BUG-P0"
+        assert stale[1]["id"] == "BUG-P1"
+
+    def test_status_shows_stale_bug_warnings(self, tmp_path, capsys):
+        _init_project(tmp_path)
+        progress_manager._PROJECT_ROOT_OVERRIDE = tmp_path
+        data = progress_manager.load_progress_json()
+        now = datetime.now(tz=timezone.utc)
+        data["bugs"] = [
+            {"id": "BUG-001", "description": "critical stale bug", "priority": "high",
+             "status": "confirmed",
+             "created_at": (now - timedelta(days=5)).isoformat()},
+        ]
+        progress_manager.save_progress_json(data)
+        progress_manager.status()
+        out = capsys.readouterr().out
+        assert "BUG-001" in out
+        assert "Bug Warnings" in out or "P0" in out
+
+
+# ---------------------------------------------------------------------------
+# Task 8: status() hidden-history + list_updates() unlimited default
+# ---------------------------------------------------------------------------
+
+class TestStatusHiddenHistory:
+    def _add_updates(self, tmp_path: Path, count: int) -> None:
+        for i in range(count):
+            progress_manager.add_update(
+                category="status",
+                summary=f"update {i + 1}",
+            )
+
+    def test_status_shows_plus_n_more_when_over_5_updates(self, tmp_path, capsys):
+        _init_project(tmp_path)
+        progress_manager._PROJECT_ROOT_OVERRIDE = tmp_path
+        self._add_updates(tmp_path, 12)
+        capsys.readouterr()  # flush add_update output
+        progress_manager.status()
+        out = capsys.readouterr().out
+        assert "+7 more" in out or "+7" in out
+
+    def test_status_no_plus_n_when_5_or_fewer_updates(self, tmp_path, capsys):
+        _init_project(tmp_path)
+        progress_manager._PROJECT_ROOT_OVERRIDE = tmp_path
+        self._add_updates(tmp_path, 5)
+        capsys.readouterr()  # flush add_update output
+        progress_manager.status()
+        out = capsys.readouterr().out
+        assert "more" not in out or "+0" not in out
+
+    def test_status_updates_sorted_by_created_at(self, tmp_path, capsys):
+        """The 5 shown updates must be the 5 most recent."""
+        _init_project(tmp_path)
+        progress_manager._PROJECT_ROOT_OVERRIDE = tmp_path
+        self._add_updates(tmp_path, 7)
+        capsys.readouterr()  # flush add_update output
+        progress_manager.status()
+        out = capsys.readouterr().out
+        assert "update 7" in out
+        assert "update 3" in out
+        assert "update 1" not in out
+        assert "update 2" not in out
+
+
+class TestListUpdatesUnlimited:
+    def test_list_updates_default_returns_all(self, tmp_path, capsys):
+        _init_project(tmp_path)
+        progress_manager._PROJECT_ROOT_OVERRIDE = tmp_path
+        for i in range(15):
+            progress_manager.add_update(category="status", summary=f"upd {i+1}")
+        capsys.readouterr()  # flush add_update output
+        progress_manager.list_updates()
+        out = capsys.readouterr().out
+        assert "upd 1" in out
+        assert "upd 15" in out
+
+    def test_list_updates_limit_positive_truncates(self, tmp_path, capsys):
+        _init_project(tmp_path)
+        progress_manager._PROJECT_ROOT_OVERRIDE = tmp_path
+        for i in range(10):
+            progress_manager.add_update(category="status", summary=f"upd {i+1}")
+        capsys.readouterr()  # flush add_update output
+        progress_manager.list_updates(limit=3)
+        out = capsys.readouterr().out
+        assert "upd 10" in out
+        assert "upd 1 " not in out and "upd 1\n" not in out and "upd 1[" not in out
+
+    def test_list_updates_negative_limit_raises_or_returns_error(self, tmp_path):
+        _init_project(tmp_path)
+        progress_manager._PROJECT_ROOT_OVERRIDE = tmp_path
+        result = subprocess.run(
+            [
+                "python3", str(SCRIPT_DIR / "progress_manager.py"),
+                "--project-root", str(tmp_path),
+                "list-updates", "--limit", "-1",
+            ],
+            capture_output=True, text=True,
+            env={**__import__("os").environ, "PROGRESS_TRACKER_SKIP_REPO_CHECK": "1"},
+        )
+        assert result.returncode == 2
