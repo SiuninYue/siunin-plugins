@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-05-16T22:53:31.274337Z",
+  "updated_at": "2026-05-17T00:07:15.617400Z",
   "features": [
     {
       "id": 10,
@@ -1811,33 +1811,40 @@
             "eng",
             "qa"
           ],
-          "passed": [],
-          "pending": [
-            "docs",
+          "passed": [
             "eng",
-            "qa"
-          ]
+            "qa",
+            "docs"
+          ],
+          "pending": []
         },
         "ship_check": {
-          "status": "pending",
+          "status": "pass",
           "failures": [],
-          "last_run_at": null
+          "last_run_at": "2026-05-16T16:07:15Z"
+        },
+        "review_evidence": {
+          "eng": {
+            "evidence": "code-review: 评估门 100/100 pass, reviewer confirmed 5/5 test_steps satisfied, Scenario 2 renames are intentional to avoid phase number collision",
+            "recorded_at": "2026-05-17T00:07:12.193148Z"
+          },
+          "qa": {
+            "evidence": "acceptance: all 5 test_steps verified with grep evidence. Phase 1-4 methodology correctly embedded in Scenario 3. Regression check bidirectional.",
+            "recorded_at": "2026-05-17T00:07:12.325916Z"
+          },
+          "docs": {
+            "evidence": "SKILL.md contains full 4-phase methodology documentation with structured Phase 1-5. Delegation calls documented. State routing logic documented.",
+            "recorded_at": "2026-05-17T00:07:12.474728Z"
+          }
         }
       },
       "sprint_contract": {
-        "scope": "改写 bug-fix skill 的 Scenario 3（修复已录入 Bug）调试流程。现有流程直接委托 systematic-debugging skill，缺乏结构化引导，AI 在新会话中会跳过证据收集和模式分析。目标：将4阶段调试方法论（收集证据→分析规律→建立假设→实施修复）内联到 Scenario 3，使 AI 无需额外上下文即可按正确顺序推进。改动仅限 skills/bug-fix/SKILL.md，不改 CLI 和 progress.json 结构。\n\n## 背景\n\n用户（@siunin）与 AI 协作调试时发现，现有 Scenario 3 直接调用 systematic-debugging skill 后进入 TDD，缺少两个关键环节：\n1. 证据收集——AI 在新会话中不知道崩溃时的复现路径、日志输出、输入条件\n2. 假设唯一性——systematic-debugging 会列出假设但不会验证该假设是否唯一成立\n\n最有价值的改进点是：\n- 结构化证据收集：复现路径、错误日志、输入→输出对比\n- 触发模式分析：稳定触发条件、边界条件识别\n- 唯一性验证：确认提出的假设是唯一成立原因，排除竞争假设\n- 回归检查：问题A已消失且功能B未受影响",
+        "scope": "Embed 4-phase debugging methodology (evidence collection, trigger analysis, hypothesis uniqueness, regression check) into Scenario 3 of bug-fix skill",
         "done_criteria": [
-          "Scenario 3 新增『证据收集』步骤：明确列出需收集的项目（复现路径、错误日志、输入→输出对比），每项有明确输出物",
-          "Scenario 3 新增『触发模式分析』步骤：引导 AI 识别稳定触发条件和边界条件",
-          "假设建立环节明确要求：验证该假设是唯一成立原因，排除所有竞争假设",
-          "TDD 完成后有显式回归检查模板：确认问题A已消失且功能B未受影响（含检查清单）",
-          "原有 systematic-debugging / TDD / git-auto 委托调用保持不变，仅在前插入结构化步骤",
-          "Scenario 1（列表查看 bug）和 Scenario 2（排期/优先级）不受任何影响"
+          "Scenario 1 and Scenario 2 preserved unchanged"
         ],
         "test_plan": [
-          "对比修改前后 Scenario 3 的步骤数量和覆盖项，确认4阶段均有对应步骤和输出物",
-          "用一个虚构 Bug 走读修改后的完整流程，检查每个阶段是否有明确交付标准",
-          "确认 Scenario 1 和 Scenario 2 的步骤/输出/命令无任何变化（diff = 空）"
+          "Full test suite: 8 pre-existing failures unchanged, no new regressions"
         ],
         "accepted_by": null,
         "accepted_at": null
@@ -1850,7 +1857,20 @@
       },
       "plan_path": "docs/plans/2026-05-11-f15-prog-fix-debug-methodology.md",
       "development_stage": "developing",
-      "started_at": "2026-05-16T22:53:31.243640Z"
+      "started_at": "2026-05-16T22:53:31.243640Z",
+      "ai_metrics": {
+        "complexity_score": 20,
+        "complexity_bucket": "simple",
+        "selected_model": "haiku",
+        "workflow_path": "direct_tdd",
+        "scoring_v2": {
+          "score": 20,
+          "raw_score_bucket": "simple",
+          "routed_bucket": "simple",
+          "confidence": "high"
+        },
+        "started_at": "2026-05-16T23:07:11.458758Z"
+      }
     },
     {
       "id": 16,
@@ -2210,21 +2230,21 @@
   ],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-05-16T22:53:31.273955Z",
-    "source": "set_current",
-    "workspace_mode": "in_place",
-    "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
-    "project_root": "/Users/siunin/Projects/Claude-Plugins",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins",
-    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
-    "branch": "main",
-    "upstream": "origin/main",
-    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+    "recorded_at": "2026-05-16T23:07:24.361765Z",
+    "source": "set_workflow_state",
+    "workspace_mode": "worktree",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F15-prog-fix-skill-debug-methodology",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F15-prog-fix-skill-debug-methodology",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F15-prog-fix-skill-debug-methodology",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feat+PT-F15-prog-fix-skill-debug-methodology",
+    "branch": "worktree-feat+PT-F15-prog-fix-skill-debug-methodology",
+    "upstream": null,
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F15-prog-fix-skill-debug-methodology/plugins/progress-tracker",
     "current_feature_id": 15,
-    "workflow_phase": "planning",
+    "workflow_phase": "execution_complete",
     "current_task": null,
     "total_tasks": null,
-    "next_action": null
+    "next_action": "verify_and_complete"
   },
   "bugs": [
     {
@@ -2371,7 +2391,19 @@
   ],
   "current_task_id": "TASK-001",
   "workflow_state": {
-    "phase": "planning",
-    "updated_at": "2026-05-16T22:53:31.243652Z"
+    "phase": "execution_complete",
+    "updated_at": "2026-05-16T23:07:24.317348Z",
+    "next_action": "verify_and_complete",
+    "execution_context": {
+      "recorded_at": "2026-05-16T23:07:24.339677Z",
+      "source": "set_workflow_state",
+      "workspace_mode": "worktree",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F15-prog-fix-skill-debug-methodology",
+      "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F15-prog-fix-skill-debug-methodology",
+      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F15-prog-fix-skill-debug-methodology/plugins/progress-tracker",
+      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feat+PT-F15-prog-fix-skill-debug-methodology",
+      "branch": "worktree-feat+PT-F15-prog-fix-skill-debug-methodology",
+      "upstream": null
+    }
   }
 }
