@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-05-14T18:07:56.939367Z",
+  "updated_at": "2026-05-16T07:35:39.082425+00:00",
   "features": [
     {
       "id": 10,
@@ -1904,6 +1904,137 @@
         "created_at": null
       },
       "plan_path": "docs/plans/2026-05-11-f16-git-squash-merge-sop.md"
+    },
+    {
+      "id": 17,
+      "name": "Parent-Child Route 同步：子插件 set_current/done 回写父 active_routes",
+      "test_steps": [
+        "子项目 prog set-current 14 → 检查 root active_routes 是否有 PT -> PT-F14",
+        "子项目 /prog done → 检查 root active_routes 是否已移除 PT",
+        "root features[] 仍为空或只含 root-level feature，不复制 child feature",
+        "set_current() 的 worktree_path/branch 来源为 child runtime_context 或 collect_git_context() fallback",
+        "set-current 在父 linked_projects 不完整时仍允许执行（bootstrap），输出 warn",
+        "多个子项目同时 active → root dashboard 列出全部活跃路由 + RecommendedRoute",
+        "set_current() 检测并行路由时即时输出 [WARNING]",
+        "sync-linked --repair-routes 从 child current_feature_id 重建 route，跳过 completed/deferred",
+        "uv run pytest plugins/progress-tracker/tests/test_parent_writeback.py -q → 全部 pass",
+        "uv run pytest plugins/progress-tracker/tests/test_dispatch_child_feature.py test_route_commands.py test_root_dashboard.py test_sync_linked_command.py -q → 回归 pass"
+      ],
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-017"
+      ],
+      "change_spec": {
+        "why": "根仪表盘无法直接定位子插件活跃 feature，每次 /prog next 需要扫描 routing_queue（读取多个空 progress.json），浪费 token。子项目 set_current() 和 cmd_done() 是正确插入点，应在此处自动同步父 active_routes。",
+        "prerequisites": [
+          "F14 (task execution semantics) 必须合并 — set_current() 和 cmd_done() 的最终形态依赖 F14",
+          "F16 (git squash merge SOP) 必须合并 — cmd_done() 的 squash 逻辑在此之前稳定"
+        ],
+        "in_scope": [
+          "新增 6 个 route helper：_format_route_feature_ref / _build_child_active_route / _upsert_active_route / _remove_active_route / _refresh_parent_linked_snapshot / _apply_parent_route_writeback",
+          "扩展 _notify_parent_sync(route_event)：支持 activate 和 clear 两种 route event",
+          "set_current() 后调用 _notify_parent_sync(activate)，回写父 active_routes",
+          "cmd_done() 后调用 _notify_parent_sync(clear)，移除父 active_routes 中对应项目",
+          "route preflight 新增 set-current bootstrap 例外：信任 child 自身的 parent_project_root",
+          "父 prog next dispatch 写入格式修正：F14 → PT-F14，补齐 feature_id/feature_name/child_project_root/source",
+          "root dashboard handoff 三态输出：0 active → queue-based / 1 active → direct resume / 2+ → list+recommend",
+          "sync-linked --repair-routes：从 child current_feature_id 重建 root route 投影",
+          "set_current() 即时并行路由 warning",
+          "progress-status SKILL.md handoff 模板同步更新",
+          "route + linked_snapshot 单次 save，不出现状态分裂"
+        ],
+        "out_of_scope": [
+          "复制子 feature 到 root features[]",
+          "在 active_routes 中保留 status=done 的历史路由",
+          "子项目 prog next preview 阶段写父 route（只有 set_current 锁定后才写）",
+          "移除 execution_complete gate",
+          "修改 task 级别的父协调（standalone task 不需要父 route）"
+        ],
+        "risks": [
+          "F14/F16 合并后 set_current() 和 cmd_done() 的代码形态可能与计划假设有差异，需实现时验证",
+          "并行活跃路由可能造成用户困惑，dashboard 必须显式暴露冲突",
+          "父 progress.json 损坏时 route 写入失败为 warn-only，需 sync-linked --repair-routes 修复"
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 子项目 set_current(14) 后，root active_routes 自动出现 PT -> PT-F14 条目",
+        "Scenario: 子项目 cmd_done() 后，root active_routes 中 PT 条目被移除",
+        "Scenario: root features[] 保持空数组，不接收子 feature 副本",
+        "Scenario: 两个子项目同时活跃时，root dashboard 列出所有活跃路由并标注推荐",
+        "Scenario: sync-linked --repair-routes 从 child 状态重建完整 route 投影",
+        "Scenario: 父 progress.json 缺失时子项目 set_current() 不报错，仅 warn"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [],
+          "pending": [
+            "docs",
+            "eng",
+            "qa"
+          ]
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "实现子插件与父跟踪器间的 active_routes 同步机制，消除 root dashboard 的队列扫描 token 浪费",
+        "done_criteria": [
+          "子 set-current 后父 active_routes 自动 upsert",
+          "子 cmd_done 后父 active_routes 自动 remove",
+          "root features[] 不包含子 feature 副本",
+          "route preflight 允许 set-current bootstrap",
+          "父 dispatch 使用 PT-F14 格式",
+          "root dashboard handoff 三态输出正确",
+          "sync-linked --repair-routes 可重建路由",
+          "并行路由即时 warn",
+          "所有测试 pass + 回归 pass"
+        ],
+        "test_plan": [
+          "Unit tests for 6 route helpers",
+          "Integration tests for set_current → parent writeback",
+          "Integration tests for cmd_done → parent route removal",
+          "Route preflight bootstrap tests",
+          "Dashboard handoff rendering tests",
+          "sync-linked --repair-routes rebuild tests",
+          "Regression: pytest on test_parent_writeback / test_dispatch_child_feature / test_route_commands / test_root_dashboard / test_sync_linked_command"
+        ],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "plan_path": "docs/superpowers/plans/2026-05-16-f17-parent-route-writeback.md",
+      "development_stage": "planning",
+      "started_at": null
     }
   ],
   "current_feature_id": 14,
@@ -2157,6 +2288,7 @@
   ],
   "workflow_state": {
     "phase": "planning",
-    "updated_at": "2026-05-14T18:07:56.904060Z"
+    "updated_at": "2026-05-14T18:07:56.904060Z",
+    "pending_action": "restart_from_planning"
   }
 }

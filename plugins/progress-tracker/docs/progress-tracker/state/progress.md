@@ -2,7 +2,7 @@
 
 **Created**: 2026-04-23T00:28:18.285129Z
 
-**Status**: 14/17 completed
+**Status**: 14/18 completed
 
 ## Completed
 - [x] 根目录混合宿主架构：Monorepo /prog 支持
@@ -32,6 +32,7 @@
 ## Pending
 - [ ] prog-fix skill 嵌入4阶段调试方法论
 - [ ] Git Squash Merge SOP — 集成到 prog-done 自动化流程
+- [ ] Parent-Child Route 同步：子插件 set_current/done 回写父 active_routes (depends on: F14 + F16)
 
 ## Workflow Context
 - Phase: planning
