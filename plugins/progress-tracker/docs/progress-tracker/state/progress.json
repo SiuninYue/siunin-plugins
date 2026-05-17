@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-05-17T02:02:32.251976Z",
+  "updated_at": "2026-05-18T00:50:42.279046Z",
   "features": [
     {
       "id": 10,
@@ -1954,27 +1954,18 @@
         }
       },
       "sprint_contract": {
-        "scope": "在 prog 插件中集成全 profile Git Squash Merge 工作流，使每个 work item（feature / task / bug，无论 profile 类型）在合入 main 时只产生一个语义完整的 commit，杜绝中间调试/WIP/fix typo/chore 类碎片 commit 污染 main 分支历史。\n\n## 背景与动机\n\n当前仓库 main 分支有 379 个 commit（统计日期 2026-05-11）：\n- 163 个 feat、65 个 fix、50 个 chore、32 个 docs、25 个 merge commit\n- Feature/task 内部试错过程的快照全保留在主分支\n- 例如 F8（fail-closed release gate）有 21 个 commit、git-auto v2.2 有 15 个、F5（progressive disclosure）有 13 个\n- 这些中间 commit 对代码阅读者提供零价值，只增加 git log 噪声和 bisect 成本\n\n## 业界标准参考\n\n| 公司/项目 | 做法 |\n|-----------|------|\n| GitHub 自身 | PR squash merge，一个 PR = 一个 commit |\n| GitLab 默认 | squash merge |\n| VS Code 仓库 | rebase + merge 保持线性历史 |\n| Google/Meta/Microsoft | 同等理念：main 只保留逻辑单元 |\n\n核心理念：**main 分支只保留有意义的『逻辑单元』，不保留开发的试错过程。** 所有 profile 分支内的中间 commit 在合入后即失去价值。\n\n## 设计原则\n\n1. **所有 profile 分支**：保留中间 commit，开发过程中可自由提交\n2. **Squash merge**：合入 main 时所有中间 commit 压成一个；message 格式按 profile：feature_delivery 用 feat(scope)，task 类用 task(scope)\n3. **状态一致性**：追踪文件中的 commit_hash 始终指向 squash 后的最终 commit（非中间 commit），所有 profile 均适用\n4. **SOP 闭环**：feature_delivery 通过 prog-done gate 触发；quick_task/standard_task 通过轻量关闭路径触发；两者不可绕过",
+        "scope": "squash merge SOP: 强制 commit_push_pr_merge 使用 gh pr merge --squash --delete-branch，CommitHash 来自 default branch HEAD，task close 路径使用 task(id): description 格式",
         "done_criteria": [
-          "git auto done 执行 squash merge：将 feature 分支所有 commit 压成一个，commit message 格式为 feat(scope): 功能描述 + 详细 body",
-          "main 分支验证：git log 确认该 feature 只增加了 1 个 commit，无 WIP/fix typo/chore 碎片混入",
-          "project_memory.json CAP 记录的 commit_hash 等于 git log main -1 --format=%H（squash 后的最终 hash）",
-          "sprint_ledger.jsonl artifact_path 和 metadata 与 squash 后的状态一致，无旧 hash 残留",
-          "Feature 分支在 squash merge 成功后自动清理：git branch -d <feature-branch> + git push origin --delete（失败非阻塞）",
-          "feature-complete SKILL.md Step 5 显式包含 squash merge 检查项，标注为不可跳过",
-          "新增测试 test_squash_merge_flow.py：覆盖成功路径、冲突路径、cleanup 失败路径",
-          "边界情况：feature 分支只有 1 个 commit 时 squash 退化为普通 merge，不产生额外操作或报错",
-          "可选工具：历史 remap 脚本将指定范围的旧 commit 压缩为新 commit 并更新所有追踪文件中的 hash 引用",
-          "quick_task 和 standard_task 关闭路径执行 squash merge：branch → 1 commit on main；commit message 格式 task(scope): 描述；WIP commit 不出现在 main。",
-          "git log main 中每个 work item（无论 profile 类型）对应且仅对应 1 个 commit；main 上不出现任何 profile 的 WIP 碎片 commit。"
+          "git-auto SKILL.md 将 squash merge 从 Prefer 升级为 MUST，CommitHash 来源明确为 git rev-parse origin/<default_branch>",
+          "feature-complete SKILL.md Step 5 新增 squash merge 不可跳过检查项",
+          "git_validator.py 允许括号字符（Conventional Commits 格式）",
+          "_git_squash_close_task commit message 格式升级为 task(id): description",
+          "test_task_execution_semantics.py 新增冲突失败/cleanup失败非阻塞/message格式4个测试用例",
+          "squash-remap-history.sh 可选历史 hash remap 脚本"
         ],
         "test_plan": [
-          "单元测试：新增 test_squash_merge_flow.py，覆盖 merge 成功、冲突退出、cleanup 失败非阻塞三个路径",
-          "集成测试：mock 一个包含 5 个 commit 的 feature 分支，执行 git auto done，验证 main 最终新增 1 个 commit",
-          "契约测试：prog done 执行后 project_memory.json CAP hash == git log main -1 --format=%H",
-          "回归测试：现有 feature-complete 流程所有测试不受影响（squash 作为增强步骤，非替换）",
-          "手动验证：在真实 feature 分支上运行 prog done，检查 GitHub PR 页面显示 '1 commit'",
-          "边界测试：feature 分支只有 1 个 commit → squash 退化为普通 merge，无额外操作"
+          "43/43 TestGitSquashCloseTask + TestCloseCurrentTask 测试通过",
+          "1031 tests passed，6个预存在失败不在F16范围内"
         ],
         "accepted_by": null,
         "accepted_at": null
@@ -1987,7 +1978,20 @@
       },
       "plan_path": "docs/plans/2026-05-11-f16-git-squash-merge-sop.md",
       "development_stage": "developing",
-      "started_at": "2026-05-17T02:02:32.210787Z"
+      "started_at": "2026-05-17T02:02:32.210787Z",
+      "ai_metrics": {
+        "complexity_score": 45,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "scoring_v2": {
+          "score": 45,
+          "raw_score_bucket": "standard",
+          "routed_bucket": "standard",
+          "confidence": "high"
+        },
+        "started_at": "2026-05-18T00:25:18.004989Z"
+      }
     },
     {
       "id": 17,
@@ -2247,8 +2251,8 @@
   ],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-05-17T02:02:32.242207Z",
-    "source": "set_current",
+    "recorded_at": "2026-05-18T00:50:42.266612Z",
+    "source": "set_workflow_state",
     "workspace_mode": "in_place",
     "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
     "project_root": "/Users/siunin/Projects/Claude-Plugins",
@@ -2258,10 +2262,10 @@
     "upstream": "origin/main",
     "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
     "current_feature_id": 16,
-    "workflow_phase": "planning",
+    "workflow_phase": "execution_complete",
     "current_task": null,
     "total_tasks": null,
-    "next_action": null
+    "next_action": "verify_and_complete"
   },
   "bugs": [
     {
@@ -2408,7 +2412,21 @@
   ],
   "current_task_id": "TASK-001",
   "workflow_state": {
-    "phase": "planning",
-    "updated_at": "2026-05-17T02:02:32.210803Z"
+    "phase": "execution_complete",
+    "updated_at": "2026-05-18T00:50:42.198199Z",
+    "pending_action": "run_prog_done",
+    "plan_path": "docs/plans/2026-05-11-f16-git-squash-merge-sop.md",
+    "execution_context": {
+      "recorded_at": "2026-05-18T00:50:42.232180Z",
+      "source": "set_workflow_state",
+      "workspace_mode": "in_place",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+      "project_root": "/Users/siunin/Projects/Claude-Plugins",
+      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
+      "branch": "main",
+      "upstream": "origin/main"
+    },
+    "next_action": "verify_and_complete"
   }
 }

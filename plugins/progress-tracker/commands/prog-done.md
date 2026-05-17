@@ -1,6 +1,6 @@
 ---
 description: Complete current feature via deterministic acceptance gatekeeping
-version: "2.3.0"
+version: "2.4.1"
 scope: command
 inputs:
   - User request to complete current feature
@@ -26,6 +26,15 @@ model: sonnet
 | `--run-all` | false | Run all acceptance tests even if one fails |
 | `--skip-archive` | false | Skip document archiving after completion |
 | `--no-cleanup` | false | Skip automatic post-done cleanup of worktree and feature branch |
+| `--check` | false | Run all validation gates (acceptance included) without persisting state |
+
+### --check exit codes
+
+`prog done --check` uses gate-native exit codes:
+
+- `0`: all gates pass
+- non-zero: the **first failing gate's original exit code** (not a generic `1`)
+- typical failures include `2` (workflow phase), `3` (acceptance), `6` (evaluator), `7` (reviews), `8` (ship-check), `9` (sprint ledger), `10` (reconcile), `11` (plan validation)
 
 ### --no-cleanup
 

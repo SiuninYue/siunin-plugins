@@ -1,5 +1,5 @@
 {
-  "last_checkpoint_at": "2026-05-18T00:28:27.793407+08:00",
+  "last_checkpoint_at": "2026-05-18T00:48:37.930275+08:00",
   "max_entries": 50,
   "entries": [
     {
@@ -348,18 +348,33 @@
       "reason": "auto_interval"
     },
     {
-      "timestamp": "2026-05-18T00:28:27.793407+08:00",
-      "feature_id": 15,
-      "feature_name": "prog-fix skill 嵌入4阶段调试方法论",
-      "phase": "execution_complete",
+      "timestamp": "2026-05-17T02:05:47.819509+08:00",
+      "feature_id": 16,
+      "feature_name": "Git Squash Merge SOP — 集成到 prog-done 自动化流程",
+      "phase": "planning",
       "plan_path": null,
       "current_task": null,
       "total_tasks": null,
-      "next_action": "verify_and_complete",
-      "workspace_mode": "worktree",
-      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat-PT-F16-squash-merge-sop",
-      "branch": "worktree-feat-PT-F16-squash-merge-sop",
-      "upstream": null,
+      "next_action": null,
+      "workspace_mode": "in_place",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+      "branch": "main",
+      "upstream": "origin/main",
+      "reason": "auto_interval"
+    },
+    {
+      "timestamp": "2026-05-18T00:48:37.930275+08:00",
+      "feature_id": 16,
+      "feature_name": "Git Squash Merge SOP — 集成到 prog-done 自动化流程",
+      "phase": "execution",
+      "plan_path": "docs/plans/2026-05-11-f16-git-squash-merge-sop.md",
+      "current_task": null,
+      "total_tasks": null,
+      "next_action": null,
+      "workspace_mode": "in_place",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+      "branch": "main",
+      "upstream": "origin/main",
       "reason": "auto_interval"
     }
   ]

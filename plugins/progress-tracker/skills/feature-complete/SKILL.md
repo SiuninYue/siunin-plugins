@@ -2,7 +2,7 @@
 name: feature-complete
 description: This skill should be used when the user asks to "/prog done", "complete feature", "mark feature as done", "finish implementation", or runs the prog-done command. Handles feature verification, progress tracking updates, and Git commits.
 model: sonnet
-version: "2.2.0"
+version: "2.3.0"
 scope: skill
 inputs:
   - 用户问题或场景
@@ -86,6 +86,20 @@ If the invocation includes inline context lines (`Feature:`, `Phase:`, `Plan:`, 
 - End-of-feature verification and commit handoff
 
 ## Main Flow
+
+### Step 0: Preflight Check (RECOMMENDED)
+
+**ALWAYS run this first.** It validates all gates in a single pass and reports every blocking issue at once, avoiding the frustrating fix-one-gate-at-a-time loop.
+
+```bash
+plugins/progress-tracker/prog --project-root <project_root> done --check
+```
+
+This runs all validation gates (preconditions, reconcile, plan document, sprint ledger, acceptance tests, evaluator, reviews, ship check) in batch mode and reports ALL results at once. Acceptance tests are executed but state is NOT persisted (no finish_pending written, no report saved to disk).
+
+**Exit codes:**
+- `0` = all gates pass. Proceed to Step 1 for the full flow. (Acceptance tests already passed during preflight; evaluator subagent still needs to run in Step 4.5.)
+- Non-zero = some gates FAILED. Fix ALL reported issues, then re-run `prog done --check`.
 
 ### Step 1: Load Active Feature
 

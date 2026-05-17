@@ -253,6 +253,7 @@ Legacy phases `planning:clarifying` / `planning:draft` should be treated as `pla
   plugins/progress-tracker/prog set-workflow-state --phase "execution" --plan-path <path>
   ```
 - Do not run final review/evaluator/ship-check in this step; `/prog done` owns final gates.
+- Remind that `/prog done --check` should be run first to batch-validate all gates before the full flow.
 
 Important compatibility rule:
 - In `/prog next` flow, treat implementation as finished at "code + verification ready".
@@ -360,7 +361,7 @@ Feature: <feature_id> "<feature_name>" | Phase: execution_complete
 Plan: <plan_path> | Tasks: <total>/<total> done
 Branch: <branch>[ | Worktree: <worktree_path>]
 ProjectRoot: <abs_project_root>
-→ Context pre-loaded. Auto-switches to correct branch if needed.
+→ Context pre-loaded. Run `prog done --check` first to see all gates at once.
 ```
 
 **Phase = `execution` or `planning_complete`:**
