@@ -81,7 +81,8 @@ Intent rules:
 4. Prefer Draft PR on first push unless user asks ready-for-review.
    **Exception:** For `Execution Intent=commit_push_pr` or `commit_push_pr_merge`,
    create ready-for-review PR (not draft) since these indicate completion/ship intent.
-5. Prefer squash merge.
+5. MUST use squash merge for `commit_push_pr_merge`: `gh pr merge --squash --delete-branch`.
+   After merge, `CommitHash` MUST be read from the default branch HEAD (`git rev-parse origin/<default_branch>` after `git fetch`), NOT from the feature branch HEAD.
 
 ## Unified Preflight (Single Fact Source)
 
@@ -174,6 +175,11 @@ Every plan MUST print:
   - If `Execution Intent=commit_push_pr` or `commit_push_pr_merge`: create ready-for-review PR
   - Otherwise: create draft PR (default for first push)
 - Merge execution is allowed only for `Execution Intent=commit_push_pr_merge` and all merge gates pass.
+- **Squash merge (commit_push_pr_merge only):** Run `gh pr merge --squash --delete-branch`. After merge:
+  1. Run `git fetch origin` to sync local state.
+  2. Read squash commit SHA: `git rev-parse origin/<default_branch>`. Use this as `CommitHash`.
+  3. Do NOT use the feature branch's last commit SHA as `CommitHash`.
+  4. Remote branch deletion is handled by `--delete-branch`; also run `git branch -D <feature-branch>` locally (non-blocking; failures MUST NOT abort closeout).
 - If `using-git-worktrees` fails to create a worktree:
   1. Report the failure reason.
   2. Ask user to choose: (a) retry with different path, (b) proceed
@@ -255,6 +261,7 @@ BlockReason: <reason>
 
 Rules:
 - `Status: ok` → `CommitHash` MUST be the real 40-character SHA (never `none` or a placeholder).
+- **Squash merge:** `CommitHash` MUST be the squash commit on the default branch (`git rev-parse origin/<default_branch>` after `git fetch`). MUST NOT be the feature branch's HEAD SHA.
 - `Branch` is the actual branch pushed to (may differ from expected after GH006 fallback).
 - `Branch` MUST NOT be `none`.
 - `Status: blocked` → `CommitHash` MAY be `none`; `BlockReason` MUST describe why.
