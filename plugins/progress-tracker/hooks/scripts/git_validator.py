@@ -21,8 +21,11 @@ from typing import List, Optional, Tuple
 # Git commit hash pattern: 7-40 hexadecimal characters
 COMMIT_HASH_PATTERN = re.compile(r'^[0-9a-fA-F]{7,40}$')
 
-# Dangerous shell metacharacters that could enable command injection
-DANGEROUS_CHARS = [';', '&', '|', '$', '`', '(', ')', '<', '>', '\n', '\r', '\t']
+# Dangerous shell metacharacters that could enable command injection.
+# Note: '(' and ')' are intentionally excluded — subprocess.run does not use a shell,
+# so bare parentheses are safe in git arguments (e.g., Conventional Commits `feat(scope):`).
+# The dangerous combination '$(' is caught by the pattern check below.
+DANGEROUS_CHARS = [';', '&', '|', '$', '`', '<', '>', '\n', '\r', '\t']
 
 
 class GitCommandError(Exception):

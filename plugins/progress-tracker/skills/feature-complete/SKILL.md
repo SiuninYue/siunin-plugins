@@ -217,6 +217,12 @@ Skill("progress-tracker:git-auto",
    - `Status: blocked` → display `BlockReason`, STOP — wait for user to resolve, then re-run `/prog done`
    - GH006 fallback is handled internally by git-auto; still yields `Status: ok` + real `CommitHash`
 
+   **Squash merge verification (不可跳过):**
+   - `git-auto done` MUST use squash merge (`gh pr merge --squash --delete-branch`).
+   - `CommitHash` MUST be the squash commit on the default branch, NOT the feature branch HEAD.
+   - Verify: after receiving `Status: ok`, confirm `CommitHash` equals `git rev-parse origin/<default_branch>`.
+   - Feature branch should be deleted (remote via `--delete-branch`, local via `git branch -D`); branch cleanup failure is non-blocking.
+
 7. Invoke deterministic done gate with the extracted commit hash:
 
 ```bash

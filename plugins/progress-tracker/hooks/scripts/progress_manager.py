@@ -6224,6 +6224,7 @@ def _git_squash_close_task(
     branch: str,
     project_root: Optional[Path] = None,
     base_branch: Optional[str] = None,
+    task_name: Optional[str] = None,
 ) -> Tuple[bool, str]:
     """Execute git squash-merge sequence for a standalone task branch.
 
@@ -6275,7 +6276,8 @@ def _git_squash_close_task(
         return False, f"git merge --squash failed: {err}"
 
     # Step 3: commit
-    commit_msg = f"squash merge {task_id}: close standalone task"
+    description = task_name.strip() if task_name else "close standalone task"
+    commit_msg = f"task({task_id}): {description}"
     rc, _, err = _run_git(["commit", "-m", commit_msg], cwd=cwd)
     if rc != 0:
         _run_git(["reset", "--hard", "HEAD"], cwd=cwd)
@@ -8946,7 +8948,10 @@ def _close_standalone_task(task: dict, data: dict, output_json: bool = False) ->
     project_root = find_project_root()
 
     ok, value = _git_squash_close_task(
-        task_id=task_id, branch=branch, project_root=project_root
+        task_id=task_id,
+        branch=branch,
+        project_root=project_root,
+        task_name=task.get("description") or task.get("name"),
     )
     if not ok:
         msg = f"Git squash-merge failed: {value}"

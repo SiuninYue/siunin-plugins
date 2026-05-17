@@ -283,6 +283,106 @@ class TestGitSquashCloseTask:
         ).stdout
         assert branches.strip() == ""
 
+    def test_squash_merge_conflict_returns_failure(self, mock_git_repo):
+        """Unit: merge --squash failure returns (False, error) without raising."""
+        progress_manager.configure_project_scope(str(mock_git_repo))
+        progress_manager._PROJECT_ROOT_OVERRIDE = mock_git_repo
+
+        def fake_run_git(args, cwd=None, timeout=5):
+            if args[0] == "show-ref":
+                return 0, "", ""  # branch exists
+            if args[0] == "status":
+                return 0, "", ""  # clean tree
+            if args[0] == "checkout":
+                return 0, "", ""
+            if args[:2] == ["merge", "--squash"]:
+                return 1, "", "CONFLICT (content): Merge conflict in foo.txt"
+            return 0, "", ""
+
+        with patch.object(progress_manager, "_run_git", side_effect=fake_run_git):
+            ok, msg = progress_manager._git_squash_close_task(
+                task_id="TASK-001",
+                branch="task/TASK-001",
+                project_root=mock_git_repo,
+            )
+
+        assert ok is False
+        assert "squash" in msg.lower() or "merge" in msg.lower() or "conflict" in msg.lower()
+
+    def test_branch_cleanup_failure_is_non_blocking(self, mock_git_repo):
+        """Unit: branch deletion failure does not fail the squash-close operation."""
+        progress_manager.configure_project_scope(str(mock_git_repo))
+        progress_manager._PROJECT_ROOT_OVERRIDE = mock_git_repo
+
+        def fake_run_git(args, cwd=None, timeout=5):
+            if args[0] == "rev-parse":
+                return 0, "deadbeef" * 5, ""
+            if args[0] == "branch" and "-D" in args:
+                return 1, "", "error: branch not found"  # cleanup fails
+            return 0, "", ""
+
+        with patch.object(progress_manager, "_run_git", side_effect=fake_run_git):
+            ok, commit_hash = progress_manager._git_squash_close_task(
+                task_id="TASK-001",
+                branch="task/TASK-001",
+                project_root=mock_git_repo,
+            )
+
+        assert ok is True
+        assert commit_hash  # operation succeeded despite branch deletion failure
+
+    def test_commit_message_uses_task_scope_format(self, mock_git_repo):
+        """Unit: commit message follows task(<id>): <description> format."""
+        progress_manager.configure_project_scope(str(mock_git_repo))
+        progress_manager._PROJECT_ROOT_OVERRIDE = mock_git_repo
+
+        commit_messages = []
+
+        def fake_run_git(args, cwd=None, timeout=5):
+            if args[0] == "commit":
+                commit_messages.append(args[args.index("-m") + 1])
+                return 0, "", ""
+            if args[0] == "rev-parse":
+                return 0, "abc123", ""
+            return 0, "", ""
+
+        with patch.object(progress_manager, "_run_git", side_effect=fake_run_git):
+            progress_manager._git_squash_close_task(
+                task_id="T42",
+                branch="task/T42",
+                project_root=mock_git_repo,
+                task_name="implement login flow",
+            )
+
+        assert len(commit_messages) == 1
+        assert commit_messages[0] == "task(T42): implement login flow"
+
+    def test_commit_message_fallback_when_no_task_name(self, mock_git_repo):
+        """Unit: fallback description used when task_name is None."""
+        progress_manager.configure_project_scope(str(mock_git_repo))
+        progress_manager._PROJECT_ROOT_OVERRIDE = mock_git_repo
+
+        commit_messages = []
+
+        def fake_run_git(args, cwd=None, timeout=5):
+            if args[0] == "commit":
+                commit_messages.append(args[args.index("-m") + 1])
+                return 0, "", ""
+            if args[0] == "rev-parse":
+                return 0, "abc123", ""
+            return 0, "", ""
+
+        with patch.object(progress_manager, "_run_git", side_effect=fake_run_git):
+            progress_manager._git_squash_close_task(
+                task_id="T42",
+                branch="task/T42",
+                project_root=mock_git_repo,
+            )
+
+        assert len(commit_messages) == 1
+        assert commit_messages[0].startswith("task(T42):")
+        assert "close standalone task" in commit_messages[0]
+
 
 # ---------------------------------------------------------------------------
 # Task 4: _close_current_task() + _close_standalone_task() + _close_feature_bound_task()
