@@ -21,7 +21,7 @@ Usage:
     python3 progress_manager.py fix-readiness <feature_id> [--add-requirement <REQ-ID>] [--set-why <text>] [--add-acceptance <text>]
     python3 progress_manager.py set-development-stage <planning|developing|completed> [--feature-id <id>]
     python3 progress_manager.py complete <feature_id>
-    python3 progress_manager.py done [--commit <hash>] [--run-all] [--skip-archive] [--no-cleanup]
+    python3 progress_manager.py done [--commit <hash>] [--run-all] [--skip-archive] [--no-cleanup] [--check]
     python3 progress_manager.py set-finish-state --feature-id <id> --status <merged_and_cleaned|pr_open|kept_with_reason> [--reason <text>]
     python3 progress_manager.py set-feature-ai-metrics <feature_id> --complexity-score <score> --selected-model <model> --workflow-path <path>
     python3 progress_manager.py complete-feature-ai-metrics <feature_id>
@@ -43,6 +43,7 @@ import os
 import re
 import shlex
 import sys
+import copy
 import subprocess
 import shutil
 import logging
@@ -8991,13 +8992,192 @@ def _close_feature_bound_task(task: dict, data: dict, output_json: bool = False)
     return 0
 
 
+def _run_done_preflight(data: Dict[str, Any]) -> Tuple[bool, list]:
+    """Batch-validate all completion gates and return (all_passed, results)."""
+    results: list = []
+
+    # --- Gate 1: Preconditions ---
+    valid, reason, code, feature = _validate_done_preconditions(data)
+    results.append({"gate": 1, "name": "Preconditions", "passed": valid,
+                    "reason": reason, "exit_code": code})
+    if not valid and feature is None:
+        # No feature object at all — nothing to evaluate for gates 2-9.
+        return False, results
+
+    if feature is None:
+        # Gate 1 passed but feature is None (should not happen — defensive).
+        return False, results
+
+    feature_id = int(feature.get("id"))
+
+    # --- Gate 2: Reconcile ---
+    valid, reason, code = _validate_completion_reconcile(data, feature_id)
+    results.append({"gate": 2, "name": "Reconcile State", "passed": valid,
+                    "reason": reason, "exit_code": code})
+
+    # --- Gate 3: Plan Document ---
+    valid, reason, code = _validate_completion_plan_document(data, feature_id)
+    results.append({"gate": 3, "name": "Plan Document", "passed": valid,
+                    "reason": reason, "exit_code": code})
+
+    # --- Gate 4: Sprint Ledger ---
+    if not SPRINT_LEDGER_AVAILABLE:
+        results.append({"gate": 4, "name": "Sprint Ledger", "passed": False,
+                        "reason": "sprint_ledger module unavailable", "exit_code": 9})
+    else:
+        try:
+            require_sprint_contract(feature)
+            results.append({"gate": 4, "name": "Sprint Ledger", "passed": True,
+                            "reason": "", "exit_code": 0})
+        except SprintLedgerError as exc:
+            results.append({"gate": 4, "name": "Sprint Ledger", "passed": False,
+                            "reason": str(exc), "exit_code": 9})
+
+    # --- Gate 5: Acceptance Tests ---
+    all_passed, test_results = _run_acceptance_tests(feature, run_all=True)
+    if not all_passed:
+        passed_n = sum(1 for r in test_results if r.success)
+        reason = f"{passed_n}/{len(test_results)} passed"
+    else:
+        reason = "all passed"
+    results.append({"gate": 5, "name": "Acceptance Tests", "passed": all_passed,
+                    "reason": reason, "exit_code": 3 if not all_passed else 0})
+
+    # Reload after acceptance, matching cmd_done line 9088-9094
+    refreshed = load_progress_json()
+    gate_feat = None
+    if refreshed:
+        gate_feat = next((f for f in refreshed.get("features", [])
+                          if f.get("id") == feature_id), None)
+
+    if gate_feat is None:
+        results.append({"gate": 6, "name": "Evaluator Gate", "passed": False,
+                        "reason": f"feature {feature_id} not found after acceptance reload",
+                        "exit_code": 4})
+        results.append({"gate": 7, "name": "Review Gate", "passed": None,
+                        "reason": "skipped (feature not found)", "exit_code": 0})
+        results.append({"gate": 8, "name": "Ship Check", "passed": None,
+                        "reason": "skipped (feature not found)", "exit_code": 0})
+        results.append({"gate": 9, "name": "Finalization", "passed": None,
+                        "reason": "skipped (destructive)", "exit_code": 0})
+        return not any(r["passed"] is False for r in results), results
+
+    # --- Gate 6: Evaluator ---
+    eval_status = gate_feat.get("quality_gates", {}).get("evaluator", {}).get("status")
+    if eval_status != "pass":
+        results.append({"gate": 6, "name": "Evaluator Gate", "passed": False,
+                        "reason": f"status={eval_status!r}", "exit_code": 6})
+    else:
+        results.append({"gate": 6, "name": "Evaluator Gate", "passed": True,
+                        "reason": "", "exit_code": 0})
+
+    # --- Gate 7: Reviews ---
+    if not REVIEW_ROUTER_AVAILABLE:
+        results.append({"gate": 7, "name": "Review Gate", "passed": True,
+                        "reason": "review router unavailable; gate skipped", "exit_code": 0})
+    else:
+        copy_feat = copy.deepcopy(gate_feat)
+        try:
+            _initialize_reviews(copy_feat)
+        except Exception as exc:
+            results.append({"gate": 7, "name": "Review Gate", "passed": False,
+                            "reason": f"review initialization failed: {exc}", "exit_code": 7})
+        else:
+            pending = _get_pending_lanes(copy_feat)
+            if pending:
+                results.append({"gate": 7, "name": "Review Gate", "passed": False,
+                                "reason": f"pending lanes: {pending}", "exit_code": 7})
+            else:
+                results.append({"gate": 7, "name": "Review Gate", "passed": True,
+                                "reason": "all required lanes passed", "exit_code": 0})
+
+    # --- Gate 8: Ship Check ---
+    ship_status = gate_feat.get("quality_gates", {}).get("ship_check", {}).get("status")
+    if ship_status != "pass":
+        results.append({"gate": 8, "name": "Ship Check", "passed": False,
+                        "reason": f"status={ship_status!r}", "exit_code": 8})
+    else:
+        results.append({"gate": 8, "name": "Ship Check", "passed": True,
+                        "reason": "", "exit_code": 0})
+
+    # --- Gate 9: Finalization (not executed) ---
+    results.append({"gate": 9, "name": "Finalization", "passed": None,
+                    "reason": "skipped (destructive — only runs in full flow)",
+                    "exit_code": 0})
+
+    all_blocked = any(r["passed"] is False for r in results)
+    return not all_blocked, results
+
+
+def _print_preflight_report(results: list, feature_id, feature_name: str) -> None:
+    """Print a formatted preflight report for all gate results."""
+    passed_n = sum(1 for r in results if r["passed"] is True)
+    failed_n = sum(1 for r in results if r["passed"] is False)
+    skipped_n = sum(1 for r in results if r["passed"] is None)
+    total = len(results)
+
+    print("=" * 60)
+    print(f"[PREFLIGHT] Feature {feature_id}: {feature_name}")
+    print(f"[PREFLIGHT] {passed_n}/{total} gates passed", end="")
+    if failed_n:
+        print(f", {failed_n} FAILED", end="")
+    if skipped_n:
+        print(f", {skipped_n} SKIPPED", end="")
+    print()
+    print("=" * 60)
+
+    def _icon(passed) -> str:
+        if passed is True:
+            return "PASS"
+        if passed is False:
+            return "FAIL"
+        return "SKIP"
+
+    for r in results:
+        icon = _icon(r["passed"])
+        print(f"  [{icon}] Gate {r['gate']}: {r['name']}")
+        if r["reason"]:
+            print(f"       {r['reason']}")
+
+    print("=" * 60)
+    if failed_n:
+        print("[PREFLIGHT] RESULT: BLOCKED — fix FAILED gates above"
+              " before running `prog done`")
+    else:
+        print("[PREFLIGHT] RESULT: READY — all gates passed."
+              " Run `prog done` to complete.")
+
+
 def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False,
-             no_cleanup: bool = False) -> int:
+             no_cleanup: bool = False, check_only: bool = False) -> int:
     """Close current feature through deterministic acceptance gatekeeping."""
     data = load_progress_json()
     if not data:
         print("[DONE] No progress tracking found")
         return 4
+
+    if check_only:
+        all_passed, results = _run_done_preflight(data)
+        feature_id_for_report = data.get("current_feature_id")
+        if feature_id_for_report is not None and results:
+            feat_for_report = next(
+                (f for f in data.get("features", [])
+                 if f.get("id") == feature_id_for_report), None)
+            feature_name_for_report = (
+                feat_for_report.get("name", f"Feature {feature_id_for_report}")
+                if feat_for_report else "Unknown")
+        else:
+            feature_name_for_report = "N/A"
+            feature_id_for_report = feature_id_for_report or 0
+        _print_preflight_report(
+            results, feature_id_for_report, feature_name_for_report)
+        if all_passed:
+            return 0
+        # Return the first failing gate's exit code for script compatibility.
+        for r in results:
+            if r["passed"] is False:
+                return r["exit_code"]
+        return 1  # unreachable (all_passed was False, so some gate must have failed)
 
     valid, reason, code, feature = _validate_done_preconditions(data)
     if not valid:
@@ -11774,11 +11954,15 @@ def _print_route_preflight_block(
     print(f"  cd {repo_root}")
     if parent_project_root is None:
         print(
-            "  plugins/progress-tracker/prog --project-root <parent_project_root> "
-            f"link-project --project-root {child_scope} --code {code_hint}"
+            '  # Identify parent tracker root: directory whose progress.json has tracker_role="parent"'
         )
         print(
-            "  plugins/progress-tracker/prog --project-root <parent_project_root> "
+            "  plugins/progress-tracker/prog "
+            f"--project-root {child_scope} link-project --code {code_hint} "
+            "--parent-root <parent_tracker_root>"
+        )
+        print(
+            "  plugins/progress-tracker/prog --project-root <parent_tracker_root> "
             f"route-select --project {code_hint} --feature-ref {code_hint}-F<number>"
         )
     else:
@@ -12299,6 +12483,10 @@ def main():
         action="store_true",
         dest="no_cleanup",
         help="Skip automatic post-done cleanup of worktree and feature branch",
+    )
+    done_parser.add_argument(
+        "--check", action="store_true",
+        help="Run all validation gates (acceptance included) without persisting state",
     )
     set_finish_state_parser = subparsers.add_parser(
         "set-finish-state",
@@ -12872,6 +13060,7 @@ def main():
                 run_all=args.run_all,
                 skip_archive=args.skip_archive,
                 no_cleanup=args.no_cleanup,
+                check_only=args.check,
             )
         if args.command == "set-finish-state":
             return cmd_set_finish_state(

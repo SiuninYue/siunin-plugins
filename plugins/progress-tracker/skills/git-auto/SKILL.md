@@ -185,6 +185,11 @@ Every plan MUST print:
   2. Ask user to choose: (a) retry with different path, (b) proceed
      in-place with explicit acknowledgment, (c) abort.
   3. Do NOT proceed without explicit user choice.
+- After worktree creation, if the current project's `progress.json` has
+  `tracker_role: "child"`, proactively apply the monorepo routing fix in
+  `references/worktree-decision.md` (Post-Worktree Monorepo Routing) before
+  issuing any mutating prog commands. Do not rely on `prog status` to detect
+  this — read-only commands bypass the route-preflight guard.
 
 ## PR Maintenance Extensions (Comments + CI)
 

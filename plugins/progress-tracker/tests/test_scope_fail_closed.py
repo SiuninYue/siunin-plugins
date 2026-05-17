@@ -221,7 +221,8 @@ def test_child_mutating_blocks_when_not_registered_in_parent(temp_dir, capsys):
     output = capsys.readouterr().out
     assert result in (False, 1)  # Accept both bool and int for error returns
     assert "not registered in any parent linked_projects" in output
-    assert "link-project --project-root" in output
+    assert "link-project --code" in output
+    assert "--parent-root <parent_tracker_root>" in output
     assert "--project-root" in output
 
 
