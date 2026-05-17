@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-05-21T06:38:50.111Z",
+  "updated_at": "2026-05-18T01:15:25.328211Z",
   "features": [
     {
       "id": 10,
@@ -1764,7 +1764,7 @@
         "TDD 完成后加显式回归检查项：确认问题A已消失且功能B未受影响",
         "原有 systematic-debugging / TDD / git-auto 委托调用不受影响，Scenario 1 和 Scenario 2 保持原样"
       ],
-      "completed": true,
+      "completed": false,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -1774,7 +1774,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "verified",
+      "lifecycle_state": "implementing",
       "requirement_ids": [
         "REQ-015"
       ],
@@ -1799,12 +1799,11 @@
       ],
       "quality_gates": {
         "evaluator": {
-          "status": "pass",
-          "score": 90,
+          "status": "pending",
+          "score": null,
           "defects": [],
-          "last_run_at": "2026-05-16T18:00:18.541043+00:00",
-          "evaluator_model": "claude-sonnet-4-6",
-          "note": "Recovery backfill — F15 merged via PR #49 (4f12d69), worktree cleaned up"
+          "last_run_at": null,
+          "evaluator_model": null
         },
         "reviews": {
           "required": [
@@ -1857,7 +1856,7 @@
         "created_at": null
       },
       "plan_path": "docs/plans/2026-05-11-f15-prog-fix-debug-methodology.md",
-      "development_stage": "completed",
+      "development_stage": "developing",
       "started_at": "2026-05-16T22:53:31.243640Z",
       "ai_metrics": {
         "complexity_score": 20,
@@ -1870,14 +1869,8 @@
           "routed_bucket": "simple",
           "confidence": "high"
         },
-        "started_at": "2026-05-16T23:07:11.458758Z",
-        "finished_at": "2026-05-17T02:00:23.575183+08:00",
-        "duration_seconds": 0
-      },
-      "completed_at": "2026-05-17T02:00:23.575218Z",
-      "integration_status": "merged_and_cleaned",
-      "finish_state_resolved_at": "2026-05-17T02:00:23.575221Z",
-      "commit_hash": "4f12d69"
+        "started_at": "2026-05-16T23:07:11.458758Z"
+      }
     },
     {
       "id": 16,
@@ -1889,7 +1882,7 @@
         "Feature 分支在 squash merge 完成后自动清理：删除本地分支+远程 tracking 分支，失败非阻塞",
         "已有仓库可选执行历史 squash+hash remap 脚本，所有追踪文件中的旧 hash 正确更新为新 hash"
       ],
-      "completed": true,
+      "completed": false,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -1899,7 +1892,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "archived",
+      "lifecycle_state": "approved",
       "requirement_ids": [
         "REQ-016"
       ],
@@ -1931,60 +1924,47 @@
           "status": "pass",
           "score": 88,
           "defects": [
-            "L-01: squash-remap-history.sh OLD_HASH/NEW_HASH not validated as hex → sed metachar risk (fixed: added hex regex guard)",
-            "L-02: TRACKER_DIR hardcoded path assumption in remap script",
-            "L-03: is_working_directory_clean() false-negative on git error (pre-existing)",
-            "I-01: no automated test for CAP commit_hash → squash SHA mapping"
+            "LOW: squash-remap-history.sh uses unquoted variables in sed pattern — hash values should be validated/quoted to prevent sed metacharacter interpretation",
+            "LOW: squash-remap-history.sh TRACKER_DIR hardcodes 'plugins/progress-tracker' prefix under REPO_ROOT — breaks if plugin is installed elsewhere",
+            "LOW: git_validator.py is_working_directory_clean() returns True (clean) on command failure — silent false-negative; should return False or raise",
+            "INFO: No automated test covering acceptance scenario 3 (CAP commit_hash in project_memory.json points to squash commit) — verified by skill doc only"
           ],
-          "last_run_at": "2026-05-21T00:49:39.968780+00:00",
+          "last_run_at": "2026-05-17T17:15:25.327530+00:00",
           "evaluator_model": "claude-sonnet-4-6"
         },
         "reviews": {
-          "required": [
-            "docs",
-            "eng",
-            "qa"
-          ],
-          "passed": [
-            "eng",
-            "qa",
-            "docs"
-          ],
+          "required": [],
+          "passed": [],
           "pending": []
         },
         "ship_check": {
-          "status": "pass",
+          "status": "pending",
           "failures": [],
-          "last_run_at": "2026-05-17T17:16:35Z"
-        },
-        "review_evidence": {
-          "eng": {
-            "evidence": "code review: squash merge enforcement (MUST), CommitHash source (MUST), branch cleanup non-blocking, git_validator ( ) removal safe (subprocess no shell)",
-            "recorded_at": "2026-05-18T01:16:30.968005Z"
-          },
-          "qa": {
-            "evidence": "43/43 tests pass; 4 new: conflict-fail, cleanup-non-blocking, msg-format, fallback; no regression (1031 pass)",
-            "recorded_at": "2026-05-18T01:16:31.128093Z"
-          },
-          "docs": {
-            "evidence": "docs/plans/2026-05-11-f16-git-squash-merge-sop.md + git-auto/SKILL.md + feature-complete/SKILL.md updated",
-            "recorded_at": "2026-05-18T01:16:31.285112Z"
-          }
+          "last_run_at": null
         }
       },
       "sprint_contract": {
-        "scope": "squash merge SOP: 强制 commit_push_pr_merge 使用 gh pr merge --squash --delete-branch，CommitHash 来自 default branch HEAD，task close 路径使用 task(id): description 格式",
+        "scope": "在 prog 插件中集成全 profile Git Squash Merge 工作流，使每个 work item（feature / task / bug，无论 profile 类型）在合入 main 时只产生一个语义完整的 commit，杜绝中间调试/WIP/fix typo/chore 类碎片 commit 污染 main 分支历史。\n\n## 背景与动机\n\n当前仓库 main 分支有 379 个 commit（统计日期 2026-05-11）：\n- 163 个 feat、65 个 fix、50 个 chore、32 个 docs、25 个 merge commit\n- Feature/task 内部试错过程的快照全保留在主分支\n- 例如 F8（fail-closed release gate）有 21 个 commit、git-auto v2.2 有 15 个、F5（progressive disclosure）有 13 个\n- 这些中间 commit 对代码阅读者提供零价值，只增加 git log 噪声和 bisect 成本\n\n## 业界标准参考\n\n| 公司/项目 | 做法 |\n|-----------|------|\n| GitHub 自身 | PR squash merge，一个 PR = 一个 commit |\n| GitLab 默认 | squash merge |\n| VS Code 仓库 | rebase + merge 保持线性历史 |\n| Google/Meta/Microsoft | 同等理念：main 只保留逻辑单元 |\n\n核心理念：**main 分支只保留有意义的『逻辑单元』，不保留开发的试错过程。** 所有 profile 分支内的中间 commit 在合入后即失去价值。\n\n## 设计原则\n\n1. **所有 profile 分支**：保留中间 commit，开发过程中可自由提交\n2. **Squash merge**：合入 main 时所有中间 commit 压成一个；message 格式按 profile：feature_delivery 用 feat(scope)，task 类用 task(scope)\n3. **状态一致性**：追踪文件中的 commit_hash 始终指向 squash 后的最终 commit（非中间 commit），所有 profile 均适用\n4. **SOP 闭环**：feature_delivery 通过 prog-done gate 触发；quick_task/standard_task 通过轻量关闭路径触发；两者不可绕过",
         "done_criteria": [
-          "git-auto SKILL.md 将 squash merge 从 Prefer 升级为 MUST，CommitHash 来源明确为 git rev-parse origin/<default_branch>",
-          "feature-complete SKILL.md Step 5 新增 squash merge 不可跳过检查项",
-          "git_validator.py 允许括号字符（Conventional Commits 格式）",
-          "_git_squash_close_task commit message 格式升级为 task(id): description",
-          "test_task_execution_semantics.py 新增冲突失败/cleanup失败非阻塞/message格式4个测试用例",
-          "squash-remap-history.sh 可选历史 hash remap 脚本"
+          "git auto done 执行 squash merge：将 feature 分支所有 commit 压成一个，commit message 格式为 feat(scope): 功能描述 + 详细 body",
+          "main 分支验证：git log 确认该 feature 只增加了 1 个 commit，无 WIP/fix typo/chore 碎片混入",
+          "project_memory.json CAP 记录的 commit_hash 等于 git log main -1 --format=%H（squash 后的最终 hash）",
+          "sprint_ledger.jsonl artifact_path 和 metadata 与 squash 后的状态一致，无旧 hash 残留",
+          "Feature 分支在 squash merge 成功后自动清理：git branch -d <feature-branch> + git push origin --delete（失败非阻塞）",
+          "feature-complete SKILL.md Step 5 显式包含 squash merge 检查项，标注为不可跳过",
+          "新增测试 test_squash_merge_flow.py：覆盖成功路径、冲突路径、cleanup 失败路径",
+          "边界情况：feature 分支只有 1 个 commit 时 squash 退化为普通 merge，不产生额外操作或报错",
+          "可选工具：历史 remap 脚本将指定范围的旧 commit 压缩为新 commit 并更新所有追踪文件中的 hash 引用",
+          "quick_task 和 standard_task 关闭路径执行 squash merge：branch → 1 commit on main；commit message 格式 task(scope): 描述；WIP commit 不出现在 main。",
+          "git log main 中每个 work item（无论 profile 类型）对应且仅对应 1 个 commit；main 上不出现任何 profile 的 WIP 碎片 commit。"
         ],
         "test_plan": [
-          "43/43 TestGitSquashCloseTask + TestCloseCurrentTask 测试通过",
-          "1031 tests passed，6个预存在失败不在F16范围内"
+          "单元测试：新增 test_squash_merge_flow.py，覆盖 merge 成功、冲突退出、cleanup 失败非阻塞三个路径",
+          "集成测试：mock 一个包含 5 个 commit 的 feature 分支，执行 git auto done，验证 main 最终新增 1 个 commit",
+          "契约测试：prog done 执行后 project_memory.json CAP hash == git log main -1 --format=%H",
+          "回归测试：现有 feature-complete 流程所有测试不受影响（squash 作为增强步骤，非替换）",
+          "手动验证：在真实 feature 分支上运行 prog done，检查 GitHub PR 页面显示 '1 commit'",
+          "边界测试：feature 分支只有 1 个 commit → squash 退化为普通 merge，无额外操作"
         ],
         "accepted_by": null,
         "accepted_at": null
@@ -1995,38 +1975,7 @@
         "artifact_path": null,
         "created_at": null
       },
-      "plan_path": "docs/plans/2026-05-11-f16-git-squash-merge-sop.md",
-      "development_stage": "completed",
-      "started_at": "2026-05-17T02:02:32.210787Z",
-      "ai_metrics": {
-        "complexity_score": 45,
-        "complexity_bucket": "standard",
-        "selected_model": "sonnet",
-        "workflow_path": "plan_execute",
-        "scoring_v2": {
-          "score": 45,
-          "raw_score_bucket": "standard",
-          "routed_bucket": "standard",
-          "confidence": "high"
-        },
-        "started_at": "2026-05-18T00:25:18.004989Z",
-        "finished_at": "2026-05-21T08:49:46.600715+08:00",
-        "duration_seconds": 260668
-      },
-      "completed_at": "2026-05-21T08:49:46.600780Z",
-      "integration_status": "merged_and_cleaned",
-      "finish_state_resolved_at": "2026-05-21T08:49:46.600788Z",
-      "commit_hash": "8d99f207dfa9194838b171802393db85f83f77e9",
-      "archive_info": {
-        "archived_at": "2026-05-21T08:49:46.649222Z",
-        "files_moved": 1,
-        "files": [
-          {
-            "from": "docs/plans/2026-05-11-f16-git-squash-merge-sop.md",
-            "to": "docs/archive/plans/2026-05-11-f16-git-squash-merge-sop.md"
-          }
-        ]
-      }
+      "plan_path": "docs/plans/2026-05-11-f16-git-squash-merge-sop.md"
     },
     {
       "id": 17,
@@ -2158,258 +2107,9 @@
       "plan_path": "docs/superpowers/plans/2026-05-16-f17-parent-route-writeback.md",
       "development_stage": "planning",
       "started_at": null
-    },
-    {
-      "id": 18,
-      "name": "progress_manager.py 深度模块化拆分（Phase 2 技术债偿还）",
-      "test_steps": [
-        "拆分后各子模块可独立 import，无循环依赖：python -c 'import <module>' 均可独立运行",
-        "progress_manager.py 主入口文件降至 1500 行以下；各子模块均不超过 1000 行",
-        "uv run pytest plugins/progress-tracker/tests/ -q → 全部 pass，零回归",
-        "git grep 'from progress_manager import\\|import progress_manager' 确认全部重定向至对应子模块",
-        "拆分本身以符合 F19 变更记录模板写入 docs/changes/（作为 F19 dogfooding 验证用例）"
-      ],
-      "completed": false,
-      "deferred": false,
-      "defer_reason": null,
-      "deferred_at": null,
-      "defer_group": null,
-      "owners": {
-        "architecture": null,
-        "coding": null,
-        "testing": null
-      },
-      "lifecycle_state": "approved",
-      "requirement_ids": [
-        "REQ-018"
-      ],
-      "change_spec": {
-        "why": "F9 仅提取了 prompt builders，progress_manager.py 当前仍有 13,392 行。任何 AI session 都无法在单次 context 内全量读取该文件，是后续所有高风险修复（并发锁、worktree、evaluator 等）出现难以定位 bug 的根因。F19 的可追溯机制建立在该文件可被 AI 稳定理解的前提上，因此拆分优先于追溯机制落地。",
-        "prerequisites": [
-          "F9 (modular command helpers) 已完成 — prompt builder 已提取，本次继续拆分剩余职责"
-        ],
-        "in_scope": [
-          "按职责将 progress_manager.py 拆分为 6-8 个子模块，候选边界：lock_manager.py（锁与事务）、worktree_handler.py（git worktree 路由与路径解析）、state_io.py（progress.json 读写）、lifecycle_state_machine.py（已存在，确认边界）、evaluator_gateway.py（evaluator 调用与结果写入）、route_manager.py（parent-child 路由同步）、cmd_handlers/（各 prog 子命令入口）",
-          "主入口 progress_manager.py 保留为 thin dispatcher，仅做 import 和路由",
-          "全部现有测试 pass（零回归）",
-          "拆分完成后以 F19 要求的变更记录格式在 docs/changes/ 写入首条记录（dogfooding）"
-        ],
-        "out_of_scope": [
-          "修改任何现有行为或命令语义",
-          "新增功能",
-          "F19 追溯机制本体（pre-commit 守卫、index.jsonl 等）"
-        ],
-        "risks": [
-          "循环依赖：拆分时可能出现 lock_manager ↔ state_io 的循环 import，需提前规划依赖方向",
-          "隐式全局状态：progress_manager.py 中可能有模块级全局变量被多处引用，提取时需显式传参",
-          "测试覆盖不足：当前测试可能 mock 了 progress_manager 顶层，拆分后 mock 路径失效"
-        ]
-      },
-      "acceptance_scenarios": [
-        "Scenario: progress_manager.py 主文件行数 ≤ 1500，各子模块 ≤ 1000 行",
-        "Scenario: 各子模块可独立 import，无循环依赖",
-        "Scenario: 全套测试 pass（uv run pytest plugins/progress-tracker/tests/ -q）",
-        "Scenario: 拆分记录以 F19 模板格式写入 docs/changes/index.jsonl（首条 dogfooding 条目）"
-      ],
-      "quality_gates": {
-        "evaluator": {
-          "status": "pending",
-          "score": null,
-          "defects": [],
-          "last_run_at": null,
-          "evaluator_model": null
-        },
-        "reviews": {
-          "required": [
-            "docs",
-            "eng",
-            "qa"
-          ],
-          "passed": [],
-          "pending": [
-            "docs",
-            "eng",
-            "qa"
-          ]
-        },
-        "ship_check": {
-          "status": "pending",
-          "failures": [],
-          "last_run_at": null
-        }
-      },
-      "sprint_contract": {
-        "scope": "将 progress_manager.py 从 13,392 行单文件拆分为职责单一的多模块架构，消除 AI session 无法全量读取的认知瓶颈",
-        "done_criteria": [
-          "主文件 ≤ 1500 行，子模块各 ≤ 1000 行",
-          "无循环依赖，各模块可独立 import",
-          "uv run pytest plugins/progress-tracker/tests/ -q 全部 pass",
-          "拆分本身写入 docs/changes/index.jsonl 作为 dogfooding 首条记录"
-        ],
-        "test_plan": [
-          "Import isolation: python -c 'from <module> import *' 对各子模块独立验证",
-          "Regression: uv run pytest plugins/progress-tracker/tests/ -q",
-          "Manual smoke: prog status / prog next / prog done 核心命令功能验证"
-        ],
-        "accepted_by": null,
-        "accepted_at": null
-      },
-      "handoff": {
-        "from_phase": null,
-        "to_phase": null,
-        "artifact_path": null,
-        "created_at": null
-      },
-      "plan_path": null,
-      "development_stage": "planning",
-      "started_at": null
-    },
-    {
-      "id": 19,
-      "name": "AI 可追溯与可回退机制 v1：变更记录 + 自动守卫 + 回退 SOP",
-      "test_steps": [
-        "校验器：index.jsonl JSONL 语法错误 → 阻断提交",
-        "校验器：缺少必填字段（任意一个）→ 阻断提交",
-        "校验器：change_id 冲突（已存在相同 ID）→ 阻断提交",
-        "校验器：record_path 文件不存在 → 阻断提交",
-        "校验器：high_risk_scripts.txt 不存在 → fail-closed（阻断）",
-        "校验器自身内部异常（如 import error）→ 非零退出阻断提交（exit code 2，区别于记录缺失的 exit code 1）",
-        "手动修改 CHANGELOG.md 后提交 → 渲染结果与暂存区不一致，pre-commit 自动修正并阻断",
-        "未运行渲染器直接提交高风险改动 → CHANGELOG 暂存区与重新生成版本不一致，阻断",
-        "完整流程（写记录 + git add）→ 提交通过，CHANGELOG.md 自动 stage 同步",
-        "git log --all --diff-filter=A -S '\"change_id\": \"<id>\"' -- docs/changes/index.jsonl → 唯一命中目标 commit SHA",
-        "修改 index.jsonl 中已有条目的 summary → git log 仅命中原始添加提交，不含修改提交",
-        "场景 A：archive 可用 → restore-archive 成功 + reconcile-state --check pass",
-        "场景 B：archive 不可用 → 自动 git revert + reconcile-state --check 输出 + 人工确认提示",
-        "场景 C：B 路后 reconcile-state --check 仍失败 → 流程立即非零退出，输出固定诊断命令集合"
-      ],
-      "completed": false,
-      "deferred": false,
-      "defer_reason": null,
-      "deferred_at": null,
-      "defer_group": null,
-      "owners": {
-        "architecture": null,
-        "coding": null,
-        "testing": null
-      },
-      "lifecycle_state": "approved",
-      "requirement_ids": [
-        "REQ-019"
-      ],
-      "change_spec": {
-        "why": "高风险修复（worktree 状态分裂、并发锁、evaluator 写入等）频繁出现，AI session 无法稳定回答「改了什么/风险是什么/怎么回退」。现有能力（progress_transaction、list-archives、reconcile-state）分散，缺乏统一的结构化入口和强制记录约束。本机制在 F18 完成模块化拆分后落地，让 AI 能基于机器可读索引精准定位变更并执行标准化回退。",
-        "prerequisites": [
-          "F18 (progress_manager.py 深度模块化拆分) 必须完成 — 追溯机制的目标文件需可被 AI 全量读取，拆分本身作为首条 index.jsonl dogfooding 记录"
-        ],
-        "in_scope": [
-          "新增 docs/changes/index.jsonl（唯一事实源），每条一行 JSON，固定字段：change_id / date / component / summary / root_cause / fixes / touched_files / test_command / test_result / rollback_strategy / record_path。注：commit_sha 不存储，运行时通过 git log 派生",
-          "CHANGELOG.md 禁止手工维护，始终由 render_changelog_from_index.py 从 index.jsonl 生成",
-          "新增 docs/changes/*.md 变更详情模板（固定小节：问题现象/根因/修复点/影响面/验证命令/回退步骤/残余风险），由 index.jsonl.record_path 引用",
-          "change_id 强制格式：YYYYMMDD-<slug>-<4hex>（例：20260521-worktree-a3f2），由脚本提供唯一生成入口，禁止手写自由命名",
-          "新增 docs/changes/high_risk_scripts.txt（每行一个文件名，支持 # 注释，不支持 glob），初始包含拆分后各子模块中与 worktree/lock/evaluator 相关的模块",
-          "新增 validate_change_record.py（pre-commit 守卫）：读取 high_risk_scripts.txt，命中高风险变更时强制要求 index.jsonl 新条目 + record_path 存在且可读 + change_id 全局唯一 + JSONL 语法与必填字段完整；exit code 1=记录不合规，exit code 2=校验器自身崩溃，均阻断提交",
-          "新增 render_changelog_from_index.py：从 index.jsonl 全量渲染 CHANGELOG.md，稳定排序（date + change_id），无重复条目",
-          "pre-commit 每次重跑渲染器，比对输出与 git show :CHANGELOG.md（暂存区版本，非磁盘文件）；不一致则自动 stage 渲染结果（避免用户手动二次 git add）",
-          "标准 commit 定位命令：git log --all --diff-filter=A -S '\"change_id\": \"<id>\"' --pretty=format:\"%H\" -- docs/changes/index.jsonl（必须加 --diff-filter=A，否则修改已有条目的提交也会命中）",
-          "若命中多个 SHA（cherry-pick/squash 场景），解析器按最近提交优先并输出歧义警告列出候选",
-          "回退三路 SOP：A路=archive 可用(restore-archive + reconcile check)；B路=archive 不可用(git revert + reconcile check + 人工确认)；C路=B路后 reconcile 仍失败(非零退出 + 固定诊断命令集合)",
-          "walkthrough_git_worktree.md 标记为 legacy_record（历史保留，非模板样例）",
-          "新增一条符合模板的标准记录（worktree 修复事件），写入 index.jsonl，作为 AI 检索样板"
-        ],
-        "out_of_scope": [
-          "全仓推广（Phase 1 仅覆盖 progress-tracker）",
-          "progress_manager.py 拆分（F18 负责）",
-          "CI 集成（本阶段采用 pre-commit 半自动，不接入 GitHub Actions）",
-          "index.jsonl 历史条目归档/截断策略（留 Phase 2）"
-        ],
-        "risks": [
-          "渲染器性能：index.jsonl 长期增长后每次提交全量渲染开销上升，暂无截断策略",
-          "Squash merge 粒度：squash commit 包含多个子改动，git revert 回退粒度过粗；建议在变更记录中注明 squash 范围",
-          "high_risk_scripts.txt 腐化：新增模块未及时加入清单时守卫静默失效，需周期性审查",
-          "C路最坏场景依赖人工判断：reconcile 失败时无自动修复能力，只能给出诊断命令集合"
-        ],
-        "technical_decisions": {
-          "commit_sha_removed": "从 index.jsonl 字段中移除，避免 pre-commit 时序冲突（commit 创建前 SHA 不存在）。运行时通过 git log --all --diff-filter=A -S 从 git 历史派生，确定性且无歧义。",
-          "fail_closed": "validate_change_record.py 自身异常时一律非零退出阻断提交。exit code 2=校验器内部崩溃，区别于 exit code 1=记录不合规，方便用户区分是补记录还是修校验器。",
-          "changelog_source_of_truth": "index.jsonl 为唯一写入点，CHANGELOG.md 为派生产物。pre-commit 自动 stage 渲染结果，避免用户手动二次 git add。",
-          "changelog_diff_method": "与暂存区版本（git show :CHANGELOG.md）比对，而非磁盘文件，避免用户有未暂存修改时产生误报。",
-          "git_log_filter": "必须使用 --diff-filter=A（仅匹配添加操作），否则修改 index.jsonl 已有条目的提交也会被 -S 匹配，导致 git revert 回退错误的 commit。",
-          "archive_fallback": "archive 不可用时自动切换 git revert（代码回退自动化），但 reconcile-state --check 结果需人工确认后方可继续（状态恢复不确定性高于代码回退）。"
-        }
-      },
-      "acceptance_scenarios": [
-        "Scenario: 修改高风险脚本但不补 index.jsonl 记录 → pre-commit 阻断，输出明确提示",
-        "Scenario: 直接编辑 CHANGELOG.md 并暂存 → pre-commit 渲染结果与暂存区不一致，自动修正并阻断",
-        "Scenario: 通过 change_id 用标准命令定位 commit SHA → 唯一命中原始添加提交",
-        "Scenario: archive 可用时 A 路回退 → restore-archive 成功 + reconcile-state --check pass",
-        "Scenario: archive 不可用时 B 路回退 → git revert 执行 + 人工确认 reconcile 结果",
-        "Scenario: B 路后 reconcile 失败（C 路）→ 流程立即中止，输出固定诊断命令集合"
-      ],
-      "quality_gates": {
-        "evaluator": {
-          "status": "pending",
-          "score": null,
-          "defects": [],
-          "last_run_at": null,
-          "evaluator_model": null
-        },
-        "reviews": {
-          "required": [
-            "docs",
-            "eng",
-            "qa"
-          ],
-          "passed": [],
-          "pending": [
-            "docs",
-            "eng",
-            "qa"
-          ]
-        },
-        "ship_check": {
-          "status": "pending",
-          "failures": [],
-          "last_run_at": null
-        }
-      },
-      "sprint_contract": {
-        "scope": "在 progress-tracker 范围内建立 AI 可追溯与可回退机制：index.jsonl 事实源 + pre-commit 守卫 + 标准化回退 SOP",
-        "done_criteria": [
-          "docs/changes/index.jsonl 存在，字段格式合规",
-          "validate_change_record.py：高风险改动缺记录时 exit 1 阻断；自身异常时 exit 2 阻断（fail-closed）",
-          "render_changelog_from_index.py：从 index.jsonl 稳定渲染 CHANGELOG.md",
-          "pre-commit 自动 stage 渲染结果，无需用户手动 git add",
-          "git log --all --diff-filter=A 能通过 change_id 唯一定位原始提交 SHA",
-          "回退 SOP A/B/C 三路均有测试覆盖",
-          "walkthrough_git_worktree.md 标记 legacy_record，新增符合模板的首条 dogfooding 记录",
-          "全套现有测试 pass（无回归）"
-        ],
-        "test_plan": [
-          "Unit: validate_change_record.py 覆盖 6 类失败场景（JSONL 语法/缺字段/change_id 冲突/record_path 缺失/high_risk_scripts.txt 不存在/校验器自身崩溃）",
-          "Unit: render_changelog_from_index.py 固定 snapshot 生成稳定输出，无重复条目",
-          "Integration: pre-commit hook 流程（阻断 / 通过 / 自动 stage CHANGELOG.md）",
-          "Integration: git log --diff-filter=A 定位 SHA（唯一命中 + 多命中歧义警告）",
-          "Rollback drill A: archive 可用路径",
-          "Rollback drill B: archive 不可用 → git revert + 人工确认",
-          "Rollback drill C: reconcile 失败 → 立即中止 + 诊断输出",
-          "Regression: uv run pytest plugins/progress-tracker/tests/ -q"
-        ],
-        "accepted_by": null,
-        "accepted_at": null
-      },
-      "handoff": {
-        "from_phase": null,
-        "to_phase": null,
-        "artifact_path": null,
-        "created_at": null
-      },
-      "plan_path": null,
-      "development_stage": "planning",
-      "started_at": null
     }
   ],
-  "current_feature_id": null,
+  "current_feature_id": 15,
   "linked_projects": [],
   "linked_snapshot": {
     "schema_version": "1.0",
@@ -2424,7 +2124,7 @@
   "active_routes": [
     {
       "project_code": "PT",
-      "feature_ref": "PT-F16",
+      "feature_ref": "",
       "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
       "branch": "main"
     }
@@ -2535,21 +2235,21 @@
   ],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-05-21T08:49:46.641854Z",
-    "source": "finalize",
-    "workspace_mode": "in_place",
-    "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
-    "project_root": "/Users/siunin/Projects/Claude-Plugins",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins",
-    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
-    "branch": "main",
-    "upstream": "origin/main",
-    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
-    "current_feature_id": null,
-    "workflow_phase": null,
+    "recorded_at": "2026-05-16T23:07:24.361765Z",
+    "source": "set_workflow_state",
+    "workspace_mode": "worktree",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F15-prog-fix-skill-debug-methodology",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F15-prog-fix-skill-debug-methodology",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F15-prog-fix-skill-debug-methodology",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feat+PT-F15-prog-fix-skill-debug-methodology",
+    "branch": "worktree-feat+PT-F15-prog-fix-skill-debug-methodology",
+    "upstream": null,
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F15-prog-fix-skill-debug-methodology/plugins/progress-tracker",
+    "current_feature_id": 15,
+    "workflow_phase": "execution_complete",
     "current_task": null,
     "total_tasks": null,
-    "next_action": null
+    "next_action": "verify_and_complete"
   },
   "bugs": [
     {
@@ -2694,5 +2394,22 @@
       "created_at": "2026-05-12T22:55:08.086743Z"
     }
   ],
-  "current_task_id": "TASK-001"
+  "current_task_id": "TASK-001",
+  "workflow_state": {
+    "phase": "execution_complete",
+    "updated_at": "2026-05-16T23:07:24.317348Z",
+    "next_action": "verify_and_complete",
+    "execution_context": {
+      "recorded_at": "2026-05-16T23:07:24.339677Z",
+      "source": "set_workflow_state",
+      "workspace_mode": "worktree",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F15-prog-fix-skill-debug-methodology",
+      "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F15-prog-fix-skill-debug-methodology",
+      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feat+PT-F15-prog-fix-skill-debug-methodology/plugins/progress-tracker",
+      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feat+PT-F15-prog-fix-skill-debug-methodology",
+      "branch": "worktree-feat+PT-F15-prog-fix-skill-debug-methodology",
+      "upstream": null
+    },
+    "pending_action": "run_prog_done"
+  }
 }
