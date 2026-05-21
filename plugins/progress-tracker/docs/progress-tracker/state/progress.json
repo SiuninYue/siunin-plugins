@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-05-18T00:50:42.279046Z",
+  "updated_at": "2026-05-21T08:49:46.649410Z",
   "features": [
     {
       "id": 10,
@@ -1889,7 +1889,7 @@
         "Feature 分支在 squash merge 完成后自动清理：删除本地分支+远程 tracking 分支，失败非阻塞",
         "已有仓库可选执行历史 squash+hash remap 脚本，所有追踪文件中的旧 hash 正确更新为新 hash"
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -1899,7 +1899,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "implementing",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-016"
       ],
@@ -1928,11 +1928,16 @@
       ],
       "quality_gates": {
         "evaluator": {
-          "status": "pending",
-          "score": null,
-          "defects": [],
-          "last_run_at": null,
-          "evaluator_model": null
+          "status": "pass",
+          "score": 88,
+          "defects": [
+            "L-01: squash-remap-history.sh OLD_HASH/NEW_HASH not validated as hex → sed metachar risk (fixed: added hex regex guard)",
+            "L-02: TRACKER_DIR hardcoded path assumption in remap script",
+            "L-03: is_working_directory_clean() false-negative on git error (pre-existing)",
+            "I-01: no automated test for CAP commit_hash → squash SHA mapping"
+          ],
+          "last_run_at": "2026-05-21T00:49:39.968780+00:00",
+          "evaluator_model": "claude-sonnet-4-6"
         },
         "reviews": {
           "required": [
@@ -1940,17 +1945,31 @@
             "eng",
             "qa"
           ],
-          "passed": [],
-          "pending": [
-            "docs",
+          "passed": [
             "eng",
-            "qa"
-          ]
+            "qa",
+            "docs"
+          ],
+          "pending": []
         },
         "ship_check": {
-          "status": "pending",
+          "status": "pass",
           "failures": [],
-          "last_run_at": null
+          "last_run_at": "2026-05-17T17:16:35Z"
+        },
+        "review_evidence": {
+          "eng": {
+            "evidence": "code review: squash merge enforcement (MUST), CommitHash source (MUST), branch cleanup non-blocking, git_validator ( ) removal safe (subprocess no shell)",
+            "recorded_at": "2026-05-18T01:16:30.968005Z"
+          },
+          "qa": {
+            "evidence": "43/43 tests pass; 4 new: conflict-fail, cleanup-non-blocking, msg-format, fallback; no regression (1031 pass)",
+            "recorded_at": "2026-05-18T01:16:31.128093Z"
+          },
+          "docs": {
+            "evidence": "docs/plans/2026-05-11-f16-git-squash-merge-sop.md + git-auto/SKILL.md + feature-complete/SKILL.md updated",
+            "recorded_at": "2026-05-18T01:16:31.285112Z"
+          }
         }
       },
       "sprint_contract": {
@@ -1977,7 +1996,7 @@
         "created_at": null
       },
       "plan_path": "docs/plans/2026-05-11-f16-git-squash-merge-sop.md",
-      "development_stage": "developing",
+      "development_stage": "completed",
       "started_at": "2026-05-17T02:02:32.210787Z",
       "ai_metrics": {
         "complexity_score": 45,
@@ -1990,7 +2009,23 @@
           "routed_bucket": "standard",
           "confidence": "high"
         },
-        "started_at": "2026-05-18T00:25:18.004989Z"
+        "started_at": "2026-05-18T00:25:18.004989Z",
+        "finished_at": "2026-05-21T08:49:46.600715+08:00",
+        "duration_seconds": 260668
+      },
+      "completed_at": "2026-05-21T08:49:46.600780Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-05-21T08:49:46.600788Z",
+      "commit_hash": "8d99f207dfa9194838b171802393db85f83f77e9",
+      "archive_info": {
+        "archived_at": "2026-05-21T08:49:46.649222Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-05-11-f16-git-squash-merge-sop.md",
+            "to": "docs/archive/plans/2026-05-11-f16-git-squash-merge-sop.md"
+          }
+        ]
       }
     },
     {
@@ -2125,7 +2160,7 @@
       "started_at": null
     }
   ],
-  "current_feature_id": 16,
+  "current_feature_id": null,
   "linked_projects": [],
   "linked_snapshot": {
     "schema_version": "1.0",
@@ -2140,7 +2175,7 @@
   "active_routes": [
     {
       "project_code": "PT",
-      "feature_ref": "",
+      "feature_ref": "PT-F16",
       "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
       "branch": "main"
     }
@@ -2251,21 +2286,21 @@
   ],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-05-18T00:50:42.266612Z",
-    "source": "set_workflow_state",
+    "recorded_at": "2026-05-21T08:49:46.641854Z",
+    "source": "finalize",
     "workspace_mode": "in_place",
     "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
     "project_root": "/Users/siunin/Projects/Claude-Plugins",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins",
     "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
     "branch": "main",
     "upstream": "origin/main",
     "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
-    "current_feature_id": 16,
-    "workflow_phase": "execution_complete",
+    "current_feature_id": null,
+    "workflow_phase": null,
     "current_task": null,
     "total_tasks": null,
-    "next_action": "verify_and_complete"
+    "next_action": null
   },
   "bugs": [
     {
@@ -2410,23 +2445,5 @@
       "created_at": "2026-05-12T22:55:08.086743Z"
     }
   ],
-  "current_task_id": "TASK-001",
-  "workflow_state": {
-    "phase": "execution_complete",
-    "updated_at": "2026-05-18T00:50:42.198199Z",
-    "pending_action": "run_prog_done",
-    "plan_path": "docs/plans/2026-05-11-f16-git-squash-merge-sop.md",
-    "execution_context": {
-      "recorded_at": "2026-05-18T00:50:42.232180Z",
-      "source": "set_workflow_state",
-      "workspace_mode": "in_place",
-      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
-      "project_root": "/Users/siunin/Projects/Claude-Plugins",
-      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
-      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
-      "branch": "main",
-      "upstream": "origin/main"
-    },
-    "next_action": "verify_and_complete"
-  }
+  "current_task_id": "TASK-001"
 }

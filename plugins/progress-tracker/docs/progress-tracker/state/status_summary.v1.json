@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-05-17T02:00:23.943788Z",
+  "updated_at": "2026-05-18T01:31:54.324513Z",
   "source": {
     "generator": "progress_manager.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,14 +11,14 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1778954423636658996,
-      "size": 102196
+      "mtime_ns": 1779038195825526816,
+      "size": 101285
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
       "exists": true,
-      "mtime_ns": 1778920398161631993,
-      "size": 12502
+      "mtime_ns": 1779036517971763327,
+      "size": 13552
     }
   },
   "progress": {
@@ -30,13 +30,13 @@
     "type": "feature",
     "feature_id": 16,
     "feature_name": "Git Squash Merge SOP — 集成到 prog-done 自动化流程",
-    "development_stage": "pending",
-    "stage_label": "待开始"
+    "development_stage": "developing",
+    "stage_label": "开发中"
   },
   "plan_health": {
-    "status": "N/A",
-    "plan_path": null,
-    "message": "无活跃计划"
+    "status": "OK",
+    "plan_path": "docs/plans/2026-05-11-f16-git-squash-merge-sop.md",
+    "message": "计划文件完整且符合规范"
   },
   "risk_blocker": {
     "has_risk": true,
@@ -46,7 +46,7 @@
   },
   "recent_snapshot": {
     "exists": true,
-    "timestamp": "2026-05-16T16:13:32.793984+08:00",
-    "relative_time": "9 小时前"
+    "timestamp": "2026-05-18T00:48:37.930275+08:00",
+    "relative_time": "43 分钟前"
   }
 }

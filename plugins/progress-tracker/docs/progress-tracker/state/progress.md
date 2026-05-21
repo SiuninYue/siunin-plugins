@@ -2,7 +2,7 @@
 
 **Created**: 2026-04-23T00:28:18.285129Z
 
-**Status**: 16/18 completed
+**Status**: 17/18 completed
 
 ## Completed
 - [x] 根目录混合宿主架构：Monorepo /prog 支持
@@ -21,24 +21,10 @@
 - [x] Unified work-item intake and profile routing (task/feature/bug) via /prog next
 - [x] Task execution semantics and visibility (standalone task vs feature task) with profile-aware done gates
 - [x] prog-fix skill 嵌入4阶段调试方法论
-
-## In Progress
-- [ ] Git Squash Merge SOP — 集成到 prog-done 自动化流程
-  **Test steps**:
-  - feature 分支有多个中间 commit 时执行 prog done，确认合入 main 后只增加 1 个 squash commit，分支自动删除
-  - main 分支 git log 中不出现 WIP/fix typo/chore 类中间 commit，每个 feature 对应一个语义完整的 commit
-  - project_memory.json 中 CAP 记录的 commit_hash 正确指向 squash 后的最终 commit
-  - Feature 分支在 squash merge 完成后自动清理：删除本地分支+远程 tracking 分支，失败非阻塞
-  - 已有仓库可选执行历史 squash+hash remap 脚本，所有追踪文件中的旧 hash 正确更新为新 hash
+- [x] Git Squash Merge SOP — 集成到 prog-done 自动化流程
 
 ## Pending
 - [ ] Parent-Child Route 同步：子插件 set_current/done 回写父 active_routes
-
-## Workflow Context
-- Phase: execution_complete
-- Next action: verify_and_complete
-- Execution context: main @ Claude-Plugins [in_place]
-- Current session context: main @ Claude-Plugins [in_place]
 
 ## Recent Updates
 - [UPD-002] decision: F14 planning frozen: /prog note visibility split into active memo vs history (feature:14)

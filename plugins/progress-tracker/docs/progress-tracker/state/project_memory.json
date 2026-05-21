@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "created_at": "2026-04-12T09:38:02.910760Z",
-  "updated_at": "2026-05-16T18:00:23.689724Z",
-  "next_capability_seq": 23,
+  "updated_at": "2026-05-21T00:49:46.659825Z",
+  "next_capability_seq": 24,
   "last_synced_commit": null,
   "capabilities": [
     {
@@ -415,6 +415,22 @@
       },
       "created_at": "2026-05-16T18:00:23.689689Z",
       "updated_at": "2026-05-16T18:00:23.689689Z"
+    },
+    {
+      "cap_id": "CAP-023",
+      "fingerprint": "1057e9940b194711",
+      "title": "Git Squash Merge SOP — 集成到 prog-done 自动化流程",
+      "summary": "Completed feature 16: Git Squash Merge SOP — 集成到 prog-done 自动化流程",
+      "tags": [],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 16,
+        "commit_hash": "8d99f207dfa9194838b171802393db85f83f77e9",
+        "commit_range": ""
+      },
+      "created_at": "2026-05-21T00:49:46.659743Z",
+      "updated_at": "2026-05-21T00:49:46.659743Z"
     }
   ],
   "rejected_fingerprints": [],
