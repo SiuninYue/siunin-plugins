@@ -324,8 +324,6 @@ logger = logging.getLogger(__name__)
 _PROJECT_ROOT_OVERRIDE: Optional[Path] = None
 _REPO_ROOT: Optional[Path] = None
 _STORAGE_READY_ROOT: Optional[Path] = None
-_PROGRESS_LOCK_HANDLE: Optional[Any] = None
-_PROGRESS_LOCK_DEPTH = 0
 
 
 def get_plugin_root():
@@ -479,32 +477,40 @@ def get_progress_dir() -> Path:
     return get_state_dir(find_project_root())
 
 
-def _progress_lock_path() -> Path:
+_PROGRESS_LOCK_HANDLES: Dict[Path, Any] = {}
+_PROGRESS_LOCK_DEPTHS: Dict[Path, int] = {}
+
+
+def _progress_lock_path(project_root: Optional[Path] = None) -> Path:
     """Return the per-project progress lock file path."""
-    progress_dir = get_progress_dir()
+    root = project_root or find_project_root()
+    progress_dir = get_state_dir(root)
     progress_dir.mkdir(parents=True, exist_ok=True)
     return progress_dir / PROGRESS_LOCK_FILE
 
 
-def _acquire_progress_lock(timeout_seconds: float = PROGRESS_LOCK_TIMEOUT_SECONDS) -> None:
+def _acquire_progress_lock(timeout_seconds: float = PROGRESS_LOCK_TIMEOUT_SECONDS, project_root: Optional[Path] = None) -> None:
     """Acquire a re-entrant cross-process lock for progress state mutations."""
-    global _PROGRESS_LOCK_HANDLE, _PROGRESS_LOCK_DEPTH
     if fcntl is None:
         return
 
-    if _PROGRESS_LOCK_DEPTH > 0 and _PROGRESS_LOCK_HANDLE is not None:
-        _PROGRESS_LOCK_DEPTH += 1
+    root = (project_root or find_project_root()).resolve()
+    depth = _PROGRESS_LOCK_DEPTHS.get(root, 0)
+    handle = _PROGRESS_LOCK_HANDLES.get(root)
+
+    if depth > 0 and handle is not None:
+        _PROGRESS_LOCK_DEPTHS[root] = depth + 1
         return
 
-    lock_path = _progress_lock_path()
+    lock_path = _progress_lock_path(root)
     handle = open(lock_path, "a+", encoding="utf-8")
     start = time.monotonic()
 
     while True:
         try:
             fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-            _PROGRESS_LOCK_HANDLE = handle
-            _PROGRESS_LOCK_DEPTH = 1
+            _PROGRESS_LOCK_HANDLES[root] = handle
+            _PROGRESS_LOCK_DEPTHS[root] = 1
             return
         except BlockingIOError:
             if time.monotonic() - start >= timeout_seconds:
@@ -518,20 +524,23 @@ def _acquire_progress_lock(timeout_seconds: float = PROGRESS_LOCK_TIMEOUT_SECOND
             raise
 
 
-def _release_progress_lock() -> None:
+def _release_progress_lock(project_root: Optional[Path] = None) -> None:
     """Release the re-entrant progress lock."""
-    global _PROGRESS_LOCK_HANDLE, _PROGRESS_LOCK_DEPTH
     if fcntl is None:
         return
-    if _PROGRESS_LOCK_DEPTH <= 0:
+
+    root = (project_root or find_project_root()).resolve()
+    depth = _PROGRESS_LOCK_DEPTHS.get(root, 0)
+    if depth <= 0:
         return
 
-    _PROGRESS_LOCK_DEPTH -= 1
-    if _PROGRESS_LOCK_DEPTH > 0:
+    depth -= 1
+    _PROGRESS_LOCK_DEPTHS[root] = depth
+    if depth > 0:
         return
 
-    handle = _PROGRESS_LOCK_HANDLE
-    _PROGRESS_LOCK_HANDLE = None
+    handle = _PROGRESS_LOCK_HANDLES.pop(root, None)
+    _PROGRESS_LOCK_DEPTHS.pop(root, None)
     if handle is None:
         return
 
@@ -542,13 +551,13 @@ def _release_progress_lock() -> None:
 
 
 @contextmanager
-def progress_transaction(timeout_seconds: float = PROGRESS_LOCK_TIMEOUT_SECONDS):
+def progress_transaction(timeout_seconds: float = PROGRESS_LOCK_TIMEOUT_SECONDS, project_root: Optional[Path] = None):
     """Transactional guard for mutating progress state."""
-    _acquire_progress_lock(timeout_seconds=timeout_seconds)
+    _acquire_progress_lock(timeout_seconds=timeout_seconds, project_root=project_root)
     try:
         yield
     finally:
-        _release_progress_lock()
+        _release_progress_lock(project_root=project_root)
 
 
 def _atomic_write_text(path: Path, content: str) -> None:
@@ -1012,6 +1021,53 @@ def _resolve_linked_project_root(
     return project_candidate
 
 
+def _get_main_repo_root(project_root: Path) -> Optional[Path]:
+    """
+    通过 git rev-parse --absolute-git-dir 检测是否在 worktree 内。
+    如果是，则返回主仓库根目录，否则返回 None。
+    """
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--absolute-git-dir"],
+            cwd=str(project_root),
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        git_dir = Path(result.stdout.strip()).resolve()
+        parts = git_dir.parts
+        # 寻找连续的 ".git" 和 "worktrees"
+        for i in range(len(parts) - 2):
+            if parts[i] == ".git" and parts[i+1] == "worktrees":
+                main_git_dir = Path(*parts[:i+1])
+                return main_git_dir.parent.resolve()
+    except Exception:
+        pass
+    return None
+
+
+def _resolve_main_repo_path(project_root: Path) -> Path:
+    """
+    若在 worktree 内，把 worktree 路径翻译为主仓库等效路径；不在则原样返回。
+    """
+    main_root = _get_main_repo_root(project_root)
+    if main_root is None:
+        return project_root.resolve()
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=str(project_root),
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        wt_root = Path(result.stdout.strip()).resolve()
+        rel_path = project_root.resolve().relative_to(wt_root)
+        return (main_root / rel_path).resolve()
+    except Exception:
+        return project_root.resolve()
+
+
 def _count_feature_completion(features: Any) -> Tuple[int, int]:
     """Return (completed, total) from a progress features payload."""
     if not isinstance(features, list):
@@ -1293,12 +1349,18 @@ def _normalize_project_code(raw_code: str) -> Optional[str]:
 
 
 def _serialize_project_root_for_config(project_root: Path, repo_root: Path) -> str:
-    """Persist linked project roots as repo-relative paths when possible."""
-    resolved_root = project_root.resolve()
+    """Persist linked project roots as repo-relative paths when possible.
+    Supports git worktree by translating both sides to their main repo equivalents.
+    """
+    resolved_root = _resolve_main_repo_path(project_root)
+    resolved_repo = _resolve_main_repo_path(repo_root)
     try:
-        return resolved_root.relative_to(repo_root.resolve()).as_posix()
+        return resolved_root.relative_to(resolved_repo).as_posix()
     except ValueError:
-        return str(resolved_root)
+        try:
+            return resolved_root.relative_to(repo_root.resolve()).as_posix()
+        except ValueError:
+            return str(resolved_root)
 
 
 def _load_progress_payload_at_root(project_root: Path) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
@@ -1323,15 +1385,16 @@ def _save_progress_payload_at_root(
     touch_updated_at: bool = True,
 ) -> None:
     """Persist progress payload + markdown for an explicit root."""
-    ensure_tracker_layout(project_root)
-    _apply_schema_defaults(data)
-    if touch_updated_at:
-        data["updated_at"] = _iso_now()
-    _atomic_write_text(
-        get_progress_json_path(project_root),
-        json.dumps(data, indent=2, ensure_ascii=False),
-    )
-    _atomic_write_text(get_progress_md_path(project_root), generate_progress_md(data))
+    with progress_transaction(project_root=project_root):
+        ensure_tracker_layout(project_root)
+        _apply_schema_defaults(data)
+        if touch_updated_at:
+            data["updated_at"] = _iso_now()
+        _atomic_write_text(
+            get_progress_json_path(project_root),
+            json.dumps(data, indent=2, ensure_ascii=False),
+        )
+        _atomic_write_text(get_progress_md_path(project_root), generate_progress_md(data))
 
 
 def _notify_parent_sync() -> None:
@@ -1430,7 +1493,8 @@ def link_project(
 
     parent_root = find_project_root().resolve()
     repo_root = Path(_REPO_ROOT or parent_root).resolve()
-    child_root = _resolve_linked_project_root(raw_child_root, parent_root, repo_root)
+    child_wt_root = _resolve_linked_project_root(raw_child_root, parent_root, repo_root)
+    child_root = _resolve_main_repo_path(child_wt_root)
 
     if child_root == parent_root:
         message = "Error: Child project root cannot be the same as parent project root."
@@ -1441,6 +1505,8 @@ def link_project(
         return False
 
     child_data, child_error = _load_progress_payload_at_root(child_root)
+    if child_data is None and child_wt_root != child_root:
+        child_data, child_error = _load_progress_payload_at_root(child_wt_root)
     if child_data is None:
         message = child_error or "Error: Unable to load child progress tracker data."
         if output_json:
@@ -1527,7 +1593,7 @@ def link_project(
 
     # Delegate core registration to _link_child_to_parent
     _link_child_to_parent(
-        parent_data, parent_root, repo_root, child_root, normalized_code, label=label
+        parent_data, parent_root, repo_root, child_root, normalized_code, label=label, child_wt_root=child_wt_root
     )
 
     # Post-registration: migrate previous_codes in routing_queue
@@ -1736,6 +1802,7 @@ def _link_child_to_parent(
     code: str,
     label: Optional[str] = None,
     append_to_queue: bool = True,
+    child_wt_root: Optional[Path] = None,
 ) -> None:
     """Register a child tracker in the parent's linked_projects and queue.
 
@@ -1746,6 +1813,8 @@ def _link_child_to_parent(
 
     # Write child metadata
     child_data, _ = _load_progress_payload_at_root(child_root)
+    if child_data is None and child_wt_root is not None and child_wt_root.resolve() != child_root.resolve():
+        child_data, _ = _load_progress_payload_at_root(child_wt_root)
     if isinstance(child_data, dict):
         child_data["tracker_role"] = "child"
         child_data["project_code"] = normalized_code
@@ -1753,6 +1822,17 @@ def _link_child_to_parent(
             parent_root, repo_root
         )
         _save_progress_payload_at_root(child_root, child_data)
+
+    # If worktree root is provided and distinct, update it too
+    if child_wt_root is not None and child_wt_root.resolve() != child_root.resolve():
+        wt_child_data, _ = _load_progress_payload_at_root(child_wt_root)
+        if isinstance(wt_child_data, dict):
+            wt_child_data["tracker_role"] = "child"
+            wt_child_data["project_code"] = normalized_code
+            wt_child_data["parent_project_root"] = _serialize_project_root_for_config(
+                parent_root, repo_root
+            )
+            _save_progress_payload_at_root(child_wt_root, wt_child_data)
 
     # Infer label
     if label is None:
@@ -3627,20 +3707,40 @@ def cmd_install_git_hooks() -> Dict[str, Any]:
 
 def _store_evaluator_result(feature_id: int, result: Any) -> None:
     """PR-3: persist evaluator assessment into quality_gates.evaluator."""
-    data = load_progress_json()
-    if data is None:
-        raise ValueError("progress.json not found")
-    feat = next((f for f in data.get("features", []) if f.get("id") == feature_id), None)
-    if feat is None:
-        raise ValueError(f"feature {feature_id} not found")
-    feat.setdefault("quality_gates", {})
-    feat["quality_gates"]["evaluator"] = result.to_quality_gate_payload()
-    save_progress_json(data)
-    _append_audit_event(
-        event_type="evaluator_assessment",
-        feature_id=feature_id,
-        details={"status": result.status, "score": result.score},
-    )
+    with progress_transaction():
+        data = load_progress_json()
+        if data is None:
+            raise ValueError("progress.json not found")
+        feat = next((f for f in data.get("features", []) if f.get("id") == feature_id), None)
+        if feat is None:
+            raise ValueError(f"feature {feature_id} not found")
+        feat.setdefault("quality_gates", {})
+        feat["quality_gates"]["evaluator"] = result.to_quality_gate_payload()
+
+        current_root = find_project_root()
+        main_root = _resolve_main_repo_path(current_root)
+        if main_root.resolve() != current_root.resolve():
+            with progress_transaction(project_root=main_root):
+                main_data, err = _load_progress_payload_at_root(main_root)
+                if main_data is not None:
+                    main_feat = next((f for f in main_data.get("features", []) if f.get("id") == feature_id), None)
+                    if main_feat is not None:
+                        main_feat.setdefault("quality_gates", {})
+                        main_feat["quality_gates"]["evaluator"] = result.to_quality_gate_payload()
+                        _save_progress_payload_at_root(main_root, main_data)
+                    else:
+                        logger.warning("Feature %s not found in main repo tracker at %s", feature_id, main_root)
+                else:
+                    logger.warning("Could not load main repo tracker at %s: %s", main_root, err)
+
+                save_progress_json(data)
+        else:
+            save_progress_json(data)
+        _append_audit_event(
+            event_type="evaluator_assessment",
+            feature_id=feature_id,
+            details={"status": result.status, "score": result.score},
+        )
 
 
 def _emit(data: Dict[str, Any], as_json: bool) -> None:
@@ -11906,7 +12006,7 @@ def _discover_parent_route_bindings_for_child(
                 resolved_root,
                 repo_resolved,
             )
-            if linked_root == child_resolved:
+            if linked_root == child_resolved or _resolve_main_repo_path(linked_root) == _resolve_main_repo_path(child_resolved):
                 entry = spec.get("entry")
                 matched_entry = entry if isinstance(entry, dict) else {}
                 break
