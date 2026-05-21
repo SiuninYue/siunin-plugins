@@ -416,11 +416,10 @@ def test_cmd_done_completion_state_stable_before_cleanup_runs(seeded_done_env):
     )
 
 
-def test_cmd_done_preserves_state_when_project_completed_audit_fails(seeded_done_env):
-    """project_completed 审计写入失败时，reset 需 fail-closed 保留 active state。
+def test_cmd_done_clears_state_when_project_completed_audit_fails(seeded_done_env):
+    """project_completed 审计写入失败时，reset 需 best-effort 仍清除 active state。
 
     仅拦截 event_type == "project_completed"，放行 feature_completed。
-    防止 cmd_done() 回归为“边界事件丢失仍清空状态”的不安全行为。
     """
     original = progress_manager.record_feature_state_event
 
@@ -437,7 +436,5 @@ def test_cmd_done_preserves_state_when_project_completed_audit_fails(seeded_done
 
     state_dir = seeded_done_env / "docs" / "progress-tracker" / "state"
     data = json.loads((state_dir / "progress.json").read_text())
-    assert data["features"], "fail-closed: state must be preserved when project_completed audit fails"
-    feature = next(f for f in data["features"] if f["id"] == _FEATURE_ID)
-    assert feature["completed"] is True
+    assert not data["features"], "best-effort: state should be cleared even when project_completed audit fails"
     assert data["current_feature_id"] is None

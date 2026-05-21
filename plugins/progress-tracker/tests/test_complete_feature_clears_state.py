@@ -111,11 +111,10 @@ class TestCompleteFeatureClearsState:
         # bugs should still be there — reset not triggered
         assert len(data["bugs"]) == 1
 
-    def test_preserves_state_when_project_completed_audit_fails(self, project_scope):
-        """project_completed 审计写入失败时，reset 需 fail-closed 保留 active state。
+    def test_clears_state_when_project_completed_audit_fails(self, project_scope):
+        """project_completed 审计写入失败时，reset 需 best-effort 仍清除 active state。
 
         仅拦截 event_type == "project_completed" 的调用，放行 feature_completed。
-        否则边界事件丢失会导致新周期 reconcile/backfill 歧义。
         """
         _write_full_completed_project(project_scope["state_dir"], feature_count=1, last_pending=True)
 
@@ -130,7 +129,5 @@ class TestCompleteFeatureClearsState:
             pm.complete_feature(feature_id=1, skip_archive=False)
 
         data = json.loads((project_scope["state_dir"] / "progress.json").read_text())
-        assert data["features"], "fail-closed: state must be preserved when project_completed audit fails"
-        feature = next(f for f in data["features"] if f["id"] == 1)
-        assert feature["completed"] is True
+        assert not data["features"], "best-effort: state should be cleared even when project_completed audit fails"
         assert data["current_feature_id"] is None
