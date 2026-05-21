@@ -2,7 +2,7 @@
 
 **Created**: 2026-04-23T00:28:18.285129Z
 
-**Status**: 17/18 completed
+**Status**: 17/20 completed
 
 ## Completed
 - [x] 根目录混合宿主架构：Monorepo /prog 支持
@@ -23,8 +23,27 @@
 - [x] prog-fix skill 嵌入4阶段调试方法论
 - [x] Git Squash Merge SOP — 集成到 prog-done 自动化流程
 
-## Pending
+## In Progress
 - [ ] Parent-Child Route 同步：子插件 set_current/done 回写父 active_routes
+  **Test steps**:
+  - 子项目 prog set-current 14 → 检查 root active_routes 是否有 PT -> PT-F14
+  - 子项目 /prog done → 检查 root active_routes 是否已移除 PT
+  - root features[] 仍为空或只含 root-level feature，不复制 child feature
+  - set_current() 的 worktree_path/branch 来源为 child runtime_context 或 collect_git_context() fallback
+  - set-current 在父 linked_projects 不完整时仍允许执行（bootstrap），输出 warn
+  - 多个子项目同时 active → root dashboard 列出全部活跃路由 + RecommendedRoute
+  - set_current() 检测并行路由时即时输出 [WARNING]
+  - sync-linked --repair-routes 从 child current_feature_id 重建 route，跳过 completed/deferred
+  - uv run pytest plugins/progress-tracker/tests/test_parent_writeback.py -q → 全部 pass
+  - uv run pytest plugins/progress-tracker/tests/test_dispatch_child_feature.py test_route_commands.py test_root_dashboard.py test_sync_linked_command.py -q → 回归 pass
+
+## Pending
+- [ ] progress_manager.py 深度模块化拆分（Phase 2 技术债偿还）
+- [ ] AI 可追溯与可回退机制 v1：变更记录 + 自动守卫 + 回退 SOP
+
+## Workflow Context
+- Phase: planning
+- Current session context: main @ Claude-Plugins [in_place]
 
 ## Recent Updates
 - [UPD-002] decision: F14 planning frozen: /prog note visibility split into active memo vs history (feature:14)
