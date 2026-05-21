@@ -1255,8 +1255,14 @@ def collect_linked_project_statuses(
 def sync_linked(
     output_json: bool = False,
     stale_after_hours: int = DEFAULT_LINKED_STATUS_STALE_HOURS,
+    repair_routes: bool = False,
 ) -> bool:
-    """Refresh and persist linked project status snapshot under linked_snapshot."""
+    """Refresh and persist linked project status snapshot under linked_snapshot.
+
+    When repair_routes=True, also rebuilds active_routes from child
+    current_feature_id: upserts entries for active features and removes entries
+    for completed/deferred/absent features.
+    """
     data = load_progress_json()
     if not data:
         payload = {"status": "error", "message": "No progress tracking found"}
@@ -1282,6 +1288,46 @@ def sync_linked(
     linked_snapshot["projects"] = statuses
     data["linked_snapshot"] = linked_snapshot
 
+    repaired_routes: List[Dict[str, Any]] = []
+    if repair_routes:
+        project_root = find_project_root().resolve()
+        repo_root = Path(_REPO_ROOT or project_root).resolve()
+        linked_projects = data.get("linked_projects") or []
+        for lp in linked_projects:
+            if not isinstance(lp, dict):
+                continue
+            lp_code_raw = lp.get("project_code")
+            lp_code = (
+                _normalize_project_code(lp_code_raw)
+                if isinstance(lp_code_raw, str) and lp_code_raw.strip()
+                else None
+            )
+            if not lp_code:
+                continue
+            raw_root = lp.get("project_root") or lp.get("path") or lp.get("root")
+            if not raw_root:
+                continue
+            child_root = _resolve_linked_project_root(str(raw_root).strip(), project_root, repo_root)
+            child_data, _ = _load_progress_payload_at_root(child_root)
+            if not isinstance(child_data, dict):
+                _remove_active_route(data, lp_code)
+                repaired_routes.append({"project_code": lp_code, "action": "removed", "reason": "child unreadable"})
+                continue
+            current_fid = child_data.get("current_feature_id")
+            if current_fid is None:
+                _remove_active_route(data, lp_code)
+                repaired_routes.append({"project_code": lp_code, "action": "removed", "reason": "no current feature"})
+                continue
+            features = child_data.get("features") or []
+            feature = next((f for f in features if isinstance(f, dict) and f.get("id") == current_fid), None)
+            if feature is None or feature.get("completed", False) or feature.get("deferred", False):
+                _remove_active_route(data, lp_code)
+                repaired_routes.append({"project_code": lp_code, "action": "removed", "reason": "feature completed/deferred"})
+            else:
+                feature_ref = _format_route_feature_ref(current_fid, lp_code)
+                _upsert_active_route(data, lp_code, feature_ref)
+                repaired_routes.append({"project_code": lp_code, "action": "upserted", "feature_ref": feature_ref})
+
     _update_runtime_context(data, source="sync_linked")
     save_progress_json(data)
 
@@ -1293,7 +1339,7 @@ def sync_linked(
     invalid_count = sum(1 for item in statuses if item.get("status") == "invalid")
     stale_count = sum(1 for item in statuses if item.get("is_stale") is True)
 
-    payload = {
+    payload: Dict[str, Any] = {
         "status": "ok",
         "project_count": len(statuses),
         "ok_count": ok_count,
@@ -1303,15 +1349,21 @@ def sync_linked(
         "stale_after_hours": stale_window_hours,
         "snapshot": linked_snapshot,
     }
+    if repair_routes:
+        payload["repair_routes_applied"] = True
+        payload["repaired_routes"] = repaired_routes
 
     if output_json:
         print(json.dumps(payload, ensure_ascii=False))
     else:
-        print(
+        msg = (
             "Synced linked snapshot: "
             f"{len(statuses)} projects (ok={ok_count}, missing={missing_count}, "
             f"invalid={invalid_count}, stale={stale_count})"
         )
+        if repair_routes:
+            msg += f" | repaired {len(repaired_routes)} route(s)"
+        print(msg)
     return True
 
 
@@ -1397,8 +1449,57 @@ def _save_progress_payload_at_root(
         _atomic_write_text(get_progress_md_path(project_root), generate_progress_md(data))
 
 
-def _notify_parent_sync() -> None:
+def _format_route_feature_ref(feature_id: int, project_code: str) -> str:
+    """Format feature ref string: project_code='PT', feature_id=14 → 'PT-F14'."""
+    return f"{project_code}-F{feature_id}"
+
+
+def _upsert_active_route(
+    parent_data: Dict[str, Any],
+    project_code: str,
+    feature_ref: str,
+) -> None:
+    """Upsert active_routes entry for project_code (in-place), deduplicating."""
+    active_routes: List[Any] = parent_data.get("active_routes") or []
+    if not isinstance(active_routes, list):
+        active_routes = []
+    normalized_code = project_code.strip().upper()
+    other = [
+        r for r in active_routes
+        if isinstance(r, dict)
+        and r.get("project_code", "").strip().upper() != normalized_code
+    ]
+    other.append({
+        "project_code": normalized_code,
+        "feature_ref": feature_ref,
+        "assigned_at": _iso_now(),
+    })
+    parent_data["active_routes"] = other
+
+
+def _remove_active_route(parent_data: Dict[str, Any], project_code: str) -> None:
+    """Remove active_routes entry for project_code (in-place)."""
+    active_routes: List[Any] = parent_data.get("active_routes") or []
+    if not isinstance(active_routes, list):
+        parent_data["active_routes"] = []
+        return
+    normalized_code = project_code.strip().upper()
+    parent_data["active_routes"] = [
+        r for r in active_routes
+        if not (
+            isinstance(r, dict)
+            and r.get("project_code", "").strip().upper() == normalized_code
+        )
+    ]
+
+
+def _notify_parent_sync(route_event: str = "refresh") -> None:
     """Trigger parent linked_snapshot refresh after child state changes.
+
+    route_event:
+      "refresh"  — refresh linked_snapshot only (default, backward-compatible)
+      "activate" — also upsert child's current feature into parent active_routes
+      "clear"    — also remove child's entry from parent active_routes
 
     Reads parent_project_root from the current child tracker.
     On any error (missing parent, invalid data), prints WARNING and returns.
@@ -1444,6 +1545,33 @@ def _notify_parent_sync() -> None:
         linked_snapshot["updated_at"] = _iso_now()
         linked_snapshot["projects"] = statuses
         parent_data["linked_snapshot"] = linked_snapshot
+
+        child_code_raw = child_data.get("project_code")
+        child_code = (
+            _normalize_project_code(child_code_raw)
+            if isinstance(child_code_raw, str) and child_code_raw.strip()
+            else None
+        )
+
+        if route_event == "activate" and child_code:
+            current_fid = child_data.get("current_feature_id")
+            if current_fid is not None:
+                feature_ref = _format_route_feature_ref(current_fid, child_code)
+                _upsert_active_route(parent_data, child_code, feature_ref)
+                # Warn if other routes are already active (parallel execution)
+                other_codes = [
+                    r.get("project_code", "").strip().upper()
+                    for r in (parent_data.get("active_routes") or [])
+                    if isinstance(r, dict)
+                    and r.get("project_code", "").strip().upper() != child_code
+                ]
+                if other_codes:
+                    print(
+                        f"[WARNING] Parallel active routes detected after activating "
+                        f"{child_code}: other active route(s): {', '.join(other_codes)}"
+                    )
+        elif route_event == "clear" and child_code:
+            _remove_active_route(parent_data, child_code)
 
         _save_progress_payload_at_root(parent_root, parent_data)
     except Exception as exc:  # noqa: BLE001
@@ -5589,13 +5717,31 @@ def _display_root_dashboard(
         for f in root_pending:
             print(f"  [ ] {f.get('name', 'Unknown')}")
 
-    active_route_str = "none"
-    if active_route_code:
-        active_route_str = f"{active_route_code}"
-        if active_feature_name:
-            active_route_str += f" -> {active_feature_name}"
     queue_str = " -> ".join(str(c) for c in routing_queue) if routing_queue else "(empty)"
-    print(f"\nActive Route: {active_route_str}  |  Queue: {queue_str}")
+    n_active = len(active_routes_raw)
+
+    if n_active == 0:
+        print(f"\nActive Route: none  |  Queue: {queue_str}")
+    elif n_active == 1:
+        route = active_routes_raw[0] if isinstance(active_routes_raw[0], dict) else {}
+        code = route.get("project_code") or active_route_code or "?"
+        ref = route.get("feature_ref") or route.get("feature_name") or active_feature_name or "?"
+        print(f"\nActive Route: {code} -> {ref}  |  Queue: {queue_str}")
+        print(f"→ Resume: /prog next  (routes to {code} active feature)")
+    else:
+        print(f"\nActive Routes ({n_active} parallel — WARNING):")
+        for route in active_routes_raw:
+            if not isinstance(route, dict):
+                continue
+            c = route.get("project_code") or "?"
+            r = route.get("feature_ref") or route.get("feature_name") or "?"
+            print(f"  {c} -> {r}")
+        first_code = (
+            active_routes_raw[0].get("project_code")
+            if isinstance(active_routes_raw[0], dict)
+            else "?"
+        ) or "?"
+        print(f"RecommendedRoute: {first_code}  |  Queue: {queue_str}")
 
     return True
 
@@ -7282,6 +7428,10 @@ def set_current(feature_id):
     save_progress_md(md_content)
 
     _auto_state_commit(f"F{feature_id}", "start")
+
+    # F17: notify parent tracker to upsert active_routes for this child feature
+    if not feature.get("completed", False):
+        _notify_parent_sync("activate")
 
     print(f"Set current feature: {feature.get('name', 'Unknown')}")
     return True
@@ -9523,7 +9673,7 @@ def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False
         if completion_output is None:
             completion_output = _build_project_completion_summary(refreshed, project_root_str)
 
-    _notify_parent_sync()
+    _notify_parent_sync("clear")
     try:
         _run_post_done_cleanup(cleanup_ctx, skip=no_cleanup)
     except Exception as exc:
@@ -12197,6 +12347,18 @@ def enforce_route_preflight(command: str, argv: Sequence[str]) -> bool:
             active_route_codes.append(route_code)
 
     if child_code not in active_route_codes:
+        # Bootstrap exception (F17): set-current is the command that creates the
+        # active_routes entry.  Only exempt when active_routes is EMPTY — meaning
+        # no other project has claimed the slot.  If another project is active
+        # (route mismatch), set-current must still be blocked like every other
+        # mutating command.
+        if command == "set-current" and not active_route_codes:
+            print(
+                f"[WARNING] Route preflight bootstrap: {child_code} not in parent "
+                "active_routes (empty). Allowing set-current to bootstrap the route entry."
+            )
+            return True
+
         active_display = ", ".join(sorted(set(active_route_codes))) if active_route_codes else "(none)"
         _print_route_preflight_block(
             reason=(
@@ -12860,6 +13022,12 @@ def main():
         default=DEFAULT_LINKED_STATUS_STALE_HOURS,
         help="Staleness threshold in hours for linked snapshots",
     )
+    sync_linked_parser.add_argument(
+        "--repair-routes",
+        action="store_true",
+        dest="repair_routes",
+        help="Rebuild active_routes from child current_feature_id (skips completed/deferred)",
+    )
     link_project_parser = subparsers.add_parser(
         "link-project",
         help=(
@@ -13275,6 +13443,7 @@ def main():
             return sync_linked(
                 output_json=args.output_json,
                 stale_after_hours=args.stale_after_hours,
+                repair_routes=getattr(args, "repair_routes", False),
             )
         if args.command == "link-project":
             return link_project(
