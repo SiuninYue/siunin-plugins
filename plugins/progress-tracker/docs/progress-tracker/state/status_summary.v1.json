@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-05-21T16:13:09.648037Z",
+  "updated_at": "2026-05-21T17:17:00.735855Z",
   "source": {
     "generator": "progress_manager.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,25 +11,25 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1779351186246448951,
-      "size": 117124
+      "mtime_ns": 1779355020329520225,
+      "size": 119257
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
       "exists": true,
-      "mtime_ns": 1779350081773741312,
-      "size": 14106
+      "mtime_ns": 1779354740069140172,
+      "size": 15300
     }
   },
   "progress": {
-    "completed": 17,
+    "completed": 18,
     "total": 20,
-    "percentage": 85
+    "percentage": 90
   },
   "next_action": {
     "type": "feature",
-    "feature_id": 17,
-    "feature_name": "Parent-Child Route 同步：子插件 set_current/done 回写父 active_routes",
+    "feature_id": 18,
+    "feature_name": "progress_manager.py 深度模块化拆分（Phase 2 技术债偿还）",
     "development_stage": "pending",
     "stage_label": "待开始"
   },
@@ -46,7 +46,7 @@
   },
   "recent_snapshot": {
     "exists": true,
-    "timestamp": "2026-05-21T15:54:41.682716+08:00",
-    "relative_time": "18 分钟前"
+    "timestamp": "2026-05-21T17:04:13.273931+08:00",
+    "relative_time": "12 分钟前"
   }
 }
