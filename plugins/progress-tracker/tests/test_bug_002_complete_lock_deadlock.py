@@ -82,7 +82,7 @@ def test_complete_does_not_hold_lock_when_calling_cmd_done(complete_scope, monke
     lock_depth_at_cmd_done: list[int] = []
 
     def tracking_cmd_done(**kwargs):
-        lock_depth_at_cmd_done.append(pm._PROGRESS_LOCK_DEPTH)
+        lock_depth_at_cmd_done.append(pm._PROGRESS_LOCK_DEPTHS.get(root, 0))
         return 0
 
     def mock_configure_project_scope(project_root_arg=None):
@@ -122,7 +122,7 @@ def test_complete_unsafe_legacy_holds_progress_lock(complete_scope, monkeypatch)
     lock_depth_at_complete_feature: list[int] = []
 
     def tracking_complete_feature(feature_id, **kwargs):
-        lock_depth_at_complete_feature.append(pm._PROGRESS_LOCK_DEPTH)
+        lock_depth_at_complete_feature.append(pm._PROGRESS_LOCK_DEPTHS.get(root, 0))
         return 0
 
     def mock_configure_project_scope(project_root_arg=None):
