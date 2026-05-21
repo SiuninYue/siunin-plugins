@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-05-21T16:16:51.543805Z",
+  "updated_at": "2026-05-21T17:08:28.467796Z",
   "features": [
     {
       "id": 10,
@@ -2111,17 +2111,31 @@
             "eng",
             "qa"
           ],
-          "passed": [],
-          "pending": [
-            "docs",
+          "passed": [
             "eng",
-            "qa"
-          ]
+            "qa",
+            "docs"
+          ],
+          "pending": []
         },
         "ship_check": {
-          "status": "pending",
+          "status": "pass",
           "failures": [],
-          "last_run_at": null
+          "last_run_at": "2026-05-21T09:08:28Z"
+        },
+        "review_evidence": {
+          "eng": {
+            "evidence": "Code review: 3 route helpers + extended _notify_parent_sync + bootstrap exception scoped to check-5-only + repair-routes preserving JSON contract. All logic isolated behind try/except warn-only boundary. No defects.",
+            "recorded_at": "2026-05-21T17:08:16.143536Z"
+          },
+          "qa": {
+            "evidence": "Acceptance: 90 tests pass (test_parent_route_writeback_f17 x4, test_scope_fail_closed x25, test_sync_linked x15, test_route_commands x14, test_root_dashboard x10, others). All 6 acceptance scenarios covered.",
+            "recorded_at": "2026-05-21T17:08:20.635170Z"
+          },
+          "docs": {
+            "evidence": "Plan: docs/superpowers/plans/2026-05-16-f17-parent-route-writeback.md (validated). SKILL.md updated with 3-state active_routes handoff template.",
+            "recorded_at": "2026-05-21T17:08:25.210747Z"
+          }
         }
       },
       "sprint_contract": {
@@ -2157,7 +2171,20 @@
       },
       "plan_path": "docs/superpowers/plans/2026-05-16-f17-parent-route-writeback.md",
       "development_stage": "developing",
-      "started_at": "2026-05-21T16:16:51.490265Z"
+      "started_at": "2026-05-21T16:16:51.490265Z",
+      "ai_metrics": {
+        "complexity_score": 32,
+        "complexity_bucket": "simple",
+        "selected_model": "opus",
+        "workflow_path": "full_design_plan_execute",
+        "scoring_v2": {
+          "score": 32,
+          "raw_score_bucket": "simple",
+          "routed_bucket": "simple",
+          "confidence": "low"
+        },
+        "started_at": "2026-05-21T16:17:40.989141Z"
+      }
     },
     {
       "id": 18,
@@ -2535,8 +2562,8 @@
   ],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-05-21T16:16:51.542764Z",
-    "source": "set_current",
+    "recorded_at": "2026-05-21T17:04:00.599924Z",
+    "source": "set_workflow_state",
     "workspace_mode": "in_place",
     "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
     "project_root": "/Users/siunin/Projects/Claude-Plugins",
@@ -2546,10 +2573,10 @@
     "upstream": "origin/main",
     "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
     "current_feature_id": 17,
-    "workflow_phase": "planning",
+    "workflow_phase": "execution_complete",
     "current_task": null,
     "total_tasks": null,
-    "next_action": null
+    "next_action": "verify_and_complete"
   },
   "bugs": [
     {
@@ -2696,7 +2723,21 @@
   ],
   "current_task_id": "TASK-001",
   "workflow_state": {
-    "phase": "planning",
-    "updated_at": "2026-05-21T16:16:51.490281Z"
+    "phase": "execution_complete",
+    "updated_at": "2026-05-21T17:04:00.511820Z",
+    "plan_path": "docs/superpowers/plans/2026-05-16-f17-parent-route-writeback.md",
+    "execution_context": {
+      "recorded_at": "2026-05-21T17:04:00.554540Z",
+      "source": "set_workflow_state",
+      "workspace_mode": "in_place",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+      "project_root": "/Users/siunin/Projects/Claude-Plugins",
+      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
+      "branch": "main",
+      "upstream": "origin/main"
+    },
+    "pending_action": "run_prog_done",
+    "next_action": "verify_and_complete"
   }
 }

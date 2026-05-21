@@ -442,6 +442,12 @@ When `tracker_role == "parent"` (monorepo mixed-host root), `/prog` displays a *
 
 ### Handoff Block for Parent Dashboard
 
+The dashboard renders **3-state active route output** (F17):
+
+- **0 active routes** → `Active Route: none | Queue: <queue>`
+- **1 active route** → `Active Route: PT -> PT-F14 | Queue: <queue>` + `→ Resume: /prog next`
+- **2+ active routes** → lists all + `RecommendedRoute: <first_code> | Queue: <queue>` + `[WARNING]`
+
 When invoked at a monorepo root with no active feature in progress:
 
 ```text
@@ -451,4 +457,15 @@ Dashboard: Monorepo Root | <completed>/<total> root features done
 Queue: <queue_entries>
 ProjectRoot: <abs_project_root>
 → Context pre-loaded. Follows routing_queue for next dispatch.
+```
+
+When a child has an active feature (1 active route):
+
+```text
+/progress-tracker:prog-next
+
+Dashboard: Monorepo Root | active: <project_code> -> <feature_ref>
+Queue: <queue_entries>
+ProjectRoot: <abs_project_root>
+→ Resume: /prog next (routes to <project_code> active feature)
 ```

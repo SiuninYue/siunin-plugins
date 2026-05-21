@@ -805,3 +805,181 @@ def test_sync_linked_route_status_unknown_when_no_project_code(temp_dir, capsys)
     assert project["project_code"] is None
     assert project["child_project_code"] is None
     assert project["route_status"] == "unknown"
+
+
+# ---------------------------------------------------------------------------
+# F17: --repair-routes tests (RED phase — will fail until F17 is implemented)
+# ---------------------------------------------------------------------------
+
+
+def test_sync_linked_repair_routes_rebuilds_from_child_current_feature(temp_dir):
+    """--repair-routes should upsert active_routes from child current_feature_id."""
+    os.system(f"git -C {temp_dir} init >/dev/null 2>&1")
+
+    repo_root = temp_dir
+    parent_root = repo_root / "plugins" / "progress-tracker"
+    child_root = repo_root / "plugins" / "note-organizer"
+    parent_root.mkdir(parents=True, exist_ok=True)
+    child_root.mkdir(parents=True, exist_ok=True)
+
+    _write_progress(
+        parent_root,
+        {
+            "project_name": "Parent Tracker",
+            "tracker_role": "parent",
+            "created_at": "2026-01-01T00:00:00Z",
+            "features": [],
+            "current_feature_id": None,
+            "linked_projects": [
+                {
+                    "project_root": "plugins/note-organizer",
+                    "project_code": "NO",
+                    "label": "NO",
+                }
+            ],
+            "linked_snapshot": {"projects": []},
+            "active_routes": [],
+            "routing_queue": ["NO"],
+        },
+    )
+    _write_progress(
+        child_root,
+        {
+            "project_name": "Note Organizer",
+            "tracker_role": "child",
+            "project_code": "NO",
+            "created_at": "2026-01-01T00:00:00Z",
+            "parent_project_root": "plugins/progress-tracker",
+            "features": [
+                {
+                    "id": 5,
+                    "name": "Feature 5",
+                    "completed": False,
+                    "deferred": False,
+                    "test_steps": ["run pytest"],
+                    "lifecycle_state": "approved",
+                }
+            ],
+            "current_feature_id": 5,
+        },
+    )
+
+    os.chdir(repo_root)
+    with patch(
+        "sys.argv",
+        [
+            "progress_manager.py",
+            "--project-root",
+            "plugins/progress-tracker",
+            "sync-linked",
+            "--repair-routes",
+            "--json",
+        ],
+    ):
+        assert progress_manager.main() is True
+
+    parent_data = json.loads(
+        (parent_root / "docs" / "progress-tracker" / "state" / "progress.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    active_routes = parent_data.get("active_routes") or []
+    no_routes = [
+        r for r in active_routes
+        if isinstance(r, dict) and r.get("project_code") == "NO"
+    ]
+    assert no_routes, (
+        "repair-routes should upsert NO entry in parent active_routes from "
+        f"child current_feature_id=5. Got active_routes={active_routes}"
+    )
+    assert "NO-F5" in str(no_routes[0].get("feature_ref") or ""), (
+        f"Expected feature_ref='NO-F5', got {no_routes[0]}"
+    )
+
+
+def test_sync_linked_repair_routes_skips_completed_features(temp_dir):
+    """--repair-routes should remove active_routes when child feature is completed."""
+    os.system(f"git -C {temp_dir} init >/dev/null 2>&1")
+
+    repo_root = temp_dir
+    parent_root = repo_root / "plugins" / "progress-tracker"
+    child_root = repo_root / "plugins" / "note-organizer"
+    parent_root.mkdir(parents=True, exist_ok=True)
+    child_root.mkdir(parents=True, exist_ok=True)
+
+    _write_progress(
+        parent_root,
+        {
+            "project_name": "Parent Tracker",
+            "tracker_role": "parent",
+            "created_at": "2026-01-01T00:00:00Z",
+            "features": [],
+            "current_feature_id": None,
+            "linked_projects": [
+                {
+                    "project_root": "plugins/note-organizer",
+                    "project_code": "NO",
+                    "label": "NO",
+                }
+            ],
+            "linked_snapshot": {"projects": []},
+            "active_routes": [
+                {
+                    "project_code": "NO",
+                    "feature_ref": "NO-F5",
+                    "assigned_at": "2026-01-01T00:00:00Z",
+                }
+            ],
+            "routing_queue": ["NO"],
+        },
+    )
+    _write_progress(
+        child_root,
+        {
+            "project_name": "Note Organizer",
+            "tracker_role": "child",
+            "project_code": "NO",
+            "created_at": "2026-01-01T00:00:00Z",
+            "parent_project_root": "plugins/progress-tracker",
+            "features": [
+                {
+                    "id": 5,
+                    "name": "Feature 5",
+                    "completed": True,
+                    "deferred": False,
+                    "test_steps": ["run pytest"],
+                    "lifecycle_state": "approved",
+                }
+            ],
+            "current_feature_id": 5,
+        },
+    )
+
+    os.chdir(repo_root)
+    with patch(
+        "sys.argv",
+        [
+            "progress_manager.py",
+            "--project-root",
+            "plugins/progress-tracker",
+            "sync-linked",
+            "--repair-routes",
+            "--json",
+        ],
+    ):
+        assert progress_manager.main() is True
+
+    parent_data = json.loads(
+        (parent_root / "docs" / "progress-tracker" / "state" / "progress.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    active_routes = parent_data.get("active_routes") or []
+    no_routes = [
+        r for r in active_routes
+        if isinstance(r, dict) and r.get("project_code") == "NO"
+    ]
+    assert not no_routes, (
+        "repair-routes should remove NO entry from parent active_routes when "
+        f"child feature is completed. Got active_routes={active_routes}"
+    )
