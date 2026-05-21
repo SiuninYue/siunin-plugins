@@ -24,9 +24,21 @@
 - [x] Git Squash Merge SOP — 集成到 prog-done 自动化流程
 - [x] Parent-Child Route 同步：子插件 set_current/done 回写父 active_routes
 
-## Pending
+## In Progress
 - [ ] progress_manager.py 深度模块化拆分（Phase 2 技术债偿还）
+  **Test steps**:
+  - 拆分后各子模块可独立 import，无循环依赖：python -c 'import <module>' 均可独立运行
+  - progress_manager.py 主入口文件降至 1500 行以下；各子模块均不超过 1000 行
+  - uv run pytest plugins/progress-tracker/tests/ -q → 全部 pass，零回归
+  - git grep 'from progress_manager import\|import progress_manager' 确认全部重定向至对应子模块
+  - 拆分本身以符合 F19 变更记录模板写入 docs/changes/（作为 F19 dogfooding 验证用例）
+
+## Pending
 - [ ] AI 可追溯与可回退机制 v1：变更记录 + 自动守卫 + 回退 SOP
+
+## Workflow Context
+- Phase: planning
+- Current session context: main @ Claude-Plugins [in_place]
 
 ## Recent Updates
 - [UPD-002] decision: F14 planning frozen: /prog note visibility split into active memo vs history (feature:14)
