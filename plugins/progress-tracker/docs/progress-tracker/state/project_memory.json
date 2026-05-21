@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "created_at": "2026-04-12T09:38:02.910760Z",
-  "updated_at": "2026-05-21T00:49:46.659825Z",
-  "next_capability_seq": 24,
+  "updated_at": "2026-05-21T09:17:00.335158Z",
+  "next_capability_seq": 25,
   "last_synced_commit": null,
   "capabilities": [
     {
@@ -431,6 +431,22 @@
       },
       "created_at": "2026-05-21T00:49:46.659743Z",
       "updated_at": "2026-05-21T00:49:46.659743Z"
+    },
+    {
+      "cap_id": "CAP-024",
+      "fingerprint": "15c8fe3c508c3e4b",
+      "title": "Parent-Child Route 同步：子插件 set_current/done 回写父 active_routes",
+      "summary": "Completed feature 17: Parent-Child Route 同步：子插件 set_current/done 回写父 active_routes",
+      "tags": [],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 17,
+        "commit_hash": "6e697435fe095679df405fb9380602e58acdaf97",
+        "commit_range": ""
+      },
+      "created_at": "2026-05-21T09:17:00.335079Z",
+      "updated_at": "2026-05-21T09:17:00.335079Z"
     }
   ],
   "rejected_fingerprints": [],

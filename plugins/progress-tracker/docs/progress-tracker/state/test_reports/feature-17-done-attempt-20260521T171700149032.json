@@ -1,0 +1,26 @@
+{
+  "feature_id": 17,
+  "feature_name": "Parent-Child Route 同步：子插件 set_current/done 回写父 active_routes",
+  "done_attempt_at": "2026-05-21T17:17:00.149094Z",
+  "overall_success": true,
+  "results": [
+    {
+      "step": "uv run pytest tests/test_parent_route_writeback_f17.py tests/test_parent_writeback.py -q",
+      "command": "uv run pytest tests/test_parent_route_writeback_f17.py tests/test_parent_writeback.py -q",
+      "success": true,
+      "output_summary": "........                                                                 [100%]\n8 passed in 1.69s",
+      "duration_ms": 2093,
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "step": "uv run pytest tests/test_scope_fail_closed.py tests/test_dispatch_child_feature.py tests/test_route_commands.py tests/test_root_dashboard.py tests/test_sync_linked_command.py -q",
+      "command": "uv run pytest tests/test_scope_fail_closed.py tests/test_dispatch_child_feature.py tests/test_route_commands.py tests/test_root_dashboard.py tests/test_sync_linked_command.py -q",
+      "success": true,
+      "output_summary": "........................................................................ [ 87%]\n..........                                                               [100%]\n82 passed in 5.31s",
+      "duration_ms": 5672,
+      "exit_code": 0,
+      "error": null
+    }
+  ]
+}

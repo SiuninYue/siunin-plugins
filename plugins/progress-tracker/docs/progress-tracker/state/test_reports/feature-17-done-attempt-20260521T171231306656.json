@@ -1,0 +1,17 @@
+{
+  "feature_id": 17,
+  "feature_name": "Parent-Child Route 同步：子插件 set_current/done 回写父 active_routes",
+  "done_attempt_at": "2026-05-21T17:12:31.306739Z",
+  "overall_success": false,
+  "results": [
+    {
+      "step": "uv run pytest plugins/progress-tracker/tests/test_parent_writeback.py -q → 全部 pass",
+      "command": "uv run pytest plugins/progress-tracker/tests/test_parent_writeback.py -q → 全部 pass",
+      "success": false,
+      "output_summary": "no tests ran in 0.00s\nERROR: file or directory not found: plugins/progress-tracker/tests/test_parent_writeback.py",
+      "duration_ms": 514,
+      "exit_code": 4,
+      "error": "ERROR: file or directory not found: plugins/progress-tracker/tests/test_parent_writeback.py"
+    }
+  ]
+}

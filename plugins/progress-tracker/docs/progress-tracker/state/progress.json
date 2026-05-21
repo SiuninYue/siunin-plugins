@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-05-21T17:08:28.467796Z",
+  "updated_at": "2026-05-21T17:17:00.328508Z",
   "features": [
     {
       "id": 10,
@@ -2040,10 +2040,10 @@
         "多个子项目同时 active → root dashboard 列出全部活跃路由 + RecommendedRoute",
         "set_current() 检测并行路由时即时输出 [WARNING]",
         "sync-linked --repair-routes 从 child current_feature_id 重建 route，跳过 completed/deferred",
-        "uv run pytest plugins/progress-tracker/tests/test_parent_writeback.py -q → 全部 pass",
-        "uv run pytest plugins/progress-tracker/tests/test_dispatch_child_feature.py test_route_commands.py test_root_dashboard.py test_sync_linked_command.py -q → 回归 pass"
+        "uv run pytest tests/test_parent_route_writeback_f17.py tests/test_parent_writeback.py -q",
+        "uv run pytest tests/test_scope_fail_closed.py tests/test_dispatch_child_feature.py tests/test_route_commands.py tests/test_root_dashboard.py tests/test_sync_linked_command.py -q"
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -2053,7 +2053,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "implementing",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-017"
       ],
@@ -2099,11 +2099,11 @@
       ],
       "quality_gates": {
         "evaluator": {
-          "status": "pending",
-          "score": null,
+          "status": "pass",
+          "score": 95,
           "defects": [],
-          "last_run_at": null,
-          "evaluator_model": null
+          "last_run_at": "2026-05-21T09:16:47.319386+00:00",
+          "evaluator_model": "claude-opus-4-7"
         },
         "reviews": {
           "required": [
@@ -2170,7 +2170,7 @@
         "created_at": null
       },
       "plan_path": "docs/superpowers/plans/2026-05-16-f17-parent-route-writeback.md",
-      "development_stage": "developing",
+      "development_stage": "completed",
       "started_at": "2026-05-21T16:16:51.490265Z",
       "ai_metrics": {
         "complexity_score": 32,
@@ -2183,7 +2183,23 @@
           "routed_bucket": "simple",
           "confidence": "low"
         },
-        "started_at": "2026-05-21T16:17:40.989141Z"
+        "started_at": "2026-05-21T16:17:40.989141Z",
+        "finished_at": "2026-05-21T17:17:00.264377+08:00",
+        "duration_seconds": 0
+      },
+      "integration_status": "merged_and_cleaned",
+      "completed_at": "2026-05-21T17:17:00.264509Z",
+      "finish_state_resolved_at": "2026-05-21T17:17:00.264520Z",
+      "commit_hash": "6e697435fe095679df405fb9380602e58acdaf97",
+      "archive_info": {
+        "archived_at": "2026-05-21T17:17:00.328137Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/superpowers/plans/2026-05-16-f17-parent-route-writeback.md",
+            "to": "docs/archive/plans/2026-05-16-f17-parent-route-writeback.md"
+          }
+        ]
       }
     },
     {
@@ -2436,7 +2452,7 @@
       "started_at": null
     }
   ],
-  "current_feature_id": 17,
+  "current_feature_id": null,
   "linked_projects": [],
   "linked_snapshot": {
     "schema_version": "1.0",
@@ -2562,8 +2578,8 @@
   ],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-05-21T17:04:00.599924Z",
-    "source": "set_workflow_state",
+    "recorded_at": "2026-05-21T17:17:00.317499Z",
+    "source": "finalize",
     "workspace_mode": "in_place",
     "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
     "project_root": "/Users/siunin/Projects/Claude-Plugins",
@@ -2572,11 +2588,11 @@
     "branch": "main",
     "upstream": "origin/main",
     "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
-    "current_feature_id": 17,
-    "workflow_phase": "execution_complete",
+    "current_feature_id": null,
+    "workflow_phase": null,
     "current_task": null,
     "total_tasks": null,
-    "next_action": "verify_and_complete"
+    "next_action": null
   },
   "bugs": [
     {
@@ -2721,23 +2737,5 @@
       "created_at": "2026-05-12T22:55:08.086743Z"
     }
   ],
-  "current_task_id": "TASK-001",
-  "workflow_state": {
-    "phase": "execution_complete",
-    "updated_at": "2026-05-21T17:04:00.511820Z",
-    "plan_path": "docs/superpowers/plans/2026-05-16-f17-parent-route-writeback.md",
-    "execution_context": {
-      "recorded_at": "2026-05-21T17:04:00.554540Z",
-      "source": "set_workflow_state",
-      "workspace_mode": "in_place",
-      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
-      "project_root": "/Users/siunin/Projects/Claude-Plugins",
-      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
-      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
-      "branch": "main",
-      "upstream": "origin/main"
-    },
-    "pending_action": "run_prog_done",
-    "next_action": "verify_and_complete"
-  }
+  "current_task_id": "TASK-001"
 }
