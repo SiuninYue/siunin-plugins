@@ -24,9 +24,22 @@
 - [x] Git Squash Merge SOP — 集成到 prog-done 自动化流程
 - [x] Parent-Child Route 同步：子插件 set_current/done 回写父 active_routes
 
-## Pending
+## In Progress
 - [ ] progress_manager.py 深度模块化拆分（Phase 2 技术债偿还）
+  **Test steps**:
+  - Run: cd hooks/scripts && python3 -c "import lock_manager, state_io, git_utils, git_context, worktree_handler, route_sync, route_commands, route_preflight, evaluator_gateway, pm_runtime; print(\"module imports ok\")"
+  - Run: python3 -c "from pathlib import Path; files=[\"hooks/scripts/lock_manager.py\",\"hooks/scripts/state_io.py\",\"hooks/scripts/git_utils.py\",\"hooks/scripts/git_context.py\",\"hooks/scripts/worktree_handler.py\",\"hooks/scripts/route_sync.py\",\"hooks/scripts/route_commands.py\",\"hooks/scripts/route_preflight.py\",\"hooks/scripts/evaluator_gateway.py\",\"hooks/scripts/pm_runtime.py\"]; counts={f:sum(1 for _ in open(f, encoding=\"utf-8\")) for f in files}; bad={f:c for f,c in counts.items() if c>1000}; assert not bad, bad; pm=sum(1 for _ in open(\"hooks/scripts/progress_manager.py\", encoding=\"utf-8\")); assert pm < 11000, pm; print(\"line counts ok\")"
+  - Run: cd ../.. && PYTEST_ADDOPTS='-p no:cacheprovider' UV_CACHE_DIR=/private/tmp/codex-uv-cache uv run pytest plugins/progress-tracker/tests/ -q
+  - Run: test -s docs/changes/index.jsonl && test -s docs/changes/20260521-pm-modularize-7019.md
+
+## Pending
 - [ ] AI 可追溯与可回退机制 v1：变更记录 + 自动守卫 + 回退 SOP
+
+## Workflow Context
+- Phase: execution_complete
+- Next action: verify_and_complete
+- Execution context: worktree-feature-18-progress-manager-modularization @ feature-18-progress-manager-modularization [worktree]
+- Current session context: worktree-feature-18-progress-manager-modularization @ feature-18-progress-manager-modularization [worktree]
 
 ## Recent Updates
 - [UPD-002] decision: F14 planning frozen: /prog note visibility split into active memo vs history (feature:14)

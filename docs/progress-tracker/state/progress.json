@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "Test",
   "created_at": "2026-05-14T13:53:00.008608Z",
-  "updated_at": "2026-05-21T17:17:00.738191Z",
+  "updated_at": "2026-05-21T23:41:06.091870Z",
   "features": [],
   "current_feature_id": null,
   "tracker_role": "parent",
@@ -32,12 +32,12 @@
   ],
   "linked_snapshot": {
     "schema_version": "1.0",
-    "updated_at": "2026-05-21T17:17:00.737933Z",
+    "updated_at": "2026-05-21T23:41:06.003847Z",
     "projects": [
       {
         "status": "ok",
         "configured_project_root": "plugins/note-organizer",
-        "project_root": "/Users/siunin/Projects/Claude-Plugins/plugins/note-organizer",
+        "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-18-progress-manager-modularization/plugins/note-organizer",
         "project_name": "Note Organizer Plugin",
         "completed": 0,
         "total": 0,
@@ -53,7 +53,7 @@
       {
         "status": "ok",
         "configured_project_root": "plugins/progress-tracker",
-        "project_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+        "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-18-progress-manager-modularization/plugins/progress-tracker",
         "project_name": "progress-tracker-sop-compliance-optimization",
         "completed": 18,
         "total": 20,
@@ -69,7 +69,7 @@
       {
         "status": "ok",
         "configured_project_root": "plugins/super-product-manager",
-        "project_root": "/Users/siunin/Projects/Claude-Plugins/plugins/super-product-manager",
+        "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-18-progress-manager-modularization/plugins/super-product-manager",
         "project_name": "SPM-PROG Harness Linkage",
         "completed": 0,
         "total": 0,
@@ -84,21 +84,29 @@
       }
     ]
   },
-  "active_routes": [],
+  "active_routes": [
+    {
+      "project_code": "PT",
+      "feature_ref": "F18",
+      "feature_name": "progress_manager.py 深度模块化拆分（Phase 2 技术债偿还）",
+      "assigned_at": "2026-05-21T23:41:06.001774Z",
+      "status": "active"
+    }
+  ],
   "updates": [],
   "retrospectives": [],
   "tasks": [],
   "runtime_context": {
-    "recorded_at": "2026-05-14T15:32:41.665754Z",
+    "recorded_at": "2026-05-21T23:40:14.084901Z",
     "source": "session_start",
-    "workspace_mode": "in_place",
-    "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
-    "project_root": "/Users/siunin/Projects/Claude-Plugins",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins",
-    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
-    "branch": "main",
-    "upstream": "origin/main",
-    "tracker_root": "/Users/siunin/Projects/Claude-Plugins",
+    "workspace_mode": "worktree",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-18-progress-manager-modularization",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-18-progress-manager-modularization",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-18-progress-manager-modularization",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-18-progress-manager-modularization",
+    "branch": "worktree-feature-18-progress-manager-modularization",
+    "upstream": null,
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-18-progress-manager-modularization",
     "current_feature_id": null,
     "workflow_phase": null,
     "current_task": null,

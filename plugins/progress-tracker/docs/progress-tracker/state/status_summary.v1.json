@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-05-21T17:17:00.735855Z",
+  "updated_at": "2026-05-24T02:30:53.080796Z",
   "source": {
     "generator": "progress_manager.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,13 +11,13 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1779355020329520225,
-      "size": 119257
+      "mtime_ns": 1779383222955647192,
+      "size": 122326
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
       "exists": true,
-      "mtime_ns": 1779354740069140172,
+      "mtime_ns": 1779356696890685381,
       "size": 15300
     }
   },
@@ -30,13 +30,13 @@
     "type": "feature",
     "feature_id": 18,
     "feature_name": "progress_manager.py 深度模块化拆分（Phase 2 技术债偿还）",
-    "development_stage": "pending",
-    "stage_label": "待开始"
+    "development_stage": "developing",
+    "stage_label": "开发中"
   },
   "plan_health": {
-    "status": "N/A",
-    "plan_path": null,
-    "message": "无活跃计划"
+    "status": "OK",
+    "plan_path": "docs/plans/2026-05-21-f18-progress-manager-modularization.md",
+    "message": "计划文件完整且符合规范"
   },
   "risk_blocker": {
     "has_risk": true,
@@ -47,6 +47,6 @@
   "recent_snapshot": {
     "exists": true,
     "timestamp": "2026-05-21T17:04:13.273931+08:00",
-    "relative_time": "12 分钟前"
+    "relative_time": "2 天前"
   }
 }
