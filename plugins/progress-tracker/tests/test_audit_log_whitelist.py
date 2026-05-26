@@ -33,7 +33,7 @@ class TestAllowedEventTypesConstant:
         """现有生产代码已在写入的类型必须在白名单内，否则静默丢数据。"""
         production = {
             "schema_migration", "evaluator_assessment", "evaluator_backfill",
-            "set_finish_state",
+            "set_finish_state", "set_sprint_contract",
         }
         assert production.issubset(audit_log.ALLOWED_EVENT_TYPES)
 
@@ -56,6 +56,11 @@ class TestWhitelistWriteEnforcement:
         """生产事件 set_finish_state 不应被拒绝。"""
         monkeypatch.setenv("PROGRESS_TRACKER_STATE_DIR", str(temp_dir))
         audit_log.append_audit_record(_make_record("set_finish_state"))
+
+    def test_set_sprint_contract_allowed(self, temp_dir, monkeypatch):
+        """生产事件 set_sprint_contract 不应被拒绝。"""
+        monkeypatch.setenv("PROGRESS_TRACKER_STATE_DIR", str(temp_dir))
+        audit_log.append_audit_record(_make_record("set_sprint_contract"))
 
     def test_unknown_event_type_raises_valueerror(self, temp_dir, monkeypatch):
         monkeypatch.setenv("PROGRESS_TRACKER_STATE_DIR", str(temp_dir))

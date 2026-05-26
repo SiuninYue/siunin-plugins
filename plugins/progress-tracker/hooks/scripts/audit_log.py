@@ -28,6 +28,7 @@ ALLOWED_EVENT_TYPES: frozenset = frozenset({
     "evaluator_assessment",
     "evaluator_backfill",
     "set_finish_state",
+    "set_sprint_contract",
 })
 
 
