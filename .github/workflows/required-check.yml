@@ -34,6 +34,12 @@ jobs:
         run: |
           python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check
 
+      - name: Check progress_manager module boundaries
+        shell: bash
+        run: |
+          chmod +x scripts/check_pm_boundary.sh
+          scripts/check_pm_boundary.sh
+
       - name: Required check passed
         shell: bash
         run: |

@@ -88,8 +88,68 @@ from prog_paths import (
     get_tracker_docs_root,
     rel_progress_path,
     resolve_target_project_root,
+    find_project_root as _find_project_root_impl,
 )
 from contract_importer import ContractImporter, ContractImportError
+import lock_manager
+from lock_manager import (
+    PROGRESS_LOCK_FILE,
+    PROGRESS_LOCK_TIMEOUT_SECONDS,
+    PROGRESS_LOCK_POLL_INTERVAL_SECONDS,
+)
+import state_io
+from state_io import (
+    LINKED_SNAPSHOT_SCHEMA_VERSION,
+    TRACKER_ROLES,
+    DEFAULT_TRACKER_ROLE,
+    OWNER_ROLES,
+    LIFECYCLE_STATES,
+    CURRENT_SCHEMA_VERSION,
+    _atomic_write_text,
+    _default_linked_snapshot,
+    _normalize_linked_schema,
+    _normalize_route_schema,
+    _default_sprint_contract,
+    _default_quality_gates,
+    _sync_reviews_pending_cache,
+    _default_handoff,
+    _default_owners,
+    _default_change_spec,
+    _default_acceptance_scenarios,
+    _normalize_feature_owners,
+    _normalize_feature_defer_state,
+    _clear_feature_defer_state,
+    _normalize_feature_contract,
+    _normalize_optional_string,
+)
+def __getattr__(name: str) -> Any:
+    """Forward lock state aliases to lock_manager to avoid stale references."""
+    if name == "_PROGRESS_LOCK_HANDLES":
+        return lock_manager._PROGRESS_LOCK_HANDLES
+    if name == "_PROGRESS_LOCK_DEPTHS":
+        return lock_manager._PROGRESS_LOCK_DEPTHS
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+def _progress_lock_path(project_root: Optional[Path] = None) -> Path:
+    root = project_root if project_root is not None else find_project_root()
+    return lock_manager._progress_lock_path(project_root=root)
+def _acquire_progress_lock(
+    timeout_seconds: float = PROGRESS_LOCK_TIMEOUT_SECONDS,
+    project_root: Optional[Path] = None,
+) -> None:
+    root = project_root if project_root is not None else find_project_root()
+    return lock_manager._acquire_progress_lock(timeout_seconds=timeout_seconds, project_root=root)
+def _release_progress_lock(project_root: Optional[Path] = None) -> None:
+    root = project_root if project_root is not None else find_project_root()
+    return lock_manager._release_progress_lock(project_root=root)
+@contextmanager
+def progress_transaction(
+    timeout_seconds: float = PROGRESS_LOCK_TIMEOUT_SECONDS,
+    project_root: Optional[Path] = None,
+):
+    root = project_root if project_root is not None else find_project_root()
+    with lock_manager.progress_transaction(timeout_seconds=timeout_seconds, project_root=root):
+        yield
+progress_transaction.is_wrapper = True
 import progress_prompt_builders
 try:
     import audit_log
@@ -181,9 +241,6 @@ PLAN_PATH_PREFIX = "docs/plans/"
 SUPERPOWERS_PLAN_PATH_PREFIX = "docs/superpowers/plans/"
 VALID_PLAN_PREFIXES = (PLAN_PATH_PREFIX, SUPERPOWERS_PLAN_PATH_PREFIX)
 PROGRESS_ARCHIVE_MAX_ENTRIES = 200
-PROGRESS_LOCK_FILE = "progress.lock"
-PROGRESS_LOCK_TIMEOUT_SECONDS = 10.0
-PROGRESS_LOCK_POLL_INTERVAL_SECONDS = 0.05
 STATUS_SUMMARY_FILE = "status_summary.v1.json"
 STATUS_SUMMARY_LEGACY_FILE = "status_summary.json"
 STATUS_SUMMARY_SCHEMA_VERSION = "status_summary.v1"
@@ -195,18 +252,12 @@ STATUS_SUMMARY_CORE_FIELDS = (
     "recent_snapshot",
 )
 
-# Schema version - increment when breaking changes occur
-CURRENT_SCHEMA_VERSION = "2.1"
-LINKED_SNAPSHOT_SCHEMA_VERSION = "1.0"
+# Schema version and roles are imported from state_io
 DEFAULT_LINKED_STATUS_STALE_HOURS = 24
-TRACKER_ROLES = ("standalone", "parent", "child")
-DEFAULT_TRACKER_ROLE = "standalone"
 ROOT_ROUTE_CODE = "ROOT"
 DEVELOPMENT_STAGES = ("planning", "developing", "completed")
-LIFECYCLE_STATES = ("approved", "implementing", "verified", "archived")
 VALID_FINISH_STATES = ("merged_and_cleaned", "pr_open", "kept_with_reason")
 FINISH_PENDING_STATE = "finish_pending"
-OWNER_ROLES = ("architecture", "coding", "testing")
 # Canonical relative paths (from project root) that must never be moved or deleted
 # by archive_feature_docs or any other done-flow mutation.
 _IMMUTABLE_PROTECTED_RELPATHS: frozenset[str] = frozenset({
@@ -448,11 +499,7 @@ def find_project_root() -> Path:
     - standalone repository => repo root
     """
     global _PROJECT_ROOT_OVERRIDE
-    if _PROJECT_ROOT_OVERRIDE is not None:
-        return _PROJECT_ROOT_OVERRIDE
-
-    target_root, _ = resolve_target_project_root(project_root_arg=None)
-    return target_root
+    return _find_project_root_impl(override=_PROJECT_ROOT_OVERRIDE)
 
 
 def _ensure_storage_ready() -> None:
@@ -475,116 +522,6 @@ def get_progress_dir() -> Path:
     """Get docs/progress-tracker/state directory for progress tracking."""
     _ensure_storage_ready()
     return get_state_dir(find_project_root())
-
-
-_PROGRESS_LOCK_HANDLES: Dict[Path, Any] = {}
-_PROGRESS_LOCK_DEPTHS: Dict[Path, int] = {}
-
-
-def _progress_lock_path(project_root: Optional[Path] = None) -> Path:
-    """Return the per-project progress lock file path."""
-    root = project_root or find_project_root()
-    progress_dir = get_state_dir(root)
-    progress_dir.mkdir(parents=True, exist_ok=True)
-    return progress_dir / PROGRESS_LOCK_FILE
-
-
-def _acquire_progress_lock(timeout_seconds: float = PROGRESS_LOCK_TIMEOUT_SECONDS, project_root: Optional[Path] = None) -> None:
-    """Acquire a re-entrant cross-process lock for progress state mutations."""
-    if fcntl is None:
-        return
-
-    root = (project_root or find_project_root()).resolve()
-    depth = _PROGRESS_LOCK_DEPTHS.get(root, 0)
-    handle = _PROGRESS_LOCK_HANDLES.get(root)
-
-    if depth > 0 and handle is not None:
-        _PROGRESS_LOCK_DEPTHS[root] = depth + 1
-        return
-
-    lock_path = _progress_lock_path(root)
-    handle = open(lock_path, "a+", encoding="utf-8")
-    start = time.monotonic()
-
-    while True:
-        try:
-            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-            _PROGRESS_LOCK_HANDLES[root] = handle
-            _PROGRESS_LOCK_DEPTHS[root] = 1
-            return
-        except BlockingIOError:
-            if time.monotonic() - start >= timeout_seconds:
-                handle.close()
-                raise TimeoutError(
-                    f"Timed out acquiring progress lock after {timeout_seconds:.1f}s: {lock_path}"
-                )
-            time.sleep(PROGRESS_LOCK_POLL_INTERVAL_SECONDS)
-        except Exception:
-            handle.close()
-            raise
-
-
-def _release_progress_lock(project_root: Optional[Path] = None) -> None:
-    """Release the re-entrant progress lock."""
-    if fcntl is None:
-        return
-
-    root = (project_root or find_project_root()).resolve()
-    depth = _PROGRESS_LOCK_DEPTHS.get(root, 0)
-    if depth <= 0:
-        return
-
-    depth -= 1
-    _PROGRESS_LOCK_DEPTHS[root] = depth
-    if depth > 0:
-        return
-
-    handle = _PROGRESS_LOCK_HANDLES.pop(root, None)
-    _PROGRESS_LOCK_DEPTHS.pop(root, None)
-    if handle is None:
-        return
-
-    try:
-        fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
-    finally:
-        handle.close()
-
-
-@contextmanager
-def progress_transaction(timeout_seconds: float = PROGRESS_LOCK_TIMEOUT_SECONDS, project_root: Optional[Path] = None):
-    """Transactional guard for mutating progress state."""
-    _acquire_progress_lock(timeout_seconds=timeout_seconds, project_root=project_root)
-    try:
-        yield
-    finally:
-        _release_progress_lock(project_root=project_root)
-
-
-def _atomic_write_text(path: Path, content: str) -> None:
-    """Atomically replace a text file via temp file + rename."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temp_path: Optional[Path] = None
-
-    try:
-        with tempfile.NamedTemporaryFile(
-            mode="w",
-            encoding="utf-8",
-            dir=str(path.parent),
-            prefix=f".{path.name}.",
-            suffix=".tmp",
-            delete=False,
-        ) as handle:
-            temp_path = Path(handle.name)
-            handle.write(content)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temp_path, path)
-    finally:
-        if temp_path is not None and temp_path.exists():
-            try:
-                temp_path.unlink()
-            except OSError:
-                pass
 
 
 def validate_plan_path(
@@ -693,310 +630,21 @@ def _normalize_plan_path_cli_arg(
 
 
 def validate_plan_document(plan_path: str, target_root: Optional[Path] = None) -> Dict[str, Any]:
-    """
-    Validate minimum plan structure for feature execution.
-
-    Supports two compatible formats:
-
-    1) Progress-tracker strict template:
-       - Tasks
-       - Acceptance mapping
-       - Risks
-
-    2) Superpowers writing-plans template:
-       - Goal (header field)
-       - Architecture (header field)
-       - Tasks
-
-    In format (2), missing strict sections are treated as warnings.
-    """
-    path_validation = validate_plan_path(
-        plan_path, require_exists=True, target_root=target_root
+    import doc_generator
+    return doc_generator.validate_plan_document(
+        plan_path,
+        target_root=target_root,
+        find_project_root_fn=find_project_root,
+        validate_plan_path_fn=validate_plan_path,
     )
-    if not path_validation["valid"]:
-        return {
-            "valid": False,
-            "errors": [path_validation["error"]],
-            "missing_sections": [],
-            "warnings": [],
-            "profile": "invalid",
-        }
-
-    base_root = target_root or find_project_root()
-    absolute_path = base_root / path_validation["normalized_path"]
-    try:
-        content = absolute_path.read_text(encoding="utf-8")
-    except OSError as exc:
-        return {
-            "valid": False,
-            "errors": [f"Unable to read plan: {exc}"],
-            "missing_sections": [],
-            "warnings": [],
-            "profile": "invalid",
-        }
-
-    checks = {
-        # Match both "## Tasks" (list style) and "## Task 1: name" (Superpowers individual tasks)
-        "tasks": re.search(r"^##+\s+Tasks?\b", content, flags=re.IGNORECASE | re.MULTILINE),
-        "acceptance_mapping": re.search(
-            r"^##+\s+Acceptance(\s+Criteria)?(\s+Mapping)?\b",
-            content,
-            flags=re.IGNORECASE | re.MULTILINE,
-        ),
-        "risks": re.search(r"^##+\s+Risks?\b", content, flags=re.IGNORECASE | re.MULTILINE),
-    }
-    superpowers_checks = {
-        # Accept English and Chinese field labels (writing-plans generates Chinese when prompted in Chinese)
-        "goal": re.search(r"^\*\*(Goal|目标):\*\*\s+.+", content, flags=re.MULTILINE),
-        "architecture": re.search(r"^\*\*(Architecture|架构):\*\*\s+.+", content, flags=re.MULTILINE),
-    }
-
-    missing_sections = [name for name, found in checks.items() if not found]
-
-    # Tasks are mandatory for all plan formats.
-    if "tasks" in missing_sections:
-        return {
-            "valid": False,
-            "errors": ["Missing required plan sections: tasks"],
-            "missing_sections": missing_sections,
-            "warnings": [],
-            "profile": "invalid",
-        }
-
-    # Strict format fully satisfied.
-    if not missing_sections:
-        return {
-            "valid": True,
-            "errors": [],
-            "missing_sections": [],
-            "warnings": [],
-            "profile": "strict",
-        }
-
-    # Superpowers-compatible format.
-    if superpowers_checks["goal"] and superpowers_checks["architecture"]:
-        advisory_missing = [s for s in missing_sections if s in ("acceptance_mapping", "risks")]
-        warnings = []
-        if advisory_missing:
-            warnings.append(
-                "Superpowers plan accepted; recommended sections missing: "
-                f"{', '.join(advisory_missing)}"
-            )
-        return {
-            "valid": True,
-            "errors": [],
-            "missing_sections": advisory_missing,
-            "warnings": warnings,
-            "profile": "superpowers",
-        }
-
-    return {
-        "valid": False,
-        "errors": [f"Missing required plan sections: {', '.join(missing_sections)}"],
-        "missing_sections": missing_sections,
-        "warnings": [],
-        "profile": "invalid",
-    }
+validate_plan_document.is_wrapper = True
 
 
-def _default_owners() -> Dict[str, Optional[str]]:
-    """Build default feature owners payload for known roles."""
-    return {role: None for role in OWNER_ROLES}
-
-
-def _normalize_feature_owners(feature: Dict[str, Any]) -> None:
-    """Ensure feature owners map exists with known role keys."""
-    owners = feature.get("owners")
-    if not isinstance(owners, dict):
-        owners = {}
-    for role in OWNER_ROLES:
-        owners.setdefault(role, None)
-    feature["owners"] = owners
-
-
-def _normalize_feature_defer_state(feature: Dict[str, Any]) -> None:
-    """Ensure feature defer metadata is present and type-safe."""
-    feature["deferred"] = bool(feature.get("deferred", False))
-    feature["defer_reason"] = _normalize_optional_string(feature.get("defer_reason"))
-    feature["deferred_at"] = _normalize_optional_string(feature.get("deferred_at"))
-    feature["defer_group"] = _normalize_optional_string(feature.get("defer_group"))
-
-
-def _clear_feature_defer_state(feature: Dict[str, Any]) -> None:
-    """Clear defer metadata while keeping schema-compatible fields."""
-    feature["deferred"] = False
-    feature["defer_reason"] = None
-    feature["deferred_at"] = None
-    feature["defer_group"] = None
-
-
-def _default_requirement_ids(feature: Dict[str, Any]) -> List[str]:
-    """Build deterministic fallback requirement IDs for legacy features."""
-    feature_id = feature.get("id")
-    if isinstance(feature_id, int) and feature_id >= 0:
-        return [f"REQ-{feature_id:03d}"]
-    return ["REQ-000"]
-
-
-def _default_change_spec(feature: Dict[str, Any]) -> Dict[str, Any]:
-    """Build baseline change_spec for schema backfill."""
-    feature_name = str(feature.get("name") or "Unnamed feature").strip()
-    return {
-        "why": f"Deliver {feature_name} with traceable acceptance coverage.",
-        "in_scope": [feature_name],
-        "out_of_scope": ["Unrelated refactors and behavior changes outside this feature."],
-        "risks": ["Potential regression in adjacent workflows; verify with listed test_steps."],
-    }
-
-
-def _default_acceptance_scenarios(feature: Dict[str, Any]) -> List[str]:
-    """Build fallback acceptance scenarios from test steps."""
-    test_steps = feature.get("test_steps")
-    if isinstance(test_steps, list):
-        scenarios = [str(step).strip() for step in test_steps if str(step).strip()]
-        if scenarios:
-            return [f"Scenario: {step}" for step in scenarios]
-
-    feature_name = str(feature.get("name") or "feature").strip()
-    return [f"Scenario: {feature_name} baseline behavior works as expected."]
-
-
-def _derive_lifecycle_state(feature: Dict[str, Any]) -> str:
-    """Derive lifecycle state from legacy completion/development fields."""
-    if feature.get("archive_info"):
-        return "archived"
-
-    if bool(feature.get("completed", False)):
-        return "verified"
-
-    stage = feature.get("development_stage")
-    if stage == "developing":
-        return "implementing"
-    if stage == "completed":
-        return "verified"
-
-    return "approved"
-
-
-def _normalize_feature_contract(feature: Dict[str, Any]) -> None:
-    """Backfill schema 2.1 feature contract fields while preserving explicit values."""
-    lifecycle_state = feature.get("lifecycle_state")
-    if lifecycle_state not in LIFECYCLE_STATES:
-        feature["lifecycle_state"] = _derive_lifecycle_state(feature)
-
-    requirement_ids = feature.get("requirement_ids")
-    if not isinstance(requirement_ids, list):
-        feature["requirement_ids"] = _default_requirement_ids(feature)
-
-    change_spec = feature.get("change_spec")
-    defaults = _default_change_spec(feature)
-    if not isinstance(change_spec, dict):
-        feature["change_spec"] = defaults
-    else:
-        for key, value in defaults.items():
-            change_spec.setdefault(key, value)
-        feature["change_spec"] = change_spec
-
-    acceptance_scenarios = feature.get("acceptance_scenarios")
-    if not isinstance(acceptance_scenarios, list):
-        feature["acceptance_scenarios"] = _default_acceptance_scenarios(feature)
-
-
-def _default_linked_snapshot() -> Dict[str, Any]:
-    """Build default snapshot metadata for linked project status aggregation."""
-    return {
-        "schema_version": LINKED_SNAPSHOT_SCHEMA_VERSION,
-        "updated_at": None,
-        "projects": [],
-    }
-
-
-def _normalize_linked_schema(data: Dict[str, Any]) -> None:
-    """Backfill linked_projects and linked_snapshot top-level schema fields."""
-    linked_projects = data.get("linked_projects")
-    if not isinstance(linked_projects, list):
-        linked_projects = []
-    data["linked_projects"] = linked_projects
-
-    linked_snapshot = data.get("linked_snapshot")
-    defaults = _default_linked_snapshot()
-    if not isinstance(linked_snapshot, dict):
-        data["linked_snapshot"] = defaults
-        return
-
-    for key, value in defaults.items():
-        linked_snapshot.setdefault(key, value)
-
-    if not isinstance(linked_snapshot.get("projects"), list):
-        linked_snapshot["projects"] = []
-
-    data["linked_snapshot"] = linked_snapshot
-
-
-def _normalize_route_schema(data: Dict[str, Any]) -> None:
-    """Backfill routing metadata fields used by RouteV1 coordination."""
-    tracker_role = data.get("tracker_role")
-    if not isinstance(tracker_role, str):
-        normalized_tracker_role = DEFAULT_TRACKER_ROLE
-    else:
-        normalized_tracker_role = tracker_role.strip().lower()
-        if normalized_tracker_role not in TRACKER_ROLES:
-            normalized_tracker_role = DEFAULT_TRACKER_ROLE
-    data["tracker_role"] = normalized_tracker_role
-
-    project_code = data.get("project_code")
-    if isinstance(project_code, str):
-        stripped_project_code = project_code.strip()
-        data["project_code"] = stripped_project_code or None
-    else:
-        data["project_code"] = None
-
-    routing_queue = data.get("routing_queue")
-    if not isinstance(routing_queue, list):
-        routing_queue = []
-    data["routing_queue"] = routing_queue
-
-    active_routes = data.get("active_routes")
-    if not isinstance(active_routes, list):
-        active_routes = []
-    data["active_routes"] = active_routes
 
 
 def _iter_linked_project_specs(progress_data: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Extract normalized linked project specs from progress payload."""
-    linked_projects = progress_data.get("linked_projects")
-    if not isinstance(linked_projects, list):
-        return []
-
-    specs: List[Dict[str, Any]] = []
-    for entry in linked_projects:
-        if isinstance(entry, dict):
-            raw_root = (
-                entry.get("project_root")
-                or entry.get("path")
-                or entry.get("root")
-            )
-            label = entry.get("label")
-        elif isinstance(entry, str):
-            raw_root = entry
-            label = None
-            entry = {"project_root": entry}
-        else:
-            continue
-
-        raw_root_text = str(raw_root or "").strip()
-        if not raw_root_text:
-            continue
-
-        specs.append(
-            {
-                "raw_project_root": raw_root_text,
-                "label": str(label).strip() if isinstance(label, str) and label.strip() else None,
-                "entry": entry,
-            }
-        )
-
-    return specs
+    return route_sync._iter_linked_project_specs(progress_data)
+_iter_linked_project_specs.is_wrapper = True
 
 
 def _resolve_linked_project_root(
@@ -1004,52 +652,17 @@ def _resolve_linked_project_root(
     project_root: Path,
     repo_root: Path,
 ) -> Path:
-    """Resolve linked project root from absolute or relative configuration."""
-    candidate = Path(raw_root).expanduser()
-    if candidate.is_absolute():
-        return candidate.resolve()
-
-    repo_candidate = (repo_root / candidate).resolve()
-    project_candidate = (project_root / candidate).resolve()
-
-    if repo_candidate.exists():
-        return repo_candidate
-    if project_candidate.exists():
-        return project_candidate
-    if repo_root != project_root:
-        return repo_candidate
-    return project_candidate
+    return route_sync._resolve_linked_project_root(raw_root, project_root, repo_root)
+_resolve_linked_project_root.is_wrapper = True
 
 
 def _get_main_repo_root(project_root: Path) -> Optional[Path]:
-    """
-    通过 git rev-parse --absolute-git-dir 检测是否在 worktree 内。
-    如果是，则返回主仓库根目录，否则返回 None。
-    """
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--absolute-git-dir"],
-            cwd=str(project_root),
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        git_dir = Path(result.stdout.strip()).resolve()
-        parts = git_dir.parts
-        # 寻找连续的 ".git" 和 "worktrees"
-        for i in range(len(parts) - 2):
-            if parts[i] == ".git" and parts[i+1] == "worktrees":
-                main_git_dir = Path(*parts[:i+1])
-                return main_git_dir.parent.resolve()
-    except Exception:
-        pass
-    return None
+    return route_sync._get_main_repo_root(project_root)
+_get_main_repo_root.is_wrapper = True
 
 
 def _resolve_main_repo_path(project_root: Path) -> Path:
-    """
-    若在 worktree 内，把 worktree 路径翻译为主仓库等效路径；不在则原样返回。
-    """
+    """若在 worktree 内，把 worktree 路径翻译为主仓库等效路径；不在则原样返回。"""
     main_root = _get_main_repo_root(project_root)
     if main_root is None:
         return project_root.resolve()
@@ -1069,19 +682,8 @@ def _resolve_main_repo_path(project_root: Path) -> Path:
 
 
 def _count_feature_completion(features: Any) -> Tuple[int, int]:
-    """Return (completed, total) from a progress features payload."""
-    if not isinstance(features, list):
-        return (0, 0)
-
-    total = 0
-    completed = 0
-    for feature in features:
-        if not isinstance(feature, dict):
-            continue
-        total += 1
-        if bool(feature.get("completed")):
-            completed += 1
-    return (completed, total)
+    return route_sync._count_feature_completion(features)
+_count_feature_completion.is_wrapper = True
 
 
 def _is_linked_snapshot_stale(
@@ -1089,20 +691,8 @@ def _is_linked_snapshot_stale(
     now: datetime,
     stale_after_hours: int,
 ) -> bool:
-    """Return True when linked snapshot timestamp is missing/invalid/too old."""
-    timestamp = _parse_iso_timestamp(updated_at)
-    if timestamp is None:
-        return True
-
-    reference_time = now
-    if reference_time.tzinfo is None:
-        reference_time = reference_time.replace(tzinfo=timezone.utc)
-
-    if timestamp.tzinfo is None:
-        timestamp = timestamp.replace(tzinfo=timezone.utc)
-
-    age_seconds = (reference_time - timestamp.astimezone(reference_time.tzinfo)).total_seconds()
-    return age_seconds > max(stale_after_hours, 0) * 3600
+    return route_sync._is_linked_snapshot_stale(updated_at, now, stale_after_hours)
+_is_linked_snapshot_stale.is_wrapper = True
 
 
 def collect_linked_project_statuses(
@@ -1114,142 +704,17 @@ def collect_linked_project_statuses(
     stale_after_hours: int = DEFAULT_LINKED_STATUS_STALE_HOURS,
     active_routes: Optional[List[Dict[str, Any]]] = None,
 ) -> List[Dict[str, Any]]:
-    """
-    Collect linked project progress snapshots in read-only mode.
-
-    This function never writes linked project files; it only reads each child's
-    `docs/progress-tracker/state/progress.json` and computes summary status.
-    """
-    if not isinstance(progress_data, dict):
-        return []
-
-    effective_project_root = Path(project_root or find_project_root()).resolve()
-    effective_repo_root = Path(repo_root or _REPO_ROOT or effective_project_root).resolve()
-    reference_time = now or datetime.now(timezone.utc)
-
-    _active_route_codes: Set[str] = set()
-    if isinstance(active_routes, list):
-        for _r in active_routes:
-            if isinstance(_r, dict):
-                _code = _r.get("project_code")
-                if isinstance(_code, str) and _code.strip():
-                    _active_route_codes.add(_code.strip().upper())
-
-    statuses: List[Dict[str, Any]] = []
-    for spec in _iter_linked_project_specs(progress_data):
-        spec_project_code: Optional[str] = None
-        _raw_code = spec.get("entry", {}).get("project_code")
-        if isinstance(_raw_code, str) and _raw_code.strip():
-            spec_project_code = _raw_code.strip().upper()
-
-        linked_root = _resolve_linked_project_root(
-            spec["raw_project_root"], effective_project_root, effective_repo_root
-        )
-        progress_path = get_progress_json_path(linked_root)
-        fallback_name = spec.get("label") or linked_root.name
-
-        status: Dict[str, Any] = {
-            "status": "missing",
-            "configured_project_root": spec["raw_project_root"],
-            "project_root": str(linked_root),
-            "project_name": fallback_name,
-            "completed": 0,
-            "total": 0,
-            "completion_rate": 0.0,
-            "updated_at": None,
-            "is_stale": True,
-            "active_feature_ref": None,
-            "project_code": None,
-            "child_project_code": None,
-            "workspace": "unknown",
-            "route_status": "idle",
-        }
-
-        if not progress_path.exists():
-            # spec_project_code still available; route_status unknown (no child data)
-            status["project_code"] = spec_project_code
-            if spec_project_code is None:
-                status["route_status"] = "unknown"
-            elif spec_project_code in _active_route_codes:
-                status["route_status"] = "active"
-            # else: keep "idle"
-            statuses.append(status)
-            continue
-
-        try:
-            payload = json.loads(progress_path.read_text(encoding="utf-8"))
-            if not isinstance(payload, dict):
-                raise ValueError("progress payload must be object")
-        except (OSError, json.JSONDecodeError, ValueError) as exc:
-            status["status"] = "invalid"
-            status["error"] = str(exc)
-            status["project_code"] = spec_project_code
-            if spec_project_code is None:
-                status["route_status"] = "unknown"
-            elif spec_project_code in _active_route_codes:
-                status["route_status"] = "active"
-            # else: keep "idle"
-            statuses.append(status)
-            continue
-
-        project_name = payload.get("project_name")
-        if isinstance(project_name, str) and project_name.strip():
-            status["project_name"] = project_name.strip()
-
-        completed, total = _count_feature_completion(payload.get("features"))
-        updated_at = payload.get("updated_at")
-        if not isinstance(updated_at, str) or not updated_at.strip():
-            updated_at = None
-
-        status["status"] = "ok"
-        status["completed"] = completed
-        status["total"] = total
-        status["completion_rate"] = (completed / total) if total > 0 else 0.0
-        status["updated_at"] = updated_at
-        status["is_stale"] = _is_linked_snapshot_stale(
-            updated_at,
-            reference_time,
-            stale_after_hours,
-        )
-
-        # --- F23: new fields ---
-        # child_project_code: always from child payload
-        child_code_raw = payload.get("project_code")
-        child_code: Optional[str] = None
-        if isinstance(child_code_raw, str) and child_code_raw.strip():
-            child_code = child_code_raw.strip().upper()
-        status["child_project_code"] = child_code
-
-        # project_code: spec (linked_projects entry) → fallback child payload
-        resolved_code = spec_project_code or child_code
-        status["project_code"] = resolved_code
-
-        # workspace: from child runtime_context.workspace_mode, whitelist only
-        _VALID_WORKSPACE_MODES = {"worktree", "in_place", "unknown"}
-        rt_ctx = payload.get("runtime_context")
-        if isinstance(rt_ctx, dict):
-            wm = rt_ctx.get("workspace_mode")
-            if isinstance(wm, str) and wm.strip() in _VALID_WORKSPACE_MODES:
-                status["workspace"] = wm.strip()
-        # else: keep default "unknown"
-
-        # route_status: "unknown" when no project_code; "active"/"idle" from active_routes
-        if resolved_code is None:
-            status["route_status"] = "unknown"
-        elif resolved_code in _active_route_codes:
-            status["route_status"] = "active"
-        # else: keep default "idle"
-        # --- end F23 ---
-
-        # Compute active_feature_ref from project_code and current_feature_id
-        project_code = payload.get("project_code")
-        current_feature_id = payload.get("current_feature_id")
-        if isinstance(project_code, str) and project_code.strip() and isinstance(current_feature_id, int):
-            status["active_feature_ref"] = f"{project_code.strip()}-F{current_feature_id}"
-
-        statuses.append(status)
-
-    return statuses
+    p_root = project_root if project_root is not None else find_project_root()
+    r_root = repo_root if repo_root is not None else Path(_REPO_ROOT or p_root)
+    return route_sync.collect_linked_project_statuses(
+        progress_data,
+        project_root=p_root,
+        repo_root=r_root,
+        now=now,
+        stale_after_hours=stale_after_hours,
+        active_routes=active_routes,
+    )
+collect_linked_project_statuses.is_wrapper = True
 
 
 def sync_linked(
@@ -1368,66 +833,23 @@ def sync_linked(
 
 
 def _detect_parallel_active_routes(active_routes: List[Any]) -> List[Dict[str, Any]]:
-    """Return one entry per distinct project_code when 2+ distinct codes exist (F20).
-
-    Returns an empty list when there is no parallel conflict (0 or 1 distinct codes).
-    Duplicate entries for the same project_code are collapsed to the first seen.
-    """
-    if not isinstance(active_routes, list) or len(active_routes) < 2:
-        return []
-    seen: Dict[str, Dict[str, Any]] = {}
-    for route in active_routes:
-        if not isinstance(route, dict):
-            continue
-        code_raw = route.get("project_code")
-        if not isinstance(code_raw, str) or not code_raw.strip():
-            continue
-        code = code_raw.strip().upper()
-        if code not in seen:
-            seen[code] = route
-    if len(seen) >= 2:
-        return list(seen.values())
-    return []
+    return route_sync._detect_parallel_active_routes(active_routes)
+_detect_parallel_active_routes.is_wrapper = True
 
 
 def _normalize_project_code(raw_code: str) -> Optional[str]:
-    """Normalize and validate RouteV1 project code tokens."""
-    token = str(raw_code or "").strip().upper()
-    if not token:
-        return None
-    if not re.fullmatch(r"[A-Z][A-Z0-9_]{0,31}", token):
-        return None
-    return token
+    return route_sync._normalize_project_code(raw_code)
+_normalize_project_code.is_wrapper = True
 
 
 def _serialize_project_root_for_config(project_root: Path, repo_root: Path) -> str:
-    """Persist linked project roots as repo-relative paths when possible.
-    Supports git worktree by translating both sides to their main repo equivalents.
-    """
-    resolved_root = _resolve_main_repo_path(project_root)
-    resolved_repo = _resolve_main_repo_path(repo_root)
-    try:
-        return resolved_root.relative_to(resolved_repo).as_posix()
-    except ValueError:
-        try:
-            return resolved_root.relative_to(repo_root.resolve()).as_posix()
-        except ValueError:
-            return str(resolved_root)
+    return route_sync._serialize_project_root_for_config(project_root, repo_root, resolve_main_repo_path_fn=_resolve_main_repo_path)
+_serialize_project_root_for_config.is_wrapper = True
 
 
 def _load_progress_payload_at_root(project_root: Path) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
-    """Load a progress payload from an explicit root without mutating scope globals."""
-    json_path = get_progress_json_path(project_root)
-    if not json_path.exists():
-        return None, f"linked child progress.json not found: {json_path}"
-    try:
-        payload = json.loads(json_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        return None, f"failed to load linked child progress.json: {exc}"
-    if not isinstance(payload, dict):
-        return None, f"linked child progress.json must contain a JSON object: {json_path}"
-    _apply_schema_defaults(payload)
-    return payload, None
+    return route_sync._load_progress_payload_at_root(project_root, apply_schema_defaults_fn=_apply_schema_defaults)
+_load_progress_payload_at_root.is_wrapper = True
 
 
 def _save_progress_payload_at_root(
@@ -1450,8 +872,8 @@ def _save_progress_payload_at_root(
 
 
 def _format_route_feature_ref(feature_id: int, project_code: str) -> str:
-    """Format feature ref string: project_code='PT', feature_id=14 → 'PT-F14'."""
-    return f"{project_code}-F{feature_id}"
+    return route_sync._format_route_feature_ref(feature_id, project_code)
+_format_route_feature_ref.is_wrapper = True
 
 
 def _upsert_active_route(
@@ -1459,123 +881,32 @@ def _upsert_active_route(
     project_code: str,
     feature_ref: str,
 ) -> None:
-    """Upsert active_routes entry for project_code (in-place), deduplicating."""
-    active_routes: List[Any] = parent_data.get("active_routes") or []
-    if not isinstance(active_routes, list):
-        active_routes = []
-    normalized_code = project_code.strip().upper()
-    other = [
-        r for r in active_routes
-        if isinstance(r, dict)
-        and r.get("project_code", "").strip().upper() != normalized_code
-    ]
-    other.append({
-        "project_code": normalized_code,
-        "feature_ref": feature_ref,
-        "assigned_at": _iso_now(),
-    })
-    parent_data["active_routes"] = other
+    route_sync._upsert_active_route(parent_data, project_code, feature_ref, now_str=_iso_now())
+_upsert_active_route.is_wrapper = True
 
 
 def _remove_active_route(parent_data: Dict[str, Any], project_code: str) -> None:
-    """Remove active_routes entry for project_code (in-place)."""
-    active_routes: List[Any] = parent_data.get("active_routes") or []
-    if not isinstance(active_routes, list):
-        parent_data["active_routes"] = []
-        return
-    normalized_code = project_code.strip().upper()
-    parent_data["active_routes"] = [
-        r for r in active_routes
-        if not (
-            isinstance(r, dict)
-            and r.get("project_code", "").strip().upper() == normalized_code
-        )
-    ]
+    route_sync._remove_active_route(parent_data, project_code)
+_remove_active_route.is_wrapper = True
 
 
 def _notify_parent_sync(route_event: str = "refresh") -> None:
-    """Trigger parent linked_snapshot refresh after child state changes.
-
-    route_event:
-      "refresh"  — refresh linked_snapshot only (default, backward-compatible)
-      "activate" — also upsert child's current feature into parent active_routes
-      "clear"    — also remove child's entry from parent active_routes
-
-    Reads parent_project_root from the current child tracker.
-    On any error (missing parent, invalid data), prints WARNING and returns.
-    Never raises — always warn-only.
-    """
-    try:
-        child_data = load_progress_json()
-        if not isinstance(child_data, dict):
-            return
-        parent_raw = child_data.get("parent_project_root")
-        if not parent_raw or not str(parent_raw).strip():
-            return
-
-        child_root = find_project_root().resolve()
-        repo_root = Path(_REPO_ROOT or child_root).resolve()
-        parent_root = _resolve_linked_project_root(str(parent_raw).strip(), child_root, repo_root)
-
-        # Best-effort summary refresh before parent writeback (Task 7)
-        try:
-            load_status_summary_projection(str(child_root))
-        except Exception as exc:
-            logger.debug(f"Summary refresh failed during parent sync: {exc}")
-
-        parent_data, err = _load_progress_payload_at_root(parent_root)
-        if parent_data is None:
-            print(
-                f"[WARNING] Parent writeback skipped: cannot load parent tracker "
-                f"at {parent_root}: {err}"
-            )
-            return
-
-        active_routes = parent_data.get("active_routes") or []
-        statuses = collect_linked_project_statuses(
-            parent_data,
-            project_root=parent_root,
-            active_routes=active_routes,
-        )
-
-        linked_snapshot = parent_data.get("linked_snapshot")
-        if not isinstance(linked_snapshot, dict):
-            linked_snapshot = {}
-        linked_snapshot["schema_version"] = LINKED_SNAPSHOT_SCHEMA_VERSION
-        linked_snapshot["updated_at"] = _iso_now()
-        linked_snapshot["projects"] = statuses
-        parent_data["linked_snapshot"] = linked_snapshot
-
-        child_code_raw = child_data.get("project_code")
-        child_code = (
-            _normalize_project_code(child_code_raw)
-            if isinstance(child_code_raw, str) and child_code_raw.strip()
-            else None
-        )
-
-        if route_event == "activate" and child_code:
-            current_fid = child_data.get("current_feature_id")
-            if current_fid is not None:
-                feature_ref = _format_route_feature_ref(current_fid, child_code)
-                _upsert_active_route(parent_data, child_code, feature_ref)
-                # Warn if other routes are already active (parallel execution)
-                other_codes = [
-                    r.get("project_code", "").strip().upper()
-                    for r in (parent_data.get("active_routes") or [])
-                    if isinstance(r, dict)
-                    and r.get("project_code", "").strip().upper() != child_code
-                ]
-                if other_codes:
-                    print(
-                        f"[WARNING] Parallel active routes detected after activating "
-                        f"{child_code}: other active route(s): {', '.join(other_codes)}"
-                    )
-        elif route_event == "clear" and child_code:
-            _remove_active_route(parent_data, child_code)
-
-        _save_progress_payload_at_root(parent_root, parent_data)
-    except Exception as exc:  # noqa: BLE001
-        print(f"[WARNING] Parent writeback failed: {exc}")
+    child_data = load_progress_json()
+    if not isinstance(child_data, dict):
+        return
+    child_root = find_project_root().resolve()
+    repo_root = Path(_REPO_ROOT or child_root).resolve()
+    route_sync._notify_parent_sync(
+        child_data=child_data,
+        child_root=child_root,
+        repo_root=repo_root,
+        route_event=route_event,
+        load_progress_payload_fn=_load_progress_payload_at_root,
+        save_progress_payload_fn=_save_progress_payload_at_root,
+        load_status_summary_projection_fn=load_status_summary_projection,
+        iso_now_fn=_iso_now,
+    )
+_notify_parent_sync.is_wrapper = True
 
 
 def link_project(
@@ -1586,15 +917,6 @@ def link_project(
     output_json: bool = False,
 ) -> bool:
     """Register a child tracker under linked_projects and route queue."""
-    parent_data = load_progress_json()
-    if not parent_data:
-        message = "No progress tracking found. Use init first."
-        if output_json:
-            print(json.dumps({"status": "error", "message": message}, ensure_ascii=False))
-        else:
-            print(message)
-        return False
-
     raw_child_root = str(child_project_root or "").strip()
     if not raw_child_root:
         message = (
@@ -1654,164 +976,179 @@ def link_project(
     child_code_raw = child_data.get("project_code")
     child_code = _normalize_project_code(child_code_raw) if isinstance(child_code_raw, str) else None
 
-    parent_linked_projects = parent_data.get("linked_projects")
-    if not isinstance(parent_linked_projects, list):
-        parent_linked_projects = []
-    parent_has_child_entry = False
-    for entry in parent_linked_projects:
-        entry_root_raw: Optional[str]
-        if isinstance(entry, dict):
-            raw_value = entry.get("project_root") or entry.get("path") or entry.get("root")
-            entry_root_raw = str(raw_value).strip() if raw_value is not None else None
-        elif isinstance(entry, str):
-            entry_root_raw = entry.strip()
-        else:
-            continue
-        if not entry_root_raw:
-            continue
-        entry_root = _resolve_linked_project_root(entry_root_raw, parent_root, repo_root)
-        if entry_root == child_root:
-            parent_has_child_entry = True
-            break
+    payload: Optional[Dict[str, Any]] = None
+    with progress_transaction():
+        parent_data = load_progress_json()
+        if not parent_data:
+            message = "No progress tracking found. Use init first."
+            if output_json:
+                print(json.dumps({"status": "error", "message": message}, ensure_ascii=False))
+            else:
+                print(message)
+            return False
 
-    if child_role == "parent":
-        message = (
-            "Error: Child project is already a parent tracker. "
-            "Cannot link it as a child tracker."
-        )
-        if output_json:
-            print(json.dumps({"status": "error", "message": message}, ensure_ascii=False))
-        else:
-            print(message)
-        return False
-    if (
-        child_role == "child"
-        and child_code
-        and child_code != normalized_code
-        and not parent_has_child_entry
-    ):
-        message = (
-            "Error: Child project already linked with "
-            f"project_code={child_code}. Use matching --code or unlink first."
-        )
-        if output_json:
-            print(json.dumps({"status": "error", "message": message}, ensure_ascii=False))
-        else:
-            print(message)
-        return False
-
-    # Collect previous codes for migration before delegating to helper
-    previous_codes: Set[str] = set()
-    linked_projects = parent_data.get("linked_projects")
-    if isinstance(linked_projects, list):
-        for entry in linked_projects:
+        parent_linked_projects = parent_data.get("linked_projects")
+        if not isinstance(parent_linked_projects, list):
+            parent_linked_projects = []
+        parent_has_child_entry = False
+        for entry in parent_linked_projects:
+            entry_root_raw: Optional[str]
             if isinstance(entry, dict):
                 raw_value = entry.get("project_root") or entry.get("path") or entry.get("root")
                 entry_root_raw = str(raw_value).strip() if raw_value is not None else None
-                entry_code_raw = entry.get("project_code")
-                if entry_root_raw:
-                    entry_root = _resolve_linked_project_root(entry_root_raw, parent_root, repo_root)
-                    entry_code = (
-                        str(entry_code_raw).strip().upper()
-                        if isinstance(entry_code_raw, str) and entry_code_raw.strip()
-                        else None
-                    )
-                    if entry_code and entry_root == child_root and entry_code != normalized_code:
-                        previous_codes.add(entry_code)
+            elif isinstance(entry, str):
+                entry_root_raw = entry.strip()
+            else:
+                continue
+            if not entry_root_raw:
+                continue
+            entry_root = _resolve_linked_project_root(entry_root_raw, parent_root, repo_root)
+            if entry_root == child_root:
+                parent_has_child_entry = True
+                break
 
-    # Delegate core registration to _link_child_to_parent
-    _link_child_to_parent(
-        parent_data, parent_root, repo_root, child_root, normalized_code, label=label, child_wt_root=child_wt_root
-    )
+        if child_role == "parent":
+            message = (
+                "Error: Child project is already a parent tracker. "
+                "Cannot link it as a child tracker."
+            )
+            if output_json:
+                print(json.dumps({"status": "error", "message": message}, ensure_ascii=False))
+            else:
+                print(message)
+            return False
+        if (
+            child_role == "child"
+            and child_code
+            and child_code != normalized_code
+            and not parent_has_child_entry
+        ):
+            message = (
+                "Error: Child project already linked with "
+                f"project_code={child_code}. Use matching --code or unlink first."
+            )
+            if output_json:
+                print(json.dumps({"status": "error", "message": message}, ensure_ascii=False))
+            else:
+                print(message)
+            return False
 
-    # Post-registration: migrate previous_codes in routing_queue
-    routing_queue = parent_data.get("routing_queue")
-    if not isinstance(routing_queue, list):
-        routing_queue = []
-    normalized_queue: List[str] = []
-    seen_queue_codes: Set[str] = set()
-    for item in routing_queue:
-        if not isinstance(item, str):
-            continue
-        token = item.strip().upper()
-        if not token:
-            continue
-        if token in previous_codes:
-            continue
-        if token in seen_queue_codes:
-            continue
-        seen_queue_codes.add(token)
-        normalized_queue.append(token)
-    parent_data["routing_queue"] = normalized_queue
+        # Collect previous codes for migration before delegating to helper.
+        previous_codes: Set[str] = set()
+        linked_projects = parent_data.get("linked_projects")
+        if isinstance(linked_projects, list):
+            for entry in linked_projects:
+                if isinstance(entry, dict):
+                    raw_value = entry.get("project_root") or entry.get("path") or entry.get("root")
+                    entry_root_raw = str(raw_value).strip() if raw_value is not None else None
+                    entry_code_raw = entry.get("project_code")
+                    if entry_root_raw:
+                        entry_root = _resolve_linked_project_root(entry_root_raw, parent_root, repo_root)
+                        entry_code = (
+                            str(entry_code_raw).strip().upper()
+                            if isinstance(entry_code_raw, str) and entry_code_raw.strip()
+                            else None
+                        )
+                        if entry_code and entry_root == child_root and entry_code != normalized_code:
+                            previous_codes.add(entry_code)
 
-    # Post-registration: migrate previous_codes in active_routes
-    active_routes = parent_data.get("active_routes")
-    if not isinstance(active_routes, list):
-        active_routes = []
-    normalized_routes: List[Any] = []
-    seen_route_keys: Set[Tuple[str, str, str]] = set()
-    for route in active_routes:
-        if not isinstance(route, dict):
-            normalized_routes.append(route)
-            continue
-
-        updated_route = dict(route)
-        route_code_raw = updated_route.get("project_code")
-        route_code = (
-            str(route_code_raw).strip().upper()
-            if isinstance(route_code_raw, str) and route_code_raw.strip()
-            else None
+        # Delegate core registration to _link_child_to_parent.
+        _link_child_to_parent(
+            parent_data, parent_root, repo_root, child_root, normalized_code, label=label, child_wt_root=child_wt_root
         )
-        if route_code in previous_codes:
-            route_code = normalized_code
-        if route_code:
-            updated_route["project_code"] = route_code
 
-        dedupe_key: Optional[Tuple[str, str, str]] = None
-        if route_code:
-            feature_ref = str(updated_route.get("feature_ref") or "").strip()
-            worktree_path = str(updated_route.get("worktree_path") or "").strip()
-            dedupe_key = (route_code, feature_ref, worktree_path)
-        if dedupe_key and dedupe_key in seen_route_keys:
-            continue
-        if dedupe_key:
-            seen_route_keys.add(dedupe_key)
-        normalized_routes.append(updated_route)
-    parent_data["active_routes"] = normalized_routes
+        # Post-registration: migrate previous_codes in routing_queue.
+        routing_queue = parent_data.get("routing_queue")
+        if not isinstance(routing_queue, list):
+            routing_queue = []
+        normalized_queue: List[str] = []
+        seen_queue_codes: Set[str] = set()
+        for item in routing_queue:
+            if not isinstance(item, str):
+                continue
+            token = item.strip().upper()
+            if not token:
+                continue
+            if token in previous_codes:
+                continue
+            if token in seen_queue_codes:
+                continue
+            seen_queue_codes.add(token)
+            normalized_queue.append(token)
+        parent_data["routing_queue"] = normalized_queue
 
-    _update_runtime_context(parent_data, source="link_project")
-    save_progress_json(parent_data)
-    save_progress_md(generate_progress_md(parent_data))
+        # Post-registration: migrate previous_codes in active_routes.
+        active_routes = parent_data.get("active_routes")
+        if not isinstance(active_routes, list):
+            active_routes = []
+        normalized_routes: List[Any] = []
+        seen_route_keys: Set[Tuple[str, str, str]] = set()
+        for route in active_routes:
+            if not isinstance(route, dict):
+                normalized_routes.append(route)
+                continue
 
-    # Derive output values from updated parent_data
-    configured_project_root = _serialize_project_root_for_config(child_root, repo_root)
-    linked_entry = None
-    for entry in parent_data.get("linked_projects", []):
-        if isinstance(entry, dict) and entry.get("project_code") == normalized_code:
-            linked_entry = entry
-            break
-    normalized_label = linked_entry.get("label", child_root.name) if linked_entry else child_root.name
+            updated_route = dict(route)
+            route_code_raw = updated_route.get("project_code")
+            route_code = (
+                str(route_code_raw).strip().upper()
+                if isinstance(route_code_raw, str) and route_code_raw.strip()
+                else None
+            )
+            if route_code in previous_codes:
+                route_code = normalized_code
+            if route_code:
+                updated_route["project_code"] = route_code
 
-    payload = {
-        "status": "ok",
-        "project_code": normalized_code,
-        "parent_project_root": str(parent_root),
-        "child_project_root": str(child_root),
-        "linked_project": {
-            "project_root": configured_project_root,
+            dedupe_key: Optional[Tuple[str, str, str]] = None
+            if route_code:
+                feature_ref = str(updated_route.get("feature_ref") or "").strip()
+                worktree_path = str(updated_route.get("worktree_path") or "").strip()
+                dedupe_key = (route_code, feature_ref, worktree_path)
+            if dedupe_key and dedupe_key in seen_route_keys:
+                continue
+            if dedupe_key:
+                seen_route_keys.add(dedupe_key)
+            normalized_routes.append(updated_route)
+        parent_data["active_routes"] = normalized_routes
+
+        _update_runtime_context(parent_data, source="link_project")
+        save_progress_json(parent_data)
+        save_progress_md(generate_progress_md(parent_data))
+
+        # Derive output values from updated parent_data.
+        configured_project_root = _serialize_project_root_for_config(child_root, repo_root)
+        linked_entry = None
+        for entry in parent_data.get("linked_projects", []):
+            if isinstance(entry, dict) and entry.get("project_code") == normalized_code:
+                linked_entry = entry
+                break
+        normalized_label = linked_entry.get("label", child_root.name) if linked_entry else child_root.name
+
+        payload = {
+            "status": "ok",
             "project_code": normalized_code,
-            "label": normalized_label,
-        },
-        "routing_queue": normalized_queue,
-        "active_routes": normalized_routes,
-    }
+            "parent_project_root": str(parent_root),
+            "child_project_root": str(child_root),
+            "linked_project": {
+                "project_root": configured_project_root,
+                "project_code": normalized_code,
+                "label": normalized_label,
+            },
+            "routing_queue": normalized_queue,
+            "active_routes": normalized_routes,
+        }
+
+    if payload is None:
+        return False
+
     if output_json:
         print(json.dumps(payload, ensure_ascii=False))
     else:
         print(
             "Linked child project "
-            f"{configured_project_root} as {normalized_code}. "
-            f"routing_queue={normalized_queue}"
+            f"{payload['linked_project']['project_root']} as {normalized_code}. "
+            f"routing_queue={payload['routing_queue']}"
         )
     return True
 
@@ -1822,104 +1159,24 @@ def link_project(
 
 
 def _derive_plugin_code(plugin_name: str) -> str:
-    """Derive a short project code from a plugin name.
-
-    Takes the first letter of each hyphen/underscore-separated segment,
-    uppercase.  Truncates to 8 chars max.
-
-    Examples:
-        "note-organizer" → "NO"
-        "super-product-manager" → "SPM"
-        "progress-tracker" → "PT"
-    """
-    segments = re.split(r"[-_]+", plugin_name.strip())
-    code = "".join(seg[0].upper() for seg in segments if seg)
-    return code[:8]
+    import route_commands
+    return route_commands._derive_plugin_code(plugin_name)
+_derive_plugin_code.is_wrapper = True
 
 
 def _generate_project_code(plugin_name: str, used_codes: Set[str]) -> str:
-    """Generate a unique project code, handling collisions.
-
-    If the derived code is in ``used_codes``, appends numeric suffix 2, 3, …
-    up to the 8-char maximum.  Emits a warning when a suffix is applied.
-    """
-    base = _derive_plugin_code(plugin_name)
-    if base not in used_codes:
-        return base
-    # Collision – truncate base to leave room for suffix within 8-char limit
-    for suffix in range(2, 100):
-        candidate = f"{base}{suffix}"[:8]
-        if candidate not in used_codes:
-            logger.warning(
-                f"Code collision: derived '{base}' already used; "
-                f"assigned '{candidate}' for plugin '{plugin_name}'"
-            )
-            return candidate
-    # Fallback: try progressively shorter bases with suffixes
-    for prefix_len in range(7, 3, -1):
-        for suffix in range(2, 100):
-            candidate = f"{base[:prefix_len]}{suffix}"
-            if len(candidate) <= 8 and candidate not in used_codes:
-                logger.warning(
-                    f"Code collision exhausted for plugin '{plugin_name}'; "
-                    f"using fallback '{candidate}'"
-                )
-                return candidate
-    # Ultimate fallback
-    fallback = base[:6] + "XX"
-    if fallback not in used_codes:
-        return fallback
-    raise ValueError(f"Cannot generate unique project code for '{plugin_name}'")
+    import route_commands
+    return route_commands._generate_project_code(plugin_name, used_codes)
+_generate_project_code.is_wrapper = True
 
 
 def _discover_plugin_catalog(
     repo_root: Path,
     parent_root: Path,
 ) -> Dict[str, List[Dict[str, Any]]]:
-    """Scan repo_root/plugins/* for .claude-plugin/plugin.json.
-
-    Pure read-only — never writes to parent or child trackers, never calls
-    ``ensure_tracker_layout``, never registers links.
-
-    Returns ``{"initialized": [...], "uninitialized": [...]}`` where each
-    entry is ``{"name": str, "root": Path, "plugin_json": dict}``.
-    """
-    plugins_dir = repo_root / "plugins"
-    if not plugins_dir.is_dir():
-        return {"initialized": [], "uninitialized": []}
-
-    initialized: List[Dict[str, Any]] = []
-    uninitialized: List[Dict[str, Any]] = []
-
-    for child_dir in sorted(plugins_dir.iterdir()):
-        if not child_dir.is_dir():
-            continue
-        # Skip the parent itself
-        if child_dir.resolve() == parent_root.resolve():
-            continue
-
-        plugin_json_path = child_dir / ".claude-plugin" / "plugin.json"
-        if not plugin_json_path.is_file():
-            continue
-
-        try:
-            plugin_json = json.loads(plugin_json_path.read_text(encoding="utf-8"))
-        except Exception:
-            continue
-
-        if not isinstance(plugin_json, dict):
-            continue
-
-        plugin_name = plugin_json.get("name", child_dir.name)
-        entry = {"name": plugin_name, "root": child_dir, "plugin_json": plugin_json}
-
-        tracker_file = child_dir / "docs" / "progress-tracker" / "state" / PROGRESS_JSON
-        if tracker_file.is_file():
-            initialized.append(entry)
-        else:
-            uninitialized.append(entry)
-
-    return {"initialized": initialized, "uninitialized": uninitialized}
+    import route_commands
+    return route_commands._discover_plugin_catalog(repo_root, parent_root)
+_discover_plugin_catalog.is_wrapper = True
 
 
 def _link_child_to_parent(
@@ -1932,106 +1189,15 @@ def _link_child_to_parent(
     append_to_queue: bool = True,
     child_wt_root: Optional[Path] = None,
 ) -> None:
-    """Register a child tracker in the parent's linked_projects and queue.
-
-    Extracted from ``link_project()`` so discovery can reuse the core
-    registration logic without the CLI scaffolding.
-    """
-    normalized_code = _normalize_project_code(code) or code.upper()[:8]
-
-    # Write child metadata
-    child_data, _ = _load_progress_payload_at_root(child_root)
-    if child_data is None and child_wt_root is not None and child_wt_root.resolve() != child_root.resolve():
-        child_data, _ = _load_progress_payload_at_root(child_wt_root)
-    if isinstance(child_data, dict):
-        child_data["tracker_role"] = "child"
-        child_data["project_code"] = normalized_code
-        child_data["parent_project_root"] = _serialize_project_root_for_config(
-            parent_root, repo_root
-        )
-        _save_progress_payload_at_root(child_root, child_data)
-
-    # If worktree root is provided and distinct, update it too
-    if child_wt_root is not None and child_wt_root.resolve() != child_root.resolve():
-        wt_child_data, _ = _load_progress_payload_at_root(child_wt_root)
-        if isinstance(wt_child_data, dict):
-            wt_child_data["tracker_role"] = "child"
-            wt_child_data["project_code"] = normalized_code
-            wt_child_data["parent_project_root"] = _serialize_project_root_for_config(
-                parent_root, repo_root
-            )
-            _save_progress_payload_at_root(child_wt_root, wt_child_data)
-
-    # Infer label
-    if label is None:
-        child_name = child_data.get("project_name") if isinstance(child_data, dict) else None
-        label = (
-            child_name.strip()
-            if isinstance(child_name, str) and child_name.strip()
-            else child_root.name
-        )
-    normalized_label = label.strip() if isinstance(label, str) and label.strip() else child_root.name
-
-    configured_project_root = _serialize_project_root_for_config(child_root, repo_root)
-
-    # Upsert linked_projects
-    linked_projects = parent_data.get("linked_projects")
-    if not isinstance(linked_projects, list):
-        linked_projects = []
-
-    target_written = False
-    deduped: List[Any] = []
-    for entry in linked_projects:
-        entry_root_raw = None
-        entry_code_raw = None
-        if isinstance(entry, dict):
-            raw_value = entry.get("project_root") or entry.get("path") or entry.get("root")
-            entry_root_raw = str(raw_value).strip() if raw_value is not None else None
-            entry_code_raw = entry.get("project_code")
-
-        entry_root = (
-            _resolve_linked_project_root(entry_root_raw, parent_root, repo_root)
-            if entry_root_raw
-            else None
-        )
-
-        matches_target = (entry_root == child_root) or (
-            isinstance(entry_code_raw, str) and entry_code_raw.strip().upper() == normalized_code
-        )
-        if matches_target:
-            if target_written:
-                continue
-            base = entry if isinstance(entry, dict) else {}
-            updated = dict(base)
-            updated["project_root"] = configured_project_root
-            updated["project_code"] = normalized_code
-            updated["label"] = normalized_label
-            deduped.append(updated)
-            target_written = True
-            continue
-
-        deduped.append(entry)
-
-    if not target_written:
-        deduped.append(
-            {
-                "project_root": configured_project_root,
-                "project_code": normalized_code,
-                "label": normalized_label,
-            }
-        )
-
-    parent_data["linked_projects"] = deduped
-    parent_data["tracker_role"] = "parent"
-
-    # Update routing_queue
-    if append_to_queue:
-        routing_queue = parent_data.get("routing_queue")
-        if not isinstance(routing_queue, list):
-            routing_queue = []
-        if normalized_code not in routing_queue:
-            routing_queue.append(normalized_code)
-        parent_data["routing_queue"] = routing_queue
+    import route_commands
+    return route_commands._link_child_to_parent(
+        parent_data, parent_root, repo_root, child_root, code,
+        label=label, append_to_queue=append_to_queue, child_wt_root=child_wt_root,
+        load_progress_payload_at_root_fn=_load_progress_payload_at_root,
+        save_progress_payload_at_root_fn=_save_progress_payload_at_root,
+        resolve_main_repo_path_fn=_resolve_main_repo_path,
+    )
+_link_child_to_parent.is_wrapper = True
 
 
 def _auto_discover_child_plugins(
@@ -2039,348 +1205,54 @@ def _auto_discover_child_plugins(
     repo_root: Path,
     parent_data: Dict[str, Any],
 ) -> Dict[str, Any]:
-    """Discover and register initialized child trackers.
-
-    Calls ``_discover_plugin_catalog`` internally.  Preserves existing queue
-    order and appends newly discovered codes.
-    """
-    catalog = _discover_plugin_catalog(repo_root, parent_root=project_root)
-
-    # Collect used codes from existing queue + linked_projects
-    existing_queue: List[str] = parent_data.get("routing_queue") or []
-    if not isinstance(existing_queue, list):
-        existing_queue = []
-    existing_linked = parent_data.get("linked_projects") or []
-    if not isinstance(existing_linked, list):
-        existing_linked = []
-
-    used_codes: Set[str] = set()
-    for item in existing_queue:
-        if isinstance(item, str) and item.strip():
-            used_codes.add(item.strip().upper())
-    for entry in existing_linked:
-        if isinstance(entry, dict):
-            code_raw = entry.get("project_code")
-            if isinstance(code_raw, str) and code_raw.strip():
-                used_codes.add(code_raw.strip().upper())
-
-    added_codes: List[str] = []
-    warnings: List[str] = []
-
-    for child_info in catalog["initialized"]:
-        child_root: Path = child_info["root"]
-        plugin_name: str = child_info["name"]
-
-        # Code resolution priority:
-        # 1. Existing project_code in child progress.json
-        # 2. Derive from plugin name
-        child_data, _ = _load_progress_payload_at_root(child_root)
-        resolved_code = None
-        if isinstance(child_data, dict):
-            existing_code = child_data.get("project_code")
-            if isinstance(existing_code, str) and existing_code.strip():
-                resolved_code = existing_code.strip().upper()
-
-        if resolved_code is None:
-            resolved_code = _generate_project_code(plugin_name, used_codes)
-
-        used_codes.add(resolved_code)
-
-        # Check if already linked
-        already_linked = False
-        for entry in existing_linked:
-            if isinstance(entry, dict):
-                entry_root_raw = entry.get("project_root") or entry.get("path") or entry.get("root")
-                entry_root = (
-                    _resolve_linked_project_root(str(entry_root_raw).strip(), project_root, repo_root)
-                    if entry_root_raw
-                    else None
-                )
-                if entry_root == child_root:
-                    already_linked = True
-                    break
-
-        if not already_linked:
-            _link_child_to_parent(
-                parent_data,
-                parent_root=project_root,
-                repo_root=repo_root,
-                child_root=child_root,
-                code=resolved_code,
-                append_to_queue=True,
-            )
-            added_codes.append(resolved_code)
-        else:
-            # Even if already linked, write back child metadata if missing
-            if isinstance(child_data, dict):
-                child_data.setdefault("tracker_role", "child")
-                child_data.setdefault("project_code", resolved_code)
-                child_data.setdefault(
-                    "parent_project_root",
-                    _serialize_project_root_for_config(project_root, repo_root),
-                )
-                _save_progress_payload_at_root(child_root, child_data)
-
-    # Initialize empty queue as [ROOT] + sorted(initialized_codes) if queue is empty
-    if not existing_queue:
-        # Re-derive properly with all codes considered
-        all_codes: Set[str] = set()
-        final_codes: List[str] = [ROOT_ROUTE_CODE]
-        for info in catalog["initialized"]:
-            child_data_tmp, _ = _load_progress_payload_at_root(info["root"])
-            code = None
-            if isinstance(child_data_tmp, dict):
-                code = child_data_tmp.get("project_code")
-                if isinstance(code, str) and code.strip():
-                    code = code.strip().upper()
-            if code is None:
-                code = _generate_project_code(info["name"], all_codes)
-            all_codes.add(code)
-            if code not in final_codes:
-                final_codes.append(code)
-        parent_data["routing_queue"] = final_codes
-
-    final_queue: List[str] = list(parent_data.get("routing_queue") or [])
-
-    # Build uninitialized list for output
-    uninitialized_plugins = [
-        {"name": info["name"], "root": str(info["root"])}
-        for info in catalog["uninitialized"]
-    ]
-
-    return {
-        "added_codes": added_codes,
-        "uninitialized_plugins": uninitialized_plugins,
-        "warnings": warnings,
-        "final_queue": final_queue,
-    }
+    import route_commands
+    return route_commands._auto_discover_child_plugins(
+        project_root, repo_root, parent_data,
+        load_progress_payload_at_root_fn=_load_progress_payload_at_root,
+        save_progress_payload_at_root_fn=_save_progress_payload_at_root,
+        resolve_main_repo_path_fn=_resolve_main_repo_path,
+    )
+_auto_discover_child_plugins.is_wrapper = True
 
 
 def discover_children(*, output_json: bool = False) -> bool:
-    """Discover and register child trackers under a parent."""
-    project_root = find_project_root()
-    repo_root = _resolve_repo_root(project_root)
-
-    data = load_progress_json()
-    if not isinstance(data, dict):
-        msg = "No progress tracking found. Use init first."
-        if output_json:
-            print(json.dumps({"status": "error", "message": msg}, ensure_ascii=False))
-        else:
-            print(msg)
-        return False
-
-    tracker_role = str(data.get("tracker_role") or DEFAULT_TRACKER_ROLE).strip().lower()
-    if tracker_role != "parent":
-        msg = "discover-children only runs from a parent tracker."
-        if output_json:
-            print(json.dumps({"status": "error", "message": msg}, ensure_ascii=False))
-        else:
-            print(msg)
-        return False
-
-    result = _auto_discover_child_plugins(project_root, repo_root, data)
-
-    _update_runtime_context(data, source="discover_children")
-    save_progress_json(data)
-    save_progress_md(generate_progress_md(data))
-
-    if output_json:
-        payload = {
-            "status": "ok",
-            **result,
-        }
-        print(json.dumps(payload, ensure_ascii=False))
-    else:
-        print(f"Discovered {len(result['added_codes'])} new child plugin(s)")
-        if result["added_codes"]:
-            print(f"  Added: {', '.join(result['added_codes'])}")
-        if result["uninitialized_plugins"]:
-            names = [p["name"] for p in result["uninitialized_plugins"]]
-            print(f"  Uninitialized: {', '.join(names)}")
-        if result["warnings"]:
-            for w in result["warnings"]:
-                print(f"  [WARN] {w}")
-        print(f"  Queue: {' -> '.join(result['final_queue'])}")
-
-    return True
+    import route_commands
+    return route_commands.discover_children(
+        project_root=find_project_root(),
+        output_json=output_json,
+        load_progress_json_fn=load_progress_json,
+        load_progress_payload_at_root_fn=_load_progress_payload_at_root,
+        save_progress_json_fn=save_progress_json,
+        save_progress_md_fn=save_progress_md,
+        generate_progress_md_fn=generate_progress_md,
+        update_runtime_context_fn=_update_runtime_context,
+        save_progress_payload_at_root_fn=_save_progress_payload_at_root,
+        resolve_main_repo_path_fn=_resolve_main_repo_path,
+    )
+discover_children.is_wrapper = True
 
 
 def route_status(*, output_json: bool = False) -> bool:
-    """Display routing_queue, active_routes, and conflict summary."""
-    data = load_progress_json()
-    if not data:
-        message = "No progress tracking found. Use init first."
-        if output_json:
-            print(json.dumps({"status": "error", "message": message}, ensure_ascii=False))
-        else:
-            print(message)
-        return False
-
-    routing_queue: List[str] = data.get("routing_queue") or []
-    if not isinstance(routing_queue, list):
-        routing_queue = []
-
-    active_routes: List[Any] = data.get("active_routes") or []
-    if not isinstance(active_routes, list):
-        active_routes = []
-
-    linked_projects: List[Any] = data.get("linked_projects") or []
-    if not isinstance(linked_projects, list):
-        linked_projects = []
-
-    # Collect linked project codes for conflict Type B check
-    linked_codes: set = set()
-    for entry in linked_projects:
-        if isinstance(entry, dict):
-            code_raw = entry.get("project_code")
-            if isinstance(code_raw, str) and code_raw.strip():
-                linked_codes.add(code_raw.strip().upper())
-
-    # Detect conflicts
-    conflicts: List[Dict[str, Any]] = []
-
-    # Type A: duplicate project_code in active_routes
-    seen_codes: Dict[str, int] = {}
-    for route in active_routes:
-        if not isinstance(route, dict):
-            continue
-        code_raw = route.get("project_code")
-        if not isinstance(code_raw, str):
-            continue
-        code = code_raw.strip().upper()
-        seen_codes[code] = seen_codes.get(code, 0) + 1
-    for code, count in seen_codes.items():
-        if count > 1:
-            conflicts.append(
-                {"type": "A", "code": code, "message": f"duplicate in active_routes ({count} entries)"}
-            )
-
-    # Type B: routing_queue code not in linked_projects (ROOT is exempt per CONSTRAINT-006)
-    for item in routing_queue:
-        if not isinstance(item, str):
-            continue
-        code = item.strip().upper()
-        if code and code != ROOT_ROUTE_CODE and code not in linked_codes:
-            conflicts.append(
-                {"type": "B", "code": code, "message": f"{code} in routing_queue but not in linked_projects"}
-            )
-
-    # Type C: 2+ distinct project_codes in active_routes (parallel execution conflict) (F20)
-    parallel_routes = _detect_parallel_active_routes(active_routes)
-    if parallel_routes:
-        codes = [str(r.get("project_code", "?")) for r in parallel_routes]
-        conflicts.append(
-            {"type": "C", "codes": codes, "message": f"parallel active routes: {', '.join(codes)}"}
-        )
-
-    if output_json:
-        print(
-            json.dumps(
-                {
-                    "status": "ok",
-                    "routing_queue": routing_queue,
-                    "active_routes": active_routes,
-                    "conflicts": conflicts,
-                },
-                ensure_ascii=False,
-            )
-        )
-        return True
-
-    print("Route Status")
-    print("============")
-    print(f"routing_queue: {routing_queue or '(empty)'}")
-    print()
-    if active_routes:
-        print("active_routes:")
-        for route in active_routes:
-            if isinstance(route, dict):
-                code = route.get("project_code", "?")
-                ref = route.get("feature_ref") or "(no feature_ref)"
-                print(f"  {code} -> {ref}")
-    else:
-        print("active_routes: (empty)")
-    if conflicts:
-        print()
-        print("Conflicts:")
-        for c in conflicts:
-            print(f"  [{c['type']}] {c['message']}")
-    return True
+    import route_commands
+    return route_commands.route_status(
+        output_json=output_json,
+        load_progress_json_fn=load_progress_json,
+    )
+route_status.is_wrapper = True
 
 
 def prioritize_route(code: str, *, output_json: bool = False) -> bool:
-    """Move a queue entry to the front of routing_queue.
-
-    Validates that ``code`` is ``ROOT_ROUTE_CODE`` or an existing linked child code.
-    """
-    data = load_progress_json()
-    if not isinstance(data, dict):
-        msg = "No progress tracking found. Use init first."
-        if output_json:
-            print(json.dumps({"status": "error", "message": msg}, ensure_ascii=False))
-        else:
-            print(msg)
-        return False
-
-    tracker_role = str(data.get("tracker_role") or "").strip().lower()
-    if tracker_role != "parent":
-        msg = "prioritize only runs from a parent tracker."
-        if output_json:
-            print(json.dumps({"status": "error", "message": msg}, ensure_ascii=False))
-        else:
-            print(msg)
-        return False
-
-    routing_queue: List[str] = data.get("routing_queue") or []
-    if not isinstance(routing_queue, list):
-        routing_queue = []
-
-    linked_projects: List[Any] = data.get("linked_projects") or []
-    if not isinstance(linked_projects, list):
-        linked_projects = []
-
-    linked_codes: set = set()
-    for entry in linked_projects:
-        if isinstance(entry, dict):
-            raw = entry.get("project_code")
-            if isinstance(raw, str) and raw.strip():
-                linked_codes.add(raw.strip().upper())
-
-    normalized_code = code.strip().upper()
-    if normalized_code != ROOT_ROUTE_CODE and normalized_code not in linked_codes:
-        msg = f"Code '{code}' is not in routing_queue or linked_projects."
-        if output_json:
-            print(json.dumps({"status": "error", "message": msg}, ensure_ascii=False))
-        else:
-            print(msg)
-        return False
-
-    if normalized_code not in routing_queue:
-        msg = f"Code '{code}' is not in routing_queue."
-        if output_json:
-            print(json.dumps({"status": "error", "message": msg}, ensure_ascii=False))
-        else:
-            print(msg)
-        return False
-
-    # Move to front, preserving order of remaining entries
-    new_queue = [normalized_code] + [c for c in routing_queue if c != normalized_code]
-    data["routing_queue"] = new_queue
-
-    _update_runtime_context(data, source="prioritize_route")
-    save_progress_json(data)
-    save_progress_md(generate_progress_md(data))
-
-    if output_json:
-        print(json.dumps({
-            "status": "ok",
-            "code": normalized_code,
-            "routing_queue": new_queue,
-        }, ensure_ascii=False))
-    else:
-        print(f"Prioritized {normalized_code}. Queue: {' -> '.join(new_queue)}")
-    return True
+    import route_commands
+    return route_commands.prioritize_route(
+        code,
+        output_json=output_json,
+        load_progress_json_fn=load_progress_json,
+        save_progress_json_fn=save_progress_json,
+        save_progress_md_fn=save_progress_md,
+        generate_progress_md_fn=generate_progress_md,
+        update_runtime_context_fn=_update_runtime_context,
+    )
+prioritize_route.is_wrapper = True
 
 
 def set_routing_queue(
@@ -2389,95 +1261,24 @@ def set_routing_queue(
     force: bool = False,
     output_json: bool = False,
 ) -> bool:
-    """Replace routing_queue with the provided ordered list of codes.
-
-    Validates every code is ``ROOT_ROUTE_CODE`` or an existing linked child code.
-    Requires all existing queue codes unless ``force`` is True.
-    """
-    data = load_progress_json()
-    if not isinstance(data, dict):
-        msg = "No progress tracking found. Use init first."
-        if output_json:
-            print(json.dumps({"status": "error", "message": msg}, ensure_ascii=False))
-        else:
-            print(msg)
-        return False
-
-    tracker_role = str(data.get("tracker_role") or "").strip().lower()
-    if tracker_role != "parent":
-        msg = "set-queue only runs from a parent tracker."
-        if output_json:
-            print(json.dumps({"status": "error", "message": msg}, ensure_ascii=False))
-        else:
-            print(msg)
-        return False
-
-    routing_queue: List[str] = data.get("routing_queue") or []
-    if not isinstance(routing_queue, list):
-        routing_queue = []
-
-    linked_projects: List[Any] = data.get("linked_projects") or []
-    if not isinstance(linked_projects, list):
-        linked_projects = []
-
-    linked_codes: set = set()
-    for entry in linked_projects:
-        if isinstance(entry, dict):
-            raw = entry.get("project_code")
-            if isinstance(raw, str) and raw.strip():
-                linked_codes.add(raw.strip().upper())
-
-    # Normalize input codes
-    normalized_codes: List[str] = []
-    for c in codes:
-        if isinstance(c, str) and c.strip():
-            normalized_codes.append(c.strip().upper())
-
-    # Validate each code
-    invalid_codes = [c for c in normalized_codes if c != ROOT_ROUTE_CODE and c not in linked_codes]
-    if invalid_codes:
-        msg = f"Invalid code(s): {', '.join(invalid_codes)}"
-        if output_json:
-            print(json.dumps({"status": "error", "message": msg}, ensure_ascii=False))
-        else:
-            print(msg)
-        return False
-
-    # Require all existing queue codes unless --force
-    existing_set = set(routing_queue)
-    new_set = set(normalized_codes)
-    if not force and not existing_set.issubset(new_set):
-        missing = sorted(existing_set - new_set)
-        msg = (
-            f"Missing existing queue code(s): {', '.join(missing)}. "
-            "Use --force to replace the queue anyway."
-        )
-        if output_json:
-            print(json.dumps({"status": "error", "message": msg}, ensure_ascii=False))
-        else:
-            print(msg)
-        return False
-
-    data["routing_queue"] = normalized_codes
-
-    _update_runtime_context(data, source="set_routing_queue")
-    save_progress_json(data)
-    save_progress_md(generate_progress_md(data))
-
-    if output_json:
-        print(json.dumps({
-            "status": "ok",
-            "routing_queue": normalized_codes,
-        }, ensure_ascii=False))
-    else:
-        print(f"Queue set: {' -> '.join(normalized_codes)}")
-    return True
+    import route_commands
+    return route_commands.set_routing_queue(
+        codes,
+        force=force,
+        output_json=output_json,
+        load_progress_json_fn=load_progress_json,
+        save_progress_json_fn=save_progress_json,
+        save_progress_md_fn=save_progress_md,
+        generate_progress_md_fn=generate_progress_md,
+        update_runtime_context_fn=_update_runtime_context,
+    )
+set_routing_queue.is_wrapper = True
 
 
 def _resolve_repo_root(project_root: Path) -> Path:
-    """Resolve the git repo root from the project root."""
-    from prog_paths import resolve_repo_root
-    return resolve_repo_root(cwd=project_root)
+    import route_commands
+    return route_commands._resolve_repo_root(project_root)
+_resolve_repo_root.is_wrapper = True
 
 
 def route_select(
@@ -2486,106 +1287,20 @@ def route_select(
     feature_ref: Optional[str] = None,
     output_json: bool = False,
 ) -> bool:
-    """Upsert active_routes entry for project_code (unique key), merging duplicates."""
-    data = load_progress_json()
-    if not data:
-        message = "No progress tracking found. Use init first."
-        if output_json:
-            print(json.dumps({"status": "error", "message": message}, ensure_ascii=False))
-        else:
-            print(message)
-        return False
-
-    normalized_code = _normalize_project_code(project_code)
-    if normalized_code is None:
-        message = (
-            "Error: Invalid --project value. Use 1-32 chars matching "
-            "[A-Z][A-Z0-9_]* (example: NO, APP2, CORE_API)."
-        )
-        if output_json:
-            print(json.dumps({"status": "error", "message": message}, ensure_ascii=False))
-        else:
-            print(message)
-        return False
-
-    active_routes: List[Any] = data.get("active_routes") or []
-    if not isinstance(active_routes, list):
-        active_routes = []
-
-    # Collect existing entry for the target code (take first match for feature_ref preservation)
-    existing_entry: Optional[Dict[str, Any]] = None
-    other_routes: List[Any] = []
-    for route in active_routes:
-        if not isinstance(route, dict):
-            other_routes.append(route)
-            continue
-        route_code_raw = route.get("project_code")
-        route_code = (
-            str(route_code_raw).strip().upper()
-            if isinstance(route_code_raw, str) and route_code_raw.strip()
-            else None
-        )
-        if route_code == normalized_code:
-            if existing_entry is None:
-                existing_entry = dict(route)
-            # Skip duplicates — deduplication happens by writing only one entry below
-        else:
-            other_routes.append(route)
-
-    # Determine final feature_ref
-    if feature_ref is not None:
-        final_ref = feature_ref
-    elif existing_entry is not None:
-        final_ref = existing_entry.get("feature_ref", "")
-        if not isinstance(final_ref, str):
-            final_ref = ""
-    else:
-        final_ref = ""
-
-    upserted_entry: Dict[str, Any] = {"project_code": normalized_code, "feature_ref": final_ref}
-    if existing_entry is not None:
-        # Preserve extra fields (e.g. worktree_path, custom flags) from first match
-        merged = dict(existing_entry)
-        merged["project_code"] = normalized_code
-        merged["feature_ref"] = final_ref
-        upserted_entry = merged
-
-    # Record current worktree_path and branch for scope consistency checks (F21)
-    _git_ctx = collect_git_context()
-    upserted_entry["worktree_path"] = _git_ctx.get("worktree_path")
-    upserted_entry["branch"] = _git_ctx.get("branch")
-
-    new_routes = other_routes + [upserted_entry]
-    data["active_routes"] = new_routes
-
-    _update_runtime_context(data, source="route_select")
-    save_progress_json(data)
-    save_progress_md(generate_progress_md(data))
-
-    action = "updated" if existing_entry is not None else "inserted"
-    parallel_routes = _detect_parallel_active_routes(new_routes)
-    if output_json:
-        result_payload: Dict[str, Any] = {
-            "status": "ok",
-            "project_code": normalized_code,
-            "active_routes": new_routes,
-        }
-        if parallel_routes:
-            result_payload["warning"] = "parallel_active_routes"
-            result_payload["parallel_codes"] = [
-                r.get("project_code") for r in parallel_routes
-            ]
-        print(json.dumps(result_payload, ensure_ascii=False))
-    else:
-        ref_display = final_ref or "(empty)"
-        print(f"route-select: {action} {normalized_code} -> {ref_display}")
-        if parallel_routes:
-            codes_str = ", ".join(
-                str(r.get("project_code", "?")) for r in parallel_routes
-            )
-            print(f"[WARNING] Parallel Active Routes detected: {codes_str}")
-            print("  Multiple projects executing simultaneously. Run 'prog route-status' for details.")
-    return True
+    import route_commands
+    return route_commands.route_select(
+        project_code,
+        project_root=find_project_root(),
+        feature_ref=feature_ref,
+        output_json=output_json,
+        load_progress_json_fn=load_progress_json,
+        save_progress_json_fn=save_progress_json,
+        save_progress_md_fn=save_progress_md,
+        generate_progress_md_fn=generate_progress_md,
+        update_runtime_context_fn=_update_runtime_context,
+        collect_git_context_fn=collect_git_context,
+    )
+route_select.is_wrapper = True
 
 
 def _apply_imported_feature_contract(feature: Dict[str, Any], contract: Dict[str, Any]) -> None:
@@ -3223,166 +1938,24 @@ def reconcile(output_json: bool = False) -> bool:
     return True
 
 
-def _default_sprint_contract(feature: Dict[str, Any]) -> None:
-    """PR-3/schema-2.1: inject sprint_contract defaults if absent."""
-    if os.environ.get("PROG_DISABLE_V2") == "1" and "sprint_contract" in feature:
-        return
-    feature.setdefault(
-        "sprint_contract",
-        {
-            "scope": "",
-            "done_criteria": [],
-            "test_plan": [],
-            "accepted_by": None,
-            "accepted_at": None,
-        },
-    )
-
-
-def _default_quality_gates(feature: Dict[str, Any]) -> None:
-    """PR-3/schema-2.1: deep-merge quality_gates defaults (handles partial existing data)."""
-    if os.environ.get("PROG_DISABLE_V2") == "1" and "quality_gates" in feature:
-        return
-    default_evaluator = {
-        "status": "pending",
-        "score": None,
-        "defects": [],
-        "last_run_at": None,
-        "evaluator_model": None,
-    }
-    default_reviews = {"required": [], "passed": [], "pending": []}
-    default_ship_check = {"status": "pending", "failures": [], "last_run_at": None}
-
-    if "quality_gates" not in feature:
-        feature["quality_gates"] = {
-            "evaluator": default_evaluator,
-            "reviews": default_reviews,
-            "ship_check": default_ship_check,
-        }
-        return
-
-    # Deep merge: fill missing sub-keys without clobbering existing data
-    qg = feature["quality_gates"]
-    if not isinstance(qg.get("evaluator"), dict):
-        qg["evaluator"] = default_evaluator
-    else:
-        for k, v in default_evaluator.items():
-            qg["evaluator"].setdefault(k, v)
-    if "reviews" not in qg:
-        qg["reviews"] = default_reviews
-    else:
-        for k, v in default_reviews.items():
-            qg["reviews"].setdefault(k, v)
-    if "ship_check" not in qg:
-        qg["ship_check"] = default_ship_check
-    else:
-        for k, v in default_ship_check.items():
-            qg["ship_check"].setdefault(k, v)
-
-
-def _sync_reviews_pending_cache(feature: Dict[str, Any]) -> None:
-    """Keep reviews.pending as a derived cache from required - passed.
-
-    This is display-oriented normalization only; gate decisions must still rely on
-    review_router.get_pending_lanes() and never trust persisted pending directly.
-    """
-    quality_gates = feature.get("quality_gates")
-    if not isinstance(quality_gates, dict):
-        return
-    reviews = quality_gates.get("reviews")
-    if not isinstance(reviews, dict):
-        return
-
-    required_raw = reviews.get("required")
-    passed_raw = reviews.get("passed")
-    required = required_raw if isinstance(required_raw, list) else []
-    passed = passed_raw if isinstance(passed_raw, list) else []
-    reviews["pending"] = [lane for lane in required if lane not in passed]
-
-
-def _default_handoff(feature: Dict[str, Any]) -> None:
-    """PR-3/schema-2.1: inject handoff defaults if absent."""
-    if os.environ.get("PROG_DISABLE_V2") == "1" and "handoff" in feature:
-        return
-    feature.setdefault(
-        "handoff",
-        {
-            "from_phase": None,
-            "to_phase": None,
-            "artifact_path": None,
-            "created_at": None,
-        },
-    )
-
-
 def _apply_schema_defaults(data: Dict[str, Any]) -> None:
     """Backfill backward-compatible defaults for evolving schema fields."""
-    old_version = data.get("schema_version")
-    if "schema_version" not in data:
-        data["schema_version"] = CURRENT_SCHEMA_VERSION
-
-    features = data.get("features")
-    if not isinstance(features, list):
-        features = []
-    data["features"] = features
-    for feature in features:
-        if isinstance(feature, dict):
-            _normalize_feature_owners(feature)
-            _normalize_feature_defer_state(feature)
-            _normalize_feature_contract(feature)
-            _default_quality_gates(feature)
-            _sync_reviews_pending_cache(feature)
-            _default_sprint_contract(feature)
-            _default_handoff(feature)
-
-    # Upgrade schema version and emit audit event on first migration
-    if old_version == "2.0" and data.get("schema_version") != "2.1":
-        data["schema_version"] = "2.1"
+    migrated = state_io._apply_schema_defaults_core(data)
+    if migrated is not None:
+        old_version, new_version = migrated
         _append_audit_event(
             event_type="schema_migration",
-            details={"from": "2.0", "to": "2.1"},
+            details={"from": old_version, "to": new_version},
         )
-    elif old_version is None or old_version not in ("2.0", "2.1"):
-        data["schema_version"] = CURRENT_SCHEMA_VERSION
-
-    _normalize_linked_schema(data)
-    _normalize_route_schema(data)
-
-    updates = data.get("updates")
-    if not isinstance(updates, list):
-        updates = []
-    data["updates"] = [item for item in updates if isinstance(item, dict)]
-
-    retrospectives = data.get("retrospectives")
-    if not isinstance(retrospectives, list):
-        retrospectives = []
-    data["retrospectives"] = [item for item in retrospectives if isinstance(item, dict)]
-
-    tasks = data.get("tasks")
-    if not isinstance(tasks, list):
-        tasks = []
-    data["tasks"] = [t for t in tasks if isinstance(t, dict)]
 
 
-def load_progress_json():
+def load_progress_json(progress_dir: Optional[Path] = None) -> Optional[Dict[str, Any]]:
     """Load the progress.json file."""
-    progress_dir = get_progress_dir()
-    json_path = progress_dir / PROGRESS_JSON
-
-    if not json_path.exists():
-        return None
-
-    try:
-        with open(json_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            if not isinstance(data, dict):
-                print(f"Error: {json_path} is not a valid JSON object.")
-                return None
-            _apply_schema_defaults(data)
-            return data
-    except json.JSONDecodeError:
-        print(f"Error: {json_path} is corrupted.")
-        return None
+    dir_path = progress_dir if progress_dir is not None else get_progress_dir()
+    return state_io.load_progress_json(
+        progress_dir=dir_path,
+        apply_schema_defaults=_apply_schema_defaults,
+    )
 
 
 def _iso_now() -> str:
@@ -3872,207 +2445,56 @@ def _store_evaluator_result(feature_id: int, result: Any) -> None:
 
 
 def _emit(data: Dict[str, Any], as_json: bool) -> None:
-    """Print reconcile_evaluator result as JSON or human-readable text."""
-    if as_json:
-        print(json.dumps(data))
-    else:
-        if "error" in data:
-            print(f"Error: {data['error']}", file=sys.stderr)
-        elif "summary" in data:
-            print(f"Reconcile evaluator: {data['summary']}")
-            if data.get("failed"):
-                print("Failed features:")
-                for fid_str, err in data["failed"].items():
-                    print(f"  F{fid_str}: {err}")
+    import evaluator_gateway
+    return evaluator_gateway._emit(data, as_json)
+_emit.is_wrapper = True
 
 
 def reconcile_evaluator(
     feature_id: Optional[int] = None,
     output_json: bool = False,
 ) -> int:
-    """Backfill evaluator results for completed features missing evaluation.
-
-    For each candidate feature, calls evaluator_gate.assess() synchronously,
-    then persists via _store_evaluator_result() (which writes an
-    'evaluator_assessment' audit event) and appends a separate
-    'evaluator_backfill' audit event recording the CLI source and reason.
-    Two audit events per backfill is intentional: they serve different
-    observability purposes.
-
-    Scope of "completed" features:
-      - completed == True  (archived)
-      - lifecycle_state in ("execution_complete", "archived")
-        (execution_complete included because it means implementation is done
-        but /prog done has not yet run — still a valid backfill target)
-
-    Args:
-        feature_id: If given, only process this feature (ignores backfill filter,
-                    allowing forced re-evaluation of already-evaluated features).
-        output_json: Emit JSON summary to stdout.
-
-    Returns:
-        0 = all succeeded, 1 = partial failure, 2 = all failed / system error.
-    """
-    if evaluator_gate_mod is None:
-        _emit({"error": "evaluator_gate module not available"}, output_json)
-        return 2
-
-    # Read raw JSON first to track original evaluator state before schema
-    # normalization converts null evaluators to {"status": "pending", ...}.
-    # This lets us distinguish "missing_evaluator" from "retry" reasons.
-    raw_null_evaluator_ids: set = set()
-    try:
-        raw_json_path = get_progress_dir() / PROGRESS_JSON
-        if raw_json_path.exists():
-            raw = json.loads(raw_json_path.read_text(encoding="utf-8"))
-            for f in raw.get("features", []):
-                qg = f.get("quality_gates") or {}
-                if qg.get("evaluator") is None and "quality_gates" in f:
-                    raw_null_evaluator_ids.add(f.get("id"))
-    except Exception:
-        pass  # Non-critical; backfill_reason defaults to "retry"
-
-    data = load_progress_json()
-    if data is None:
-        _emit({"error": "progress.json not found"}, output_json)
-        return 2
-
-    features = data.get("features", [])
-
-    def _needs_backfill(feat: Dict[str, Any]) -> bool:
-        ev = feat.get("quality_gates", {}).get("evaluator")
-        return ev is None or ev.get("status") == "pending"
-
-    if feature_id is not None:
-        candidates = [f for f in features if f.get("id") == feature_id]
-        if not candidates:
-            _emit({"error": f"Feature {feature_id} not found"}, output_json)
-            return 2
-        # Track whether this is a forced overwrite of existing evaluator data.
-        # Unlike the full-scan path, --feature-id always evaluates (for re-evaluation).
-        forced_overwrite_ids = {
-            f["id"] for f in candidates if not _needs_backfill(f)
-        }
-    else:
-        forced_overwrite_ids: set = set()  # full-scan never forces overwrites
-        # Collect completed features: archived ones plus the current feature
-        # if its workflow phase is execution_complete (implementation done but
-        # /prog done not yet run — still a valid backfill target).
-        exec_complete_ids: set = set()
-        wf = data.get("workflow_state") or {}
-        if wf.get("phase") == "execution_complete":
-            current_fid = data.get("current_feature_id")
-            if current_fid is not None:
-                exec_complete_ids.add(current_fid)
-
-        completed = [
-            f
-            for f in features
-            if f.get("completed") or f.get("id") in exec_complete_ids
-        ]
-        candidates = [f for f in completed if _needs_backfill(f)]
-
-    if not candidates:
-        report: Dict[str, Any] = {
-            "total_scanned": 0,
-            "backfilled": 0,
-            "failed": {},
-            "summary": "No features need evaluator backfill",
-        }
-        _emit(report, output_json)
-        return 0
-
-    rubric: Dict[str, Any] = {"test_coverage_min": 0.0}
-    signals: Dict[str, Any] = {"test_coverage": 1.0, "defects": []}
-    backfilled: List[int] = []
-    failed: Dict[str, str] = {}
-
-    for feat in candidates:
-        fid = feat["id"]
-        backfill_reason = (
-            "missing_evaluator" if fid in raw_null_evaluator_ids else "retry"
-        )
-        try:
-            result = evaluator_gate_mod.assess(
-                feature=feat,
-                rubric=rubric,
-                signals=signals,
-            )
-            _store_evaluator_result(fid, result)  # also writes evaluator_assessment event
-            _append_audit_event(
-                event_type="evaluator_backfill",
-                feature_id=fid,
-                details={
-                    "status": result.status,
-                    "score": result.score,
-                    "backfill_reason": backfill_reason,
-                    "source": "reconcile-evaluator CLI",
-                    "synthetic": True,
-                    "score_source": "backfill_default",
-                    **({"forced_overwrite": True} if fid in forced_overwrite_ids else {}),
-                },
-            )
-            backfilled.append(fid)
-        except Exception as exc:
-            failed[str(fid)] = str(exc)
-
-    total = len(candidates)
-    n_ok = len(backfilled)
-    report = {
-        "total_scanned": total,
-        "backfilled": n_ok,
-        "failed": failed,
-        "summary": f"{n_ok}/{total} backfilled successfully",
-    }
-    _emit(report, output_json)
-
-    if failed and backfilled:
-        return 1
-    if failed:
-        return 2
-    return 0
+    import evaluator_gateway
+    return evaluator_gateway.reconcile_evaluator(
+        feature_id=feature_id,
+        output_json=output_json,
+        progress_dir=get_progress_dir(),
+        load_progress_json_fn=load_progress_json,
+        store_evaluator_result_fn=_store_evaluator_result,
+        append_audit_event_fn=_append_audit_event,
+        evaluator_gate_mod=evaluator_gate_mod,
+        emit_fn=_emit,
+    )
+reconcile_evaluator.is_wrapper = True
 
 
-def save_progress_json(data, touch_updated_at: bool = True):
+def save_progress_json(
+    data: Dict[str, Any],
+    touch_updated_at: bool = True,
+    progress_dir: Optional[Path] = None,
+) -> None:
     """Save data to progress.json file with optional updated_at touch and migration."""
+    dir_path = progress_dir if progress_dir is not None else get_progress_dir()
     with progress_transaction():
-        progress_dir = get_progress_dir()
-        json_path = progress_dir / PROGRESS_JSON
-
-        # Ensure state directory exists
-        progress_dir.mkdir(parents=True, exist_ok=True)
-
-        _apply_schema_defaults(data)
-
-        # Auto-update updated_at timestamp
-        if touch_updated_at:
-            data["updated_at"] = _iso_now()
-
-        payload = json.dumps(data, indent=2, ensure_ascii=False)
-        _atomic_write_text(json_path, payload)
+        return state_io.save_progress_json(
+            progress_dir=dir_path,
+            data=data,
+            touch_updated_at=touch_updated_at,
+            apply_schema_defaults=_apply_schema_defaults,
+            now_fn=_iso_now,
+        )
 
 
-def load_progress_md():
+def load_progress_md(progress_dir: Optional[Path] = None) -> Optional[str]:
     """Load the progress.md file content."""
-    progress_dir = get_progress_dir()
-    md_path = progress_dir / PROGRESS_MD
-
-    if not md_path.exists():
-        return None
-
-    with open(md_path, "r", encoding="utf-8") as f:
-        return f.read()
+    dir_path = progress_dir if progress_dir is not None else get_progress_dir()
+    return state_io.load_progress_md(progress_dir=dir_path)
 
 
-def save_progress_md(content):
+def save_progress_md(content: str, progress_dir: Optional[Path] = None) -> None:
     """Save content to progress.md file."""
-    with progress_transaction():
-        progress_dir = get_progress_dir()
-        md_path = progress_dir / PROGRESS_MD
-
-        # Ensure state directory exists
-        progress_dir.mkdir(parents=True, exist_ok=True)
-        _atomic_write_text(md_path, content)
+    dir_path = progress_dir if progress_dir is not None else get_progress_dir()
+    return state_io.save_progress_md(progress_dir=dir_path, content=content)
 
 
 def _slugify(text: Optional[str], fallback: str = "project") -> str:
@@ -4410,328 +2832,69 @@ def _parse_iso_timestamp(value: Optional[str]) -> Optional[datetime]:
         return None
 
 
-RUNTIME_CONTEXT_COMPARE_KEYS = (
-    "workspace_mode",
-    "worktree_path",
-    "project_root",
-    "cwd",
-    "git_dir",
-    "branch",
-    "upstream",
-    "current_feature_id",
-    "workflow_phase",
-    "current_task",
-    "total_tasks",
-    "next_action",
-)
+import git_utils
+from git_utils import RUNTIME_CONTEXT_COMPARE_KEYS
+import worktree_handler
+import route_sync
 
 
 def _normalize_context_path(value: Optional[str]) -> Optional[str]:
-    """Normalize paths for cross-platform comparison."""
-    if not value:
-        return None
-    try:
-        return Path(value).resolve().as_posix()
-    except Exception:
-        return str(value).replace("\\", "/")
-
-
-def _normalize_optional_string(value: Optional[str]) -> Optional[str]:
-    """Normalize optional string values for context comparison."""
-    if value is None:
-        return None
-    value = str(value).strip()
-    return value or None
+    return git_utils._normalize_context_path(value)
 
 
 def collect_git_context() -> Dict[str, Any]:
-    """
-    Collect current git/worktree context using lightweight git probes.
-
-    workspace_mode contract:
-    - unknown: not a git repo or probes failed
-    - worktree: git dir path contains '/worktrees/'
-    - in_place: git repo and not a linked worktree git dir
-    """
-    fallback_root = find_project_root()
-    fallback_root_str = str(fallback_root.resolve())
-    cwd_str = str(Path.cwd().resolve())
-    context: Dict[str, Any] = {
-        "workspace_mode": "unknown",
-        "worktree_path": fallback_root_str,
-        "project_root": fallback_root_str,
-        "cwd": cwd_str,
-        "git_dir": None,
-        "branch": None,
-        "upstream": None,
-    }
-
-    exit_code, stdout, _ = _run_git(
-        ["rev-parse", "--show-toplevel"],
-        cwd=str(fallback_root),
-        timeout=5,
-    )
-    if exit_code != 0 or not stdout.strip():
-        return context
-
-    project_root_raw = stdout.strip()
-    try:
-        project_root = Path(project_root_raw).resolve()
-    except Exception:
-        project_root = Path(project_root_raw)
-
-    project_root_str = str(project_root)
-    context["project_root"] = project_root_str
-    context["worktree_path"] = project_root_str
-
-    exit_code, stdout, _ = _run_git(
-        ["rev-parse", "--absolute-git-dir"],
-        cwd=str(project_root),
-        timeout=5,
-    )
-    git_dir = stdout.strip() if exit_code == 0 and stdout.strip() else None
-    context["git_dir"] = git_dir
-
-    if git_dir:
-        git_dir_posix = _normalize_context_path(git_dir) or ""
-        context["workspace_mode"] = (
-            "worktree" if "/worktrees/" in git_dir_posix else "in_place"
-        )
-    else:
-        context["workspace_mode"] = "in_place"
-
-    exit_code, stdout, _ = _run_git(
-        ["symbolic-ref", "--quiet", "--short", "HEAD"],
-        cwd=str(project_root),
-        timeout=5,
-    )
-    context["branch"] = stdout.strip() if exit_code == 0 and stdout.strip() else None
-
-    exit_code, stdout, _ = _run_git(
-        ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"],
-        cwd=str(project_root),
-        timeout=5,
-    )
-    context["upstream"] = stdout.strip() if exit_code == 0 and stdout.strip() else None
-
-    return context
+    return git_utils.collect_git_context(project_root=find_project_root())
+collect_git_context.is_wrapper = True
 
 
 def build_runtime_context(data: Dict[str, Any], source: str) -> Dict[str, Any]:
-    """Build top-level runtime_context snapshot from current repository + progress state."""
-    git_context = collect_git_context()
-    tracker_root = str(find_project_root().resolve())
-    workflow_state = data.get("workflow_state", {})
-    if not isinstance(workflow_state, dict):
-        workflow_state = {}
-
-    runtime_context: Dict[str, Any] = {
-        "recorded_at": _iso_now(),
-        "source": source,
-        **git_context,
-        "tracker_root": tracker_root,
-        "current_feature_id": data.get("current_feature_id"),
-        "workflow_phase": workflow_state.get("phase"),
-        "current_task": workflow_state.get("current_task"),
-        "total_tasks": workflow_state.get("total_tasks"),
-        "next_action": workflow_state.get("next_action"),
-    }
-    return runtime_context
+    return git_utils.build_runtime_context(
+        data=data,
+        source=source,
+        project_root=find_project_root(),
+        now_str=_iso_now(),
+    )
 
 
 def build_execution_context(source: str) -> Dict[str, Any]:
-    """Build workflow_state.execution_context snapshot for workflow semantic transitions."""
-    git_context = collect_git_context()
-    tracker_root = str(find_project_root().resolve())
-    return {
-        "recorded_at": _iso_now(),
-        "source": source,
-        "workspace_mode": git_context.get("workspace_mode"),
-        "worktree_path": git_context.get("worktree_path"),
-        "project_root": git_context.get("project_root"),
-        "tracker_root": tracker_root,
-        "git_dir": git_context.get("git_dir"),
-        "branch": git_context.get("branch"),
-        "upstream": git_context.get("upstream"),
-    }
+    return git_utils.build_execution_context(
+        source=source,
+        project_root=find_project_root(),
+        now_str=_iso_now(),
+    )
 
 
 def _runtime_context_fingerprint(ctx: Optional[Dict[str, Any]]) -> Tuple[Any, ...]:
-    """Build a comparable fingerprint for runtime_context deduplication."""
-    if not isinstance(ctx, dict):
-        return tuple([None] * len(RUNTIME_CONTEXT_COMPARE_KEYS))
-    normalized: List[Any] = []
-    for key in RUNTIME_CONTEXT_COMPARE_KEYS:
-        value = ctx.get(key)
-        if key in {"worktree_path", "project_root", "cwd", "git_dir"}:
-            normalized.append(_normalize_context_path(value))
-        else:
-            normalized.append(value)
-    return tuple(normalized)
+    return git_utils._runtime_context_fingerprint(ctx)
 
 
 def _update_runtime_context(data: Dict[str, Any], source: str, force: bool = False) -> bool:
-    """Update top-level runtime_context in progress data; returns True if changed."""
-    if not isinstance(data, dict):
-        return False
-
-    new_context = build_runtime_context(data, source)
-    old_context = data.get("runtime_context")
-
-    if not force and _runtime_context_fingerprint(old_context) == _runtime_context_fingerprint(new_context):
-        return False
-
-    data["runtime_context"] = new_context
-    return True
+    return git_utils._update_runtime_context(
+        data=data,
+        source=source,
+        project_root=find_project_root(),
+        now_str=_iso_now(),
+        force=force,
+    )
 
 
 def _update_execution_context(workflow_state: Dict[str, Any], source: str) -> None:
-    """Refresh workflow_state.execution_context after semantic workflow progress changes."""
-    if not isinstance(workflow_state, dict):
-        return
-    workflow_state["execution_context"] = build_execution_context(source)
+    return git_utils._update_execution_context(
+        workflow_state=workflow_state,
+        source=source,
+        project_root=find_project_root(),
+        now_str=_iso_now(),
+    )
 
 
 def compare_contexts(
     expected: Optional[Dict[str, Any]], current: Optional[Dict[str, Any]]
 ) -> Dict[str, Any]:
-    """
-    Compare expected execution context with current/runtime context.
-
-    Returns a normalized hint object suitable for recovery/status output.
-    """
-    if not isinstance(expected, dict):
-        expected = {}
-    if not isinstance(current, dict):
-        current = {}
-
-    expected_branch = _normalize_optional_string(expected.get("branch"))
-    expected_path = _normalize_context_path(expected.get("worktree_path"))
-    current_branch = _normalize_optional_string(current.get("branch"))
-    current_path = _normalize_context_path(current.get("worktree_path"))
-
-    expected_has_signal = bool(expected_branch or expected_path)
-    current_has_signal = bool(current_branch or current_path)
-
-    result: Dict[str, Any] = {
-        "status": "unknown",
-        "severity": "info",
-        "expected_branch": expected_branch,
-        "expected_worktree_path": expected_path,
-        "current_branch": current_branch,
-        "current_worktree_path": current_path,
-        "message": "No execution context available yet.",
-    }
-
-    if not expected_has_signal:
-        return result
-
-    if not current_has_signal:
-        result.update(
-            {
-                "status": "unknown",
-                "severity": "warning",
-                "message": "Current session context is unavailable; cannot verify worktree/branch alignment.",
-            }
-        )
-        return result
-
-    expected_needs_path = bool(expected_path)
-    expected_needs_branch = bool(expected_branch)
-
-    path_missing_current = expected_needs_path and not current_path
-    branch_missing_current = expected_needs_branch and not current_branch
-
-    path_mismatch = bool(expected_path and current_path and expected_path != current_path)
-    branch_mismatch = bool(expected_branch and current_branch and expected_branch != current_branch)
-
-    if path_mismatch or branch_mismatch:
-        if path_mismatch and branch_mismatch:
-            status = "mismatch"
-        elif path_mismatch:
-            status = "path_mismatch"
-        else:
-            status = "branch_mismatch"
-
-        msg_parts: List[str] = ["Current session does not match the last recorded execution context"]
-        details: List[str] = []
-        if path_mismatch:
-            details.append("worktree path differs")
-        if branch_mismatch:
-            details.append("branch differs")
-        if path_missing_current:
-            details.append("current worktree path unavailable")
-        if branch_missing_current:
-            details.append("current branch unavailable")
-        if details:
-            msg_parts.append(f"({', '.join(details)})")
-
-        result.update(
-            {
-                "status": status,
-                "severity": "warning",
-                "message": " ".join(msg_parts) + ".",
-            }
-        )
-        return result
-
-    missing_parts: List[str] = []
-    if path_missing_current:
-        missing_parts.append("worktree path")
-    if branch_missing_current:
-        missing_parts.append("branch")
-    if missing_parts:
-        result.update(
-            {
-                "status": "unknown",
-                "severity": "warning",
-                "message": (
-                    "Current session context is incomplete; cannot verify "
-                    + " and ".join(missing_parts)
-                    + " alignment."
-                ),
-            }
-        )
-        return result
-
-    if (not expected_needs_path or expected_path == current_path) and (
-        not expected_needs_branch or expected_branch == current_branch
-    ):
-        result.update(
-            {
-                "status": "match",
-                "severity": "info",
-                "message": "Current session matches the last recorded execution context.",
-            }
-        )
-        return result
-
-    result.update(
-        {
-            "status": "unknown",
-            "severity": "warning",
-            "message": "Current session context could not be fully compared with the recorded execution context.",
-        }
-    )
-    return result
+    return git_utils.compare_contexts(expected, current)
 
 
 def _format_context_summary(context: Optional[Dict[str, Any]]) -> str:
-    """Format a concise context summary for CLI/markdown displays."""
-    if not isinstance(context, dict):
-        return "unknown"
-
-    branch = context.get("branch") or "(no-branch)"
-    worktree_path = context.get("worktree_path")
-    mode = context.get("workspace_mode") or "unknown"
-
-    if worktree_path:
-        try:
-            worktree_label = Path(worktree_path).name or worktree_path
-        except Exception:
-            worktree_label = str(worktree_path)
-        return f"{branch} @ {worktree_label} [{mode}]"
-    return f"{branch} [{mode}]"
+    return git_utils._format_context_summary(context)
 
 
 def _latest_checkpoint_entry(checkpoints: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
@@ -6076,242 +4239,40 @@ def status(output_json: bool = False) -> bool:
 
 
 def _run_git(args: List[str], cwd: Optional[str] = None, timeout: int = 5) -> Tuple[int, str, str]:
-    """
-    Run git command with secure validation when available.
-
-    Args:
-        args: Git arguments excluding the `git` binary name
-        cwd: Working directory
-        timeout: Timeout in seconds
-
-    Returns:
-        Tuple of (exit_code, stdout, stderr)
-    """
-    if GIT_VALIDATOR_AVAILABLE:
-        return safe_git_command(["git"] + args, cwd=cwd, timeout=timeout)
-
-    try:
-        result = subprocess.run(
-            ["git"] + args,
-            capture_output=True,
-            check=False,
-            cwd=cwd,
-            timeout=timeout,
-            text=True,
-        )
-        return result.returncode, result.stdout, result.stderr
-    except subprocess.TimeoutExpired:
-        return 124, "", f"Timed out after {timeout}s"
-    except Exception as e:
-        return 1, "", str(e)
+    return git_utils._run_git(args, cwd, timeout)
+_run_git.is_wrapper = True
 
 
-def _get_dirty_state_files(project_root: Path) -> list:
-    """Return list of state files (whitelist only) that have uncommitted changes.
-
-    Uses git status --porcelain with cwd=repo_root so paths in output are
-    consistently repo-root-relative, avoiding double-prefix bugs when
-    project_root is a subdirectory (e.g. plugins/progress-tracker).
-    """
-    progress_dir = get_progress_dir()
-    dirty: list = []
-
-    try:
-        git_root = _resolve_repo_root(project_root)
-    except Exception:
-        return dirty
-
-    for name in STATE_FILE_NAMES:
-        f = progress_dir / name
-        # No exists() guard: deleted tracked files must be included (they show
-        # as "D " in porcelain output and must be committed to record the deletion).
-        # Files that never existed and were never tracked → empty porcelain output → skipped.
-        try:
-            rel = str(f.relative_to(git_root))
-        except ValueError:
-            continue
-        code, out, _ = _run_git(["status", "--porcelain", "--", rel], cwd=str(git_root))
-        if code == 0 and out.strip():
-            dirty.append(f)
-
-    for dir_name in STATE_DIR_NAMES:
-        d = progress_dir / dir_name
-        # No is_dir() guard: deleted directories with tracked files show up in porcelain.
-        try:
-            rel_dir = str(d.relative_to(git_root))
-        except ValueError:
-            continue
-        code, out, _ = _run_git(["status", "--porcelain", "--", rel_dir], cwd=str(git_root))
-        if code == 0:
-            for line in out.strip().splitlines():
-                parts = line.strip().split(None, 1)
-                if len(parts) == 2:
-                    file_path = parts[1].strip()
-                    # If path ends with '/', it's an untracked directory.
-                    # Recursively list all files within it.
-                    if file_path.endswith('/'):
-                        dir_path = git_root / file_path
-                        if dir_path.is_dir():
-                            for item in dir_path.rglob('*'):
-                                if item.is_file():
-                                    dirty.append(item)
-                        else:
-                            # Directory doesn't exist, add the path as-is
-                            dirty.append(git_root / file_path)
-                    else:
-                        dirty.append(git_root / file_path)
-
-    return dirty
+def _get_dirty_state_files(project_root: Optional[Path] = None) -> List[Path]:
+    root = project_root if project_root is not None else find_project_root()
+    return git_utils._get_dirty_state_files(project_root=root)
 
 
 def _git_commit_state(
-    state_files: list, msg: str, project_root: Path
-) -> "Optional[str]":
-    """Commit state_files using git add + git commit --only.
-
-    Uses subprocess.run directly (not safe_git_command) because the commit
-    message contains parentheses, which safe_git_command rejects as dangerous
-    shell metacharacters. shell=False ensures no injection risk.
-
-    git add stages untracked files; --only isolates the commit so any files
-    the user has staged are left untouched.
-    """
-    try:
-        git_root = _resolve_repo_root(project_root)
-    except Exception:
-        print("[state-sync] Auto-commit skipped: cannot resolve repo root.")
-        return None
-
-    try:
-        rel_paths = [str(f.relative_to(git_root)) for f in state_files]
-    except ValueError as exc:
-        print(f"[state-sync] Auto-commit skipped: path resolution error: {exc}")
-        return None
-
-    try:
-        add_result = subprocess.run(
-            ["git", "add", "--"] + rel_paths,
-            capture_output=True, check=False,
-            cwd=str(git_root), timeout=15, text=True,
-        )
-        if add_result.returncode != 0:
-            print(
-                f"[state-sync] Auto-commit skipped: git add failed: "
-                f"{add_result.stderr.strip()}"
-            )
-            return None
-
-        commit_result = subprocess.run(
-            ["git", "commit", "--only", "-m", msg, "--"] + rel_paths,
-            capture_output=True, check=False,
-            cwd=str(git_root), timeout=30, text=True,
-        )
-        if commit_result.returncode != 0:
-            print(
-                f"[state-sync] Auto-commit failed (non-blocking): "
-                f"{commit_result.stderr.strip()}"
-            )
-            return None
-
-        hash_result = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            capture_output=True, check=False,
-            cwd=str(git_root), text=True, timeout=5,
-        )
-        if hash_result.returncode != 0:
-            print(f"[state-sync] Failed to retrieve commit hash: {hash_result.stderr.strip()}")
-            return None
-        return hash_result.stdout.strip() or None
-    except subprocess.TimeoutExpired as exc:
-        print(f"[state-sync] Auto-commit timeout (repository may be unresponsive): {exc}")
-        return None
-    except Exception as exc:
-        print(f"[state-sync] Auto-commit error (non-blocking): {exc}")
-        return None
+    state_files: List[Path], msg: str, project_root: Optional[Path] = None
+) -> Optional[str]:
+    root = project_root if project_root is not None else find_project_root()
+    return git_utils._git_commit_state(state_files, msg, project_root=root)
 
 
-def _auto_state_commit(ref: str, event: str) -> "Optional[str]":
-    """Auto-commit dirty state files after a prog lifecycle command succeeds.
-
-    Non-blocking: all failures print a warning and return None without
-    raising or affecting the caller's return value.
-
-    Args:
-        ref:   Human-readable reference, e.g. "F3" (feature) or "BUG-001".
-        event: Lifecycle event name, e.g. "done", "start", "fix".
-    """
-    data = load_progress_json()
-    if not data:
-        return None
-    if not data.get("settings", {}).get("auto_state_commit", True):
-        return None
-
-    # Resolve project root first — needed as cwd for all git calls.
-    project_root = find_project_root()
-
-    # Detect in-progress git operations (worktree-safe: --absolute-git-dir).
-    # Pass cwd=project_root to avoid detecting the wrong repo in multi-project setups.
-    code, git_dir_str, _ = _run_git(["rev-parse", "--absolute-git-dir"],
-                                     cwd=str(project_root))
-    if code == 0:
-        git_dir = Path(git_dir_str.strip())
-        for marker in ("MERGE_HEAD", "REBASE_HEAD", "CHERRY_PICK_HEAD"):
-            if (git_dir / marker).exists():
-                print(
-                    f"[state-sync] Skip: {marker} in progress. "
-                    "Resolve git operation, then commit state files manually."
-                )
-                return None
-        for dir_marker in ("rebase-merge", "rebase-apply"):
-            if (git_dir / dir_marker).is_dir():
-                print(f"[state-sync] Skip: {dir_marker} in progress.")
-                return None
-
-    dirty = _get_dirty_state_files(project_root)
-    if not dirty:
-        return None
-
-    msg = f"chore(PT): state sync [{ref}: {event}] [skip ci]"
-    return _git_commit_state(dirty, msg, project_root)
+def _auto_state_commit(ref: str, event: str) -> Optional[str]:
+    return git_utils._auto_state_commit(
+        ref=ref,
+        event=event,
+        project_root=find_project_root(),
+        progress_dir=get_progress_dir(),
+        apply_schema_defaults=_apply_schema_defaults,
+    )
 
 
 def _parse_worktree_list_output(output: str) -> List[Dict[str, str]]:
-    """
-    Parse `git worktree list --porcelain` output.
-    """
-    entries: List[Dict[str, str]] = []
-    current: Dict[str, str] = {}
-
-    for line in output.splitlines():
-        if not line.strip():
-            if current:
-                entries.append(current)
-                current = {}
-            continue
-
-        if " " not in line:
-            continue
-
-        key, value = line.split(" ", 1)
-        current[key] = value
-
-    if current:
-        entries.append(current)
-
-    return entries
+    return worktree_handler._parse_worktree_list_output(output)
+_parse_worktree_list_output.is_wrapper = True
 
 
 def _extract_branch_name_from_worktree_ref(ref: Optional[str]) -> Optional[str]:
-    """Normalize a worktree porcelain branch ref to a branch name."""
-    if not isinstance(ref, str):
-        return None
-    normalized = ref.strip()
-    if not normalized:
-        return None
-    prefix = "refs/heads/"
-    if normalized.startswith(prefix):
-        return normalized[len(prefix):]
-    return normalized
+    return worktree_handler._extract_branch_name_from_worktree_ref(ref)
+_extract_branch_name_from_worktree_ref.is_wrapper = True
 
 
 def _count_branch_commits_behind(
@@ -6319,30 +4280,8 @@ def _count_branch_commits_behind(
     target_branch: str,
     project_root: Path,
 ) -> Optional[int]:
-    """
-    Count commits that `branch` is behind `target_branch`.
-
-    Returns None when refs are unavailable or probe fails.
-    """
-    source_refs = _local_and_origin_ref_candidates(branch)
-    target_refs = _local_and_origin_ref_candidates(target_branch)
-    if not source_refs or not target_refs:
-        return None
-
-    for source_ref in source_refs:
-        for target_ref in target_refs:
-            exit_code, stdout, _ = _run_git(
-                ["rev-list", "--count", f"{source_ref}..{target_ref}"],
-                cwd=str(project_root),
-                timeout=8,
-            )
-            if exit_code != 0:
-                continue
-            count_text = stdout.strip()
-            if count_text.isdigit():
-                return int(count_text)
-
-    return None
+    return worktree_handler._count_branch_commits_behind(branch, target_branch, project_root=project_root)
+_count_branch_commits_behind.is_wrapper = True
 
 
 def _find_existing_worktree_candidates_for_feature(
@@ -6352,119 +4291,19 @@ def _find_existing_worktree_candidates_for_feature(
     current_worktree: Path,
     current_feature_id: Optional[int],
 ) -> List[Dict[str, Any]]:
-    """
-    Find other worktrees that already track the same active feature id.
-
-    The lookup preserves project scope by resolving tracker_project_root relative
-    to repo_root, then probing the same relative path in each linked worktree.
-    """
-    if current_feature_id is None:
-        return []
-
-    try:
-        project_rel = tracker_project_root.resolve().relative_to(repo_root.resolve())
-    except ValueError:
-        return []
-
-    exit_code, stdout, _ = _run_git(
-        ["worktree", "list", "--porcelain"],
-        cwd=str(repo_root),
-        timeout=10,
+    return worktree_handler._find_existing_worktree_candidates_for_feature(
+        repo_root=repo_root,
+        tracker_project_root=tracker_project_root,
+        current_worktree=current_worktree,
+        current_feature_id=current_feature_id,
     )
-    if exit_code != 0 or not stdout.strip():
-        return []
-
-    candidates: List[Dict[str, Any]] = []
-    for entry in _parse_worktree_list_output(stdout):
-        worktree_path_raw = entry.get("worktree")
-        if not worktree_path_raw:
-            continue
-
-        worktree_path = Path(worktree_path_raw)
-        try:
-            resolved_worktree = worktree_path.resolve()
-        except Exception:
-            resolved_worktree = worktree_path
-
-        if resolved_worktree == current_worktree.resolve():
-            continue
-
-        candidate_project_root = (
-            resolved_worktree if project_rel == Path(".") else resolved_worktree / project_rel
-        )
-        progress_file = (
-            candidate_project_root
-            / "docs"
-            / "progress-tracker"
-            / "state"
-            / PROGRESS_JSON
-        )
-        if not progress_file.exists():
-            continue
-
-        try:
-            with open(progress_file, "r", encoding="utf-8") as handle:
-                data = json.load(handle)
-        except (OSError, json.JSONDecodeError):
-            continue
-
-        if data.get("current_feature_id") != current_feature_id:
-            continue
-
-        matching_feature: Optional[Dict[str, Any]] = None
-        features = data.get("features")
-        if isinstance(features, list):
-            for feature in features:
-                if isinstance(feature, dict) and feature.get("id") == current_feature_id:
-                    matching_feature = feature
-                    break
-
-        if isinstance(matching_feature, dict):
-            if matching_feature.get("completed", False):
-                continue
-            if _is_feature_deferred(matching_feature):
-                continue
-
-        candidates.append(
-            {
-                "worktree_path": str(resolved_worktree),
-                "project_root": str(candidate_project_root),
-                "branch": _extract_branch_name_from_worktree_ref(entry.get("branch")),
-                "current_feature_id": current_feature_id,
-            }
-        )
-
-    candidates.sort(key=lambda item: str(item.get("worktree_path") or ""))
-    return candidates
+_find_existing_worktree_candidates_for_feature.is_wrapper = True
 
 
-def _detect_default_branch(project_root: Path) -> Optional[str]:
-    """
-    Detect repository default branch using origin/HEAD when available.
-    """
-    exit_code, stdout, _ = _run_git(
-        ["symbolic-ref", "--quiet", "refs/remotes/origin/HEAD"],
-        cwd=str(project_root),
-        timeout=5,
-    )
-    if exit_code == 0 and stdout.strip():
-        ref = stdout.strip()
-        prefix = "refs/remotes/origin/"
-        if ref.startswith(prefix):
-            branch = ref[len(prefix):].strip()
-            if branch:
-                return branch
-
-    for candidate in ("main", "master"):
-        exit_code, _, _ = _run_git(
-            ["show-ref", "--verify", "--quiet", f"refs/heads/{candidate}"],
-            cwd=str(project_root),
-            timeout=5,
-        )
-        if exit_code == 0:
-            return candidate
-
-    return None
+def _detect_default_branch(project_root: Optional[Path] = None) -> Optional[str]:
+    root = project_root if project_root is not None else find_project_root()
+    return git_utils._detect_default_branch(project_root=root)
+_detect_default_branch.is_wrapper = True
 
 
 def _git_squash_close_task(
@@ -6474,368 +4313,32 @@ def _git_squash_close_task(
     base_branch: Optional[str] = None,
     task_name: Optional[str] = None,
 ) -> Tuple[bool, str]:
-    """Execute git squash-merge sequence for a standalone task branch.
-
-    Returns (True, commit_hash) on success, (False, error_message) on failure.
-    On success, base_branch has exactly +1 commit and branch is deleted.
-    """
-    if project_root is None:
-        project_root = find_project_root()
-
-    cwd = str(project_root)
-
-    # Resolve base branch
-    if base_branch is None:
-        base_branch = _detect_default_branch(project_root)
-    if not base_branch:
-        for _candidate in ("main", "master"):
-            _rc_br, _, _ = _run_git(
-                ["show-ref", "--verify", "--quiet", f"refs/heads/{_candidate}"], cwd=cwd
-            )
-            if _rc_br == 0:
-                base_branch = _candidate
-                break
-    if not base_branch:
-        return False, "cannot determine default branch (tried main and master)"
-
-    # Pre-condition 1: branch must exist
-    rc, _, _ = _run_git(["show-ref", "--verify", "--quiet", f"refs/heads/{branch}"], cwd=cwd)
-    if rc != 0:
-        return False, f"branch '{branch}' not found in local repo"
-
-    # Pre-condition 2: working tree must be clean
-    rc, stdout, _ = _run_git(["status", "--porcelain"], cwd=cwd)
-    if rc != 0 or stdout.strip():
-        return False, f"working tree is dirty; commit or stash changes first"
-
-    # Step 1: checkout base branch
-    rc, _, err = _run_git(["checkout", base_branch], cwd=cwd)
-    if rc != 0:
-        return False, f"checkout {base_branch} failed: {err}"
-
-    # Step 2: squash merge
-    rc, _, err = _run_git(["merge", "--squash", branch], cwd=cwd)
-    if rc != 0:
-        # Hard-reset to clean index + worktree (safe: pre-condition 2
-        # guarantees a clean working tree at entry), then return to the
-        # task branch so the user isn't stranded on the base branch.
-        _run_git(["reset", "--hard", "HEAD"], cwd=cwd)
-        _run_git(["checkout", branch], cwd=cwd)
-        return False, f"git merge --squash failed: {err}"
-
-    # Step 3: commit
-    description = task_name.strip() if task_name else "close standalone task"
-    commit_msg = f"task({task_id}): {description}"
-    rc, _, err = _run_git(["commit", "-m", commit_msg], cwd=cwd)
-    if rc != 0:
-        _run_git(["reset", "--hard", "HEAD"], cwd=cwd)
-        _run_git(["checkout", branch], cwd=cwd)
-        return False, f"git commit failed: {err}"
-
-    # Step 4: get commit hash
-    rc, commit_hash, _ = _run_git(["rev-parse", "HEAD"], cwd=cwd)
-    commit_hash = commit_hash.strip() if rc == 0 else ""
-
-    # Step 5: delete task branch.
-    # Uses -D (force) rather than -d (safe) because squash-merge creates a new
-    # commit that does not reference the original branch, so -d's "is-merged?"
-    # safety check would always fail. This is a deliberate deviation from the
-    # plan's `git branch -d` to match squash-merge semantics.
-    rc, _, err = _run_git(["branch", "-D", branch], cwd=cwd)
-    if rc != 0:
-        logger.warning(
-            f"squash commit {commit_hash[:8] if commit_hash else '?'} succeeded "
-            f"but branch '{branch}' deletion failed: {err}. "
-            f"Manual cleanup may be needed: git branch -D {branch}"
-        )
-
-    return True, commit_hash
+    root = project_root if project_root is not None else find_project_root()
+    return git_utils._git_squash_close_task(
+        task_id=task_id,
+        branch=branch,
+        project_root=root,
+        base_branch=base_branch,
+        task_name=task_name,
+    )
 
 
 def _local_and_origin_ref_candidates(ref: str) -> Tuple[str, ...]:
-    """Return deduplicated local+origin ref candidates for ancestry checks."""
-    normalized = str(ref or "").strip()
-    if not normalized:
-        return tuple()
-    candidates = [normalized]
-    if not normalized.startswith("origin/"):
-        candidates.append(f"origin/{normalized}")
-    return tuple(dict.fromkeys(candidates))
+    return worktree_handler._local_and_origin_ref_candidates(ref)
+_local_and_origin_ref_candidates.is_wrapper = True
 
 
 def _is_branch_merged_into(branch: str, target: str) -> bool:
-    """Return True when branch is an ancestor of target (local/origin fallback)."""
-    source_refs = _local_and_origin_ref_candidates(branch)
-    target_refs = _local_and_origin_ref_candidates(target)
-    if not source_refs or not target_refs:
-        return False
-
-    project_root = find_project_root()
-    for source_ref in source_refs:
-        for target_ref in target_refs:
-            exit_code, _, _ = _run_git(
-                ["merge-base", "--is-ancestor", source_ref, target_ref],
-                cwd=str(project_root),
-                timeout=10,
-            )
-            if exit_code == 0:
-                return True
-    return False
+    return worktree_handler._is_branch_merged_into(branch, target, project_root=find_project_root())
+_is_branch_merged_into.is_wrapper = True
 
 
 def analyze_git_sync_risks() -> Dict[str, Any]:
-    """
-    Analyze repository state for sync/rebase/divergence risks.
-
-    This check is designed for SessionStart hooks and intentionally avoids
-    mutating repository state.
-    """
-    project_root = find_project_root()
-    report: Dict[str, Any] = {
-        "status": "ok",
-        "project_root": str(project_root),
-        "branch": None,
-        "upstream": None,
-        "ahead": 0,
-        "behind": 0,
-        "issues": [],
-    }
-
-    status_rank = {"ok": 0, "warning": 1, "critical": 2}
-
-    def add_issue(
-        issue_id: str, level: str, message: str, recommendation: Optional[str] = None
-    ) -> None:
-        issue = {"id": issue_id, "level": level, "message": message}
-        if recommendation:
-            issue["recommendation"] = recommendation
-        report["issues"].append(issue)
-        if status_rank[level] > status_rank[report["status"]]:
-            report["status"] = level
-
-    # Skip when not in a git repository
-    if GIT_VALIDATOR_AVAILABLE:
-        in_git_repo = is_git_repository(str(project_root))
-    else:
-        exit_code, _, _ = _run_git(
-            ["rev-parse", "--is-inside-work-tree"],
-            cwd=str(project_root),
-            timeout=3,
-        )
-        in_git_repo = exit_code == 0
-
-    if not in_git_repo:
-        report["status"] = "skipped"
-        return report
-
-    # Determine current branch / detached HEAD
-    exit_code, stdout, _ = _run_git(
-        ["symbolic-ref", "--quiet", "--short", "HEAD"],
-        cwd=str(project_root),
-        timeout=5,
-    )
-    branch = stdout.strip() if exit_code == 0 else None
-    report["branch"] = branch
-    if not branch:
-        add_issue(
-            "detached_head",
-            "critical",
-            "Repository is in detached HEAD state.",
-            "Switch back to a branch before continuing: git switch <branch>",
-        )
-
-    # Detect in-progress git operations (merge/rebase/cherry-pick/revert/bisect)
-    git_dir: Optional[Path] = None
-    exit_code, stdout, _ = _run_git(
-        ["rev-parse", "--absolute-git-dir"],
-        cwd=str(project_root),
-        timeout=5,
-    )
-    if exit_code == 0 and stdout.strip():
-        git_dir = Path(stdout.strip())
-
-    if git_dir:
-        operation_markers = [
-            ("rebase-merge", "rebase"),
-            ("rebase-apply", "rebase"),
-            ("MERGE_HEAD", "merge"),
-            ("CHERRY_PICK_HEAD", "cherry-pick"),
-            ("REVERT_HEAD", "revert"),
-            ("BISECT_LOG", "bisect"),
-        ]
-        active_operations = sorted(
-            {name for marker, name in operation_markers if (git_dir / marker).exists()}
-        )
-        if active_operations:
-            ops = ", ".join(active_operations)
-            add_issue(
-                "operation_in_progress",
-                "critical",
-                f"Git operation in progress: {ops}.",
-                "Finish or abort it before new changes (e.g. git rebase --continue/--abort).",
-            )
-
-    # Detect uncommitted changes
-    is_clean = True
-    if GIT_VALIDATOR_AVAILABLE:
-        is_clean = is_working_directory_clean(str(project_root))
-    else:
-        exit_code, stdout, _ = _run_git(
-            ["status", "--porcelain"],
-            cwd=str(project_root),
-            timeout=5,
-        )
-        is_clean = exit_code == 0 and not stdout.strip()
-
-    if not is_clean:
-        add_issue(
-            "dirty_worktree",
-            "warning",
-            "Working tree has uncommitted changes.",
-            "Commit or stash changes before pull/rebase/cherry-pick operations.",
-        )
-
-    # Detect upstream tracking and divergence/ahead/behind
-    upstream_ref: Optional[str] = None
-    if branch:
-        exit_code, stdout, _ = _run_git(
-            ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"],
-            cwd=str(project_root),
-            timeout=5,
-        )
-        if exit_code == 0 and stdout.strip():
-            upstream_ref = stdout.strip()
-            report["upstream"] = upstream_ref
-        else:
-            add_issue(
-                "no_upstream",
-                "warning",
-                f"Branch '{branch}' is not tracking an upstream branch.",
-                f"Set upstream once: git push -u origin {branch}",
-            )
-
-    if upstream_ref:
-        exit_code, stdout, _ = _run_git(
-            ["rev-list", "--left-right", "--count", "@{upstream}...HEAD"],
-            cwd=str(project_root),
-            timeout=5,
-        )
-        if exit_code == 0:
-            parts = stdout.strip().split()
-            if len(parts) == 2 and all(p.isdigit() for p in parts):
-                behind = int(parts[0])
-                ahead = int(parts[1])
-                report["behind"] = behind
-                report["ahead"] = ahead
-
-                if ahead > 0 and behind > 0:
-                    add_issue(
-                        "branch_diverged",
-                        "critical",
-                        f"Branch has diverged from upstream (ahead {ahead}, behind {behind}).",
-                        "Sync before coding: git fetch origin && git rebase @{upstream} (or merge).",
-                    )
-                elif behind > 0:
-                    add_issue(
-                        "branch_behind",
-                        "warning",
-                        f"Branch is behind upstream by {behind} commit(s).",
-                        "Update branch first: git fetch origin && git rebase @{upstream}.",
-                    )
-                elif ahead > 0:
-                    add_issue(
-                        "branch_ahead",
-                        "warning",
-                        f"Branch is ahead of upstream by {ahead} commit(s).",
-                        "Push when ready: git push.",
-                    )
-
-    # Detect same branch checked out in another worktree
-    if branch:
-        exit_code, stdout, _ = _run_git(
-            ["worktree", "list", "--porcelain"],
-            cwd=str(project_root),
-            timeout=5,
-        )
-        if exit_code == 0 and stdout.strip():
-            branch_ref = f"refs/heads/{branch}"
-            # Use the actual git worktree root, not project_root which may be a
-            # subdirectory (e.g. a plugin folder inside the repo). Using project_root
-            # would cause a false-positive: git worktree list reports the git root,
-            # so the comparison would always fail when cwd is a subdirectory.
-            _ec, _toplevel, _ = _run_git(
-                ["rev-parse", "--show-toplevel"],
-                cwd=str(project_root),
-                timeout=5,
-            )
-            current_worktree = (
-                str(Path(_toplevel.strip()).resolve())
-                if _ec == 0 and _toplevel.strip()
-                else str(project_root.resolve())
-            )
-            worktrees = _parse_worktree_list_output(stdout)
-            duplicate_paths: List[str] = []
-            for entry in worktrees:
-                worktree_path = entry.get("worktree")
-                if not worktree_path or entry.get("branch") != branch_ref:
-                    continue
-
-                try:
-                    resolved_path = str(Path(worktree_path).resolve())
-                except Exception:
-                    resolved_path = worktree_path
-
-                if resolved_path != current_worktree:
-                    duplicate_paths.append(worktree_path)
-
-            if duplicate_paths:
-                shown = ", ".join(duplicate_paths[:2])
-                if len(duplicate_paths) > 2:
-                    shown = f"{shown}, +{len(duplicate_paths) - 2} more"
-                add_issue(
-                    "branch_checked_out_elsewhere",
-                    "warning",
-                    f"Branch '{branch}' is also checked out in another worktree: {shown}.",
-                    "Avoid editing the same branch in multiple sessions/tools at the same time.",
-                )
-
-    return report
+    return git_utils.analyze_git_sync_risks(project_root=find_project_root())
 
 
 def git_sync_check() -> bool:
-    """
-    Print actionable Git sync warnings.
-
-    Returns True in all cases so hooks remain non-blocking.
-    """
-    report = analyze_git_sync_risks()
-    status = report.get("status", "ok")
-
-    if status in ("ok", "skipped"):
-        return True
-
-    label = "CRITICAL" if status == "critical" else "WARNING"
-    print(f"[Progress Tracker][Git {label}] Session preflight detected sync risks")
-    print(f"Repository: {report.get('project_root')}")
-    if report.get("branch"):
-        print(f"Branch: {report.get('branch')}")
-
-    issues = report.get("issues", [])
-    for issue in issues:
-        print(f"- {issue.get('message')}")
-
-    recommendations: List[str] = []
-    for issue in issues:
-        recommendation = issue.get("recommendation")
-        if recommendation and recommendation not in recommendations:
-            recommendations.append(recommendation)
-
-    if recommendations:
-        print("Recommended actions:")
-        for action in recommendations:
-            print(f"  - {action}")
-
-    return True
+    return git_utils.git_sync_check(project_root=find_project_root())
 
 
 def analyze_git_auto_preflight() -> Dict[str, Any]:
@@ -8364,164 +5867,16 @@ def _is_immutable_protected(file_path: Path, project_root: Path) -> bool:
 
 
 def archive_feature_docs(feature_id: int, feature_name: str = None) -> Dict[str, Any]:
-    """
-    Archive testing and plan documents for a completed feature.
+    import doc_generator
+    return doc_generator.archive_feature_docs(
+        feature_id,
+        feature_name,
+        find_project_root_fn=find_project_root,
+        load_progress_json_fn=load_progress_json,
+        is_immutable_protected_fn=_is_immutable_protected,
+    )
+archive_feature_docs.is_wrapper = True
 
-    Moves documents from:
-    - docs/plans/ (Superpowers writing-plans standard location for plan files)
-    - docs/testing/ (bug fix reports and test documentation)
-
-    To:
-    - docs/archive/plans/
-    - docs/archive/testing/
-
-    Supports naming patterns:
-    - Primary: Reads plan_path from feature object (preserved before completion)
-    - Fallback: feature-{feature_id}-*.md (legacy pattern)
-    - Fallback: bug-*-fix-report.md (testing reports)
-
-    Args:
-        feature_id: The ID of the completed feature
-        feature_name: Optional feature name for logging
-
-    Returns:
-        Dict with archive results including success status, files moved, and any errors
-    """
-    result = {
-        "success": True,
-        "archived_files": [],
-        "skipped_files": [],
-        "errors": []
-    }
-
-    try:
-        project_root = find_project_root()
-
-        # Plans live at docs/plans/ (Superpowers standard)
-        # Testing reports live at docs/testing/
-        plans_src = project_root / "docs" / "plans"
-        testing_src = project_root / "docs" / "testing"
-        plans_archive = project_root / "docs" / "archive" / "plans"
-        testing_archive = project_root / "docs" / "archive" / "testing"
-
-        # Create archive directories if they don't exist
-        testing_archive.mkdir(parents=True, exist_ok=True)
-        plans_archive.mkdir(parents=True, exist_ok=True)
-
-        # Try to get plan_path from feature object (preserved before workflow_state clear)
-        data = load_progress_json()
-        feature = next((f for f in data.get("features", []) if f.get("id") == feature_id), None)
-        plan_path_from_feature = feature.get("plan_path") if feature else None
-
-        # Archive plan file if plan_path is available
-        if plan_path_from_feature:
-            try:
-                plan_file = project_root / plan_path_from_feature
-                if plan_file.exists():
-                    # Guard: never archive immutable protected files
-                    if _is_immutable_protected(plan_file, project_root):
-                        logger.warning(
-                            "Skipping immutable protected file from archival: %s",
-                            plan_path_from_feature,
-                        )
-                        result["skipped_files"].append(f"Protected: {plan_path_from_feature}")
-                    else:
-                        dst_file = plans_archive / plan_file.name
-
-                        # Handle filename conflicts
-                        if dst_file.exists():
-                            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                            stem = plan_file.stem
-                            suffix = plan_file.suffix
-                            new_name = f"{stem}_{timestamp}{suffix}"
-                            dst_file = plans_archive / new_name
-
-                        shutil.move(str(plan_file), str(dst_file))
-                        result["archived_files"].append({
-                            "from": plan_path_from_feature,
-                            "to": str(dst_file.relative_to(project_root))
-                        })
-                        logger.info(f"Archived plan: {plan_path_from_feature} -> {dst_file.relative_to(project_root)}")
-            except Exception as e:
-                error_msg = f"Failed to archive plan {plan_path_from_feature}: {e}"
-                result["errors"].append(error_msg)
-                logger.warning(error_msg)
-
-        # Collect all patterns to try for this feature (fallback)
-        patterns = [
-            # Legacy pattern: feature-{feature_id}-*.md
-            (testing_src, testing_archive, f"feature-{feature_id}-*.md"),
-            (plans_src, plans_archive, f"feature-{feature_id}-*.md"),
-            # Modern pattern: bug-NNN-*.md for testing reports
-            (testing_src, testing_archive, f"bug-*-fix-report.md"),
-        ]
-
-        for src_dir, dst_dir, pattern in patterns:
-            if not src_dir.exists():
-                result["skipped_files"].append(f"Source directory not found: {src_dir}")
-                continue
-
-            # Find matching files
-            matching_files = list(src_dir.glob(pattern))
-
-            if not matching_files:
-                # Debug log but don't report to user (too verbose)
-                logger.debug(f"No files found matching {pattern} in {src_dir}")
-                continue
-
-            # Move each matching file
-            for src_file in matching_files:
-                # Guard: never archive immutable protected files
-                if _is_immutable_protected(src_file, project_root):
-                    logger.warning(
-                        "Skipping immutable protected file from archival: %s",
-                        src_file,
-                    )
-                    result["skipped_files"].append(f"Protected: {src_file.name}")
-                    continue
-                try:
-                    dst_file = dst_dir / src_file.name
-
-                    # Handle filename conflicts by adding timestamp
-                    if dst_file.exists():
-                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                        stem = src_file.stem
-                        suffix = src_file.suffix
-                        new_name = f"{stem}_{timestamp}{suffix}"
-                        dst_file = dst_dir / new_name
-
-                    # Move the file
-                    shutil.move(str(src_file), str(dst_file))
-                    result["archived_files"].append({
-                        "from": str(src_file.relative_to(project_root)),
-                        "to": str(dst_file.relative_to(project_root))
-                    })
-                    logger.info(f"Archived: {src_file.name} -> {dst_file.relative_to(project_root)}")
-
-                except Exception as e:
-                    error_msg = f"Failed to move {src_file.name}: {e}"
-                    result["errors"].append(error_msg)
-                    logger.error(error_msg)
-                    # Don't set success=False for individual file errors - continue with others
-
-        # Log summary
-        if result["archived_files"]:
-            logger.info(f"Archived {len(result['archived_files'])} file(s) for feature {feature_id}")
-            for file_info in result["archived_files"]:
-                print(f"  Archived: {file_info['from']} -> {file_info['to']}")
-
-        if result["errors"]:
-            result["success"] = False
-            for error in result["errors"]:
-                logger.warning(error)
-
-    except Exception as e:
-        result["success"] = False
-        error_msg = f"Archive operation failed: {e}"
-        result["errors"].append(error_msg)
-        logger.error(error_msg)
-
-    return result
 
 
 def save_archive_record(feature_id: int, archive_result: Dict[str, Any]) -> None:
@@ -8631,6 +5986,73 @@ def _extract_test_step_command(step: str) -> Optional[str]:
     return normalized or None
 
 
+def _extract_relative_path_candidates_from_command(command: str) -> List[str]:
+    """Extract relative path-like tokens from a shell command for cwd heuristics."""
+    try:
+        tokens = shlex.split(command, posix=True)
+    except ValueError:
+        return []
+
+    candidates: List[str] = []
+    for token in tokens:
+        if not token or token.startswith("-"):
+            continue
+        if token in {"&&", "||", "|", ";"}:
+            continue
+        if "=" in token and "/" not in token and not token.startswith(("./", "../")):
+            # Likely ENV assignment (e.g., FOO=bar), not a file path.
+            continue
+        if token.startswith(("/", "~")):
+            continue
+        if "/" not in token and not token.startswith(("./", "../")):
+            continue
+        candidates.append(token)
+    return candidates
+
+
+def _resolve_acceptance_command_cwd(
+    command: str,
+    project_root: Path,
+    repo_root: Optional[Path],
+) -> Path:
+    """
+    Pick a stable cwd for acceptance commands.
+
+    Default is project_root. When command contains repo-relative paths that
+    exist only under repo_root (common in worktree/plugin-root runs), execute
+    from repo_root to avoid false "path not found" failures.
+    """
+    if repo_root is None:
+        return project_root
+
+    resolved_repo_root = repo_root.resolve()
+    resolved_project_root = project_root.resolve()
+    if resolved_repo_root == resolved_project_root:
+        return resolved_project_root
+
+    candidates = _extract_relative_path_candidates_from_command(command)
+    if not candidates:
+        return resolved_project_root
+
+    missing_in_project = False
+    has_repo_fallback = False
+    for raw_candidate in candidates:
+        project_candidate = (resolved_project_root / raw_candidate).resolve()
+        repo_candidate = (resolved_repo_root / raw_candidate).resolve()
+
+        project_exists = project_candidate.exists()
+        repo_exists = repo_candidate.exists()
+        if not project_exists:
+            missing_in_project = True
+        if repo_exists and not project_exists:
+            has_repo_fallback = True
+
+    if missing_in_project and has_repo_fallback:
+        return resolved_repo_root
+
+    return resolved_project_root
+
+
 def _run_acceptance_tests(
     feature: Dict[str, Any],
     run_all: bool = False,
@@ -8640,7 +6062,12 @@ def _run_acceptance_tests(
     if not isinstance(steps, list):
         steps = []
 
-    project_root = find_project_root()
+    project_root = find_project_root().resolve()
+    repo_root: Optional[Path]
+    if _REPO_ROOT:
+        repo_root = Path(_REPO_ROOT).resolve()
+    else:
+        repo_root = None
     all_passed = True
     results: List[AcceptanceTestResult] = []
 
@@ -8654,6 +6081,15 @@ def _run_acceptance_tests(
 
         print(f"[DONE][RUN] {command}")
         started_at = time.monotonic()
+        command_cwd = _resolve_acceptance_command_cwd(
+            command=command,
+            project_root=project_root,
+            repo_root=repo_root,
+        )
+        if command_cwd != project_root:
+            print(
+                f"[DONE][INFO] acceptance cwd adjusted: {project_root} -> {command_cwd}"
+            )
 
         success = False
         error: Optional[str] = None
@@ -8666,7 +6102,7 @@ def _run_acceptance_tests(
                 shell=True,
                 capture_output=True,
                 text=True,
-                cwd=str(project_root),
+                cwd=str(command_cwd),
                 timeout=300,
                 check=False,
             )
@@ -8794,7 +6230,16 @@ def _validate_done_preconditions(
     """Validate deterministic gate checks before `/prog done` execution."""
     current_id = data.get("current_feature_id")
     if current_id is None:
-        return False, "No active feature. Run /prog next first.", 1, None
+        tracker_role = str(data.get("tracker_role") or DEFAULT_TRACKER_ROLE)
+        project_code = data.get("project_code")
+        scope_hint = find_project_root()
+        return (
+            False,
+            "No active feature. Run /prog next first. "
+            f"(scope={scope_hint}, tracker_role={tracker_role}, project_code={project_code})",
+            1,
+            None,
+        )
 
     features = data.get("features", [])
     feature = next((item for item in features if item.get("id") == current_id), None)
@@ -8977,124 +6422,24 @@ def _append_capability_memory(feature: Dict[str, Any], commit_hash: str) -> None
 
 
 def _is_worktree_dirty(worktree_path: Optional[str]) -> bool:
-    """Return True if the given path has uncommitted changes.
-
-    Falls back to the project root when worktree_path is None/empty.
-    """
-    cwd = worktree_path if worktree_path else str(find_project_root())
-    try:
-        result = subprocess.run(
-            ["git", "-C", cwd, "status", "--porcelain"],
-            capture_output=True,
-            text=True,
-            timeout=10,
-            check=False,
-        )
-        return bool(result.returncode == 0 and result.stdout.strip())
-    except Exception:
-        return False
+    return worktree_handler._is_worktree_dirty(worktree_path, project_root=find_project_root())
+_is_worktree_dirty.is_wrapper = True
 
 
 def _resolve_upstream(branch: str) -> tuple:
-    """Return (remote, remote_branch) for *branch* before it is deleted.
-
-    Must be called while the local branch still exists so tracking metadata
-    is available.  Returns ("", "") when no upstream is configured.
-    """
-    if not branch:
-        return ("", "")
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--abbrev-ref", f"{branch}@{{u}}"],
-            capture_output=True,
-            text=True,
-            cwd=str(find_project_root()),
-            timeout=10,
-            check=False,
-        )
-        if result.returncode != 0 or not result.stdout.strip():
-            return ("", "")
-        upstream = result.stdout.strip()  # e.g. "origin/feature-25"
-        parts = upstream.split("/", 1)
-        if len(parts) == 2:
-            return (parts[0], parts[1])
-        return ("", "")
-    except Exception:
-        return ("", "")
+    return git_utils._resolve_upstream(branch, project_root=find_project_root())
 
 
 def _remove_worktree(worktree_path: str) -> bool:
-    """Remove a git worktree.  Must be run from the repo root, not the worktree itself."""
-    try:
-        result = subprocess.run(
-            ["git", "worktree", "remove", worktree_path],
-            capture_output=True,
-            text=True,
-            cwd=str(find_project_root()),
-            timeout=30,
-            check=False,
-        )
-        if result.returncode != 0:
-            print(f"[CLEANUP] WARN: could not remove worktree {worktree_path}: {result.stderr.strip()}")
-            return False
-        return True
-    except Exception as exc:
-        print(f"[CLEANUP] WARN: exception removing worktree {worktree_path}: {exc}")
-        return False
+    return git_utils._remove_worktree(worktree_path, project_root=find_project_root())
 
 
 def _delete_local_branch(branch: str) -> bool:
-    """Delete a local branch with git branch -d (safe; fails if unmerged)."""
-    if not branch:
-        return False
-    try:
-        result = subprocess.run(
-            ["git", "branch", "-d", branch],
-            capture_output=True,
-            text=True,
-            cwd=str(find_project_root()),
-            timeout=15,
-            check=False,
-        )
-        if result.returncode != 0:
-            print(
-                f"[CLEANUP] WARN: could not delete local branch '{branch}': "
-                f"{result.stderr.strip()}. "
-                f"Switch to main then run: git branch -d {branch}"
-            )
-            return False
-        return True
-    except Exception as exc:
-        print(f"[CLEANUP] WARN: exception deleting local branch '{branch}': {exc}")
-        return False
+    return git_utils._delete_local_branch(branch, project_root=find_project_root())
 
 
 def _delete_remote_branch(remote: str, remote_branch: str) -> bool:
-    """Push a delete to the remote.  No-op when remote or branch is empty.
-
-    Failures are non-blocking — only a warning is printed.
-    """
-    if not remote or not remote_branch:
-        return True
-    try:
-        result = subprocess.run(
-            ["git", "push", remote, "--delete", remote_branch],
-            capture_output=True,
-            text=True,
-            cwd=str(find_project_root()),
-            timeout=30,
-            check=False,
-        )
-        if result.returncode != 0:
-            print(
-                f"[CLEANUP] WARN: could not delete remote branch "
-                f"'{remote}/{remote_branch}': {result.stderr.strip()}"
-            )
-            return False
-        return True
-    except Exception as exc:
-        print(f"[CLEANUP] WARN: exception deleting remote branch '{remote}/{remote_branch}': {exc}")
-        return False
+    return git_utils._delete_remote_branch(remote, remote_branch, project_root=find_project_root())
 
 
 def _run_post_done_cleanup(ctx: dict, skip: bool = False) -> None:
@@ -9138,31 +6483,7 @@ def _run_post_done_cleanup(ctx: dict, skip: bool = False) -> None:
 
 
 def _get_head_commit() -> Optional[str]:
-    """Resolve current HEAD commit hash, if available."""
-    try:
-        if GIT_VALIDATOR_AVAILABLE:
-            head = get_current_commit_hash()
-            if isinstance(head, str) and head.strip():
-                return head.strip()
-    except Exception:
-        pass
-
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--verify", "HEAD"],
-            capture_output=True,
-            text=True,
-            cwd=str(find_project_root()),
-            timeout=10,
-            check=False,
-        )
-        if result.returncode == 0:
-            head = result.stdout.strip()
-            if head:
-                return head
-    except Exception:
-        pass
-    return None
+    return git_utils._get_head_commit(project_root=find_project_root())
 
 
 def _close_current_task(output_json: bool = False) -> int:
@@ -9686,18 +7007,9 @@ def cmd_done(commit_hash=None, run_all: bool = False, skip_archive: bool = False
 
 
 def _collect_ship_signals(feature: dict) -> dict:
-    """Collect best-effort ship signals from feature state."""
-    quality_gates = feature.get("quality_gates", {})
-    evaluator = quality_gates.get("evaluator", {})
-    reviews = quality_gates.get("reviews", {})
-    defects = evaluator.get("defects", [])
-    failed_tests = len([d for d in defects if isinstance(d, dict) and d.get("severity") == "critical"])
-    return {
-        "test_coverage": 1.0,
-        "test_results": {"passed": 1, "failed": failed_tests, "skipped": 0},
-        "docs_sync": {"progress_md_matches_json": True, "architecture_refs_valid": True},
-        "regression_results": {"passed": 1, "failed": 0},
-    }
+    import evaluator_gateway
+    return evaluator_gateway._collect_ship_signals(feature)
+_collect_ship_signals.is_wrapper = True
 
 
 def cmd_ship_check(feature_id: int, *, coverage_min: float = 0.8) -> int:
@@ -10133,18 +7445,9 @@ def _next_update_id(updates: List[Dict[str, Any]]) -> str:
 
 
 def _format_feature_owners(feature: Dict[str, Any]) -> Optional[str]:
-    """Format non-empty feature owners as a compact status string."""
-    owners = feature.get("owners")
-    if not isinstance(owners, dict):
-        return None
-    populated = []
-    for role in OWNER_ROLES:
-        value = owners.get(role)
-        if isinstance(value, str) and value.strip():
-            populated.append(f"{role}={value.strip()}")
-    if not populated:
-        return None
-    return ", ".join(populated)
+    import doc_generator
+    return doc_generator._format_feature_owners(feature)
+_format_feature_owners.is_wrapper = True
 
 
 def _normalize_ref_tokens(refs: Optional[List[str]]) -> List[str]:
@@ -10826,187 +8129,50 @@ def _push_bug_to_routing_queue(data: Dict[str, Any], bug_id: str, priority: str)
     queue.insert(insert_idx, bug_id)
 
 
-def _add_bug_internal(description: str, status: str = "pending_investigation",
-                      priority: str = "medium", category: str = "bug",
-                      scheduled_position: Optional[str] = None,
-                      verification_results: Optional[str] = None):
-    """
-    Add a new bug to the tracking with validation (internal).
-
-    Creates a new bug entry with auto-generated ID, timestamp, and optional
-    scheduling information. Updates both progress.json and progress.md.
-
-    Args:
-        description: Bug description (1-2000 chars, required)
-        status: Bug lifecycle status. Defaults to "pending_investigation".
-            Must be one of: pending_investigation, investigating, confirmed,
-            fixing, fixed, false_positive.
-        priority: Bug severity level. Defaults to "medium".
-            Must be one of: high, medium, low.
-        category: Logical bug category. Defaults to "bug".
-            Must be one of: bug, technical_debt.
-        scheduled_position: Optional scheduling directive in format
-            "before:N", "after:N", or "last" for smart insertion into feature
-            timeline.
-        verification_results: Optional JSON string containing quick verification
-            results (max 10KB).
-
-    Returns:
-        Tuple[bool, Optional[str]]: (success, bug_id). On success returns
-        (True, bug_id); on duplicate / failure returns (False, None).
-
-    Raises:
-        ValueError: If description is empty, too long, or contains invalid
-            characters. If status or priority are invalid.
-    """
-    # Validate description
-    if not description or not description.strip():
-        raise ValueError("Description cannot be empty")
-
-    description = description.strip()
-
-    if len(description) > 2000:
-        raise ValueError(f"Description too long ({len(description)} chars, max 2000)")
-
-    # Validate status
-    valid_statuses = ["pending_investigation", "investigating", "confirmed",
-                     "fixing", "fixed", "false_positive"]
-    if status not in valid_statuses:
-        raise ValueError(f"Invalid status '{status}'. Must be one of: {valid_statuses}")
-
-    # Validate priority
-    valid_priorities = ["high", "medium", "low"]
-    if priority not in valid_priorities:
-        raise ValueError(f"Invalid priority '{priority}'. Must be one of: {valid_priorities}")
-
-    valid_categories = ["bug", "technical_debt"]
-    if category not in valid_categories:
-        raise ValueError(f"Invalid category '{category}'. Must be one of: {valid_categories}")
-
-    # Sanitize description (remove control characters except newline/tab)
-    description = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', description)
-
-    data = load_progress_json()
-    if not data:
-        raise ValueError("No progress tracking found. Use '/prog init' first.")
-
-    bugs = data.get("bugs", [])
-    if bugs is None:
-        bugs = []
-        data["bugs"] = bugs
-
-    # Check for duplicate bugs (case-insensitive, normalized whitespace)
-    normalized_desc = re.sub(r'\s+', ' ', description.lower())
-    for bug in bugs:
-        if bug.get("status") == "false_positive":
-            continue
-        bug_desc = bug.get("description", "")
-        normalized_bug_desc = re.sub(r'\s+', ' ', bug_desc.lower())
-        if normalized_bug_desc == normalized_desc:
-            print(f"Duplicate bug detected: {bug.get('id')}")
-            print("Use 'update-bug' to add more information or different bug.")
-            return False, None
-
-    # Generate new bug ID
-    bug_id = get_next_bug_id()
-
-    # Parse scheduled position
-    scheduled_pos = None
-    if scheduled_position:
-        if scheduled_position == "last":
-            scheduled_pos = {"type": "last", "reason": "Non-urgent, defer to later"}
-        elif ":" in scheduled_position:
-            pos_type, feature_id = scheduled_position.split(":", 1)
-            try:
-                scheduled_pos = {
-                    "type": f"{pos_type}_feature",
-                    "feature_id": int(feature_id),
-                    "reason": "Smart scheduling based on impact"
-                }
-            except ValueError:
-                raise ValueError(f"Invalid scheduled position format: {scheduled_position}")
-
-    # Parse verification results if provided with validation
-    quick_verification = {}
-    if verification_results:
-        # Check size limit (10KB)
-        if len(verification_results) > 10240:
-            raise ValueError(f"Verification results too large ({len(verification_results)} bytes, max 10KB)")
-
-        try:
-            quick_verification = json.loads(verification_results)
-
-            # Validate structure
-            if not isinstance(quick_verification, dict):
-                raise ValueError("Verification results must be a JSON object")
-
-            # Limit nesting depth to prevent stack overflow
-            def check_depth(obj, current_depth=0, max_depth=10):
-                if current_depth > max_depth:
-                    raise ValueError("JSON nesting too deep (max 10 levels)")
-                if isinstance(obj, dict):
-                    for v in obj.values():
-                        check_depth(v, current_depth + 1, max_depth)
-                elif isinstance(obj, list):
-                    for v in obj:
-                        check_depth(v, current_depth + 1, max_depth)
-
-            check_depth(quick_verification)
-
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Invalid verification results JSON: {e}")
-
-    new_bug = {
-        "id": bug_id,
-        "description": description,
-        "status": status,
-        "priority": priority,
-        "category": category,
-        "created_at": datetime.now().isoformat() + "Z",
-        "quick_verification": quick_verification,
-    }
-
-    if scheduled_pos:
-        new_bug["scheduled_position"] = scheduled_pos
-
-    bugs.append(new_bug)
-    data["bugs"] = bugs
-
-    save_progress_json(data)
-
-    # Update progress.md
-    md_content = generate_progress_md(data)
-    save_progress_md(md_content)
-
-    logger.info(f"Bug {bug_id} added successfully")
-    print(f"Bug recorded: {bug_id}")
-    print(f"Description: {description}")
-    print(f"Status: {status}")
-    print(f"Priority: {priority}")
-    print(f"Category: {category}")
-    if scheduled_pos:
-        print(f"Scheduled: {scheduled_pos}")
-    return True, bug_id
-
-
-def add_bug(description: str, status: str = "pending_investigation",
-            priority: str = "medium", category: str = "bug",
-            scheduled_position: Optional[str] = None,
-            verification_results: Optional[str] = None) -> bool:
-    """Public wrapper around _add_bug_internal preserving the bool return type.
-
-    See `_add_bug_internal` for full documentation. This wrapper exists for
-    backward compatibility — existing callers expect a bool return value.
-    """
-    success, _ = _add_bug_internal(
+def _add_bug_internal(
+    description: str,
+    status: str = "pending_investigation",
+    priority: str = "medium",
+    category: str = "bug",
+    scheduled_position: Optional[str] = None,
+    verification_results: Optional[str] = None,
+) -> Tuple[bool, Optional[str]]:
+    import bug_tracker
+    return bug_tracker._add_bug_internal(
         description=description,
         status=status,
         priority=priority,
         category=category,
         scheduled_position=scheduled_position,
         verification_results=verification_results,
+        load_progress_json_fn=load_progress_json,
+        save_progress_json_fn=save_progress_json,
+        get_next_bug_id_fn=get_next_bug_id,
+        generate_progress_md_fn=generate_progress_md,
+        save_progress_md_fn=save_progress_md,
     )
-    return success
+_add_bug_internal.is_wrapper = True
+
+
+def add_bug(
+    description: str,
+    status: str = "pending_investigation",
+    priority: str = "medium",
+    category: str = "bug",
+    scheduled_position: Optional[str] = None,
+    verification_results: Optional[str] = None,
+) -> bool:
+    import bug_tracker
+    return bug_tracker.add_bug(
+        description=description,
+        status=status,
+        priority=priority,
+        category=category,
+        scheduled_position=scheduled_position,
+        verification_results=verification_results,
+        add_bug_internal_fn=_add_bug_internal,
+    )
+add_bug.is_wrapper = True
 
 
 def add_task_item(
@@ -11248,173 +8414,33 @@ def smart_intake(
     return False
 
 
-def update_bug(bug_id: str, status: Optional[str] = None,
-               root_cause: Optional[str] = None, fix_summary: Optional[str] = None):
-    """
-    Update bug status and/or add investigation/fix information.
-
-    Args:
-        bug_id: Bug ID (e.g., "BUG-001")
-        status: New status
-        root_cause: Root cause description (when confirming bug)
-        fix_summary: Summary of fix applied (when marking as fixed)
-    """
-    data = load_progress_json()
-    if not data:
-        print("No progress tracking found.")
-        return False
-
-    bugs = data.get("bugs", [])
-    if not bugs:
-        print(f"No bugs found. Bug {bug_id} does not exist.")
-        return False
-
-    bug = next((b for b in bugs if b.get("id") == bug_id), None)
-    if not bug:
-        print(f"Bug {bug_id} not found.")
-        return False
-
-    updated = False
-
-    if status:
-        bug["status"] = status
-        bug["updated_at"] = datetime.now().isoformat() + "Z"
-        updated = True
-
-        # Set current bug if starting investigation/fixing
-        if status in ["investigating", "fixing"]:
-            data["current_bug_id"] = bug_id
-        elif status == "fixed":
-            data["current_bug_id"] = None
-
-    if root_cause:
-        bug["root_cause"] = root_cause
-        if "investigation" not in bug:
-            bug["investigation"] = {}
-        bug["investigation"]["root_cause"] = root_cause
-        bug["investigation"]["confirmed_at"] = datetime.now().isoformat() + "Z"
-        updated = True
-
-    if fix_summary:
-        bug["fix_summary"] = fix_summary
-        bug["fixed_at"] = datetime.now().isoformat() + "Z"
-        updated = True
-
-    if updated:
-        save_progress_json(data)
-        md_content = generate_progress_md(data)
-        save_progress_md(md_content)
-        if status == "fixed":
-            _auto_state_commit(bug_id, "fix")
-        print(f"Bug {bug_id} updated.")
-        if status:
-            print(f"Status: {status}")
-        if root_cause:
-            print(f"Root cause: {root_cause}")
-        if fix_summary:
-            print(f"Fix summary: {fix_summary}")
-        return True
-    else:
-        print("No updates provided. Use --status, --root-cause, or --fix-summary")
-        return False
+def update_bug(
+    bug_id: str,
+    status: Optional[str] = None,
+    root_cause: Optional[str] = None,
+    fix_summary: Optional[str] = None,
+) -> bool:
+    import bug_tracker
+    return bug_tracker.update_bug(
+        bug_id=bug_id,
+        status=status,
+        root_cause=root_cause,
+        fix_summary=fix_summary,
+        load_progress_json_fn=load_progress_json,
+        save_progress_json_fn=save_progress_json,
+        generate_progress_md_fn=generate_progress_md,
+        save_progress_md_fn=save_progress_md,
+        auto_state_commit_fn=_auto_state_commit,
+    )
+update_bug.is_wrapper = True
 
 
-def list_bugs():
-    """List all bugs in progress tracking."""
-    data = load_progress_json()
-    if not data:
-        print("No progress tracking found.")
-        return False
-
-    bugs = data.get("bugs", [])
-    if not bugs:
-        print("No bugs recorded.")
-        return True
-
-    print(f"\n## Bug Backlog ({len(bugs)} total)\n")
-
-    # Group by status
-    status_icons = {
-        "pending_investigation": "🔴",
-        "investigating": "🟡",
-        "confirmed": "🟢",
-        "fixing": "🔧",
-        "fixed": "✅",
-        "false_positive": "❌"
-    }
-
-    # Sort by priority and status
-    priority_order = {"high": 0, "medium": 1, "low": 2}
-    status_order = ["pending_investigation", "investigating", "confirmed", "fixing", "fixed", "false_positive"]
-
-    def sort_key(bug):
-        priority = bug.get("priority", "medium")
-        status = bug.get("status", "pending_investigation")
-        return (
-            status_order.index(status) if status in status_order else 99,
-            priority_order.get(priority, 1),
-            bug.get("created_at", "")
-        )
-
-    sorted_bugs = sorted(bugs, key=sort_key)
-
-    for bug in sorted_bugs:
-        bug_id = bug.get("id", "Unknown")
-        description = bug.get("description", "No description")
-        status = bug.get("status", "unknown")
-        priority = bug.get("priority", "medium")
-        category = bug.get("category", "bug")
-        created_at = bug.get("created_at", "")
-        scheduled = bug.get("scheduled_position", {})
-
-        icon = status_icons.get(status, "❓")
-
-        # Calculate time ago
-        time_ago = ""
-        if created_at:
-            try:
-                created_dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
-                now = datetime.now(created_dt.tzinfo)
-                diff = now - created_dt
-                hours = diff.total_seconds() / 3600
-                if hours < 1:
-                    time_ago = f"{int(diff.total_seconds() / 60)}m ago"
-                elif hours < 24:
-                    time_ago = f"{int(hours)}h ago"
-                else:
-                    time_ago = f"{int(hours / 24)}d ago"
-            except (ValueError, AttributeError, OSError) as e:
-                logger.debug(f"Error parsing date '{created_at}': {e}")
-                time_ago = "unknown"
-
-        print(f"- [{bug_id}] {description}")
-        print(
-            f"  Status: {icon} {status} | Priority: {priority} | "
-            f"Category: {category} | Created: {time_ago}"
-        )
-
-        if scheduled:
-            pos_type = scheduled.get("type", "")
-            feature_id = scheduled.get("feature_id")
-            reason = scheduled.get("reason", "")
-            if pos_type == "before_feature" and feature_id:
-                print(f"  📍 Before Feature {feature_id} ({reason})")
-            elif pos_type == "after_feature" and feature_id:
-                print(f"  📍 After Feature {feature_id} ({reason})")
-            elif pos_type == "last":
-                print(f"  📍 Last ({reason})")
-
-        # Show root cause if confirmed
-        if status in ["confirmed", "fixing", "fixed"] and "root_cause" in bug:
-            print(f"  Root cause: {bug['root_cause']}")
-
-        # Show fix summary if fixed
-        if status == "fixed" and "fix_summary" in bug:
-            print(f"  Fix: {bug['fix_summary']}")
-
-        print()
-
-    return True
+def list_bugs() -> bool:
+    import bug_tracker
+    return bug_tracker.list_bugs(
+        load_progress_json_fn=load_progress_json,
+    )
+list_bugs.is_wrapper = True
 
 
 def remove_bug(bug_id: str):
@@ -11737,391 +8763,23 @@ def validate_plan(plan_path: Optional[str] = None):
     return True
 
 
-def generate_direct_tdd_note():
-    """Generate a lightweight execution note for direct_tdd features.
-
-    Creates a strict-profile plan document from feature metadata so that
-    validate-plan always finds a valid plan_path. File writes are idempotent
-    (existing valid notes are preserved via state-path and deterministic-path
-    fallback), but workflow_state convergence always runs.
-
-    Returns:
-        bool: True on success, False on error.
-    """
-    data = load_progress_json()
-    if not data:
-        print("No progress tracking found")
-        return False
-
-    current_id = data.get("current_feature_id")
-    if current_id is None:
-        print("Error: No feature currently in progress")
-        return False
-
-    features = data.get("features", [])
-    feature = next((f for f in features if f.get("id") == current_id), None)
-    if feature is None:
-        print(f"Error: Feature {current_id} not found")
-        return False
-
-    def _normalize_text_list(value: Any, fallback: List[str]) -> List[str]:
-        """Normalize metadata fields to a non-empty list of strings."""
-        if isinstance(value, list):
-            normalized = [str(item).strip() for item in value if str(item).strip()]
-            return normalized or fallback
-        if isinstance(value, str):
-            stripped = value.strip()
-            if stripped:
-                return [stripped]
-        return fallback
-
-    feature_name = str(feature.get("name") or "Unnamed feature").strip()
-    change_spec = feature.get("change_spec")
-    if not isinstance(change_spec, dict) or not change_spec:
-        change_spec = _default_change_spec(feature)
-
-    why = str(change_spec.get("why") or f"Deliver {feature_name}.")
-    in_scope = _normalize_text_list(change_spec.get("in_scope"), [feature_name])
-    out_of_scope = _normalize_text_list(
-        change_spec.get("out_of_scope"),
-        ["Unrelated refactors and behavior changes outside this feature."],
+def generate_direct_tdd_note() -> bool:
+    import doc_generator
+    return doc_generator.generate_direct_tdd_note(
+        load_progress_json_fn=load_progress_json,
+        save_progress_json_fn=save_progress_json,
+        find_project_root_fn=find_project_root,
+        validate_plan_document_fn=validate_plan_document,
+        set_workflow_state_fn=set_workflow_state,
+        validate_plan_path_fn=validate_plan_path,
     )
-    risks = _normalize_text_list(
-        change_spec.get("risks"),
-        ["Potential regression in adjacent workflows"],
-    )
-
-    test_steps = feature.get("test_steps")
-    if isinstance(test_steps, list) and test_steps:
-        task_lines = [
-            f"- [ ] {str(step).strip()}" for step in test_steps if str(step).strip()
-        ]
-    else:
-        task_lines = [f"- [ ] Implement {feature_name}"]
-    if not task_lines:
-        task_lines = [f"- [ ] Implement {feature_name}"]
-
-    acceptance = feature.get("acceptance_scenarios")
-    if not isinstance(acceptance, list) or not acceptance:
-        acceptance = _default_acceptance_scenarios(feature)
-    acceptance_lines = [f"- {str(item).strip()}" for item in acceptance if str(item).strip()]
-    if not acceptance_lines:
-        acceptance_lines = [
-            f"- Scenario: {feature_name} baseline behavior works as expected."
-        ]
-
-    risk_lines = [f"- {str(risk).strip()}" for risk in risks if str(risk).strip()]
-    if not risk_lines:
-        risk_lines = ["- Potential regression in adjacent workflows"]
-
-    in_scope_text = ", ".join(in_scope)
-    out_of_scope_text = ", ".join(out_of_scope)
-
-    base_root = find_project_root()
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    slug = _slugify(feature_name)
-    plan_rel = f"docs/plans/{today}-feature-{current_id}-{slug}.md"
-
-    workflow_state_raw = data.get("workflow_state")
-    needs_workflow_state_repair = (
-        "workflow_state" in data and not isinstance(workflow_state_raw, dict)
-    )
-    workflow_state = workflow_state_raw if isinstance(workflow_state_raw, dict) else {}
-    existing_plan_path = workflow_state.get("plan_path")
-    if isinstance(existing_plan_path, str):
-        existing_plan_path = existing_plan_path.strip() or None
-    else:
-        existing_plan_path = None
-
-    candidate_paths: List[str] = []
-    if existing_plan_path:
-        candidate_paths.append(existing_plan_path)
-    if plan_rel not in candidate_paths:
-        candidate_paths.append(plan_rel)
-
-    plans_dir = base_root / "docs" / "plans"
-    if plans_dir.exists():
-        pattern = f"*-feature-{current_id}-{slug}.md"
-        for matched in sorted(plans_dir.glob(pattern), reverse=True):
-            rel = matched.relative_to(base_root).as_posix()
-            if rel not in candidate_paths:
-                candidate_paths.append(rel)
-
-    need_write = True
-    for candidate in candidate_paths:
-        absolute_candidate = base_root / candidate
-        if not absolute_candidate.exists():
-            continue
-        validation = validate_plan_document(candidate)
-        if validation["valid"]:
-            need_write = False
-            plan_rel = candidate
-            print(f"Execution note already exists: {plan_rel} (state converged)")
-            break
-        print(f"Warning: existing note invalid ({candidate}), regenerating")
-
-    if need_write:
-        note_content = (
-            f"# {feature_name} -- direct_tdd execution note\n"
-            f"\n"
-            f"**Goal:** {why}\n"
-            f"\n"
-            f"**Architecture:** Direct TDD implementation of {in_scope_text}. "
-            f"Out of scope: {out_of_scope_text}.\n"
-            f"\n"
-            f"---\n"
-            f"\n"
-            f"## Tasks\n"
-            f"\n"
-            + "\n".join(task_lines)
-            + "\n"
-            f"\n"
-            f"## Acceptance Mapping\n"
-            f"\n"
-            + "\n".join(acceptance_lines)
-            + "\n"
-            f"\n"
-            f"## Risks\n"
-            f"\n"
-            + "\n".join(risk_lines)
-            + "\n"
-        )
-        absolute_path = base_root / plan_rel
-        _atomic_write_text(absolute_path, note_content)
-        print(f"Generated direct_tdd execution note: {plan_rel}")
-
-    # set_workflow_state() assumes persisted workflow_state has dict semantics.
-    # Missing workflow_state is legal and is initialized by set_workflow_state().
-    if needs_workflow_state_repair:
-        data["workflow_state"] = {}
-        save_progress_json(data)
-
-    result = set_workflow_state(
-        phase="execution",
-        plan_path=plan_rel,
-        next_action="direct_tdd",
-    )
-    if not result:
-        print("Error: Failed to converge workflow_state")
-        return False
-
-    return True
+generate_direct_tdd_note.is_wrapper = True
 
 
-def generate_progress_md(data):
-    """Generate markdown content from progress data."""
-    project_name = data.get("project_name", "Unknown Project")
-    features = data.get("features", [])
-    bugs = data.get("bugs", [])
-    current_id = data.get("current_feature_id")
-    current_bug_id = data.get("current_bug_id")
-    created_at = data.get("created_at", "")
-    workflow_state = data.get("workflow_state", {})
-    if not isinstance(workflow_state, dict):
-        workflow_state = {}
-    runtime_context = data.get("runtime_context")
-
-    md_lines = [
-        f"# Project Progress: {project_name}",
-        "",
-        f"**Created**: {created_at}",
-        "",
-    ]
-
-    completed = [f for f in features if f.get("completed", False)]
-    in_progress = [f for f in features if f.get("id") == current_id]
-    deferred = [
-        f
-        for f in features
-        if not f.get("completed", False)
-        and f.get("id") != current_id
-        and _is_feature_deferred(f)
-    ]
-    pending = [
-        f
-        for f in features
-        if not f.get("completed", False) and f.get("id") != current_id
-        and not _is_feature_deferred(f)
-    ]
-
-    total = len(features)
-    completed_count = len(completed)
-
-    md_lines.append(f"**Status**: {completed_count}/{total} completed")
-    md_lines.append("")
-
-    if completed:
-        md_lines.append("## Completed")
-        for f in completed:
-            md_lines.append(f"- [x] {f.get('name', 'Unknown')}")
-            owner_summary = _format_feature_owners(f)
-            if owner_summary:
-                md_lines.append(f"  Owners: {owner_summary}")
-        md_lines.append("")
-
-    if in_progress:
-        md_lines.append("## In Progress")
-        for f in in_progress:
-            md_lines.append(f"- [ ] {f.get('name', 'Unknown')}")
-            owner_summary = _format_feature_owners(f)
-            if owner_summary:
-                md_lines.append(f"  Owners: {owner_summary}")
-            test_steps = f.get("test_steps", [])
-            if test_steps:
-                md_lines.append("  **Test steps**:")
-                for step in test_steps:
-                    md_lines.append(f"  - {step}")
-        md_lines.append("")
-
-    if pending:
-        md_lines.append("## Pending")
-        for f in pending:
-            md_lines.append(f"- [ ] {f.get('name', 'Unknown')}")
-            owner_summary = _format_feature_owners(f)
-            if owner_summary:
-                md_lines.append(f"  Owners: {owner_summary}")
-        md_lines.append("")
-
-    if deferred:
-        md_lines.append("## Deferred")
-        for f in deferred:
-            reason = f.get("defer_reason") or "No reason provided"
-            group = f.get("defer_group")
-            line = f"- [~] {f.get('name', 'Unknown')} — {reason}"
-            if group:
-                line += f" (group: {group})"
-            md_lines.append(line)
-            owner_summary = _format_feature_owners(f)
-            if owner_summary:
-                md_lines.append(f"  Owners: {owner_summary}")
-        md_lines.append("")
-
-    if current_id is not None and workflow_state:
-        phase = workflow_state.get("phase", "unknown")
-        current_task = workflow_state.get("current_task")
-        total_tasks = workflow_state.get("total_tasks")
-        next_action = workflow_state.get("next_action")
-        execution_context = workflow_state.get("execution_context")
-        context_hint = compare_contexts(execution_context, runtime_context)
-
-        md_lines.append("## Workflow Context")
-        md_lines.append(f"- Phase: {phase}")
-
-        if current_task is not None or total_tasks is not None:
-            task_progress = f"{current_task if current_task is not None else '?'}"
-            if total_tasks is not None:
-                task_progress += f"/{total_tasks}"
-            md_lines.append(f"- Task progress: {task_progress}")
-
-        if next_action:
-            md_lines.append(f"- Next action: {next_action}")
-
-        if execution_context:
-            md_lines.append(f"- Execution context: {_format_context_summary(execution_context)}")
-        if runtime_context:
-            md_lines.append(f"- Current session context: {_format_context_summary(runtime_context)}")
-
-        if context_hint.get("status") in {"mismatch", "path_mismatch", "branch_mismatch"}:
-            md_lines.append(
-                "- Context mismatch: "
-                f"{context_hint.get('message')} "
-                f"(expected {context_hint.get('expected_branch') or '?'} @ "
-                f"{context_hint.get('expected_worktree_path') or '?'})"
-            )
-        md_lines.append("")
-
-    updates = data.get("updates", [])
-    if updates:
-        md_lines.append("## Recent Updates")
-        for update in updates[-5:]:
-            line = (
-                f"- [{update.get('id', 'UPD-???')}] "
-                f"{update.get('category', 'status')}: {update.get('summary', '')}"
-            )
-            if update.get("feature_id") is not None:
-                line += f" (feature:{update['feature_id']})"
-            if update.get("role") and update.get("owner"):
-                line += f" [{update['role']}={update['owner']}]"
-            md_lines.append(line)
-            if update.get("next_action"):
-                md_lines.append(f"  Next: {update['next_action']}")
-        md_lines.append("")
-
-    # Add bugs section if any exist
-    if bugs:
-        status_icons = {
-            "pending_investigation": "🔴",
-            "investigating": "🟡",
-            "confirmed": "🟢",
-            "fixing": "🔧",
-            "fixed": "✅",
-            "false_positive": "❌"
-        }
-
-        # Group bugs by status
-        pending_bugs = [b for b in bugs if b.get("status") in ["pending_investigation", "investigating", "confirmed", "fixing"]]
-        fixed_bugs = [b for b in bugs if b.get("status") == "fixed"]
-
-        # Group pending bugs by priority
-        high_pending = [b for b in pending_bugs if b.get("priority") == "high"]
-        medium_pending = [b for b in pending_bugs if b.get("priority") == "medium"]
-        low_pending = [b for b in pending_bugs if b.get("priority") == "low"]
-
-        if pending_bugs:
-            md_lines.append("## Bug Backlog")
-
-            if high_pending:
-                md_lines.append("### High Priority (🔴)")
-                for bug in high_pending:
-                    icon = status_icons.get(bug.get("status"), "❓")
-                    category_prefix = "[DEBT] " if bug.get("category") == "technical_debt" else ""
-                    md_lines.append(
-                        f"- [{icon}] [{bug.get('id')}] {category_prefix}{bug.get('description', 'No description')}"
-                    )
-                    scheduled = bug.get("scheduled_position", {})
-                    if scheduled:
-                        reason = scheduled.get("reason", "")
-                        md_lines.append(f"  Status: {bug.get('status')} | 📍 {reason}")
-                md_lines.append("")
-
-            if medium_pending:
-                md_lines.append("### Medium Priority (🟡)")
-                for bug in medium_pending:
-                    icon = status_icons.get(bug.get("status"), "❓")
-                    category_prefix = "[DEBT] " if bug.get("category") == "technical_debt" else ""
-                    md_lines.append(
-                        f"- [{icon}] [{bug.get('id')}] {category_prefix}{bug.get('description', 'No description')}"
-                    )
-                    if bug.get("root_cause"):
-                        md_lines.append(f"  Root cause: {bug['root_cause']}")
-                    scheduled = bug.get("scheduled_position", {})
-                    if scheduled:
-                        reason = scheduled.get("reason", "")
-                        md_lines.append(f"  📍 {reason}")
-                md_lines.append("")
-
-            if low_pending:
-                md_lines.append("### Low Priority (🟢)")
-                for bug in low_pending:
-                    icon = status_icons.get(bug.get("status"), "❓")
-                    category_prefix = "[DEBT] " if bug.get("category") == "technical_debt" else ""
-                    md_lines.append(
-                        f"- [{icon}] [{bug.get('id')}] {category_prefix}{bug.get('description', 'No description')}"
-                    )
-                md_lines.append("")
-
-        if fixed_bugs:
-            md_lines.append("### Fixed (✅)")
-            for bug in fixed_bugs:
-                category_prefix = "[DEBT] " if bug.get("category") == "technical_debt" else ""
-                md_lines.append(
-                    f"- [x] [{bug.get('id')}] {category_prefix}{bug.get('description', 'No description')}"
-                )
-                if bug.get("fix_summary"):
-                    md_lines.append(f"  Fix: {bug['fix_summary']}")
-            md_lines.append("")
-
-    return "\n".join(md_lines)
+def generate_progress_md(data: Dict[str, Any]) -> str:
+    import doc_generator
+    return doc_generator.generate_progress_md(data)
+generate_progress_md.is_wrapper = True
 
 
 def _scope_hint(path: Path, repo_root: Path) -> str:
@@ -12145,59 +8803,12 @@ def _discover_parent_route_bindings_for_child(
     child_project_root: Path,
     repo_root: Path,
 ) -> List[Dict[str, Any]]:
-    """Discover parent trackers that link to the given child tracker root."""
-    candidate_roots: List[Path] = [repo_root]
-    plugins_dir = repo_root / "plugins"
-    if plugins_dir.is_dir():
-        candidate_roots.extend(sorted(path for path in plugins_dir.iterdir() if path.is_dir()))
-
-    discovered: List[Dict[str, Any]] = []
-    seen_roots: Set[Path] = set()
-    child_resolved = child_project_root.resolve()
-    repo_resolved = repo_root.resolve()
-
-    for candidate_root in candidate_roots:
-        resolved_root = candidate_root.resolve()
-        if resolved_root in seen_roots or resolved_root == child_resolved:
-            continue
-        seen_roots.add(resolved_root)
-
-        payload, _ = _load_progress_payload_at_root(resolved_root)
-        if not isinstance(payload, dict):
-            continue
-        _normalize_route_schema(payload)
-        tracker_role = str(payload.get("tracker_role") or DEFAULT_TRACKER_ROLE).strip().lower()
-        if tracker_role != "parent":
-            continue
-
-        matched_entry: Optional[Dict[str, Any]] = None
-        for spec in _iter_linked_project_specs(payload):
-            linked_root = _resolve_linked_project_root(
-                spec["raw_project_root"],
-                resolved_root,
-                repo_resolved,
-            )
-            if linked_root == child_resolved or _resolve_main_repo_path(linked_root) == _resolve_main_repo_path(child_resolved):
-                entry = spec.get("entry")
-                matched_entry = entry if isinstance(entry, dict) else {}
-                break
-
-        if matched_entry is None:
-            continue
-
-        active_routes = payload.get("active_routes")
-        if not isinstance(active_routes, list):
-            active_routes = []
-
-        discovered.append(
-            {
-                "project_root": resolved_root,
-                "linked_entry": matched_entry,
-                "active_routes": active_routes,
-            }
-        )
-
-    return discovered
+    import route_commands
+    return route_commands._discover_parent_route_bindings_for_child(
+        child_project_root, repo_root,
+        resolve_main_repo_path_fn=_resolve_main_repo_path,
+    )
+_discover_parent_route_bindings_for_child.is_wrapper = True
 
 
 def _print_route_preflight_block(
@@ -12210,252 +8821,48 @@ def _print_route_preflight_block(
     child_code: Optional[str],
     parent_project_root: Optional[Path],
 ) -> None:
-    """Print deterministic route preflight recovery guidance."""
-    command_tail = _extract_command_tail(argv, command)
-    command_tail_text = " ".join(shlex.quote(token) for token in command_tail) if command_tail else command
-    child_scope = shlex.quote(_scope_hint(child_project_root, repo_root))
-    code_hint = child_code or "<PROJECT_CODE>"
-
-    print(f"[Route Preflight] BLOCKED: {reason}")
-    print(f"Current tracker: {child_project_root}")
-    if parent_project_root is not None:
-        print(f"Detected parent tracker: {parent_project_root}")
-
-    print("Recovery:")
-    print(f"  cd {repo_root}")
-    if parent_project_root is None:
-        print(
-            '  # Identify parent tracker root: directory whose progress.json has tracker_role="parent"'
-        )
-        print(
-            "  plugins/progress-tracker/prog "
-            f"--project-root {child_scope} link-project --code {code_hint} "
-            "--parent-root <parent_tracker_root>"
-        )
-        print(
-            "  plugins/progress-tracker/prog --project-root <parent_tracker_root> "
-            f"route-select --project {code_hint} --feature-ref {code_hint}-F<number>"
-        )
-    else:
-        parent_scope = shlex.quote(_scope_hint(parent_project_root, repo_root))
-        print(
-            "  plugins/progress-tracker/prog "
-            f"--project-root {parent_scope} route-select --project {code_hint} "
-            f"--feature-ref {code_hint}-F<number>"
-        )
-    print(f"  cd {child_project_root}")
-    print(
-        "  plugins/progress-tracker/prog "
-        f"--project-root {child_scope} {command_tail_text}"
+    import route_commands
+    return route_commands._print_route_preflight_block(
+        reason=reason,
+        command=command,
+        argv=argv,
+        child_project_root=child_project_root,
+        repo_root=repo_root,
+        child_code=child_code,
+        parent_project_root=parent_project_root,
+        extract_command_tail_fn=_extract_command_tail,
+        scope_hint_fn=_scope_hint,
     )
+_print_route_preflight_block.is_wrapper = True
 
 
 def enforce_route_preflight(command: str, argv: Sequence[str]) -> bool:
-    """Fail-closed preflight for child tracker mutating commands."""
-    if command in ROUTE_PREFLIGHT_EXEMPT_COMMANDS:
-        return True
-
-    data = load_progress_json()
-    if not isinstance(data, dict):
-        return True
-
-    tracker_role = str(data.get("tracker_role") or DEFAULT_TRACKER_ROLE).strip().lower()
-    if tracker_role != "child":
-        return True
-
-    child_project_root = find_project_root().resolve()
-    repo_root = Path(_REPO_ROOT or child_project_root).resolve()
-    child_code_raw = data.get("project_code")
-    child_code = _normalize_project_code(child_code_raw) if isinstance(child_code_raw, str) else None
-
-    parent_bindings = _discover_parent_route_bindings_for_child(
-        child_project_root=child_project_root,
-        repo_root=repo_root,
+    import route_commands
+    return route_commands.enforce_route_preflight(
+        command,
+        argv,
+        project_root=find_project_root(),
+        repo_root=Path(_REPO_ROOT or find_project_root()),
+        load_progress_json_fn=load_progress_json,
+        resolve_main_repo_path_fn=_resolve_main_repo_path,
+        extract_command_tail_fn=_extract_command_tail,
+        scope_hint_fn=_scope_hint,
     )
-
-    if child_code is None:
-        _print_route_preflight_block(
-            reason="Child tracker has no project_code; route ownership cannot be verified.",
-            command=command,
-            argv=argv,
-            child_project_root=child_project_root,
-            repo_root=repo_root,
-            child_code=None,
-            parent_project_root=parent_bindings[0]["project_root"] if parent_bindings else None,
-        )
-        return False
-
-    if not parent_bindings:
-        _print_route_preflight_block(
-            reason=(
-                f"Child project_code={child_code} is not registered in any parent linked_projects. "
-                "Mutating command denied."
-            ),
-            command=command,
-            argv=argv,
-            child_project_root=child_project_root,
-            repo_root=repo_root,
-            child_code=child_code,
-            parent_project_root=None,
-        )
-        return False
-
-    if len(parent_bindings) > 1:
-        _print_route_preflight_block(
-            reason=(
-                f"Child project_code={child_code} is linked by multiple parent trackers "
-                f"({len(parent_bindings)} matches). Mutating command denied until routing is unambiguous."
-            ),
-            command=command,
-            argv=argv,
-            child_project_root=child_project_root,
-            repo_root=repo_root,
-            child_code=child_code,
-            parent_project_root=parent_bindings[0]["project_root"],
-        )
-        return False
-
-    parent_binding = parent_bindings[0]
-    parent_project_root = parent_binding["project_root"]
-    linked_entry = parent_binding.get("linked_entry", {})
-    linked_code_raw = linked_entry.get("project_code") if isinstance(linked_entry, dict) else None
-    linked_code = _normalize_project_code(linked_code_raw) if isinstance(linked_code_raw, str) else None
-    if linked_code is not None and linked_code != child_code:
-        _print_route_preflight_block(
-            reason=(
-                f"Parent registration mismatch: child reports {child_code}, "
-                f"but parent linked_projects expects {linked_code}."
-            ),
-            command=command,
-            argv=argv,
-            child_project_root=child_project_root,
-            repo_root=repo_root,
-            child_code=child_code,
-            parent_project_root=parent_project_root,
-        )
-        return False
-
-    active_route_codes: List[str] = []
-    for route in parent_binding.get("active_routes", []):
-        if not isinstance(route, dict):
-            continue
-        route_code_raw = route.get("project_code")
-        if not isinstance(route_code_raw, str):
-            continue
-        route_code = _normalize_project_code(route_code_raw)
-        if route_code is not None:
-            active_route_codes.append(route_code)
-
-    if child_code not in active_route_codes:
-        # Bootstrap exception (F17): set-current is the command that creates the
-        # active_routes entry.  Only exempt when active_routes is EMPTY — meaning
-        # no other project has claimed the slot.  If another project is active
-        # (route mismatch), set-current must still be blocked like every other
-        # mutating command.
-        if command == "set-current" and not active_route_codes:
-            print(
-                f"[WARNING] Route preflight bootstrap: {child_code} not in parent "
-                "active_routes (empty). Allowing set-current to bootstrap the route entry."
-            )
-            return True
-
-        active_display = ", ".join(sorted(set(active_route_codes))) if active_route_codes else "(none)"
-        _print_route_preflight_block(
-            reason=(
-                f"Parent active route mismatch: expected {child_code}, current active routes: {active_display}. "
-                "Mutating command denied."
-            ),
-            command=command,
-            argv=argv,
-            child_project_root=child_project_root,
-            repo_root=repo_root,
-            child_code=child_code,
-            parent_project_root=parent_project_root,
-        )
-        return False
-
-    return True
+enforce_route_preflight.is_wrapper = True
 
 
 def check_worktree_branch_consistency(command: str) -> bool:
-    """
-    Fail-closed check: verify current worktree/branch matches workflow_state.execution_context.
-
-    Returns True if context matches or no constraint is recorded.
-    Returns False (and prints recovery guidance) on mismatch.
-    """
-    data = load_progress_json()
-    if not isinstance(data, dict):
-        return True
-
-    workflow_state = data.get("workflow_state")
-    if not isinstance(workflow_state, dict):
-        return True
-
-    execution_context = workflow_state.get("execution_context")
-    if not isinstance(execution_context, dict):
-        return True
-
-    expected_branch = execution_context.get("branch")
-    expected_path = execution_context.get("worktree_path")
-
-    # No constraint recorded yet — pass through
-    if not expected_branch and not expected_path:
-        return True
-
-    current_ctx = collect_git_context()
-    comparison = compare_contexts(
-        expected=execution_context,
-        current=current_ctx,
+    import worktree_handler
+    return worktree_handler.check_worktree_branch_consistency(
+        command,
+        load_progress_json_fn=load_progress_json,
+        collect_git_context_fn=collect_git_context,
+        compare_contexts_fn=compare_contexts,
+        find_project_root_fn=find_project_root,
+        detect_default_branch_fn=_detect_default_branch,
     )
+check_worktree_branch_consistency.is_wrapper = True
 
-    mismatch_statuses = {"mismatch", "path_mismatch", "branch_mismatch", "unknown"}
-    comparison_status = comparison.get("status")
-    current_branch = current_ctx.get("branch")
-    current_path = current_ctx.get("worktree_path")
-    missing_required_current = bool(
-        (expected_branch and not current_branch) or (expected_path and not current_path)
-    )
-    if comparison_status not in mismatch_statuses and not missing_required_current:
-        return True
-
-    # done-only exemption: allow completion on default branch once feature branch is merged.
-    if command == "done" and expected_branch:
-        project_root = find_project_root()
-        default_branch = _detect_default_branch(project_root)
-        if default_branch and current_branch == default_branch:
-            if _is_branch_merged_into(expected_branch, default_branch):
-                print(
-                    f"[Scope Consistency] Feature branch '{expected_branch}' "
-                    f"already merged into {default_branch} — proceeding."
-                )
-                if expected_path and comparison_status in {"path_mismatch", "mismatch"}:
-                    print(
-                        "[Scope Consistency] WARN: worktree path mismatch "
-                        f"(expected {expected_path}) — ignored (branch merged)."
-                    )
-                return True
-
-    # Hard block — print actionable recovery guidance
-    print(f"[Scope Consistency] BLOCKED: {command} denied — worktree/branch mismatch.")
-    print(f"  Expected branch:       {expected_branch or '(any)'}")
-    print(f"  Current branch:        {current_ctx.get('branch') or '(unknown)'}")
-    print(f"  Expected worktree:     {expected_path or '(any)'}")
-    print(f"  Current worktree:      {current_ctx.get('worktree_path') or '(unknown)'}")
-    print("Recovery:")
-    print("  1. Switch to the correct worktree/branch, OR")
-    print("  2. Re-register this session as the active route:")
-    print("       plugins/progress-tracker/prog route-select --project <PROJECT_CODE>")
-    print(
-        "  3. If the feature branch is already merged and worktree was cleaned up:"
-    )
-    print("       plugins/progress-tracker/prog clear-workflow-state")
-    print(
-        "       plugins/progress-tracker/prog set-workflow-state "
-        "--phase execution_complete --plan-path <path>"
-    )
-    print("       plugins/progress-tracker/prog done --commit <merge_commit_hash>")
-    return False
 
 
 def _suggest_command(unknown: str, valid_commands: List[str]) -> Optional[str]:

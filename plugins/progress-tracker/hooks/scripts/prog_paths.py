@@ -225,6 +225,21 @@ def resolve_target_project_root(
     return repo_root, repo_root
 
 
+def find_project_root(override: Optional[str | Path] = None) -> Path:
+    """
+    Resolve target project root.
+    If override is provided, prioritize it. Otherwise, auto-detect it.
+    """
+    if override is not None:
+        if isinstance(override, Path):
+            return override.resolve()
+        target_root, _ = resolve_target_project_root(project_root_arg=str(override))
+        return target_root
+
+    target_root, _ = resolve_target_project_root(project_root_arg=None)
+    return target_root
+
+
 def get_tracker_docs_root(target_root: Path) -> Path:
     return target_root / "docs" / PROG_DOCS_DIRNAME
 
