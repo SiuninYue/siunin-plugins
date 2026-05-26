@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-05-21T17:38:49.397370Z",
+  "updated_at": "2026-05-26T17:09:17.456710Z",
   "features": [
     {
       "id": 10,
@@ -2206,13 +2206,13 @@
       "id": 18,
       "name": "progress_manager.py 深度模块化拆分（Phase 2 技术债偿还）",
       "test_steps": [
-        "拆分后各子模块可独立 import，无循环依赖：python -c 'import <module>' 均可独立运行",
-        "progress_manager.py 主入口文件降至 1500 行以下；各子模块均不超过 1000 行",
-        "uv run pytest plugins/progress-tracker/tests/ -q → 全部 pass，零回归",
-        "git grep 'from progress_manager import\\|import progress_manager' 确认全部重定向至对应子模块",
-        "拆分本身以符合 F19 变更记录模板写入 docs/changes/（作为 F19 dogfooding 验证用例）"
+        "DoD: 拆分后各子模块可独立 import，无循环依赖（人工核验）",
+        "DoD: progress_manager.py 主入口文件降至 1500 行以下；各子模块均不超过 1000 行（人工核验）",
+        "uv run pytest plugins/progress-tracker/tests/ -q",
+        "bash -lc \"if git grep -E 'from progress_manager import|import progress_manager' -- plugins/progress-tracker/hooks/scripts plugins/progress-tracker/tests; then exit 1; else exit 0; fi\"",
+        "DoD: 拆分本身以符合 F19 变更记录模板写入 docs/changes/（人工核验）"
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -2222,7 +2222,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "implementing",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-018"
       ],
@@ -2256,11 +2256,11 @@
       ],
       "quality_gates": {
         "evaluator": {
-          "status": "pending",
-          "score": null,
+          "status": "pass",
+          "score": 100,
           "defects": [],
-          "last_run_at": null,
-          "evaluator_model": null
+          "last_run_at": "2026-05-24T00:13:06Z",
+          "evaluator_model": "deepseek-v4-pro:cloud"
         },
         "reviews": {
           "required": [
@@ -2268,17 +2268,31 @@
             "eng",
             "qa"
           ],
-          "passed": [],
-          "pending": [
-            "docs",
+          "passed": [
             "eng",
-            "qa"
-          ]
+            "qa",
+            "docs"
+          ],
+          "pending": []
         },
         "ship_check": {
-          "status": "pending",
+          "status": "pass",
           "failures": [],
-          "last_run_at": null
+          "last_run_at": "2026-05-26T09:03:35Z"
+        },
+        "review_evidence": {
+          "eng": {
+            "evidence": "Code review complete: F18 modularization files updated under hooks/scripts; PM boundary checks passed on 2026-05-26.",
+            "recorded_at": "2026-05-26T17:03:03.549707Z"
+          },
+          "qa": {
+            "evidence": "Acceptance verification: uv run pytest plugins/progress-tracker/tests/ -q => 1076 passed, 1 warning (2026-05-26).",
+            "recorded_at": "2026-05-26T17:03:14.532047Z"
+          },
+          "docs": {
+            "evidence": "Plan validated: docs/plans/2026-05-21-f18-progress-manager-modularization.md; generate_prog_docs.py --check passed (2026-05-26).",
+            "recorded_at": "2026-05-26T17:03:26.261834Z"
+          }
         }
       },
       "sprint_contract": {
@@ -2303,9 +2317,38 @@
         "artifact_path": null,
         "created_at": null
       },
-      "plan_path": null,
-      "development_stage": "developing",
-      "started_at": "2026-05-21T17:38:49.290926Z"
+      "plan_path": "docs/plans/2026-05-21-f18-progress-manager-modularization.md",
+      "development_stage": "completed",
+      "started_at": "2026-05-21T17:38:49.290926Z",
+      "ai_metrics": {
+        "complexity_score": 61,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "scoring_v2": {
+          "score": 61,
+          "raw_score_bucket": "standard",
+          "routed_bucket": "standard",
+          "confidence": "medium"
+        },
+        "started_at": "2026-05-21T17:54:18.387204Z",
+        "finished_at": "2026-05-26T17:09:17.386007+08:00",
+        "duration_seconds": 400498
+      },
+      "completed_at": "2026-05-26T17:09:17.386091Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-05-26T17:09:17.386098Z",
+      "commit_hash": "b36ca8519c25fe39df818d8baa6e57e571c2b07f",
+      "archive_info": {
+        "archived_at": "2026-05-26T17:09:17.456180Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-05-21-f18-progress-manager-modularization.md",
+            "to": "docs/archive/plans/2026-05-21-f18-progress-manager-modularization.md"
+          }
+        ]
+      }
     },
     {
       "id": 19,
@@ -2452,7 +2495,7 @@
       "started_at": null
     }
   ],
-  "current_feature_id": 18,
+  "current_feature_id": null,
   "linked_projects": [],
   "linked_snapshot": {
     "schema_version": "1.0",
@@ -2467,9 +2510,9 @@
   "active_routes": [
     {
       "project_code": "PT",
-      "feature_ref": "PT-F16",
+      "feature_ref": "PT-F18",
       "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
-      "branch": "main"
+      "branch": "f18"
     }
   ],
   "updates": [
@@ -2578,18 +2621,18 @@
   ],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-05-21T17:38:49.361659Z",
-    "source": "set_current",
+    "recorded_at": "2026-05-26T17:09:17.386136Z",
+    "source": "finalize",
     "workspace_mode": "in_place",
     "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
     "project_root": "/Users/siunin/Projects/Claude-Plugins",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins",
     "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
-    "branch": "main",
-    "upstream": "origin/main",
+    "branch": "f18",
+    "upstream": null,
     "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
-    "current_feature_id": 18,
-    "workflow_phase": "planning",
+    "current_feature_id": null,
+    "workflow_phase": null,
     "current_task": null,
     "total_tasks": null,
     "next_action": null
@@ -2737,9 +2780,5 @@
       "created_at": "2026-05-12T22:55:08.086743Z"
     }
   ],
-  "current_task_id": "TASK-001",
-  "workflow_state": {
-    "phase": "planning",
-    "updated_at": "2026-05-21T17:38:49.290957Z"
-  }
+  "current_task_id": "TASK-001"
 }

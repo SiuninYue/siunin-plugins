@@ -1,0 +1,26 @@
+{
+  "feature_id": 18,
+  "feature_name": "progress_manager.py 深度模块化拆分（Phase 2 技术债偿还）",
+  "done_attempt_at": "2026-05-26T17:09:17.273577Z",
+  "overall_success": true,
+  "results": [
+    {
+      "step": "uv run pytest plugins/progress-tracker/tests/ -q",
+      "command": "uv run pytest plugins/progress-tracker/tests/ -q",
+      "success": true,
+      "output_summary": "........................................................................ [  6%]\n........................................................................ [ 13%]\n........................................................................ [ 20%]\n........................................................................ [ 26%]\n........................................................................ [ 33%]\n........................................................................ [ 40%]\n....................",
+      "duration_ms": 146475,
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "step": "bash -lc \"if git grep -E 'from progress_manager import|import progress_manager' -- plugins/progress-tracker/hooks/scripts plugins/progress-tracker/tests; then exit 1; else exit 0; fi\"",
+      "command": "bash -lc \"if git grep -E 'from progress_manager import|import progress_manager' -- plugins/progress-tracker/hooks/scripts plugins/progress-tracker/tests; then exit 1; else exit 0; fi\"",
+      "success": true,
+      "output_summary": "",
+      "duration_ms": 38,
+      "exit_code": 0,
+      "error": null
+    }
+  ]
+}
