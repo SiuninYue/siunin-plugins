@@ -2991,59 +2991,58 @@ def save_checkpoints(data: Dict[str, Any], path: Optional[Path] = None) -> None:
 
 
 def _read_json_dict(path: Path) -> Optional[Dict[str, Any]]:
-    is_wrapper = True
     from summary_projector import _read_json_dict as _impl
     return _impl(path)
+_read_json_dict.is_wrapper = True
 
 
 def _status_source_snapshot(path: Path, rel_path: str) -> Dict[str, Any]:
-    is_wrapper = True
     from summary_projector import _status_source_snapshot as _impl
     return _impl(path, rel_path)
+_status_source_snapshot.is_wrapper = True
 
 
 def _status_summary_source_fingerprint(target_root: Path) -> Dict[str, Any]:
-    is_wrapper = True
     from summary_projector import _status_summary_source_fingerprint as _impl
     return _impl(target_root)
+_status_summary_source_fingerprint.is_wrapper = True
 
 
 def _load_progress_data_for_summary(progress_path: Path) -> Dict[str, Any]:
-    is_wrapper = True
     from summary_projector import _load_progress_data_for_summary as _impl
     return _impl(progress_path, apply_schema_defaults_fn=_apply_schema_defaults)
+_load_progress_data_for_summary.is_wrapper = True
 
 
 def _format_relative_time_for_summary(iso_timestamp: Optional[str]) -> str:
-    is_wrapper = True
     from summary_projector import _format_relative_time_for_summary as _impl
     return _impl(iso_timestamp)
+_format_relative_time_for_summary.is_wrapper = True
 
 
 def _normalize_feature_stage_for_summary(feature: Dict[str, Any]) -> str:
-    is_wrapper = True
     from summary_projector import _normalize_feature_stage_for_summary as _impl
     return _impl(feature)
+_normalize_feature_stage_for_summary.is_wrapper = True
 
 
 def _stage_label_for_summary(stage: Optional[str]) -> Optional[str]:
-    is_wrapper = True
     from summary_projector import _stage_label_for_summary as _impl
     return _impl(stage)
+_stage_label_for_summary.is_wrapper = True
 
 
 def _determine_next_action_for_summary(
     features: List[Dict[str, Any]], progress_data: Dict[str, Any]
 ) -> Dict[str, Any]:
-    is_wrapper = True
     from summary_projector import _determine_next_action_for_summary as _impl
     return _impl(features, progress_data)
+_determine_next_action_for_summary.is_wrapper = True
 
 
 def _check_plan_health_for_summary(
     progress_data: Dict[str, Any], target_root: Path
 ) -> Dict[str, Any]:
-    is_wrapper = True
     from summary_projector import _check_plan_health_for_summary as _impl
     return _impl(
         progress_data,
@@ -3051,20 +3050,21 @@ def _check_plan_health_for_summary(
         validate_plan_path_fn=validate_plan_path,
         validate_plan_document_fn=validate_plan_document,
     )
+_check_plan_health_for_summary.is_wrapper = True
 
 
 def _check_risk_blocker_for_summary(progress_data: Dict[str, Any]) -> Dict[str, Any]:
-    is_wrapper = True
     from summary_projector import _check_risk_blocker_for_summary as _impl
     return _impl(progress_data)
+_check_risk_blocker_for_summary.is_wrapper = True
 
 
 def _load_recent_snapshot_for_summary(
     checkpoints_data: Optional[Dict[str, Any]]
 ) -> Dict[str, Any]:
-    is_wrapper = True
     from summary_projector import _load_recent_snapshot_for_summary as _impl
     return _impl(checkpoints_data)
+_load_recent_snapshot_for_summary.is_wrapper = True
 
 
 def _build_status_summary_core(
@@ -3072,7 +3072,6 @@ def _build_status_summary_core(
     checkpoints_data: Dict[str, Any],
     target_root: Path,
 ) -> Dict[str, Any]:
-    is_wrapper = True
     from summary_projector import _build_status_summary_core as _impl
     return _impl(
         progress_data,
@@ -3081,41 +3080,42 @@ def _build_status_summary_core(
         validate_plan_path_fn=validate_plan_path,
         validate_plan_document_fn=validate_plan_document,
     )
+_build_status_summary_core.is_wrapper = True
 
 
 def _extract_projection_source_fingerprint(
     projection: Dict[str, Any]
 ) -> Optional[Dict[str, Any]]:
-    is_wrapper = True
     from summary_projector import _extract_projection_source_fingerprint as _impl
     return _impl(projection)
+_extract_projection_source_fingerprint.is_wrapper = True
 
 
 def _projection_has_required_core_fields(projection: Dict[str, Any]) -> bool:
-    is_wrapper = True
     from summary_projector import _projection_has_required_core_fields as _impl
     return _impl(projection)
+_projection_has_required_core_fields.is_wrapper = True
 
 
 def _projection_needs_rebuild(
     projection: Optional[Dict[str, Any]],
     current_inputs: Dict[str, Any],
 ) -> bool:
-    is_wrapper = True
     from summary_projector import _projection_needs_rebuild as _impl
     return _impl(projection, current_inputs)
+_projection_needs_rebuild.is_wrapper = True
 
 
 def _legacy_summary_migration_info(legacy_path: Path) -> Optional[Dict[str, Any]]:
-    is_wrapper = True
     from summary_projector import _legacy_summary_migration_info as _impl
     return _impl(legacy_path)
+_legacy_summary_migration_info.is_wrapper = True
 
 
 def _resolve_status_summary_target_root(project_root: Optional[str]) -> Path:
-    is_wrapper = True
     from summary_projector import _resolve_status_summary_target_root as _impl
     return _impl(project_root)
+_resolve_status_summary_target_root.is_wrapper = True
 
 
 def get_status_summary_projection_path(project_root: Optional[str] = None) -> Path:
@@ -3130,7 +3130,6 @@ def _build_status_summary_projection(
     current_inputs: Dict[str, Any],
     migration_info: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    is_wrapper = True
     from summary_projector import _build_status_summary_projection as _impl
     return _impl(
         target_root,
@@ -3141,6 +3140,7 @@ def _build_status_summary_projection(
         validate_plan_document_fn=validate_plan_document,
         migration_info=migration_info,
     )
+_build_status_summary_projection.is_wrapper = True
 
 
 def load_status_summary_projection(
@@ -3422,12 +3422,12 @@ def _build_status_handoff_block(
     total: int,
     project_root: str,
 ) -> Optional[str]:
-    is_wrapper = True
     from status_commands import _build_status_handoff_block as _impl  # type: ignore[import-untyped]
     return _impl(
         data, completed, total, project_root,
         services=_make_status_command_services(),
     )
+_build_status_handoff_block.is_wrapper = True
 
 
 def _build_done_handoff_block(
@@ -3453,19 +3453,19 @@ def _display_root_dashboard(
     repo_root: Path,
     output_json: bool = False,
 ) -> bool:
-    is_wrapper = True
     from status_commands import _display_root_dashboard as _impl  # type: ignore[import-untyped]
     return _impl(
         data, project_root, repo_root,
         services=_make_status_command_services(),
         output_json=output_json,
     )
+_display_root_dashboard.is_wrapper = True
 
 
 def _get_stale_bugs(data: dict, now: datetime) -> List[dict]:
-    is_wrapper = True
     from status_commands import _get_stale_bugs as _impl  # type: ignore[import-untyped]
     return _impl(data, now)
+_get_stale_bugs.is_wrapper = True
 
 
 def status(output_json: bool = False) -> bool:

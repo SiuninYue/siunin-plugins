@@ -59,8 +59,8 @@ STATUS_SUMMARY_CORE_FIELDS: Tuple[str, ...] = (
 # ---------------------------------------------------------------------------
 
 def _iso_now() -> str:
-    """Return current local timestamp with trailing Z for compatibility."""
-    return datetime.now().isoformat() + "Z"
+    """Return current UTC timestamp in ISO 8601 format with Z suffix."""
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def _read_json_dict(path: Path) -> Optional[Dict[str, Any]]:
@@ -429,7 +429,7 @@ def _build_status_summary_projection(
         "projection_path": rel_progress_path(STATUS_SUMMARY_FILE),
         "updated_at": _iso_now(),
         "source": {
-            "generator": "progress_manager.load_status_summary_projection",
+            "generator": "summary_projector.load_status_summary_projection",
             "progress_path": rel_progress_path(PROGRESS_JSON),
             "checkpoints_path": rel_progress_path(CHECKPOINTS_JSON),
         },
@@ -512,7 +512,7 @@ def load_status_summary_projection(
                 "projection_path": rel_progress_path(STATUS_SUMMARY_FILE),
                 "updated_at": _iso_now(),
                 "source": {
-                    "generator": "progress_manager.load_status_summary_projection",
+                    "generator": "summary_projector.load_status_summary_projection",
                     "progress_path": rel_progress_path(PROGRESS_JSON),
                     "checkpoints_path": rel_progress_path(CHECKPOINTS_JSON),
                 },
