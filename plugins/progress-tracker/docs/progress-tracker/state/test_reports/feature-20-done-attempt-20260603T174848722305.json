@@ -1,0 +1,35 @@
+{
+  "feature_id": 20,
+  "feature_name": "progress_manager facade 收口 Round 0-1：边界护栏 + 状态/摘要只读链路外移",
+  "done_attempt_at": "2026-06-03T17:48:48.722366Z",
+  "overall_success": true,
+  "results": [
+    {
+      "step": "scripts/check_pm_boundary.sh 能对局部 import progress_manager / from progress_manager import ... fail-closed",
+      "command": "scripts/check_pm_boundary.sh 能对局部 import progress_manager / from progress_manager import ... fail-closed",
+      "success": true,
+      "output_summary": "[pm-boundary] Rule file consistency OK\n[pm-boundary] progress_manager.py line budget OK (9230/10000)\n[pm-boundary] No reverse imports to progress_manager detected\n[pm-boundary] All checks passed",
+      "duration_ms": 51,
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "step": "python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check",
+      "command": "python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check",
+      "success": true,
+      "output_summary": "Generated docs are up to date.",
+      "duration_ms": 49,
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "step": "uv run pytest plugins/progress-tracker/tests/test_root_dashboard.py plugins/progress-tracker/tests/test_status_linked_summary.py plugins/progress-tracker/tests/test_summary_writeback.py plugins/progress-tracker/tests/test_progress_ui_status.py -q",
+      "command": "uv run pytest plugins/progress-tracker/tests/test_root_dashboard.py plugins/progress-tracker/tests/test_status_linked_summary.py plugins/progress-tracker/tests/test_summary_writeback.py plugins/progress-tracker/tests/test_progress_ui_status.py -q",
+      "success": true,
+      "output_summary": "..................................................                       [100%]\n50 passed in 1.60s\nwarning: `VIRTUAL_ENV=/Users/siunin/Projects/Claude-Plugins/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead",
+      "duration_ms": 1975,
+      "exit_code": 0,
+      "error": null
+    }
+  ]
+}
