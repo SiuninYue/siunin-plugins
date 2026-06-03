@@ -3397,7 +3397,7 @@ def init_tracking(project_name, features=None, force=False, confirm_destroy=Fals
 
 def _make_status_command_services():
     """Build a StatusCommandServices bundle wiring progress_manager callbacks."""
-    from status_commands import StatusCommandServices
+    from status_commands import StatusCommandServices  # type: ignore[import-untyped]
     return StatusCommandServices(
         load_progress_json_fn=load_progress_json,
         find_project_root_fn=find_project_root,
@@ -3423,7 +3423,7 @@ def _build_status_handoff_block(
     project_root: str,
 ) -> Optional[str]:
     is_wrapper = True
-    from status_commands import _build_status_handoff_block as _impl
+    from status_commands import _build_status_handoff_block as _impl  # type: ignore[import-untyped]
     return _impl(
         data, completed, total, project_root,
         services=_make_status_command_services(),
@@ -3454,7 +3454,7 @@ def _display_root_dashboard(
     output_json: bool = False,
 ) -> bool:
     is_wrapper = True
-    from status_commands import _display_root_dashboard as _impl
+    from status_commands import _display_root_dashboard as _impl  # type: ignore[import-untyped]
     return _impl(
         data, project_root, repo_root,
         services=_make_status_command_services(),
@@ -3464,13 +3464,13 @@ def _display_root_dashboard(
 
 def _get_stale_bugs(data: dict, now: datetime) -> List[dict]:
     is_wrapper = True
-    from status_commands import _get_stale_bugs as _impl
+    from status_commands import _get_stale_bugs as _impl  # type: ignore[import-untyped]
     return _impl(data, now)
 
 
 def status(output_json: bool = False) -> bool:
     """Display current progress status."""
-    from status_commands import status as _impl
+    from status_commands import status as _impl  # type: ignore[import-untyped]
     return _impl(services=_make_status_command_services(), output_json=output_json)
 status.is_wrapper = True
 

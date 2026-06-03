@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -251,8 +251,6 @@ def _display_root_dashboard(
 
     # --- Active route and queue ---
     routing_queue: List[str] = data.get("routing_queue") or []
-    if not isinstance(routing_queue, list):
-        routing_queue = []
 
     active_route_code = None
     active_feature_name = None
