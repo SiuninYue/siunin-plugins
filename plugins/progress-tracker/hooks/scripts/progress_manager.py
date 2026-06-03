@@ -2853,6 +2853,7 @@ def build_runtime_context(data: Dict[str, Any], source: str) -> Dict[str, Any]:
         source=source,
         project_root=find_project_root(),
         now_str=_iso_now(),
+        collect_git_context_fn=collect_git_context,
     )
 
 
@@ -2861,6 +2862,7 @@ def build_execution_context(source: str) -> Dict[str, Any]:
         source=source,
         project_root=find_project_root(),
         now_str=_iso_now(),
+        collect_git_context_fn=collect_git_context,
     )
 
 
@@ -2875,6 +2877,7 @@ def _update_runtime_context(data: Dict[str, Any], source: str, force: bool = Fal
         project_root=find_project_root(),
         now_str=_iso_now(),
         force=force,
+        collect_git_context_fn=collect_git_context,
     )
 
 
@@ -2884,6 +2887,7 @@ def _update_execution_context(workflow_state: Dict[str, Any], source: str) -> No
         source=source,
         project_root=find_project_root(),
         now_str=_iso_now(),
+        collect_git_context_fn=collect_git_context,
     )
 
 
@@ -3401,18 +3405,13 @@ def _make_status_command_services():
     return StatusCommandServices(
         load_progress_json_fn=load_progress_json,
         find_project_root_fn=find_project_root,
-        resolve_repo_root_fn=_resolve_repo_root,
         load_checkpoints_fn=load_checkpoints,
         apply_schema_defaults_fn=_apply_schema_defaults,
         validate_plan_path_fn=validate_plan_path,
         validate_plan_document_fn=validate_plan_document,
-        is_feature_deferred_fn=_is_feature_deferred,
-        format_feature_owners_fn=_format_feature_owners,
         analyze_reconcile_state_fn=analyze_reconcile_state,
         load_progress_history_fn=_load_progress_history,
-        detect_parallel_active_routes_fn=_detect_parallel_active_routes,
         collect_git_context_fn=collect_git_context,
-        load_progress_payload_at_root_fn=_load_progress_payload_at_root,
     )
 
 

@@ -53,7 +53,7 @@ Added support for `scripts/.pm_boundary_allowlist`. When the file exists, the ch
 
 ### 3. Allowlist file (`scripts/.pm_boundary_allowlist`)
 
-Created with 8 entries covering the 4 files that contain known violations, all scheduled for cleanup in the Final round of the facade refactor:
+Created with entries covering the 4 files that contain known violations, all scheduled for cleanup in the Final round of the facade refactor. Entries may include line numbers for human traceability, but the checker normalizes them to file names before filtering so harmless line drift does not break CI.
 
 | File | Lines | Reason |
 |---|---|---|
@@ -68,7 +68,7 @@ Created with 8 entries covering the 4 files that contain known violations, all s
 
 - **Checker coverage:** Now detects local/function-scope imports in addition to module-level imports.
 - **No Python files modified:** Zero changes to any `.py` file.
-- **Known violations suppressed:** The 8 allowlisted lines are acknowledged technical debt, not new regressions.
+- **Known violations suppressed:** The allowlisted files are acknowledged technical debt, not new regressions.
 - **New violations blocked:** Any new reverse import in any non-allowlisted file will fail CI.
 
 ---
@@ -104,5 +104,5 @@ python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check
 ## Residual Risk
 
 - The 4 allowlisted files remain architectural violations until the Final round cleanup.
-- If new reverse imports are added to lines adjacent to allowlisted lines but the allowlist pattern matches them by filename prefix, they could be suppressed. Mitigation: the allowlist pattern includes both filename and line number (`filename.py:lineno`), so partial matches are highly unlikely.
+- New reverse imports in allowlisted files are suppressed by design until those files are removed from the allowlist. This trades stricter line-level enforcement for CI stability during unrelated edits. Mitigation: keep the allowlist small, file-scoped, and tied to the Final round cleanup.
 - If someone adds a reverse import to a non-allowlisted file at a very high indentation (e.g., inside a nested function), the `^[[:space:]]*` prefix ensures it is still caught.

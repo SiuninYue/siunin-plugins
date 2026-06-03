@@ -127,12 +127,15 @@ def _format_relative_time_for_summary(iso_timestamp: Optional[str]) -> str:
         timestamp = datetime.fromisoformat(iso_timestamp.replace("Z", "+00:00"))
         now = datetime.now(timezone.utc)
         delta = now - timestamp
-        if delta.days > 0:
-            return f"{delta.days} 天前"
-        if delta.seconds >= 3600:
-            return f"{delta.seconds // 3600} 小时前"
-        if delta.seconds >= 60:
-            return f"{delta.seconds // 60} 分钟前"
+        total_seconds = int(delta.total_seconds())
+        if total_seconds < 0:
+            return "刚刚"
+        if total_seconds >= 86400:
+            return f"{total_seconds // 86400} 天前"
+        if total_seconds >= 3600:
+            return f"{total_seconds // 3600} 小时前"
+        if total_seconds >= 60:
+            return f"{total_seconds // 60} 分钟前"
         return "刚刚"
     except Exception:
         return iso_timestamp

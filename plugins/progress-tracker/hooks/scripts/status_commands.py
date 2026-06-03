@@ -20,12 +20,14 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional
 
+import doc_generator
 import progress_prompt_builders
 import route_commands
 import route_sync
 import git_utils
+import worktree_handler
 from state_io import DEFAULT_TRACKER_ROLE, compare_contexts
 
 from summary_projector import (
@@ -47,7 +49,6 @@ class StatusCommandServices:
     # Core data access
     load_progress_json_fn: Callable[[], Optional[Dict[str, Any]]]
     find_project_root_fn: Callable[[], Path]
-    resolve_repo_root_fn: Callable[[Path], Path]
     load_checkpoints_fn: Callable[..., Dict[str, Any]]
 
     # Summary projection callbacks (forwarded into summary_projector)
@@ -55,14 +56,10 @@ class StatusCommandServices:
     validate_plan_path_fn: Callable[..., Dict[str, Any]]
     validate_plan_document_fn: Callable[..., Dict[str, Any]]
 
-    # Per-feature / per-data helpers that remain in progress_manager
-    is_feature_deferred_fn: Callable[[Dict[str, Any]], bool]
-    format_feature_owners_fn: Callable[[Dict[str, Any]], Optional[str]]
+    # Per-data helpers that remain in progress_manager
     analyze_reconcile_state_fn: Callable[[Optional[Dict[str, Any]]], Dict[str, Any]]
     load_progress_history_fn: Callable[[], List[Dict[str, Any]]]
-    detect_parallel_active_routes_fn: Callable[[List[Any]], List[Dict[str, Any]]]
     collect_git_context_fn: Callable[[], Dict[str, Any]]
-    load_progress_payload_at_root_fn: Callable[[Path], Tuple[Optional[Dict[str, Any]], Optional[str]]]
 
 
 # ---------------------------------------------------------------------------
@@ -159,7 +156,10 @@ def _display_root_dashboard(
                 code = raw_code.strip().upper()
 
         if code is None:
-            child_data, _ = services.load_progress_payload_at_root_fn(child_root)
+            child_data, _ = route_sync._load_progress_payload_at_root(
+                child_root,
+                apply_schema_defaults_fn=services.apply_schema_defaults_fn,
+            )
             if isinstance(child_data, dict):
                 raw_code = child_data.get("project_code")
                 if isinstance(raw_code, str) and raw_code.strip():
@@ -413,7 +413,7 @@ def status(
     tracker_role = str(data.get("tracker_role") or DEFAULT_TRACKER_ROLE).strip().lower()
     if tracker_role == "parent":
         project_root = services.find_project_root_fn()
-        repo_root = services.resolve_repo_root_fn(project_root)
+        repo_root = route_commands._resolve_repo_root(project_root)
         return _display_root_dashboard(
             data, project_root, repo_root, services=services, output_json=output_json
         )
@@ -456,7 +456,7 @@ def status(
         if isinstance(f, dict)
         and not f.get("completed", False)
         and f.get("id") != current_id
-        and services.is_feature_deferred_fn(f)
+        and worktree_handler._is_feature_deferred(f)
     )
 
     print(f"\n## Project: {project_name}")
@@ -537,7 +537,7 @@ def status(
         for f in features:
             if f.get("completed", False):
                 print(f"  [x] {f.get('name', 'Unknown')}")
-                owner_summary = services.format_feature_owners_fn(f)
+                owner_summary = doc_generator._format_feature_owners(f)
                 if owner_summary:
                     print(f"     Owners: {owner_summary}")
 
@@ -546,7 +546,7 @@ def status(
         for f in features:
             if f.get("id") == current_id:
                 print(f"  [*] {f.get('name', 'Unknown')}")
-                owner_summary = services.format_feature_owners_fn(f)
+                owner_summary = doc_generator._format_feature_owners(f)
                 if owner_summary:
                     print(f"     Owners: {owner_summary}")
                 test_steps = f.get("test_steps", [])
@@ -561,7 +561,7 @@ def status(
         if isinstance(f, dict)
         and not f.get("completed", False)
         and f.get("id") != current_id
-        and services.is_feature_deferred_fn(f)
+        and worktree_handler._is_feature_deferred(f)
     ]
     remaining = [
         f
@@ -569,13 +569,13 @@ def status(
         if isinstance(f, dict)
         and not f.get("completed", False)
         and f.get("id") != current_id
-        and not services.is_feature_deferred_fn(f)
+        and not worktree_handler._is_feature_deferred(f)
     ]
     if remaining:
         print("\n### Pending:")
         for f in remaining:
             print(f"  [ ] {f.get('name', 'Unknown')}")
-            owner_summary = services.format_feature_owners_fn(f)
+            owner_summary = doc_generator._format_feature_owners(f)
             if owner_summary:
                 print(f"     Owners: {owner_summary}")
 
@@ -668,7 +668,7 @@ def status(
 
     # Display parallel active_routes conflict warning (F20)
     active_routes_raw: List[Any] = data.get("active_routes") or []
-    parallel_routes = services.detect_parallel_active_routes_fn(active_routes_raw)
+    parallel_routes = route_sync._detect_parallel_active_routes(active_routes_raw)
     if parallel_routes:
         print("\n### [WARNING] Parallel Active Routes:")
         for route in parallel_routes:
