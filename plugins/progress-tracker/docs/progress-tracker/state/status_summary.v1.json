@@ -1,9 +1,9 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-06-03T15:40:25.165082Z",
+  "updated_at": "2026-06-03T09:48:49.239413Z",
   "source": {
-    "generator": "progress_manager.load_status_summary_projection",
+    "generator": "summary_projector.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
     "checkpoints_path": "docs/progress-tracker/state/checkpoints.json"
   },
@@ -11,8 +11,8 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1780471979980815591,
-      "size": 128927
+      "mtime_ns": 1780480128870534538,
+      "size": 137530
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
@@ -22,21 +22,21 @@
     }
   },
   "progress": {
-    "completed": 19,
-    "total": 21,
+    "completed": 20,
+    "total": 22,
     "percentage": 90
   },
   "next_action": {
     "type": "feature",
-    "feature_id": 20,
-    "feature_name": "progress_manager facade 收口 Round 0-1：边界护栏 + 状态/摘要只读链路外移",
-    "development_stage": "developing",
-    "stage_label": "开发中"
+    "feature_id": 21,
+    "feature_name": "progress_manager facade 收口 Round 2：readiness validation 外移",
+    "development_stage": "pending",
+    "stage_label": "待开始"
   },
   "plan_health": {
-    "status": "INVALID",
-    "plan_path": "docs/plans/2026-06-03-progress-manager-facade-rounds.md",
-    "message": "缺少必需章节: tasks, risks"
+    "status": "N/A",
+    "plan_path": null,
+    "message": "无活跃计划"
   },
   "risk_blocker": {
     "has_risk": true,
