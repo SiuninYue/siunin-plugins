@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-05-26T17:09:17.456710Z",
+  "updated_at": "2026-06-03T15:15:33.816594Z",
   "features": [
     {
       "id": 10,
@@ -2351,6 +2351,111 @@
       }
     },
     {
+      "id": 20,
+      "name": "progress_manager facade 收口 Round 0-1：边界护栏 + 状态/摘要只读链路外移",
+      "test_steps": [
+        "scripts/check_pm_boundary.sh 能对局部 import progress_manager / from progress_manager import ... fail-closed",
+        "python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check",
+        "uv run pytest plugins/progress-tracker/tests/test_root_dashboard.py plugins/progress-tracker/tests/test_status_linked_summary.py plugins/progress-tracker/tests/test_summary_writeback.py plugins/progress-tracker/tests/test_progress_ui_status.py -q",
+        "DoD: summary_projector.py 与 status_commands.py 建立，progress_manager.py 对应链路仅保留 facade wrapper",
+        "DoD: 本轮变更按 F19 记录格式写入 docs/changes/index.jsonl 与对应 markdown record"
+      ],
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "implementing",
+      "requirement_ids": [
+        "REQ-020"
+      ],
+      "change_spec": {
+        "why": "虽然 F18 已把 progress_manager.py 压到 10k 行以内，但 facade 与业务逻辑仍未真正分层。继续在当前结构上叠加修复会放大 AI session 的定位成本与边界回流风险，因此先做 Round 0-1：修正边界护栏并外移只读状态链路。",
+        "prerequisites": [
+          "docs/plans/2026-06-03-progress-manager-facade-rounds.md 已作为本轮 canonical 计划文档落盘"
+        ],
+        "in_scope": [
+          "修正 scripts/check_pm_boundary.sh，使其能拦截局部 reverse import progress_manager",
+          "新建 summary_projector.py，迁移状态摘要投影链路",
+          "新建 status_commands.py，迁移 status / root dashboard 的只读展示链路",
+          "在 progress_manager.py 中保留稳定 facade wrapper 与兼容导出"
+        ],
+        "out_of_scope": [
+          "next_feature / work_item_selector 抽离",
+          "cmd_done / complete_feature 抽离",
+          "smart_intake / add_feature / defer/resume 等写路径命令抽离",
+          "F19 机制本体（守卫、render、rollback SOP）"
+        ],
+        "risks": [
+          "边界检查脚本修复不完整时，会继续产生对 reverse import 的假阴性",
+          "status 链路函数迁移时若注入接口设计不清，会引入新的耦合或 facade 泄漏",
+          "若本轮混入写路径逻辑，回归面会迅速扩大，削弱本轮低风险目标"
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 子模块内新增局部 import progress_manager 后，scripts/check_pm_boundary.sh 立即失败",
+        "Scenario: status 与 summary 相关测试集在模块外移后保持通过",
+        "Scenario: progress_manager.py 中 status/summary 对应实现收敛为 facade wrapper"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [],
+          "pending": [
+            "docs",
+            "eng",
+            "qa"
+          ]
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "完成 progress_manager facade 收口的 Round 0-1：先修边界护栏，再把 summary/status 只读链路移出主文件。",
+        "done_criteria": [
+          "scripts/check_pm_boundary.sh 能拦截局部 reverse import",
+          "summary_projector.py 与 status_commands.py 建立并承接对应实现",
+          "progress_manager.py 仅保留对应 facade wrapper",
+          "相关 focused tests 与 required checks 全部通过"
+        ],
+        "test_plan": [
+          "Boundary: scripts/check_pm_boundary.sh",
+          "Docs: python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check",
+          "Focused pytest: root dashboard / status summary / UI status / summary writeback"
+        ],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "plan_path": "docs/plans/2026-06-03-progress-manager-facade-rounds.md",
+      "development_stage": "developing",
+      "started_at": "2026-06-03T15:15:33.752580Z"
+    },
+    {
       "id": 19,
       "name": "AI 可追溯与可回退机制 v1：变更记录 + 自动守卫 + 回退 SOP",
       "test_steps": [
@@ -2495,7 +2600,7 @@
       "started_at": null
     }
   ],
-  "current_feature_id": null,
+  "current_feature_id": 20,
   "linked_projects": [],
   "linked_snapshot": {
     "schema_version": "1.0",
@@ -2617,22 +2722,58 @@
       "source": "prog_update",
       "next_action": null,
       "refs": []
+    },
+    {
+      "id": "UPD-007",
+      "created_at": "2026-06-03T06:57:39Z",
+      "category": "decision",
+      "summary": "记录 progress_manager facade 收敛分轮方案；详细执行计划转移到 docs/plans/2026-06-03-progress-manager-facade-rounds.md",
+      "details": "progress.json 仅保留计划指针，不内嵌完整方案正文；progress-manager-module-map.md 延后到 Round 1 完成后创建，用作模块所有权与迁移进度导航。",
+      "feature_id": null,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": "Execute Round 0 boundary-check hardening, then Round 1 summary/status extraction.",
+      "refs": [
+        "doc:docs/plans/2026-06-03-progress-manager-facade-rounds.md",
+        "planning:pm_facade_rounds",
+        "decision:progress_json_pointer_only"
+      ]
+    },
+    {
+      "id": "UPD-008",
+      "created_at": "2026-06-03T07:07:38Z",
+      "category": "decision",
+      "summary": "登记 Round 0-1 为独立执行 feature，并显式排在 F19 前",
+      "details": "本轮不按叶子模块拆成多个 feature；只登记一个可执行 tranche 覆盖边界护栏与 summary/status 只读链路。其余 rounds 继续保留在计划文档中，待 Round 1 完成后再决定是否拆成后续 feature。",
+      "feature_id": 20,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": "Start Round 0 by hardening scripts/check_pm_boundary.sh before any code extraction.",
+      "refs": [
+        "doc:docs/plans/2026-06-03-progress-manager-facade-rounds.md",
+        "req:REQ-020",
+        "decision:round0_1_before_f19"
+      ]
     }
   ],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-05-26T17:09:17.386136Z",
-    "source": "finalize",
+    "recorded_at": "2026-06-03T15:15:33.760186Z",
+    "source": "set_current",
     "workspace_mode": "in_place",
     "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
     "project_root": "/Users/siunin/Projects/Claude-Plugins",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
     "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
-    "branch": "f18",
-    "upstream": null,
+    "branch": "main",
+    "upstream": "origin/main",
     "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
-    "current_feature_id": null,
-    "workflow_phase": null,
+    "current_feature_id": 20,
+    "workflow_phase": "planning",
     "current_task": null,
     "total_tasks": null,
     "next_action": null
@@ -2780,5 +2921,9 @@
       "created_at": "2026-05-12T22:55:08.086743Z"
     }
   ],
-  "current_task_id": "TASK-001"
+  "current_task_id": "TASK-001",
+  "workflow_state": {
+    "phase": "planning",
+    "updated_at": "2026-06-03T15:15:33.752603Z"
+  }
 }
