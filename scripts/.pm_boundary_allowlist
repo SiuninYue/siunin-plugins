@@ -1,0 +1,18 @@
+# Known violations scheduled for cleanup in Final round
+# Remove entries as each file is refactored to use callback injection
+
+# wf_auto_driver.py uses progress_manager.get_progress_dir()
+wf_auto_driver.py:81
+wf_auto_driver.py:96
+
+# sprint_ledger.py uses progress_manager.get_progress_dir(), progress_transaction(), load_progress_json()
+sprint_ledger.py:40
+sprint_ledger.py:95
+sprint_ledger.py:236
+
+# lifecycle_state_machine.py uses generate_progress_md, save_progress_md
+lifecycle_state_machine.py:432
+
+# progress_ui_server.py module-level conditional import
+progress_ui_server.py:39
+progress_ui_server.py:40

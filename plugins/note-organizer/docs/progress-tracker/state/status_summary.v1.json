@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-05-18T01:31:54.322439Z",
+  "updated_at": "2026-06-03T15:40:25.160725Z",
   "source": {
     "generator": "progress_manager.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,13 +11,13 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1778920398161365369,
+      "mtime_ns": 1780471856367167073,
       "size": 1193
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
       "exists": true,
-      "mtime_ns": 1776268984844091231,
+      "mtime_ns": 1780471856366953917,
       "size": 5753
     }
   },
@@ -47,6 +47,6 @@
   "recent_snapshot": {
     "exists": true,
     "timestamp": "2026-03-16T14:39:15.874993+08:00",
-    "relative_time": "62 天前"
+    "relative_time": "79 天前"
   }
 }

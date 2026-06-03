@@ -366,13 +366,6 @@ def _git_squash_close_task(
 
 def collect_git_context(project_root: Path) -> Dict[str, Any]:
     """Collect current git/worktree context using lightweight git probes."""
-    import sys
-    pm = sys.modules.get("progress_manager")
-    if pm is not None and hasattr(pm, "collect_git_context"):
-        pm_func = pm.collect_git_context
-        if getattr(pm_func, "is_wrapper", None) is not True:
-            return pm_func(project_root)
-
     project_root_str = str(project_root.resolve())
     cwd_str = str(Path.cwd().resolve())
     context: Dict[str, Any] = {
@@ -441,9 +434,14 @@ def build_runtime_context(
     source: str,
     project_root: Path,
     now_str: str,
+    collect_git_context_fn: Optional[Callable[[], Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """Build top-level runtime_context snapshot from current repository + progress state."""
-    git_context = collect_git_context(project_root)
+    git_context = (
+        collect_git_context_fn()
+        if collect_git_context_fn is not None
+        else collect_git_context(project_root)
+    )
     tracker_root = str(project_root.resolve())
     workflow_state = data.get("workflow_state", {})
     if not isinstance(workflow_state, dict):
@@ -467,9 +465,14 @@ def build_execution_context(
     source: str,
     project_root: Path,
     now_str: str,
+    collect_git_context_fn: Optional[Callable[[], Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """Build workflow_state.execution_context snapshot for workflow semantic transitions."""
-    git_context = collect_git_context(project_root)
+    git_context = (
+        collect_git_context_fn()
+        if collect_git_context_fn is not None
+        else collect_git_context(project_root)
+    )
     tracker_root = str(project_root.resolve())
     return {
         "recorded_at": now_str,
@@ -504,12 +507,19 @@ def _update_runtime_context(
     project_root: Path,
     now_str: str,
     force: bool = False,
+    collect_git_context_fn: Optional[Callable[[], Dict[str, Any]]] = None,
 ) -> bool:
     """Update top-level runtime_context in progress data; returns True if changed."""
     if not isinstance(data, dict):
         return False
 
-    new_context = build_runtime_context(data, source, project_root, now_str)
+    new_context = build_runtime_context(
+        data,
+        source,
+        project_root,
+        now_str,
+        collect_git_context_fn=collect_git_context_fn,
+    )
     old_context = data.get("runtime_context")
 
     if not force and _runtime_context_fingerprint(old_context) == _runtime_context_fingerprint(new_context):
@@ -524,11 +534,17 @@ def _update_execution_context(
     source: str,
     project_root: Path,
     now_str: str,
+    collect_git_context_fn: Optional[Callable[[], Dict[str, Any]]] = None,
 ) -> None:
     """Refresh workflow_state.execution_context after semantic workflow progress changes."""
     if not isinstance(workflow_state, dict):
         return
-    workflow_state["execution_context"] = build_execution_context(source, project_root, now_str)
+    workflow_state["execution_context"] = build_execution_context(
+        source,
+        project_root,
+        now_str,
+        collect_git_context_fn=collect_git_context_fn,
+    )
 
 
 

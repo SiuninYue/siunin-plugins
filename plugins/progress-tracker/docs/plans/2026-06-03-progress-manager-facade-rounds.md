@@ -319,3 +319,8 @@ The future `progress-manager-module-map.md` file is not meant to auto-drive beha
   - Applies to: architecture documentation
   - Must: Create `docs/progress-tracker/architecture/progress-manager-module-map.md` after Round 1, not before
   - Validation: The file exists and lists at least module owner, exported wrappers, and migration status for each extracted cluster
+
+## Tasks
+
+1. Round 0: 修正 `scripts/check_pm_boundary.sh`，使其能拦截局部 `import progress_manager` / `from progress_manager import ...` 的反向依赖（已完成）
+2. Round 1: 新建 `summary_projector.py` 与 `status_commands.py`，将状态摘要投影链路与只读展示链路迁出 `progress_manager.py`，并在 `progress_manager.py` 中保留 facade wrapper（已完成）
