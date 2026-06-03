@@ -10,6 +10,7 @@ BOUNDARY_DOC="${REPO_ROOT}/plugins/progress-tracker/docs/progress-tracker/archit
 AGENTS_FILE="${REPO_ROOT}/AGENTS.md"
 CLAUDE_FILE="${REPO_ROOT}/CLAUDE.md"
 GEMINI_FILE="${REPO_ROOT}/GEMINI.md"
+ALLOWLIST="${REPO_ROOT}/scripts/.pm_boundary_allowlist"
 
 MAX_PM_LINES="${MAX_PM_LINES:-10000}"
 
@@ -52,8 +53,17 @@ say "progress_manager.py line budget OK (${pm_lines}/${MAX_PM_LINES})"
 reverse_imports="$(rg -n \
   --glob '*.py' \
   --glob '!progress_manager.py' \
-  '(^[[:space:]]*import[[:space:]]+progress_manager\\b)|(^[[:space:]]*from[[:space:]]+progress_manager[[:space:]]+import\\b)' \
+  '(^[[:space:]]*import[[:space:]]+progress_manager\b)|(^[[:space:]]*from[[:space:]]+progress_manager[[:space:]]+import\b)' \
   "$SCRIPTS_DIR" || true)"
+
+# Filter out allowlisted violations
+if [ -f "$ALLOWLIST" ]; then
+  # Build a grep pattern from allowlist entries (skip comment lines)
+  allowlist_pattern=$(grep -v '^#' "$ALLOWLIST" | grep -v '^[[:space:]]*$' | sed 's|.*/||' | paste -sd'|' -)
+  if [ -n "$allowlist_pattern" ]; then
+    reverse_imports=$(echo "$reverse_imports" | grep -v -E "($allowlist_pattern)" || true)
+  fi
+fi
 
 if [ -n "$reverse_imports" ]; then
   echo "$reverse_imports"
