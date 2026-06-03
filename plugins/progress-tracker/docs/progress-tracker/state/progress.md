@@ -2,7 +2,7 @@
 
 **Created**: 2026-04-23T00:28:18.285129Z
 
-**Status**: 19/22 completed
+**Status**: 20/22 completed
 
 ## Completed
 - [x] 根目录混合宿主架构：Monorepo /prog 支持
@@ -24,25 +24,11 @@
 - [x] Git Squash Merge SOP — 集成到 prog-done 自动化流程
 - [x] Parent-Child Route 同步：子插件 set_current/done 回写父 active_routes
 - [x] progress_manager.py 深度模块化拆分（Phase 2 技术债偿还）
-
-## In Progress
-- [ ] progress_manager facade 收口 Round 0-1：边界护栏 + 状态/摘要只读链路外移
-  **Test steps**:
-  - scripts/check_pm_boundary.sh 能对局部 import progress_manager / from progress_manager import ... fail-closed
-  - python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check
-  - uv run pytest plugins/progress-tracker/tests/test_root_dashboard.py plugins/progress-tracker/tests/test_status_linked_summary.py plugins/progress-tracker/tests/test_summary_writeback.py plugins/progress-tracker/tests/test_progress_ui_status.py -q
-  - DoD: summary_projector.py 与 status_commands.py 建立，progress_manager.py 对应链路仅保留 facade wrapper
-  - DoD: 本轮变更按 F19 记录格式写入 docs/changes/index.jsonl 与对应 markdown record
+- [x] progress_manager facade 收口 Round 0-1：边界护栏 + 状态/摘要只读链路外移
 
 ## Pending
 - [ ] progress_manager facade 收口 Round 2：readiness validation 外移
 - [ ] AI 可追溯与可回退机制 v1：变更记录 + 自动守卫 + 回退 SOP
-
-## Workflow Context
-- Phase: execution_complete
-- Next action: verify_and_complete
-- Execution context: f20 @ f20 [worktree]
-- Current session context: f20 @ f20 [worktree]
 
 ## Recent Updates
 - [UPD-006] status: Regression test update

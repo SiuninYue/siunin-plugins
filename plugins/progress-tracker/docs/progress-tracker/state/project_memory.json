@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "created_at": "2026-04-12T09:38:02.910760Z",
-  "updated_at": "2026-05-26T09:09:17.462730Z",
-  "next_capability_seq": 26,
+  "updated_at": "2026-06-03T09:48:48.875310Z",
+  "next_capability_seq": 27,
   "last_synced_commit": null,
   "capabilities": [
     {
@@ -463,6 +463,22 @@
       },
       "created_at": "2026-05-26T09:09:17.462682Z",
       "updated_at": "2026-05-26T09:09:17.462682Z"
+    },
+    {
+      "cap_id": "CAP-026",
+      "fingerprint": "6421cdae9a58bab5",
+      "title": "progress_manager facade 收口 Round 0-1：边界护栏 + 状态/摘要只读链路外移",
+      "summary": "Completed feature 20: progress_manager facade 收口 Round 0-1：边界护栏 + 状态/摘要只读链路外移",
+      "tags": [],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 20,
+        "commit_hash": "55ad0165daed0fc1b101b165b9e720295e6a8f2a",
+        "commit_range": ""
+      },
+      "created_at": "2026-06-03T09:48:48.875270Z",
+      "updated_at": "2026-06-03T09:48:48.875270Z"
     }
   ],
   "rejected_fingerprints": [],
