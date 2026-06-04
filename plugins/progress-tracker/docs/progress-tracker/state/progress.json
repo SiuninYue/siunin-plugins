@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-06-04T15:00:26.748441Z",
+  "updated_at": "2026-06-04T15:09:05.526551Z",
   "features": [
     {
       "id": 10,
@@ -2920,6 +2920,87 @@
       },
       "finished_at": "2026-06-04T07:00:56.783601Z",
       "commit_hash": "436039c8835bc976334c3541e3c9aa3053064e9c"
+    },
+    {
+      "id": 23,
+      "name": "progress_manager facade 收口 Round 4：Work-Item Selection and next_feature 外移",
+      "test_steps": [
+        "新建 work_item_selector.py 与 next_feature_commands.py，迁移 get_next_feature, _get_dispatched_child_feature, _select_next_work_item, next_feature 核心实现",
+        "在 progress_manager.py 中保留 wrappers 并标记 is_wrapper = True",
+        "子模块不得反向 import progress_manager，通过 callback 注入 state/md 读写、运行时上下文更新与 git 探针接口",
+        "运行 scripts/check_pm_boundary.sh 与 generate_prog_docs.py --check 通过",
+        "运行 uv run pytest 覆盖 work-item selector 与 next-feature 单元测试与全量回归通过",
+        "DoD: 更新 progress-manager-module-map.md，并在 docs/changes/index.jsonl 中追加变更记录",
+        "DoD: F23 closeout 前必须登记下一条收口 feature (Round 5) 或写入 defer 决策"
+      ],
+      "workflow_profile": "standard_task",
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-023"
+      ],
+      "change_spec": {
+        "why": "Deliver progress_manager facade 收口 Round 4：Work-Item Selection and next_feature 外移 with traceable acceptance coverage.",
+        "in_scope": [
+          "progress_manager facade 收口 Round 4：Work-Item Selection and next_feature 外移"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 新建 work_item_selector.py 与 next_feature_commands.py，迁移 get_next_feature, _get_dispatched_child_feature, _select_next_work_item, next_feature 核心实现",
+        "Scenario: 在 progress_manager.py 中保留 wrappers 并标记 is_wrapper = True",
+        "Scenario: 子模块不得反向 import progress_manager，通过 callback 注入 state/md 读写、运行时上下文更新与 git 探针接口",
+        "Scenario: 运行 scripts/check_pm_boundary.sh 与 generate_prog_docs.py --check 通过",
+        "Scenario: 运行 uv run pytest 覆盖 work-item selector 与 next-feature 单元测试与全量回归通过",
+        "Scenario: DoD: 更新 progress-manager-module-map.md，并在 docs/changes/index.jsonl 中追加变更记录",
+        "Scenario: DoD: F23 closeout 前必须登记下一条收口 feature (Round 5) 或写入 defer 决策"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
     }
   ],
   "current_feature_id": null,
