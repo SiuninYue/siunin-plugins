@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-06-04T17:19:49.069658Z",
+  "updated_at": "2026-06-04T17:23:42.715075Z",
   "features": [
     {
       "id": 10,
@@ -3067,6 +3067,87 @@
             "to": "docs/archive/plans/2026-06-04-f23-work-item-selection-round4.md"
           }
         ]
+      }
+    },
+    {
+      "id": 24,
+      "name": "progress_manager facade 收口 Round 5：Completion Flow and Cleanup 外移",
+      "test_steps": [
+        "新建 completion_flow.py，迁移 done, complete_feature, archive_feature_docs, _run_acceptance_tests, cleanup 核心实现",
+        "在 progress_manager.py 中保留 wrappers 并标记 is_wrapper = True",
+        "子模块不得反向 import progress_manager，通过 callback 注入 state 读写、git操作与 docs 生成等接口",
+        "运行 scripts/check_pm_boundary.sh 与 generate_prog_docs.py --check 通过",
+        "运行 uv run pytest 覆盖 completion flow 单元测试与全量回归通过",
+        "DoD: 更新 progress-manager-module-map.md，并在 docs/changes/index.jsonl 中追加变更记录",
+        "DoD: F24 closeout 前必须登记下一条收口 feature (Round 6) 或写入 defer 决策"
+      ],
+      "workflow_profile": "standard_task",
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-024"
+      ],
+      "change_spec": {
+        "why": "Deliver progress_manager facade 收口 Round 5：Completion Flow and Cleanup 外移 with traceable acceptance coverage.",
+        "in_scope": [
+          "progress_manager facade 收口 Round 5：Completion Flow and Cleanup 外移"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 新建 completion_flow.py，迁移 done, complete_feature, archive_feature_docs, _run_acceptance_tests, cleanup 核心实现",
+        "Scenario: 在 progress_manager.py 中保留 wrappers 并标记 is_wrapper = True",
+        "Scenario: 子模块不得反向 import progress_manager，通过 callback 注入 state 读写、git操作与 docs 生成等接口",
+        "Scenario: 运行 scripts/check_pm_boundary.sh 与 generate_prog_docs.py --check 通过",
+        "Scenario: 运行 uv run pytest 覆盖 completion flow 单元测试与全量回归通过",
+        "Scenario: DoD: 更新 progress-manager-module-map.md，并在 docs/changes/index.jsonl 中追加变更记录",
+        "Scenario: DoD: F24 closeout 前必须登记下一条收口 feature (Round 6) 或写入 defer 决策"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
       }
     }
   ],
