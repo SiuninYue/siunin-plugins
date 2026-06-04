@@ -42,7 +42,8 @@
 - [ ] AI 可追溯与可回退机制 v1：变更记录 + 自动守卫 + 回退 SOP
 
 ## Workflow Context
-- Phase: execution
+- Phase: execution_complete
+- Next action: run prog done --check to validate all gates, then prog done to close F21
 - Execution context: f21 @ f21 [worktree]
 - Current session context: f21 @ f21 [worktree]
 
