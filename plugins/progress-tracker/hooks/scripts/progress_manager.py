@@ -3860,127 +3860,32 @@ def determine_recovery_action(
 
 def set_current(feature_id):
     """Set the current feature being worked on."""
-    data = load_progress_json()
-    if not data:
-        print("No progress tracking found")
-        return False
-
-    features = data.get("features", [])
-    feature = next((f for f in features if f.get("id") == feature_id), None)
-
-    if not feature:
-        print(f"Feature ID {feature_id} not found")
-        return False
-
-    if _is_feature_deferred(feature):
-        defer_reason = feature.get("defer_reason") or "Deferred feature"
-        print(
-            f"Feature ID {feature_id} is deferred and cannot be set as current: {defer_reason}. "
-            "Run `prog resume` first."
-        )
-        return False
-
-    if not feature.get("completed", False):
-        readiness_report = validate_feature_readiness(feature)
-        if not readiness_report["valid"]:
-            print_readiness_error(feature, readiness_report)
-            return False
-        if readiness_report["warnings"]:
-            print_readiness_warnings(readiness_report)
-            print("")
-
-    previous_current_id = data.get("current_feature_id")
-    data["current_feature_id"] = feature_id
-
-    # Selecting a feature for work should immediately enter active development.
-    # This keeps `/prog-next` as a one-step start action.
-    if not feature.get("completed", False):
-        feature["development_stage"] = "developing"
-        feature["lifecycle_state"] = "implementing"
-        if not feature.get("started_at"):
-            feature["started_at"] = _iso_now()
-
-    if previous_current_id != feature_id:
-        data.pop("workflow_state", None)
-        # Defensive init: even if skill is interrupted before calling
-        # set-workflow-state, the feature has a resumable workflow phase.
-        if not feature.get("completed", False):
-            data["workflow_state"] = {"phase": "planning", "updated_at": _iso_now()}
-
-    # F-11: initialize review lanes when starting a new feature (idempotent)
-    if not feature.get("completed", False) and REVIEW_ROUTER_AVAILABLE:
-        _initialize_reviews(feature)
-
-    _update_runtime_context(data, source="set_current")
-    save_progress_json(data)
-
-    # Update progress.md
-    md_content = generate_progress_md(data)
-    save_progress_md(md_content)
-
-    _auto_state_commit(f"F{feature_id}", "start")
-
-    # F17: notify parent tracker to upsert active_routes for this child feature
-    if not feature.get("completed", False):
-        _notify_parent_sync("activate")
-
-    print(f"Set current feature: {feature.get('name', 'Unknown')}")
-    return True
+    is_wrapper = True
+    from feature_commands import set_current_command, FeatureCommandsServices
+    return set_current_command(feature_id, FeatureCommandsServices(
+        load_progress_json_fn=load_progress_json,
+        save_progress_json_fn=save_progress_json,
+        generate_progress_md_fn=generate_progress_md,
+        save_progress_md_fn=save_progress_md,
+        update_runtime_context_fn=_update_runtime_context,
+        auto_state_commit_fn=_auto_state_commit,
+        notify_parent_sync_fn=_notify_parent_sync,
+    ))
 
 
 def set_development_stage(stage: str, feature_id: Optional[int] = None) -> bool:
     """Set development_stage for the target feature (defaults to current feature)."""
-    if stage not in DEVELOPMENT_STAGES:
-        print(f"Invalid development_stage '{stage}'. Must be one of: {DEVELOPMENT_STAGES}")
-        return False
-
-    data = load_progress_json()
-    if not data:
-        print("No progress tracking found")
-        return False
-
-    target_feature_id = feature_id if feature_id is not None else data.get("current_feature_id")
-    if target_feature_id is None:
-        print("Error: No active feature. Run '/prog-next' first or pass --feature-id.")
-        return False
-
-    features = data.get("features", [])
-    feature = next((f for f in features if f.get("id") == target_feature_id), None)
-    if not feature:
-        print(f"Feature ID {target_feature_id} not found")
-        return False
-
-    if stage == "developing" and not feature.get("completed", False):
-        readiness_report = validate_feature_readiness(feature)
-        if not readiness_report["valid"]:
-            print_readiness_error(feature, readiness_report)
-            return False
-        if readiness_report["warnings"]:
-            print_readiness_warnings(readiness_report)
-            print("")
-
-    feature["development_stage"] = stage
-    if stage == "developing" and not feature.get("started_at"):
-        feature["started_at"] = _iso_now()
-    if stage == "developing":
-        feature["lifecycle_state"] = "implementing"
-    elif stage == "planning" and not feature.get("completed", False):
-        feature["lifecycle_state"] = "approved"
-    elif stage == "completed":
-        feature["lifecycle_state"] = "verified"
-
-    _update_runtime_context(data, source="set_development_stage")
-    save_progress_json(data)
-
-    # Update progress.md
-    md_content = generate_progress_md(data)
-    save_progress_md(md_content)
-
-    print(
-        f"Feature #{target_feature_id} stage set to '{stage}': "
-        f"{feature.get('name', 'Unknown')}"
-    )
-    return True
+    is_wrapper = True
+    from feature_commands import set_development_stage_command, FeatureCommandsServices
+    return set_development_stage_command(stage, FeatureCommandsServices(
+        load_progress_json_fn=load_progress_json,
+        save_progress_json_fn=save_progress_json,
+        generate_progress_md_fn=generate_progress_md,
+        save_progress_md_fn=save_progress_md,
+        update_runtime_context_fn=_update_runtime_context,
+        auto_state_commit_fn=_auto_state_commit,
+        notify_parent_sync_fn=_notify_parent_sync,
+    ), feature_id=feature_id)
 
 
 def get_next_feature():
