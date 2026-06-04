@@ -2,7 +2,7 @@
 
 **Created**: 2026-04-23T00:28:18.285129Z
 
-**Status**: 21/22 completed
+**Status**: 21/23 completed
 
 ## Completed
 - [x] 根目录混合宿主架构：Monorepo /prog 支持
@@ -27,19 +27,33 @@
 - [x] progress_manager facade 收口 Round 0-1：边界护栏 + 状态/摘要只读链路外移
 - [x] progress_manager facade 收口 Round 2：readiness validation 外移
 
-## Pending
-- [ ] AI 可追溯与可回退机制 v1：变更记录 + 自动守卫 + 回退 SOP
+## In Progress
+- [ ] progress_manager facade 收口 Round 3：Feature Activation and Stage Commands 外移
+  **Test steps**:
+  - 新建 feature_commands.py，迁移 set_current 与 set_development_stage 核心实现
+  - 在 progress_manager.py 中保留 wrappers 并标记 is_wrapper = True
+  - 子模块不得反向 import progress_manager，通过 callback 注入 state/md 读写与运行时上下文更新接口
+  - 运行 scripts/check_pm_boundary.sh 与 generate_prog_docs.py --check 通过
+  - 运行 uv run pytest 覆盖 feature activation 单元测试与全量回归通过
+  - DoD: 更新 progress-manager-module-map.md，并在 docs/changes/index.jsonl 中追加变更记录
+  - DoD: F22 closeout 前必须登记下一条收口 feature (Round 4) 或写入 defer 决策
+
+## Deferred
+- [~] AI 可追溯与可回退机制 v1：变更记录 + 自动守卫 + 回退 SOP — Round 3 facade convergence is prioritized before F19 rollback mechanism
+
+## Workflow Context
+- Phase: planning
+- Current session context: main @ Claude-Plugins [in_place]
 
 ## Recent Updates
-- [UPD-006] status: Regression test update
-- [UPD-007] decision: 记录 progress_manager facade 收敛分轮方案；详细执行计划转移到 docs/plans/2026-06-03-progress-manager-facade-rounds.md
-  Next: Execute Round 0 boundary-check hardening, then Round 1 summary/status extraction.
 - [UPD-008] decision: 登记 Round 0-1 为独立执行 feature，并显式排在 F19 前 (feature:20)
   Next: Start Round 0 by hardening scripts/check_pm_boundary.sh before any code extraction.
 - [UPD-009] decision: 安排 facade 收口后续优先级：F21 执行 Round 2 readiness validation 外移，F19 暂后 (feature:21)
   Next: Close/complete F20 after validation, then start F21 Round 2 readiness_validator.py extraction before returning to F19.
 - [UPD-010] decision: 设置 F21 closeout 防遗忘门槛：必须登记下一条 facade 收口 feature 或写明 defer 决策 (feature:21)
   Next: When closing F21, create the next facade convergence feature for Round 3-4 or record an explicit defer decision.
+- [UPD-011] status: F22 planning approved in office hours (feature:22)
+- [UPD-012] status: F22 CEO review complete (feature:22)
 
 ## Bug Backlog
 ### Medium Priority (🟡)

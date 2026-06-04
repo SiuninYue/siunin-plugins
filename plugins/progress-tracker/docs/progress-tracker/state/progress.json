@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-06-04T10:28:26.160172Z",
+  "updated_at": "2026-06-04T13:55:36.228592Z",
   "features": [
     {
       "id": 10,
@@ -2667,9 +2667,9 @@
         "场景 C：B 路后 reconcile-state --check 仍失败 → 流程立即非零退出，输出固定诊断命令集合"
       ],
       "completed": false,
-      "deferred": false,
-      "defer_reason": null,
-      "deferred_at": null,
+      "deferred": true,
+      "defer_reason": "Round 3 facade convergence is prioritized before F19 rollback mechanism",
+      "deferred_at": "2026-06-04T13:55:13.345251Z",
       "defer_group": null,
       "owners": {
         "architecture": null,
@@ -2790,9 +2790,100 @@
       "plan_path": null,
       "development_stage": "planning",
       "started_at": null
+    },
+    {
+      "id": 22,
+      "name": "progress_manager facade 收口 Round 3：Feature Activation and Stage Commands 外移",
+      "test_steps": [
+        "新建 feature_commands.py，迁移 set_current 与 set_development_stage 核心实现",
+        "在 progress_manager.py 中保留 wrappers 并标记 is_wrapper = True",
+        "子模块不得反向 import progress_manager，通过 callback 注入 state/md 读写与运行时上下文更新接口",
+        "运行 scripts/check_pm_boundary.sh 与 generate_prog_docs.py --check 通过",
+        "运行 uv run pytest 覆盖 feature activation 单元测试与全量回归通过",
+        "DoD: 更新 progress-manager-module-map.md，并在 docs/changes/index.jsonl 中追加变更记录",
+        "DoD: F22 closeout 前必须登记下一条收口 feature (Round 4) 或写入 defer 决策"
+      ],
+      "workflow_profile": "standard_task",
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "implementing",
+      "requirement_ids": [
+        "REQ-022"
+      ],
+      "change_spec": {
+        "why": "Deliver progress_manager facade 收口 Round 3：Feature Activation and Stage Commands 外移 with traceable acceptance coverage.",
+        "in_scope": [
+          "progress_manager facade 收口 Round 3：Feature Activation and Stage Commands 外移"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 新建 feature_commands.py，迁移 set_current 与 set_development_stage 核心实现",
+        "Scenario: 在 progress_manager.py 中保留 wrappers 并标记 is_wrapper = True",
+        "Scenario: 子模块不得反向 import progress_manager，通过 callback 注入 state/md 读写与运行时上下文更新接口",
+        "Scenario: 运行 scripts/check_pm_boundary.sh 与 generate_prog_docs.py --check 通过",
+        "Scenario: 运行 uv run pytest 覆盖 feature activation 单元测试与全量回归通过",
+        "Scenario: DoD: 更新 progress-manager-module-map.md，并在 docs/changes/index.jsonl 中追加变更记录",
+        "Scenario: DoD: F22 closeout 前必须登记下一条收口 feature (Round 4) 或写入 defer 决策"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [],
+          "pending": [
+            "docs",
+            "eng",
+            "qa"
+          ]
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "development_stage": "developing",
+      "started_at": "2026-06-04T13:55:36.190295Z"
     }
   ],
-  "current_feature_id": null,
+  "current_feature_id": 22,
   "linked_projects": [],
   "linked_snapshot": {
     "schema_version": "1.0",
@@ -2985,22 +3076,56 @@
         "doc:docs/progress-tracker/architecture/progress-manager-module-map.md",
         "decision:followup_registration_gate"
       ]
+    },
+    {
+      "id": "UPD-011",
+      "created_at": "2026-06-04T13:51:15.979479Z",
+      "category": "status",
+      "summary": "F22 planning approved in office hours",
+      "details": null,
+      "feature_id": 22,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:office_hours",
+        "doc:docs/plans/2026-06-03-progress-manager-facade-rounds.md"
+      ]
+    },
+    {
+      "id": "UPD-012",
+      "created_at": "2026-06-04T13:51:19.725302Z",
+      "category": "status",
+      "summary": "F22 CEO review complete",
+      "details": null,
+      "feature_id": 22,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:ceo_review",
+        "doc:docs/plans/2026-06-03-progress-manager-facade-rounds.md"
+      ]
     }
   ],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-06-04T10:28:26.117572Z",
-    "source": "finalize",
-    "workspace_mode": "worktree",
-    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/f21",
-    "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/f21",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/f21",
-    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/f21",
-    "branch": "f21",
-    "upstream": null,
-    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/f21/plugins/progress-tracker",
-    "current_feature_id": null,
-    "workflow_phase": null,
+    "recorded_at": "2026-06-04T13:55:36.190826Z",
+    "source": "set_current",
+    "workspace_mode": "in_place",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
+    "branch": "main",
+    "upstream": "origin/main",
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+    "current_feature_id": 22,
+    "workflow_phase": "planning",
     "current_task": null,
     "total_tasks": null,
     "next_action": null
@@ -3126,5 +3251,9 @@
   "current_bug_id": null,
   "parent_project_root": ".",
   "tasks": [],
-  "current_task_id": null
+  "current_task_id": null,
+  "workflow_state": {
+    "phase": "planning",
+    "updated_at": "2026-06-04T13:55:36.190318Z"
+  }
 }
