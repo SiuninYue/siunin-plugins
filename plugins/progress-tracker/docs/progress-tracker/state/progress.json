@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-06-04T02:23:08Z",
+  "updated_at": "2026-06-04T10:28:26.160172Z",
   "features": [
     {
       "id": 10,
@@ -2511,7 +2511,7 @@
         "DoD: progress-manager-module-map.md 更新 Round 2 ownership/migration status，并追加 docs/changes 记录",
         "DoD: F21 closeout 前必须登记下一条 facade 收口 feature（建议 Round 3-4）或写入明确 defer 决策，避免 Round 3+ 遗漏"
       ],
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -2521,7 +2521,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "implementing",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-021"
       ],
@@ -2615,7 +2615,7 @@
         "created_at": null
       },
       "plan_path": "docs/plans/2026-06-03-progress-manager-facade-rounds.md",
-      "development_stage": "developing",
+      "development_stage": "completed",
       "started_at": "2026-06-04T09:29:28.335062Z",
       "ai_metrics": {
         "complexity_score": 40,
@@ -2628,7 +2628,23 @@
           "routed_bucket": "standard",
           "confidence": "high"
         },
-        "started_at": "2026-06-04T09:30:58.469908Z"
+        "started_at": "2026-06-04T09:30:58.469908Z",
+        "finished_at": "2026-06-04T10:28:26.117465+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-06-04T10:28:26.117526Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-06-04T10:28:26.117532Z",
+      "commit_hash": "c2678b2d1a84f482df89e7b0b75e667edceab68c",
+      "archive_info": {
+        "archived_at": "2026-06-04T10:28:26.159852Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-06-03-progress-manager-facade-rounds.md",
+            "to": "docs/archive/plans/2026-06-03-progress-manager-facade-rounds_20260604_102826.md"
+          }
+        ]
       }
     },
     {
@@ -2776,7 +2792,7 @@
       "started_at": null
     }
   ],
-  "current_feature_id": 21,
+  "current_feature_id": null,
   "linked_projects": [],
   "linked_snapshot": {
     "schema_version": "1.0",
@@ -2973,8 +2989,8 @@
   ],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-06-04T09:43:29.758524Z",
-    "source": "set_workflow_state",
+    "recorded_at": "2026-06-04T10:28:26.117572Z",
+    "source": "finalize",
     "workspace_mode": "worktree",
     "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/f21",
     "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/f21",
@@ -2983,11 +2999,11 @@
     "branch": "f21",
     "upstream": null,
     "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/f21/plugins/progress-tracker",
-    "current_feature_id": 21,
-    "workflow_phase": "execution_complete",
+    "current_feature_id": null,
+    "workflow_phase": null,
     "current_task": null,
     "total_tasks": null,
-    "next_action": "run prog done --check to validate all gates, then prog done to close F21"
+    "next_action": null
   },
   "bugs": [
     {
@@ -3110,22 +3126,5 @@
   "current_bug_id": null,
   "parent_project_root": ".",
   "tasks": [],
-  "current_task_id": null,
-  "workflow_state": {
-    "phase": "execution_complete",
-    "updated_at": "2026-06-04T09:43:29.727285Z",
-    "plan_path": "docs/plans/2026-06-03-progress-manager-facade-rounds.md",
-    "execution_context": {
-      "recorded_at": "2026-06-04T09:43:29.727320Z",
-      "source": "set_workflow_state",
-      "workspace_mode": "worktree",
-      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/f21",
-      "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/f21",
-      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/f21/plugins/progress-tracker",
-      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/f21",
-      "branch": "f21",
-      "upstream": null
-    },
-    "next_action": "run prog done --check to validate all gates, then prog done to close F21"
-  }
+  "current_task_id": null
 }

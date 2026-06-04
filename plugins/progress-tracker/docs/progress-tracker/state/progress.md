@@ -2,7 +2,7 @@
 
 **Created**: 2026-04-23T00:28:18.285129Z
 
-**Status**: 20/22 completed
+**Status**: 21/22 completed
 
 ## Completed
 - [x] 根目录混合宿主架构：Monorepo /prog 支持
@@ -25,27 +25,10 @@
 - [x] Parent-Child Route 同步：子插件 set_current/done 回写父 active_routes
 - [x] progress_manager.py 深度模块化拆分（Phase 2 技术债偿还）
 - [x] progress_manager facade 收口 Round 0-1：边界护栏 + 状态/摘要只读链路外移
-
-## In Progress
-- [ ] progress_manager facade 收口 Round 2：readiness validation 外移
-  **Test steps**:
-  - 新建 readiness_validator.py，迁移 validate_feature_readiness / print_readiness_warnings / _build_readiness_fix_commands / print_readiness_error
-  - 迁移 validate_readiness_command / validate_planning_command / fix_readiness_command，并保留 progress_manager.py facade wrappers + is_wrapper = True
-  - 子模块不得 import progress_manager；仅对 load/save progress state、schema defaults、plan validation 等 facade-owned 行为使用 callback injection
-  - 运行 scripts/check_pm_boundary.sh
-  - 运行 python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check
-  - 运行 uv run pytest plugins/progress-tracker/tests/test_prog_readiness.py plugins/progress-tracker/tests/test_validate_planning_json_contract.py plugins/progress-tracker/tests/test_feature_contract_readiness.py -q
-  - DoD: progress-manager-module-map.md 更新 Round 2 ownership/migration status，并追加 docs/changes 记录
-  - DoD: F21 closeout 前必须登记下一条 facade 收口 feature（建议 Round 3-4）或写入明确 defer 决策，避免 Round 3+ 遗漏
+- [x] progress_manager facade 收口 Round 2：readiness validation 外移
 
 ## Pending
 - [ ] AI 可追溯与可回退机制 v1：变更记录 + 自动守卫 + 回退 SOP
-
-## Workflow Context
-- Phase: execution_complete
-- Next action: run prog done --check to validate all gates, then prog done to close F21
-- Execution context: f21 @ f21 [worktree]
-- Current session context: f21 @ f21 [worktree]
 
 ## Recent Updates
 - [UPD-006] status: Regression test update

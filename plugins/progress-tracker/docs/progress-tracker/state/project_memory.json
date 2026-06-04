@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "created_at": "2026-04-12T09:38:02.910760Z",
-  "updated_at": "2026-06-03T09:48:48.875310Z",
-  "next_capability_seq": 27,
+  "updated_at": "2026-06-04T02:28:26.164926Z",
+  "next_capability_seq": 28,
   "last_synced_commit": null,
   "capabilities": [
     {
@@ -479,6 +479,22 @@
       },
       "created_at": "2026-06-03T09:48:48.875270Z",
       "updated_at": "2026-06-03T09:48:48.875270Z"
+    },
+    {
+      "cap_id": "CAP-027",
+      "fingerprint": "412a785341b557f3",
+      "title": "progress_manager facade 收口 Round 2：readiness validation 外移",
+      "summary": "Completed feature 21: progress_manager facade 收口 Round 2：readiness validation 外移",
+      "tags": [],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 21,
+        "commit_hash": "c2678b2d1a84f482df89e7b0b75e667edceab68c",
+        "commit_range": ""
+      },
+      "created_at": "2026-06-04T02:28:26.164876Z",
+      "updated_at": "2026-06-04T02:28:26.164876Z"
     }
   ],
   "rejected_fingerprints": [],
