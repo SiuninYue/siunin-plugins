@@ -3888,18 +3888,26 @@ def set_development_stage(stage: str, feature_id: Optional[int] = None) -> bool:
     ), feature_id=feature_id)
 
 
+def _work_item_selector_services():
+    from work_item_selector import WorkItemSelectorServices
+    return WorkItemSelectorServices(
+        load_progress_json_fn=load_progress_json,
+        is_feature_deferred_fn=_is_feature_deferred,
+        parse_iso_timestamp_fn=_parse_iso_timestamp,
+        now_fn=lambda: datetime.now(tz=timezone.utc),
+        warn_fn=logger.warning,
+        resolve_linked_project_root_fn=_resolve_linked_project_root,
+        load_progress_payload_at_root_fn=_load_progress_payload_at_root,
+        stale_after_hours=DEFAULT_LINKED_STATUS_STALE_HOURS,
+        root_route_code=ROOT_ROUTE_CODE,
+    )
+
+
 def get_next_feature():
     """Get the next incomplete feature."""
-    data = load_progress_json()
-    if not data:
-        return None
-
-    features = data.get("features", [])
-    for feature in features:
-        if not feature.get("completed", False) and not _is_feature_deferred(feature):
-            return feature
-
-    return None
+    from work_item_selector import get_next_feature as _impl
+    return _impl(_work_item_selector_services())
+get_next_feature.is_wrapper = True
 
 
 def _get_dispatched_child_feature(
@@ -3911,102 +3919,19 @@ def _get_dispatched_child_feature(
     parent_data: Optional[Dict[str, Any]] = None,
     stale_after_hours: int = DEFAULT_LINKED_STATUS_STALE_HOURS,
 ) -> Optional[Dict[str, Any]]:
-    """Scan routing_queue and return the first dispatchable feature, or None.
-
-    Supports ``ROOT_ROUTE_CODE`` for root-level features and child project
-    codes for child dispatch.  Emits warnings for unknown non-ROOT codes.
-    """
-    # Build lookup: code -> linked_project_entry
-    lp_lookup: Dict[str, Any] = {}
-    for entry in linked_projects:
-        if isinstance(entry, dict) and entry.get("project_code"):
-            lp_lookup[entry["project_code"]] = entry
-
-    # Build set of conflicted codes from active_routes (child-only)
-    conflicted: set = set()
-    for route in active_routes:
-        if not isinstance(route, dict):
-            continue
-        status = route.get("status")
-        if status in {"done", "cancelled"}:
-            continue
-        assigned_at = route.get("assigned_at")
-        is_stale = False
-        if assigned_at:
-            ts = _parse_iso_timestamp(assigned_at)
-            if ts is not None:
-                now = datetime.now(tz=timezone.utc)
-                age_hours = (now - ts).total_seconds() / 3600
-                if age_hours > stale_after_hours:
-                    is_stale = True
-        if not is_stale:
-            code = route.get("project_code")
-            if code:
-                conflicted.add(code)
-
-    # Scan routing_queue for the first dispatchable entry
-    for position, code in enumerate(routing_queue, start=1):
-        # ROOT: return root-level pending feature
-        if code == ROOT_ROUTE_CODE:
-            if not isinstance(parent_data, dict):
-                continue
-            root_features = parent_data.get("features", [])
-            if not isinstance(root_features, list):
-                continue
-            for f in root_features:
-                if not isinstance(f, dict):
-                    continue
-                if not f.get("completed", False) and not _is_feature_deferred(f):
-                    return {
-                        "dispatched_to": "root",
-                        "child_project_code": ROOT_ROUTE_CODE,
-                        "child_project_root": str(project_root),
-                        "next_feature_id": f.get("id"),
-                        "next_feature_name": f.get("name"),
-                        "action_required": "prog next",
-                        "position": position,
-                    }
-            continue
-
-        # Unknown non-ROOT code: warn and skip (CONSTRAINT-008)
-        if code not in lp_lookup:
-            print(f"[WARN] Code \"{code}\" not found in linked_projects, skipping")
-            continue
-
-        # Child active-route conflict
-        if code in conflicted:
-            continue
-
-        entry = lp_lookup[code]
-        raw_project_root = (
-            entry.get("project_root") or entry.get("path") or entry.get("root")
-        )
-        if not raw_project_root:
-            continue
-        child_root = _resolve_linked_project_root(raw_project_root, project_root, repo_root)
-        child_data, error = _load_progress_payload_at_root(child_root)
-        if error or not child_data:
-            continue
-        feature = None
-        for f in child_data.get("features", []):
-            if not isinstance(f, dict):
-                continue
-            if not f.get("completed", False) and not _is_feature_deferred(f):
-                feature = f
-                break
-        if feature is None:
-            continue
-        return {
-            "dispatched_to": "child",
-            "child_project_code": code,
-            "child_project_root": str(child_root),
-            "next_feature_id": feature.get("id"),
-            "next_feature_name": feature.get("name"),
-            "action_required": f"cd {child_root} && prog next",
-            "position": position,
-        }
-
-    return None
+    """Scan routing_queue and return the first dispatchable feature, or None."""
+    from work_item_selector import get_dispatched_child_feature as _impl
+    return _impl(
+        routing_queue,
+        active_routes,
+        linked_projects,
+        project_root,
+        repo_root,
+        svc=_work_item_selector_services(),
+        parent_data=parent_data,
+        stale_after_hours=stale_after_hours,
+    )
+_get_dispatched_child_feature.is_wrapper = True
 
 
 def _select_next_work_item(
@@ -4014,617 +3939,46 @@ def _select_next_work_item(
     project_root: Path,
     repo_root: Path,
 ) -> Optional[Dict[str, Any]]:
-    """Unified work-item selector with priority ordering.
+    """Unified work-item selector with priority ordering."""
+    from work_item_selector import select_next_work_item as _impl
+    return _impl(data, project_root, repo_root, _work_item_selector_services())
+_select_next_work_item.is_wrapper = True
 
-    Priority order:
-        P0 bug > P1 bug > standalone task > feature_task (child/root) > P2 bug
 
-    routing_queue scanning:
-        ``BUG-<N>``    -> resolved via ``bugs[]``; skipped if status is
-                          ``fixed`` / ``false_positive`` or if the same id is
-                          present in non-terminal ``active_routes``.
-        ``ROOT``       -> root-level pending feature (existing behavior).
-        ``<other>``    -> child project dispatch (existing behavior).
-
-    Fallback when routing_queue produces nothing:
-        1. Scan ``tasks[]`` for the first pending task.
-        2. Otherwise delegate to ``get_next_feature()``.
-
-    Note: P2 (low-priority) bugs are intentionally subordinate to child/root
-    feature dispatch. When routing_queue contains both a dispatchable child
-    project code and a P2 bug, the child feature is selected first. P2 bugs
-    are selected only when no P0/P1 bugs, tasks, or dispatchable child/root
-    features remain.
-
-    Returns ``None`` if nothing actionable is found.
-    """
-    # ------------------------------------------------------------------
-    # Step 1: active_route conflict set for BUG-* entries.
-    # Stale routes (assigned_at older than DEFAULT_LINKED_STATUS_STALE_HOURS)
-    # are treated as non-conflicting, matching the behavior of
-    # _get_dispatched_child_feature() for child project codes.
-    # ------------------------------------------------------------------
-    active_bug_ids: set = set()
-    for route in data.get("active_routes") or []:
-        if not isinstance(route, dict):
-            continue
-        status = route.get("status")
-        if status in ("done", "cancelled"):
-            continue
-        # Stale route -> not a conflict (align with _get_dispatched_child_feature)
-        assigned_at = route.get("assigned_at")
-        if assigned_at:
-            ts = _parse_iso_timestamp(assigned_at)
-            if ts is not None:
-                age_hours = (datetime.now(tz=timezone.utc) - ts).total_seconds() / 3600
-                if age_hours > DEFAULT_LINKED_STATUS_STALE_HOURS:
-                    continue
-        code = route.get("project_code", "")
-        if isinstance(code, str) and code.startswith("BUG-"):
-            active_bug_ids.add(code)
-
-    # ------------------------------------------------------------------
-    # Step 2: bucket routing_queue entries by priority tier.
-    # ------------------------------------------------------------------
-    bugs_map: Dict[str, Dict[str, Any]] = {
-        b["id"]: b
-        for b in (data.get("bugs") or [])
-        if isinstance(b, dict) and isinstance(b.get("id"), str)
-    }
-    skip_statuses = {"fixed", "false_positive"}
-
-    p0_bugs: List[tuple] = []
-    p1_bugs: List[tuple] = []
-    p2_bugs: List[tuple] = []
-    other_entries: List[str] = []
-
-    for entry in data.get("routing_queue") or []:
-        if not isinstance(entry, str):
-            continue
-        if entry.startswith("BUG-"):
-            bug = bugs_map.get(entry)
-            if bug is None:
-                continue
-            if bug.get("status") in skip_statuses:
-                continue
-            if entry in active_bug_ids:
-                continue
-            prio = bug.get("priority", "medium")
-            if prio == "high":
-                p0_bugs.append((entry, bug))
-            elif prio == "low":
-                p2_bugs.append((entry, bug))
-            else:
-                p1_bugs.append((entry, bug))
-        else:
-            other_entries.append(entry)
-
-    def _bug_item(bug_id: str, bug: Dict[str, Any], tier: str) -> Dict[str, Any]:
-        return {
-            "item_type": "bug",
-            "id": bug_id,
-            "name": bug.get("description", bug_id),
-            "priority_tier": tier,
-            "action": f"/prog-fix {bug_id}",
-            "dispatched_to": "bug",
-        }
-
-    def _task_item(task: Dict[str, Any]) -> Dict[str, Any]:
-        task_id = task.get("id")
-        return {
-            "item_type": "task",
-            "id": task_id,
-            "name": task.get("description", task_id),
-            "priority_tier": None,
-            "action": "prog next --done",
-            "dispatched_to": "task",
-        }
-
-    # ------------------------------------------------------------------
-    # Step 3: priority traversal.
-    # ------------------------------------------------------------------
-    # P0 bugs
-    for bug_id, bug in p0_bugs:
-        return _bug_item(bug_id, bug, "P0")
-
-    # P1 bugs
-    for bug_id, bug in p1_bugs:
-        return _bug_item(bug_id, bug, "P1")
-
-    # Standalone tasks (tasks[] scan) before child/root dispatch.
-    for task in data.get("tasks") or []:
-        if isinstance(task, dict) and task.get("status") == "pending":
-            return _task_item(task)
-
-    # Non-bug routing_queue entries (ROOT / child project codes).
-    if other_entries:
-        active_routes = data.get("active_routes") or []
-        linked_projects = data.get("linked_projects") or []
-        dispatch_result = _get_dispatched_child_feature(
-            other_entries,
-            active_routes,
-            linked_projects,
-            project_root,
-            repo_root,
-            parent_data=data,
-        )
-        if dispatch_result:
-            dispatched_to = dispatch_result.get("dispatched_to", "child")
-            item_type = "root" if dispatched_to == "root" else "child"
-            return {
-                "item_type": item_type,
-                "id": dispatch_result.get("next_feature_id"),
-                "name": dispatch_result.get("next_feature_name"),
-                "priority_tier": None,
-                "action": dispatch_result.get("action_required"),
-                "dispatched_to": dispatched_to,
-                "dispatch_result": dispatch_result,
-            }
-
-    # P2 bugs (lowest priority).
-    for bug_id, bug in p2_bugs:
-        return _bug_item(bug_id, bug, "P2")
-
-    # ------------------------------------------------------------------
-    # Step 4: tasks[] fallback (only when routing_queue exhausted with no
-    # actionable bug/child entry). Tasks were already attempted above, but
-    # re-check defensively in case routing_queue was empty entirely.
-    # ------------------------------------------------------------------
-    for task in data.get("tasks") or []:
-        if isinstance(task, dict) and task.get("status") == "pending":
-            return _task_item(task)
-
-    # ------------------------------------------------------------------
-    # Step 5: feature fallback via get_next_feature().
-    # ------------------------------------------------------------------
-    feature = get_next_feature()
-    if feature:
-        return {
-            "item_type": "feature",
-            "id": feature.get("id"),
-            "name": feature.get("name"),
-            "priority_tier": None,
-            "action": "prog next",
-            "dispatched_to": "feature",
-            "feature": feature,
-        }
-
-    return None
+def _next_feature_command_services():
+    from next_feature_commands import NextFeatureCommandServices
+    return NextFeatureCommandServices(
+        load_progress_json_fn=load_progress_json,
+        save_progress_json_fn=save_progress_json,
+        generate_progress_md_fn=generate_progress_md,
+        save_progress_md_fn=save_progress_md,
+        find_project_root_fn=find_project_root,
+        detect_default_branch_fn=_detect_default_branch,
+        run_git_fn=_run_git,
+        update_runtime_context_fn=_update_runtime_context,
+        collect_linked_project_statuses_fn=collect_linked_project_statuses,
+        analyze_reconcile_state_fn=analyze_reconcile_state,
+        evaluate_planning_readiness_fn=readiness_validator._evaluate_planning_readiness,
+        select_next_work_item_fn=_select_next_work_item,
+        get_next_feature_fn=get_next_feature,
+        iso_now_fn=_iso_now,
+        debug_fn=logger.debug,
+        finish_pending_state=FINISH_PENDING_STATE,
+        linked_snapshot_schema_version=LINKED_SNAPSHOT_SCHEMA_VERSION,
+        root_route_code=ROOT_ROUTE_CODE,
+        repo_root=_REPO_ROOT,
+    )
 
 
 def next_feature(output_json: bool = False, ack_planning_risk: bool = False) -> bool:
     """Print the next actionable feature (skipping completed/deferred)."""
-    data = load_progress_json()
-    if data:
-        features = data.get("features", [])
-        pending_finish_feature = next(
-            (
-                feature
-                for feature in features
-                if isinstance(feature, dict)
-                and feature.get("integration_status") == FINISH_PENDING_STATE
-            ),
-            None,
-        )
-        if pending_finish_feature:
-            pending_id = pending_finish_feature.get("id")
-            message = (
-                f"Feature {pending_id} is in finish_pending. "
-                f"Run `prog set-finish-state --feature-id {pending_id} "
-                "--status <merged_and_cleaned|pr_open|kept_with_reason>` first."
-            )
-            payload = {
-                "status": "blocked",
-                "reason": "finish_pending",
-                "feature_id": pending_id,
-                "message": message,
-                "recommended_next_step": (
-                    f"prog set-finish-state --feature-id {pending_id} "
-                    "--status <merged_and_cleaned|pr_open|kept_with_reason>"
-                ),
-            }
-            if output_json:
-                print(json.dumps(payload, ensure_ascii=False))
-            else:
-                print(payload["message"])
-            return False
-
-        reconcile_report = analyze_reconcile_state(data)
-        diagnosis = reconcile_report.get("diagnosis")
-        if diagnosis == "implementation_ahead_of_tracker":
-            payload = {
-                "status": "blocked",
-                "reason": diagnosis,
-                "recommended_next_step": reconcile_report.get("recommended_next_step"),
-                "message": (
-                    "Active feature appears implementation-ahead-of-tracker. "
-                    "Run `prog reconcile` and `/prog done` before selecting another feature."
-                ),
-            }
-            if output_json:
-                print(json.dumps(payload, ensure_ascii=False))
-            else:
-                print(payload["message"])
-            return False
-        if diagnosis in {"scope_mismatch", "context_mismatch"}:
-            payload = {
-                "status": "blocked",
-                "reason": diagnosis,
-                "recommended_next_step": reconcile_report.get("recommended_next_step"),
-                "message": (
-                    "Feature selection is blocked due to scope/context mismatch. "
-                    "Run `prog reconcile` and follow the suggested correction first."
-                ),
-            }
-            if output_json:
-                print(json.dumps(payload, ensure_ascii=False))
-            else:
-                print(payload["message"])
-            return False
-
-    # RouteV1: parent dispatching (PT-F13: unified work-item selection)
-    if data and data.get("tracker_role") == "parent":
-        rq = data.get("routing_queue") or []
-        # Determine whether routing_queue has any non-bug entries; if it is
-        # composed entirely of BUG-* entries (all of which may be filtered),
-        # the "no actionable in queue" error is suppressed.
-        rq_has_non_bug = any(
-            isinstance(e, str) and not e.startswith("BUG-")
-            for e in rq
-        )
-        try:
-            project_root = find_project_root()
-            repo_root = _REPO_ROOT or project_root
-            work_item = _select_next_work_item(data, project_root, repo_root)
-        except Exception as exc:
-            logger.debug(f"Parent dispatch failed: {exc}")
-            work_item = None
-
-        if work_item is not None:
-            item_type = work_item.get("item_type")
-
-            if item_type == "bug":
-                bug_id = work_item["id"]
-                bug_name = work_item["name"]
-                tier = work_item.get("priority_tier")
-                action = work_item.get("action") or f"/prog-fix {bug_id}"
-                if output_json:
-                    print(json.dumps({
-                        "status": "ok",
-                        "item_type": "bug",
-                        "id": bug_id,
-                        "name": bug_name,
-                        "priority_tier": tier,
-                        "action": action,
-                        "feature_id": None,
-                        "test_steps": [],
-                    }, ensure_ascii=False))
-                else:
-                    tier_label = f" {tier}" if tier else ""
-                    print(f"[NEXT]{tier_label} Bug: {bug_id}")
-                    print(f"{bug_id}: {bug_name}")
-                    print(f"Run: {action}")
-                # Register bug in active_routes so /prog reflects it.
-                try:
-                    ar_list = data.get("active_routes")
-                    if not isinstance(ar_list, list):
-                        ar_list = []
-                    ar_list = [
-                        r for r in ar_list
-                        if not (isinstance(r, dict) and r.get("project_code") == bug_id)
-                    ]
-                    ar_list.append({
-                        "project_code": bug_id,
-                        "feature_ref": bug_id,
-                        "feature_name": bug_name,
-                        "assigned_at": _iso_now(),
-                        "status": "active",
-                    })
-                    data["active_routes"] = ar_list
-                    _update_runtime_context(data, source="next_dispatch")
-                    save_progress_json(data)
-                    md_content = generate_progress_md(data)
-                    save_progress_md(md_content)
-                except Exception as exc:
-                    logger.debug(f"Bug dispatch bookkeeping failed: {exc}")
-                return True
-
-            if item_type == "task":
-                task_id = work_item["id"]
-                task_name = work_item["name"]
-                # Look up full task record to check parent_feature_id.
-                tasks = data.get("tasks") or []
-                task_record = next(
-                    (t for t in tasks if isinstance(t, dict) and t.get("id") == task_id),
-                    None,
-                )
-                parent_fid = task_record.get("parent_feature_id") if task_record else None
-                is_standalone = parent_fid is None
-
-                original_branch = None
-                if is_standalone:
-                    # Create short-lived branch before activating.
-                    branch_name = f"task/{task_id}"
-                    git_dir = project_root / ".git"
-                    if git_dir.exists():
-                        rc_orig, orig_out, _ = _run_git(
-                            ["rev-parse", "--abbrev-ref", "HEAD"], cwd=str(project_root)
-                        )
-                        if rc_orig == 0:
-                            original_branch = orig_out.strip()
-                        # Branch from the default branch, not current HEAD,
-                        # to avoid carrying unrelated changes into the squash merge.
-                        task_base = _detect_default_branch(project_root) or "main"
-                        rc_verify, _, _ = _run_git(
-                            ["rev-parse", "--verify", "--quiet", task_base],
-                            cwd=str(project_root),
-                        )
-                        if rc_verify == 0:
-                            rc, _, err = _run_git(
-                                ["checkout", "-b", branch_name, task_base],
-                                cwd=str(project_root),
-                            )
-                        else:
-                            rc, _, err = _run_git(
-                                ["checkout", "-b", branch_name],
-                                cwd=str(project_root),
-                            )
-                        if rc != 0:
-                            print(f"Error: could not create branch {branch_name}: {err}")
-                            return False
-
-                # Persist current_task_id after branch (standalone) or immediately (feature-bound).
-                try:
-                    data["current_task_id"] = task_id
-                    data["updated_at"] = _iso_now()
-                    save_progress_json(data)
-                except Exception as exc:
-                    # Roll back branch creation for standalone tasks.
-                    if is_standalone and original_branch:
-                        _run_git(["checkout", original_branch], cwd=str(project_root))
-                        _run_git(["branch", "-D", branch_name], cwd=str(project_root))
-                    print(f"Error: failed to save task state: {exc}", file=sys.stderr)
-                    return False
-
-                action = "prog next --done"
-                if output_json:
-                    print(json.dumps({
-                        "status": "ok",
-                        "item_type": "task",
-                        "id": task_id,
-                        "name": task_name,
-                        "priority_tier": None,
-                        "action": action,
-                        "feature_id": parent_fid,
-                        "test_steps": [],
-                    }, ensure_ascii=False))
-                else:
-                    print(f"Task selected: {task_id}")
-                    print(f"{task_id}: {task_name}")
-                    print(f"Run: {action}")
-                return True
-
-            if item_type in ("child", "root"):
-                dispatch_result = work_item.get("dispatch_result") or {}
-                code = dispatch_result.get("child_project_code")
-                fid = dispatch_result.get("next_feature_id")
-                fname = dispatch_result.get("next_feature_name")
-                action = dispatch_result.get("action_required")
-                pos = dispatch_result.get("position", "?")
-                if output_json:
-                    print(json.dumps(dispatch_result, ensure_ascii=False))
-                else:
-                    if code == ROOT_ROUTE_CODE:
-                        print(f"[NEXT] Root-level feature (routing_queue position {pos}):")
-                    else:
-                        print(f"[NEXT] Dispatching to [{code}] (routing_queue position {pos}):")
-                    print(f"F{fid}: {fname}")
-                    print(f"Run: {action}")
-                # Register dispatch in active_routes + refresh linked_snapshot
-                # so /prog reflects that this child is now active.
-                if code and code != ROOT_ROUTE_CODE:
-                    try:
-                        ar_list = data.get("active_routes")
-                        if not isinstance(ar_list, list):
-                            ar_list = []
-                        ar_list = [
-                            r for r in ar_list
-                            if not (isinstance(r, dict) and r.get("project_code") == code)
-                        ]
-                        ar_list.append({
-                            "project_code": code,
-                            "feature_ref": f"F{fid}",
-                            "feature_name": fname,
-                            "assigned_at": _iso_now(),
-                            "status": "active",
-                        })
-                        data["active_routes"] = ar_list
-                        statuses = collect_linked_project_statuses(
-                            data, project_root=project_root, repo_root=repo_root,
-                            active_routes=ar_list,
-                        )
-                        linked_snapshot = data.get("linked_snapshot")
-                        if not isinstance(linked_snapshot, dict):
-                            linked_snapshot = {}
-                        linked_snapshot["schema_version"] = LINKED_SNAPSHOT_SCHEMA_VERSION
-                        linked_snapshot["updated_at"] = _iso_now()
-                        linked_snapshot["projects"] = statuses
-                        data["linked_snapshot"] = linked_snapshot
-                        _update_runtime_context(data, source="next_dispatch")
-                        save_progress_json(data)
-                        md_content = generate_progress_md(data)
-                        save_progress_md(md_content)
-                    except Exception as exc:
-                        logger.debug(f"Child dispatch bookkeeping failed: {exc}")
-                return True
-
-            # item_type == "feature": fall through to the legacy feature
-            # rendering path below so planning preflight still runs.
-
-        # No work item from unified selector. If routing_queue contained
-        # non-bug entries that could not be dispatched, surface the legacy
-        # "no actionable in queue" error (returncode 1).
-        if rq and rq_has_non_bug and (
-            work_item is None or work_item.get("item_type") not in ("feature",)
-        ):
-            no_action_msg = (
-                "No actionable feature found in routing_queue. "
-                "Check queue configuration with 'prog route-status'."
-            )
-            if output_json:
-                print(json.dumps({
-                    "status": "none",
-                    "message": no_action_msg,
-                    "routing_queue": rq,
-                }, ensure_ascii=False))
-            else:
-                print(no_action_msg)
-            return False
-
-        # If routing_queue contained only BUG-* entries that were all
-        # filtered (fixed / false_positive / active_route conflict) and
-        # nothing else is actionable, treat this as a successful no-op
-        # (exit 0) rather than an error: the queue was reviewed and the
-        # user has nothing to do.
-        if rq and not rq_has_non_bug and work_item is None:
-            no_action_msg = (
-                "No actionable work item. All routing_queue bug entries are "
-                "filtered (fixed / in-progress) and no tasks or features "
-                "remain."
-            )
-            if output_json:
-                print(json.dumps({
-                    "status": "none",
-                    "message": no_action_msg,
-                    "routing_queue": rq,
-                }, ensure_ascii=False))
-            else:
-                print(no_action_msg)
-            return True
-
-    # Standalone task activation (non-parent / leaf projects).
-    if data:
-        tasks = data.get("tasks") or []
-        pending_task = next(
-            (t for t in tasks if isinstance(t, dict) and t.get("status") == "pending"),
-            None,
-        )
-        if pending_task is not None:
-            task_id = pending_task.get("id")
-            task_name = pending_task.get("description", task_id)
-            parent_fid = pending_task.get("parent_feature_id")
-            is_standalone = parent_fid is None
-
-            original_branch = None
-            if is_standalone:
-                project_root = find_project_root()
-                branch_name = f"task/{task_id}"
-                # Only attempt branch creation inside a git repo.
-                git_dir = project_root / ".git"
-                if git_dir.exists():
-                    rc_orig, orig_out, _ = _run_git(
-                        ["rev-parse", "--abbrev-ref", "HEAD"], cwd=str(project_root)
-                    )
-                    if rc_orig == 0:
-                        original_branch = orig_out.strip()
-                    # Branch from the default branch, not current HEAD,
-                    # to avoid carrying unrelated changes into the squash merge.
-                    task_base = _detect_default_branch(project_root) or "main"
-                    rc_verify, _, _ = _run_git(
-                        ["rev-parse", "--verify", "--quiet", task_base],
-                        cwd=str(project_root),
-                    )
-                    if rc_verify == 0:
-                        rc, _, err = _run_git(
-                            ["checkout", "-b", branch_name, task_base],
-                            cwd=str(project_root),
-                        )
-                    else:
-                        rc, _, err = _run_git(
-                            ["checkout", "-b", branch_name],
-                            cwd=str(project_root),
-                        )
-                    if rc != 0:
-                        print(f"Error: could not create branch {branch_name}: {err}")
-                        return False
-
-            # Persist current_task_id.
-            try:
-                data["current_task_id"] = task_id
-                data["updated_at"] = _iso_now()
-                save_progress_json(data)
-            except Exception as exc:
-                # Roll back branch creation for standalone tasks.
-                if is_standalone and original_branch:
-                    _run_git(["checkout", original_branch], cwd=str(project_root))
-                    _run_git(["branch", "-D", branch_name], cwd=str(project_root))
-                print(f"Error: failed to save task state: {exc}", file=sys.stderr)
-                return False
-
-            action = "prog next --done"
-            if output_json:
-                print(json.dumps({
-                    "status": "ok",
-                    "item_type": "task",
-                    "id": task_id,
-                    "name": task_name,
-                    "priority_tier": None,
-                    "action": action,
-                    "feature_id": parent_fid,
-                    "test_steps": [],
-                }, ensure_ascii=False))
-            else:
-                print(f"Task selected: {task_id}")
-                print(f"{task_id}: {task_name}")
-                print(f"Run: {action}")
-            return True
-
-    feature = get_next_feature()
-    if not feature:
-        if output_json:
-            print(json.dumps({"status": "none", "message": "No actionable feature found"}))
-        else:
-            print("No actionable feature found.")
-        return False
-
-    payload = {
-        "status": "ok",
-        "feature_id": feature.get("id"),
-        "name": feature.get("name"),
-        "test_steps": feature.get("test_steps", []),
-        "deferred": bool(feature.get("deferred", False)),
-    }
-
-    planning_report = readiness_validator._evaluate_planning_readiness(data, feature_id=feature.get("id"))
-    if planning_report["status"] in {"missing", "warn"} and not ack_planning_risk:
-        blocked = {
-            "status": "blocked",
-            "reason": f"planning_{planning_report['status']}",
-            "feature_id": feature.get("id"),
-            "required": planning_report["required"],
-            "missing": planning_report["missing"],
-            "optional_missing": planning_report["optional_missing"],
-            "refs": planning_report["refs"],
-            "message": planning_report["message"],
-            "recommended_next_step": (
-                "Run SPM planning commands, or re-run with "
-                "`prog next-feature --ack-planning-risk` to continue."
-            ),
-        }
-        if output_json:
-            print(json.dumps(blocked, ensure_ascii=False))
-        else:
-            print(blocked["message"])
-            print(blocked["recommended_next_step"])
-        return False
-
-    payload["planning"] = planning_report
-
-    if output_json:
-        print(json.dumps(payload, ensure_ascii=False))
-    else:
-        print(f"Next actionable feature: [{payload['feature_id']}] {payload['name']}")
-    return True
+    from next_feature_commands import next_feature_command
+    return next_feature_command(
+        output_json=output_json,
+        ack_planning_risk=ack_planning_risk,
+        svc=_next_feature_command_services(),
+    )
+next_feature.is_wrapper = True
 
 
 def set_feature_ai_metrics(

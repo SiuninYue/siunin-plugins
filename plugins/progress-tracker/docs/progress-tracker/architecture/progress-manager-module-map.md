@@ -1,6 +1,6 @@
 # progress_manager Facade Module Map
 
-**Status:** F21 Round 2 navigation artifact  
+**Status:** F23 Round 4 navigation artifact
 **Plan:** `docs/plans/2026-06-03-progress-manager-facade-rounds.md`  
 **Updated:** 2026-06-04
 
@@ -47,6 +47,8 @@ New business logic should move into focused modules under
 | Status display/read command | `status_commands.py` | F20 wrappers only | Owns `status`, root dashboard, stale bug display, status handoff rendering. |
 | Readiness validation | `readiness_validator.py` | F21 wrappers only | Owns `validate_feature_readiness`, `print_readiness_warnings`, `_build_readiness_fix_commands`, `print_readiness_error`, `validate_readiness_command`, `validate_planning_command`, `fix_readiness_command`, and `_evaluate_planning_readiness`. Callbacks injected: load/save json, generate/save md. |
 | Feature activation + stage commands | `feature_commands.py` | F22 wrappers only | `set_current`, `set_development_stage` extracted. Callbacks: load/save json, gen/save md, update_ctx, auto_state_commit, notify_parent_sync. |
+| Work-item selection | `work_item_selector.py` | F23 wrappers only | Owns `get_next_feature`, child/root dispatch selection, and unified bug/task/feature priority selection. Callbacks: state load, defer check, timestamp parse, linked-root resolution, child payload load. |
+| Next-feature command | `next_feature_commands.py` | F23 wrappers only | Owns `next_feature` orchestration, JSON/text rendering, task activation, parent active-route bookkeeping, planning gate display, and feature payload output. Callbacks: state IO, git helpers, reconcile analysis, planning readiness, selector, linked snapshot refresh. |
 
 ## Remaining Facade Weight
 
@@ -55,8 +57,6 @@ are candidates for the next extraction rounds:
 
 | Planned round | Candidate module | Remaining behavior cluster |
 |---|---|---|
-| Round 3 | `feature_commands.py` | `set_current`, development-stage transitions, active feature mutation. |
-| Round 4 | `work_item_selector.py`, optional `next_feature_commands.py` | Work-item selection and `next_feature` routing. |
 | Round 5 | `completion_flow.py`, optional `acceptance_runner.py`, optional `completion_cleanup.py` | `done`, `complete_feature`, acceptance reports, finish-state cleanup. |
 | Round 6 | `work_item_commands.py` or `backlog_commands.py` | Intake, feature/backlog/update/retro/owner mutation commands. |
 | Round 7 | `workflow_commands.py` | Workflow state commands, plan validation command, health check, reconcile command. |

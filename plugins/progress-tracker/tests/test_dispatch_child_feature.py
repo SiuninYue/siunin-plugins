@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from unittest.mock import patch
 
@@ -272,7 +273,7 @@ class TestGetDispatchedChildFeature:
         assert result["dispatched_to"] == "root"
         assert result["position"] == 2
 
-    def test_dispatch_unknown_code_warns_then_root(self, temp_dir, capsys):
+    def test_dispatch_unknown_code_warns_then_root(self, temp_dir, caplog):
         """Unknown code before ROOT warns and dispatches ROOT."""
         routing_queue = ["GHOST", progress_manager.ROOT_ROUTE_CODE]
         active_routes = []
@@ -281,6 +282,7 @@ class TestGetDispatchedChildFeature:
             "features": [{"id": 1, "name": "Root Feature", "completed": False}],
         }
 
+        caplog.set_level(logging.WARNING)
         result = _get_dispatched_child_feature(
             routing_queue, active_routes, linked_projects,
             project_root=temp_dir, repo_root=temp_dir,
@@ -289,8 +291,7 @@ class TestGetDispatchedChildFeature:
 
         assert result is not None
         assert result["dispatched_to"] == "root"
-        captured = capsys.readouterr()
-        assert '[WARN] Code "GHOST" not found in linked_projects, skipping' in captured.out
+        assert 'Code "GHOST" not found in linked_projects, skipping' in caplog.text
 
     def test_dispatch_no_root_in_queue_no_silent_fallback(self, temp_dir):
         """Queue without ROOT does not silently return root features (CONSTRAINT-005)."""

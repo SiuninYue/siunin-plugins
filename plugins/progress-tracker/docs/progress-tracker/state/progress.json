@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-06-04T15:39:30.311036Z",
+  "updated_at": "2026-06-04T16:22:26.471867Z",
   "features": [
     {
       "id": 10,
@@ -2944,7 +2944,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "approved",
+      "lifecycle_state": "implementing",
       "requirement_ids": [
         "REQ-023"
       ],
@@ -2978,9 +2978,17 @@
           "evaluator_model": null
         },
         "reviews": {
-          "required": [],
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
           "passed": [],
-          "pending": []
+          "pending": [
+            "docs",
+            "eng",
+            "qa"
+          ]
         },
         "ship_check": {
           "status": "pending",
@@ -2989,9 +2997,22 @@
         }
       },
       "sprint_contract": {
-        "scope": "",
-        "done_criteria": [],
-        "test_plan": [],
+        "scope": "Extract work-item selection and next-feature command logic into dedicated modules with injected dependencies while preserving public facade imports and CLI behavior.",
+        "done_criteria": [
+          "work_item_selector.py owns pure selection and dispatch helpers",
+          "next_feature_commands.py owns next-feature command orchestration",
+          "progress_manager.py retains wrappers marked with is_wrapper = True",
+          "No submodule imports progress_manager",
+          "Module map and change record are updated",
+          "Required boundary, docs, focused, and full regression checks pass"
+        ],
+        "test_plan": [
+          "scripts/check_pm_boundary.sh",
+          "python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check",
+          "uv run pytest plugins/progress-tracker/tests/test_dispatch_child_feature.py plugins/progress-tracker/tests/test_unified_selection.py plugins/progress-tracker/tests/test_task_execution_semantics.py plugins/progress-tracker/tests/test_scope_fail_closed.py -q",
+          "uv run pytest plugins/progress-tracker/tests/test_progress_manager.py -k 'next_feature or planning_gate or finish_pending' -q",
+          "uv run pytest plugins/progress-tracker/tests/ -q"
+        ],
         "accepted_by": null,
         "accepted_at": null
       },
@@ -3000,10 +3021,25 @@
         "to_phase": null,
         "artifact_path": null,
         "created_at": null
+      },
+      "development_stage": "developing",
+      "started_at": "2026-06-04T08:07:31.615497",
+      "ai_metrics": {
+        "complexity_score": 27,
+        "complexity_bucket": "complex",
+        "selected_model": "opus",
+        "workflow_path": "full_design_plan_execute",
+        "scoring_v2": {
+          "score": 27,
+          "raw_score_bucket": "simple",
+          "routed_bucket": "complex",
+          "confidence": "low"
+        },
+        "started_at": "2026-06-04T16:08:03.285873Z"
       }
     }
   ],
-  "current_feature_id": null,
+  "current_feature_id": 23,
   "linked_projects": [],
   "linked_snapshot": {
     "schema_version": "1.0",
@@ -3268,17 +3304,17 @@
   ],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-06-04T14:43:43.838729Z",
+    "recorded_at": "2026-06-04T16:22:26.414040Z",
     "source": "set_workflow_state",
     "workspace_mode": "worktree",
-    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-22-facade-round3",
-    "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-22-facade-round3",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-22-facade-round3",
-    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-22-facade-round3",
-    "branch": "worktree-feature-22-facade-round3",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/codex-f23-work-item-selection",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/codex-f23-work-item-selection",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/codex-f23-work-item-selection",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/codex-f23-work-item-selection",
+    "branch": "codex/f23-work-item-selection",
     "upstream": null,
-    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-22-facade-round3/plugins/progress-tracker",
-    "current_feature_id": 22,
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/codex-f23-work-item-selection/plugins/progress-tracker",
+    "current_feature_id": 23,
     "workflow_phase": "execution_complete",
     "current_task": null,
     "total_tasks": null,
@@ -3405,5 +3441,22 @@
   "current_bug_id": null,
   "parent_project_root": ".",
   "tasks": [],
-  "current_task_id": null
+  "current_task_id": null,
+  "workflow_state": {
+    "phase": "execution_complete",
+    "updated_at": "2026-06-04T16:22:26.371525Z",
+    "next_action": "verify_and_complete",
+    "execution_context": {
+      "recorded_at": "2026-06-04T16:22:26.371784Z",
+      "source": "set_workflow_state",
+      "workspace_mode": "worktree",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/codex-f23-work-item-selection",
+      "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/codex-f23-work-item-selection",
+      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/codex-f23-work-item-selection/plugins/progress-tracker",
+      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/codex-f23-work-item-selection",
+      "branch": "codex/f23-work-item-selection",
+      "upstream": null
+    },
+    "plan_path": "docs/plans/2026-06-04-f23-work-item-selection-round4.md"
+  }
 }

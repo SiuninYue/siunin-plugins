@@ -28,11 +28,25 @@
 - [x] progress_manager facade 收口 Round 2：readiness validation 外移
 - [x] progress_manager facade 收口 Round 3：Feature Activation and Stage Commands 外移
 
-## Pending
+## In Progress
 - [ ] progress_manager facade 收口 Round 4：Work-Item Selection and next_feature 外移
+  **Test steps**:
+  - 新建 work_item_selector.py 与 next_feature_commands.py，迁移 get_next_feature, _get_dispatched_child_feature, _select_next_work_item, next_feature 核心实现
+  - 在 progress_manager.py 中保留 wrappers 并标记 is_wrapper = True
+  - 子模块不得反向 import progress_manager，通过 callback 注入 state/md 读写、运行时上下文更新与 git 探针接口
+  - 运行 scripts/check_pm_boundary.sh 与 generate_prog_docs.py --check 通过
+  - 运行 uv run pytest 覆盖 work-item selector 与 next-feature 单元测试与全量回归通过
+  - DoD: 更新 progress-manager-module-map.md，并在 docs/changes/index.jsonl 中追加变更记录
+  - DoD: F23 closeout 前必须登记下一条收口 feature (Round 5) 或写入 defer 决策
 
 ## Deferred
 - [~] AI 可追溯与可回退机制 v1：变更记录 + 自动守卫 + 回退 SOP — Round 3 facade convergence is prioritized before F19 rollback mechanism
+
+## Workflow Context
+- Phase: execution_complete
+- Next action: verify_and_complete
+- Execution context: codex/f23-work-item-selection @ codex-f23-work-item-selection [worktree]
+- Current session context: codex/f23-work-item-selection @ codex-f23-work-item-selection [worktree]
 
 ## Recent Updates
 - [UPD-010] decision: 设置 F21 closeout 防遗忘门槛：必须登记下一条 facade 收口 feature 或写明 defer 决策 (feature:21)
