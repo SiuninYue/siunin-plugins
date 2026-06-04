@@ -29,12 +29,26 @@
 - [x] progress_manager facade 收口 Round 3：Feature Activation and Stage Commands 外移
 - [x] progress_manager facade 收口 Round 4：Work-Item Selection and next_feature 外移
 
-## Pending
+## In Progress
 - [ ] progress_manager facade 收口 Round 5：Completion Flow and Cleanup 外移
+  **Test steps**:
+  - 新建 completion_flow.py，迁移 done, complete_feature, archive_feature_docs, _run_acceptance_tests, cleanup 核心实现
+  - 在 progress_manager.py 中保留 wrappers 并标记 is_wrapper = True
+  - 子模块不得反向 import progress_manager，通过 callback 注入 state 读写、git操作与 docs 生成等接口
+  - 运行 scripts/check_pm_boundary.sh 与 generate_prog_docs.py --check 通过
+  - 运行 uv run pytest 覆盖 completion flow 单元测试与全量回归通过
+  - DoD: 更新 progress-manager-module-map.md，并在 docs/changes/index.jsonl 中追加变更记录
+  - DoD: F24 closeout 前必须登记下一条收口 feature (Round 6) 或写入 defer 决策
+
+## Pending
 - [ ] AI Workspace Entropy Manager
 
 ## Deferred
 - [~] AI 可追溯与可回退机制 v1：变更记录 + 自动守卫 + 回退 SOP — Round 3 facade convergence is prioritized before F19 rollback mechanism
+
+## Workflow Context
+- Phase: planning
+- Current session context: main @ Claude-Plugins [in_place]
 
 ## Recent Updates
 - [UPD-010] decision: 设置 F21 closeout 防遗忘门槛：必须登记下一条 facade 收口 feature 或写明 defer 决策 (feature:21)
