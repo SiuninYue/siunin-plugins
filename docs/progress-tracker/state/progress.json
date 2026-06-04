@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "Test",
   "created_at": "2026-05-14T13:53:00.008608Z",
-  "updated_at": "2026-06-04T17:29:16.103535Z",
+  "updated_at": "2026-06-04T17:34:31.145136Z",
   "features": [],
   "current_feature_id": null,
   "tracker_role": "parent",
@@ -32,7 +32,7 @@
   ],
   "linked_snapshot": {
     "schema_version": "1.0",
-    "updated_at": "2026-06-04T17:29:16.026746Z",
+    "updated_at": "2026-06-04T17:34:31.144930Z",
     "projects": [
       {
         "status": "ok",
@@ -58,9 +58,9 @@
         "completed": 23,
         "total": 26,
         "completion_rate": 0.8846153846153846,
-        "updated_at": "2026-06-04T17:29:10.580130Z",
+        "updated_at": "2026-06-04T17:34:30.814131Z",
         "is_stale": false,
-        "active_feature_ref": null,
+        "active_feature_ref": "PT-F24",
         "project_code": "PT",
         "child_project_code": "PT",
         "workspace": "in_place",
@@ -87,9 +87,8 @@
   "active_routes": [
     {
       "project_code": "PT",
-      "feature_ref": "PT-F25",
-      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
-      "branch": "main"
+      "feature_ref": "PT-F24",
+      "assigned_at": "2026-06-04T17:34:31.144953Z"
     }
   ],
   "updates": [],
