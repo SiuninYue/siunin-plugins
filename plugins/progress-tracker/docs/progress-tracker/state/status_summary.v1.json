@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-06-04T01:29:28.683824Z",
+  "updated_at": "2026-06-04T02:28:26.478409Z",
   "source": {
     "generator": "summary_projector.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,27 +11,27 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1780536568367501479,
-      "size": 137013
+      "mtime_ns": 1780540106161040404,
+      "size": 138288
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
       "exists": true,
-      "mtime_ns": 1779789986424835704,
+      "mtime_ns": 1780536788567875475,
       "size": 16381
     }
   },
   "progress": {
-    "completed": 20,
+    "completed": 21,
     "total": 22,
-    "percentage": 90
+    "percentage": 95
   },
   "next_action": {
     "type": "feature",
-    "feature_id": 21,
-    "feature_name": "progress_manager facade 收口 Round 2：readiness validation 外移",
-    "development_stage": "developing",
-    "stage_label": "开发中"
+    "feature_id": 19,
+    "feature_name": "AI 可追溯与可回退机制 v1：变更记录 + 自动守卫 + 回退 SOP",
+    "development_stage": "pending",
+    "stage_label": "待开始"
   },
   "plan_health": {
     "status": "N/A",

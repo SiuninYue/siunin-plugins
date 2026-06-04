@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "Test",
   "created_at": "2026-05-14T13:53:00.008608Z",
-  "updated_at": "2026-06-04T09:29:28.686142Z",
+  "updated_at": "2026-06-04T10:28:26.480863Z",
   "features": [],
   "current_feature_id": null,
   "tracker_role": "parent",
@@ -32,12 +32,12 @@
   ],
   "linked_snapshot": {
     "schema_version": "1.0",
-    "updated_at": "2026-06-04T09:29:28.685917Z",
+    "updated_at": "2026-06-04T10:28:26.480650Z",
     "projects": [
       {
         "status": "ok",
         "configured_project_root": "plugins/note-organizer",
-        "project_root": "/Users/siunin/Projects/Claude-Plugins/plugins/note-organizer",
+        "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/f21/plugins/note-organizer",
         "project_name": "Note Organizer Plugin",
         "completed": 0,
         "total": 0,
@@ -53,23 +53,23 @@
       {
         "status": "ok",
         "configured_project_root": "plugins/progress-tracker",
-        "project_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+        "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/f21/plugins/progress-tracker",
         "project_name": "progress-tracker-sop-compliance-optimization",
-        "completed": 20,
+        "completed": 21,
         "total": 22,
-        "completion_rate": 0.9090909090909091,
-        "updated_at": "2026-06-04T09:29:28.366413Z",
+        "completion_rate": 0.9545454545454546,
+        "updated_at": "2026-06-04T10:28:26.160172Z",
         "is_stale": false,
-        "active_feature_ref": "PT-F21",
+        "active_feature_ref": null,
         "project_code": "PT",
         "child_project_code": "PT",
-        "workspace": "in_place",
+        "workspace": "worktree",
         "route_status": "active"
       },
       {
         "status": "ok",
         "configured_project_root": "plugins/super-product-manager",
-        "project_root": "/Users/siunin/Projects/Claude-Plugins/plugins/super-product-manager",
+        "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/f21/plugins/super-product-manager",
         "project_name": "SPM-PROG Harness Linkage",
         "completed": 0,
         "total": 0,
@@ -84,13 +84,7 @@
       }
     ]
   },
-  "active_routes": [
-    {
-      "project_code": "PT",
-      "feature_ref": "PT-F21",
-      "assigned_at": "2026-06-04T09:29:28.685942Z"
-    }
-  ],
+  "active_routes": [],
   "updates": [],
   "retrospectives": [],
   "tasks": [],
