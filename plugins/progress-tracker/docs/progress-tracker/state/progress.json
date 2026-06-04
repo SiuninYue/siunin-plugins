@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-06-04T09:29:28.366413Z",
+  "updated_at": "2026-06-04T09:31:39.625856Z",
   "features": [
     {
       "id": 10,
@@ -2610,7 +2610,20 @@
       },
       "plan_path": "docs/plans/2026-06-03-progress-manager-facade-rounds.md",
       "development_stage": "developing",
-      "started_at": "2026-06-04T09:29:28.335062Z"
+      "started_at": "2026-06-04T09:29:28.335062Z",
+      "ai_metrics": {
+        "complexity_score": 40,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "scoring_v2": {
+          "score": 40,
+          "raw_score_bucket": "standard",
+          "routed_bucket": "standard",
+          "confidence": "high"
+        },
+        "started_at": "2026-06-04T09:30:58.469908Z"
+      }
     },
     {
       "id": 19,
@@ -2954,8 +2967,8 @@
   ],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-06-04T09:29:28.335107Z",
-    "source": "set_current",
+    "recorded_at": "2026-06-04T09:31:39.597004Z",
+    "source": "set_workflow_state",
     "workspace_mode": "in_place",
     "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
     "project_root": "/Users/siunin/Projects/Claude-Plugins",
@@ -2965,7 +2978,7 @@
     "upstream": "origin/main",
     "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
     "current_feature_id": 21,
-    "workflow_phase": "planning",
+    "workflow_phase": "planning:approved",
     "current_task": null,
     "total_tasks": null,
     "next_action": null
@@ -3093,7 +3106,19 @@
   "tasks": [],
   "current_task_id": null,
   "workflow_state": {
-    "phase": "planning",
-    "updated_at": "2026-06-04T09:29:28.335079Z"
+    "phase": "planning:approved",
+    "updated_at": "2026-06-04T09:31:39.567060Z",
+    "plan_path": "docs/plans/2026-06-03-progress-manager-facade-rounds.md",
+    "execution_context": {
+      "recorded_at": "2026-06-04T09:31:39.567089Z",
+      "source": "set_workflow_state",
+      "workspace_mode": "in_place",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+      "project_root": "/Users/siunin/Projects/Claude-Plugins",
+      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
+      "branch": "main",
+      "upstream": "origin/main"
+    }
   }
 }
