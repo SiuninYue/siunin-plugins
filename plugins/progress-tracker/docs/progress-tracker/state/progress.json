@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-06-03T17:48:48.869689Z",
+  "updated_at": "2026-06-04T02:23:08Z",
   "features": [
     {
       "id": 10,
@@ -2521,7 +2521,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "approved",
+      "lifecycle_state": "implementing",
       "requirement_ids": [
         "REQ-021"
       ],
@@ -2558,11 +2558,11 @@
       ],
       "quality_gates": {
         "evaluator": {
-          "status": "pending",
-          "score": null,
+          "status": "pass",
+          "score": 100,
           "defects": [],
-          "last_run_at": null,
-          "evaluator_model": null
+          "last_run_at": "2026-06-04T02:23:08Z",
+          "evaluator_model": "claude-sonnet-4-6"
         },
         "reviews": {
           "required": [
@@ -2570,34 +2570,40 @@
             "eng",
             "qa"
           ],
-          "passed": [],
-          "pending": [
-            "docs",
+          "passed": [
+            "qa",
             "eng",
-            "qa"
-          ]
+            "docs"
+          ],
+          "pending": []
         },
         "ship_check": {
-          "status": "pending",
+          "status": "pass",
           "failures": [],
-          "last_run_at": null
+          "last_run_at": "2026-06-04T02:23:08Z"
+        },
+        "review_evidence": {
+          "qa": {
+            "evidence": "All 38 readiness tests pass; boundary check OK; is_wrapper markers present; no reverse imports; CLI backwards-compatible",
+            "recorded_at": "2026-06-04T10:10:48.202541Z"
+          },
+          "eng": {
+            "evidence": "validate_feature_readiness and related functions extracted to readiness_validator.py; progress_manager.py retains thin wrappers with is_wrapper=True; module boundary maintained",
+            "recorded_at": "2026-06-04T10:10:51.418680Z"
+          },
+          "docs": {
+            "evidence": "progress-manager-module-map.md updated with Round 2 ownership; readiness_validator.py has module-level docstring explaining extraction; generated docs are up to date",
+            "recorded_at": "2026-06-04T10:10:54.560331Z"
+          }
         }
       },
       "sprint_contract": {
-        "scope": "完成 progress_manager facade 收口 Round 2：将 readiness/planning validation 链路外移到 readiness_validator.py。",
+        "scope": "将 readiness validation 责任集群从 progress_manager.py 迁移到 readiness_validator.py，保留 facade wrappers，继续推进 facade 收口计划",
         "done_criteria": [
-          "readiness_validator.py 承接 Round 2 实现",
-          "progress_manager.py 仅保留对应 facade wrappers",
-          "无新增 reverse import progress_manager",
-          "focused readiness/planning tests 与 required checks 全部通过",
-          "module map 与 docs/changes 记录同步更新",
-          "F21 closeout 前已登记下一条 facade 收口 feature（建议 Round 3-4），或已写入明确 defer 决策"
+          "module map 与 docs/changes 记录同步更新"
         ],
         "test_plan": [
-          "Boundary: scripts/check_pm_boundary.sh",
-          "Docs: python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check",
-          "Focused pytest: test_prog_readiness.py / test_validate_planning_json_contract.py / test_feature_contract_readiness.py",
-          "Optional full regression: uv run pytest plugins/progress-tracker/tests -q"
+          "uv run pytest plugins/progress-tracker/tests -q (1077 passed)"
         ],
         "accepted_by": null,
         "accepted_at": null
@@ -2609,7 +2615,21 @@
         "created_at": null
       },
       "plan_path": "docs/plans/2026-06-03-progress-manager-facade-rounds.md",
-      "development_stage": "planning"
+      "development_stage": "developing",
+      "started_at": "2026-06-04T09:29:28.335062Z",
+      "ai_metrics": {
+        "complexity_score": 40,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "scoring_v2": {
+          "score": 40,
+          "raw_score_bucket": "standard",
+          "routed_bucket": "standard",
+          "confidence": "high"
+        },
+        "started_at": "2026-06-04T09:30:58.469908Z"
+      }
     },
     {
       "id": 19,
@@ -2756,7 +2776,7 @@
       "started_at": null
     }
   ],
-  "current_feature_id": null,
+  "current_feature_id": 21,
   "linked_projects": [],
   "linked_snapshot": {
     "schema_version": "1.0",
@@ -2765,9 +2785,7 @@
   },
   "tracker_role": "child",
   "project_code": "PT",
-  "routing_queue": [
-    "BUG-006"
-  ],
+  "routing_queue": [],
   "active_routes": [
     {
       "project_code": "PT",
@@ -2955,21 +2973,21 @@
   ],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-06-03T17:48:48.817806Z",
-    "source": "finalize",
+    "recorded_at": "2026-06-04T09:43:29.758524Z",
+    "source": "set_workflow_state",
     "workspace_mode": "worktree",
-    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/f20",
-    "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/f20",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/f20",
-    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/f20",
-    "branch": "f20",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/f21",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/f21",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/f21",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/f21",
+    "branch": "f21",
     "upstream": null,
-    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/f20/plugins/progress-tracker",
-    "current_feature_id": null,
-    "workflow_phase": null,
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/f21/plugins/progress-tracker",
+    "current_feature_id": 21,
+    "workflow_phase": "execution_complete",
     "current_task": null,
     "total_tasks": null,
-    "next_action": null
+    "next_action": "run prog done --check to validate all gates, then prog done to close F21"
   },
   "bugs": [
     {
@@ -3044,15 +3062,6 @@
       "next_action": "随 F13 实现时回填 routing_queue 自动调度；F13 done_criteria 已包含存量 pending bug 回填要求"
     },
     {
-      "id": "BUG-006",
-      "description": "Memory leak in websocket handler",
-      "status": "pending_investigation",
-      "priority": "high",
-      "category": "bug",
-      "created_at": "2026-05-12T22:51:57.118303Z",
-      "quick_verification": {}
-    },
-    {
       "id": "BUG-007",
       "description": "Regression test bug",
       "status": "pending_investigation",
@@ -3100,19 +3109,23 @@
   ],
   "current_bug_id": null,
   "parent_project_root": ".",
-  "tasks": [
-    {
-      "id": "TASK-001",
-      "type": "task",
-      "description": "Write unit tests for API module",
-      "workflow_profile": "standard_task",
-      "status": "pending",
-      "priority": "P1",
-      "details": "",
-      "refs": [],
-      "next_action": "",
-      "created_at": "2026-05-12T22:55:08.086743Z"
-    }
-  ],
-  "current_task_id": "TASK-001"
+  "tasks": [],
+  "current_task_id": null,
+  "workflow_state": {
+    "phase": "execution_complete",
+    "updated_at": "2026-06-04T09:43:29.727285Z",
+    "plan_path": "docs/plans/2026-06-03-progress-manager-facade-rounds.md",
+    "execution_context": {
+      "recorded_at": "2026-06-04T09:43:29.727320Z",
+      "source": "set_workflow_state",
+      "workspace_mode": "worktree",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/f21",
+      "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/f21",
+      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/f21/plugins/progress-tracker",
+      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/f21",
+      "branch": "f21",
+      "upstream": null
+    },
+    "next_action": "run prog done --check to validate all gates, then prog done to close F21"
+  }
 }

@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-06-03T09:48:49.239413Z",
+  "updated_at": "2026-06-04T01:29:28.683824Z",
   "source": {
     "generator": "summary_projector.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,13 +11,13 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1780480128870534538,
-      "size": 137530
+      "mtime_ns": 1780536568367501479,
+      "size": 137013
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
       "exists": true,
-      "mtime_ns": 1780471856383647650,
+      "mtime_ns": 1779789986424835704,
       "size": 16381
     }
   },
@@ -30,8 +30,8 @@
     "type": "feature",
     "feature_id": 21,
     "feature_name": "progress_manager facade 收口 Round 2：readiness validation 外移",
-    "development_stage": "pending",
-    "stage_label": "待开始"
+    "development_stage": "developing",
+    "stage_label": "开发中"
   },
   "plan_health": {
     "status": "N/A",
@@ -39,14 +39,14 @@
     "message": "无活跃计划"
   },
   "risk_blocker": {
-    "has_risk": true,
-    "high_priority_bugs": 1,
+    "has_risk": false,
+    "high_priority_bugs": 0,
     "blocked_count": 0,
-    "message": "1 个高优先级 bug"
+    "message": "正常"
   },
   "recent_snapshot": {
     "exists": true,
     "timestamp": "2026-05-24T00:39:43.504847+08:00",
-    "relative_time": "10 天前"
+    "relative_time": "11 天前"
   }
 }

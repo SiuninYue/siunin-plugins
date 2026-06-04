@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-06-03T08:43:07.143451Z",
+  "updated_at": "2026-06-04T01:41:30.229281Z",
   "source": {
     "generator": "summary_projector.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,7 +11,7 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1780471856362847199,
+      "mtime_ns": 1780536788546400703,
       "size": 3477
     },
     "checkpoints": {
