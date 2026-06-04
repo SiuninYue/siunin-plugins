@@ -26,9 +26,24 @@
 - [x] progress_manager.py 深度模块化拆分（Phase 2 技术债偿还）
 - [x] progress_manager facade 收口 Round 0-1：边界护栏 + 状态/摘要只读链路外移
 
-## Pending
+## In Progress
 - [ ] progress_manager facade 收口 Round 2：readiness validation 外移
+  **Test steps**:
+  - 新建 readiness_validator.py，迁移 validate_feature_readiness / print_readiness_warnings / _build_readiness_fix_commands / print_readiness_error
+  - 迁移 validate_readiness_command / validate_planning_command / fix_readiness_command，并保留 progress_manager.py facade wrappers + is_wrapper = True
+  - 子模块不得 import progress_manager；仅对 load/save progress state、schema defaults、plan validation 等 facade-owned 行为使用 callback injection
+  - 运行 scripts/check_pm_boundary.sh
+  - 运行 python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check
+  - 运行 uv run pytest plugins/progress-tracker/tests/test_prog_readiness.py plugins/progress-tracker/tests/test_validate_planning_json_contract.py plugins/progress-tracker/tests/test_feature_contract_readiness.py -q
+  - DoD: progress-manager-module-map.md 更新 Round 2 ownership/migration status，并追加 docs/changes 记录
+  - DoD: F21 closeout 前必须登记下一条 facade 收口 feature（建议 Round 3-4）或写入明确 defer 决策，避免 Round 3+ 遗漏
+
+## Pending
 - [ ] AI 可追溯与可回退机制 v1：变更记录 + 自动守卫 + 回退 SOP
+
+## Workflow Context
+- Phase: planning
+- Current session context: main @ Claude-Plugins [in_place]
 
 ## Recent Updates
 - [UPD-006] status: Regression test update
@@ -42,9 +57,6 @@
   Next: When closing F21, create the next facade convergence feature for Round 3-4 or record an explicit defer decision.
 
 ## Bug Backlog
-### High Priority (🔴)
-- [🔴] [BUG-006] Memory leak in websocket handler
-
 ### Medium Priority (🟡)
 - [🔴] [BUG-008] [DEBT] F14: AC-3 profile gate matrix — mutual exclusivity tested but different validation-depth per profile not explicitly validated
 - [🔴] [BUG-009] [DEBT] F14: _git_squash_close_task error-recovery branches (checkout/merge/commit failures) not covered by tests
