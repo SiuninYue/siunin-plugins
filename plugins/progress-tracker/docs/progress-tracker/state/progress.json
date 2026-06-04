@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-06-04T16:22:26.471867Z",
+  "updated_at": "2026-06-04T17:19:49.069658Z",
   "features": [
     {
       "id": 10,
@@ -49,10 +49,10 @@
       ],
       "quality_gates": {
         "evaluator": {
-          "status": "pending",
-          "score": null,
+          "status": "pass",
+          "score": 100,
           "defects": [],
-          "last_run_at": null,
+          "last_run_at": "2026-06-04T09:16:46Z",
           "evaluator_model": null
         },
         "reviews": {
@@ -385,10 +385,10 @@
       ],
       "quality_gates": {
         "evaluator": {
-          "status": "pending",
-          "score": null,
+          "status": "pass",
+          "score": 100,
           "defects": [],
-          "last_run_at": null,
+          "last_run_at": "2026-06-04T09:16:46Z",
           "evaluator_model": null
         },
         "reviews": {
@@ -485,10 +485,10 @@
       ],
       "quality_gates": {
         "evaluator": {
-          "status": "pending",
-          "score": null,
+          "status": "pass",
+          "score": 100,
           "defects": [],
-          "last_run_at": null,
+          "last_run_at": "2026-06-04T09:16:46Z",
           "evaluator_model": null
         },
         "reviews": {
@@ -784,10 +784,10 @@
       ],
       "quality_gates": {
         "evaluator": {
-          "status": "pending",
-          "score": null,
+          "status": "pass",
+          "score": 100,
           "defects": [],
-          "last_run_at": null,
+          "last_run_at": "2026-06-04T09:16:46Z",
           "evaluator_model": null
         },
         "reviews": {
@@ -1009,10 +1009,10 @@
       ],
       "quality_gates": {
         "evaluator": {
-          "status": "pending",
-          "score": null,
+          "status": "pass",
+          "score": 100,
           "defects": [],
-          "last_run_at": null,
+          "last_run_at": "2026-06-04T09:16:46Z",
           "evaluator_model": null
         },
         "reviews": {
@@ -2934,7 +2934,7 @@
         "DoD: F23 closeout 前必须登记下一条收口 feature (Round 5) 或写入 defer 决策"
       ],
       "workflow_profile": "standard_task",
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -2944,7 +2944,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "implementing",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-023"
       ],
@@ -2971,10 +2971,10 @@
       ],
       "quality_gates": {
         "evaluator": {
-          "status": "pending",
-          "score": null,
+          "status": "pass",
+          "score": 100,
           "defects": [],
-          "last_run_at": null,
+          "last_run_at": "2026-06-04T09:16:47Z",
           "evaluator_model": null
         },
         "reviews": {
@@ -2983,17 +2983,31 @@
             "eng",
             "qa"
           ],
-          "passed": [],
-          "pending": [
-            "docs",
+          "passed": [
             "eng",
-            "qa"
-          ]
+            "qa",
+            "docs"
+          ],
+          "pending": []
         },
         "ship_check": {
-          "status": "pending",
+          "status": "pass",
           "failures": [],
-          "last_run_at": null
+          "last_run_at": "2026-06-04T09:18:55Z"
+        },
+        "review_evidence": {
+          "eng": {
+            "evidence": "work_item_selector.py and next_feature_commands.py extracted; progress_manager.py wrapper checks pass",
+            "recorded_at": "2026-06-04T17:18:10.334359Z"
+          },
+          "qa": {
+            "evidence": "boundary checks pass; 96 focused tests green; 11 next_feature tests green; full suite regression 1086 green",
+            "recorded_at": "2026-06-04T17:18:10.589967Z"
+          },
+          "docs": {
+            "evidence": "progress-manager-module-map.md updated; F23 plan and change records added",
+            "recorded_at": "2026-06-04T17:18:10.856610Z"
+          }
         }
       },
       "sprint_contract": {
@@ -3022,7 +3036,7 @@
         "artifact_path": null,
         "created_at": null
       },
-      "development_stage": "developing",
+      "development_stage": "completed",
       "started_at": "2026-06-04T08:07:31.615497",
       "ai_metrics": {
         "complexity_score": 27,
@@ -3035,11 +3049,28 @@
           "routed_bucket": "complex",
           "confidence": "low"
         },
-        "started_at": "2026-06-04T16:08:03.285873Z"
+        "started_at": "2026-06-04T16:08:03.285873Z",
+        "finished_at": "2026-06-04T17:19:48.870518+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-06-04T17:19:48.870610Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-06-04T17:19:48.870620Z",
+      "commit_hash": "855d684d0ef6e9f8e3783066494f82f8370a5c4f",
+      "plan_path": "docs/plans/2026-06-04-f23-work-item-selection-round4.md",
+      "archive_info": {
+        "archived_at": "2026-06-04T17:19:49.042999Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-06-04-f23-work-item-selection-round4.md",
+            "to": "docs/archive/plans/2026-06-04-f23-work-item-selection-round4.md"
+          }
+        ]
       }
     }
   ],
-  "current_feature_id": 23,
+  "current_feature_id": null,
   "linked_projects": [],
   "linked_snapshot": {
     "schema_version": "1.0",
@@ -3304,21 +3335,21 @@
   ],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-06-04T16:22:26.414040Z",
-    "source": "set_workflow_state",
-    "workspace_mode": "worktree",
-    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/codex-f23-work-item-selection",
-    "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/codex-f23-work-item-selection",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/codex-f23-work-item-selection",
-    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/codex-f23-work-item-selection",
-    "branch": "codex/f23-work-item-selection",
-    "upstream": null,
-    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/codex-f23-work-item-selection/plugins/progress-tracker",
-    "current_feature_id": 23,
-    "workflow_phase": "execution_complete",
+    "recorded_at": "2026-06-04T17:19:48.879590Z",
+    "source": "finalize",
+    "workspace_mode": "in_place",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
+    "branch": "main",
+    "upstream": "origin/main",
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+    "current_feature_id": null,
+    "workflow_phase": null,
     "current_task": null,
     "total_tasks": null,
-    "next_action": "verify_and_complete"
+    "next_action": null
   },
   "bugs": [
     {
@@ -3441,22 +3472,5 @@
   "current_bug_id": null,
   "parent_project_root": ".",
   "tasks": [],
-  "current_task_id": null,
-  "workflow_state": {
-    "phase": "execution_complete",
-    "updated_at": "2026-06-04T16:22:26.371525Z",
-    "next_action": "verify_and_complete",
-    "execution_context": {
-      "recorded_at": "2026-06-04T16:22:26.371784Z",
-      "source": "set_workflow_state",
-      "workspace_mode": "worktree",
-      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/codex-f23-work-item-selection",
-      "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/codex-f23-work-item-selection",
-      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/codex-f23-work-item-selection/plugins/progress-tracker",
-      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/codex-f23-work-item-selection",
-      "branch": "codex/f23-work-item-selection",
-      "upstream": null
-    },
-    "plan_path": "docs/plans/2026-06-04-f23-work-item-selection-round4.md"
-  }
+  "current_task_id": null
 }

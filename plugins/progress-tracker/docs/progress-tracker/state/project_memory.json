@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "created_at": "2026-04-12T09:38:02.910760Z",
-  "updated_at": "2026-06-04T02:28:26.164926Z",
-  "next_capability_seq": 28,
+  "updated_at": "2026-06-04T09:19:49.108921Z",
+  "next_capability_seq": 29,
   "last_synced_commit": null,
   "capabilities": [
     {
@@ -495,6 +495,22 @@
       },
       "created_at": "2026-06-04T02:28:26.164876Z",
       "updated_at": "2026-06-04T02:28:26.164876Z"
+    },
+    {
+      "cap_id": "CAP-028",
+      "fingerprint": "55e3270cef559258",
+      "title": "progress_manager facade 收口 Round 4：Work-Item Selection and next_feature 外移",
+      "summary": "Completed feature 23: progress_manager facade 收口 Round 4：Work-Item Selection and next_feature 外移",
+      "tags": [],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 23,
+        "commit_hash": "855d684d0ef6e9f8e3783066494f82f8370a5c4f",
+        "commit_range": ""
+      },
+      "created_at": "2026-06-04T09:19:49.108869Z",
+      "updated_at": "2026-06-04T09:19:49.108869Z"
     }
   ],
   "rejected_fingerprints": [],
