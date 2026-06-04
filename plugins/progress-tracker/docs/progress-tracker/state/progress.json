@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-06-04T17:23:42.715075Z",
+  "updated_at": "2026-06-04T17:29:10.580130Z",
   "features": [
     {
       "id": 10,
@@ -3116,6 +3116,85 @@
         "Scenario: 运行 uv run pytest 覆盖 completion flow 单元测试与全量回归通过",
         "Scenario: DoD: 更新 progress-manager-module-map.md，并在 docs/changes/index.jsonl 中追加变更记录",
         "Scenario: DoD: F24 closeout 前必须登记下一条收口 feature (Round 6) 或写入 defer 决策"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
+    },
+    {
+      "id": 25,
+      "name": "AI Workspace Entropy Manager",
+      "test_steps": [
+        "Task 1: Add Entropy Report Model and Dirty-Change Classifier",
+        "Task 2: Add Branch Cleanup Eligibility",
+        "Task 3: Add entropy-check and entropy-fix Facade Commands",
+        "Task 4: Integrate Safe Entropy Preflight into next_feature",
+        "Task 5: Add Audit Report and Change Record",
+        "Acceptance: Safe entropy-fix applied, branch deleted only when merged, next_feature runs preflight and passes all tests"
+      ],
+      "workflow_profile": "standard_task",
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-025"
+      ],
+      "change_spec": {
+        "why": "Deliver AI Workspace Entropy Manager with traceable acceptance coverage.",
+        "in_scope": [
+          "AI Workspace Entropy Manager"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: Task 1: Add Entropy Report Model and Dirty-Change Classifier",
+        "Scenario: Task 2: Add Branch Cleanup Eligibility",
+        "Scenario: Task 3: Add entropy-check and entropy-fix Facade Commands",
+        "Scenario: Task 4: Integrate Safe Entropy Preflight into next_feature",
+        "Scenario: Task 5: Add Audit Report and Change Record",
+        "Scenario: Acceptance: Safe entropy-fix applied, branch deleted only when merged, next_feature runs preflight and passes all tests"
       ],
       "quality_gates": {
         "evaluator": {

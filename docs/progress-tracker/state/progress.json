@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "Test",
   "created_at": "2026-05-14T13:53:00.008608Z",
-  "updated_at": "2026-06-04T17:23:53.405108Z",
+  "updated_at": "2026-06-04T17:29:16.103535Z",
   "features": [],
   "current_feature_id": null,
   "tracker_role": "parent",
@@ -32,7 +32,7 @@
   ],
   "linked_snapshot": {
     "schema_version": "1.0",
-    "updated_at": "2026-06-04T17:23:53.327955Z",
+    "updated_at": "2026-06-04T17:29:16.026746Z",
     "projects": [
       {
         "status": "ok",
@@ -56,9 +56,9 @@
         "project_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
         "project_name": "progress-tracker-sop-compliance-optimization",
         "completed": 23,
-        "total": 25,
-        "completion_rate": 0.92,
-        "updated_at": "2026-06-04T17:23:42.715075Z",
+        "total": 26,
+        "completion_rate": 0.8846153846153846,
+        "updated_at": "2026-06-04T17:29:10.580130Z",
         "is_stale": false,
         "active_feature_ref": null,
         "project_code": "PT",
@@ -87,7 +87,7 @@
   "active_routes": [
     {
       "project_code": "PT",
-      "feature_ref": "PT-F24",
+      "feature_ref": "PT-F25",
       "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
       "branch": "main"
     }
