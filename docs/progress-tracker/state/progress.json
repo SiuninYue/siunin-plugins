@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "Test",
   "created_at": "2026-05-14T13:53:00.008608Z",
-  "updated_at": "2026-06-04T16:07:31.888999Z",
+  "updated_at": "2026-06-04T17:19:52.668153Z",
   "features": [],
   "current_feature_id": null,
   "tracker_role": "parent",
@@ -32,12 +32,12 @@
   ],
   "linked_snapshot": {
     "schema_version": "1.0",
-    "updated_at": "2026-06-04T16:07:31.888143Z",
+    "updated_at": "2026-06-04T17:19:52.593970Z",
     "projects": [
       {
         "status": "ok",
         "configured_project_root": "plugins/note-organizer",
-        "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/codex-f23-work-item-selection/plugins/note-organizer",
+        "project_root": "/Users/siunin/Projects/Claude-Plugins/plugins/note-organizer",
         "project_name": "Note Organizer Plugin",
         "completed": 0,
         "total": 0,
@@ -53,23 +53,23 @@
       {
         "status": "ok",
         "configured_project_root": "plugins/progress-tracker",
-        "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/codex-f23-work-item-selection/plugins/progress-tracker",
+        "project_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
         "project_name": "progress-tracker-sop-compliance-optimization",
-        "completed": 22,
+        "completed": 23,
         "total": 24,
-        "completion_rate": 0.9166666666666666,
-        "updated_at": "2026-06-04T16:07:31.666034Z",
+        "completion_rate": 0.9583333333333334,
+        "updated_at": "2026-06-04T17:19:49.069658Z",
         "is_stale": false,
-        "active_feature_ref": "PT-F23",
+        "active_feature_ref": null,
         "project_code": "PT",
         "child_project_code": "PT",
-        "workspace": "worktree",
-        "route_status": "active"
+        "workspace": "in_place",
+        "route_status": "idle"
       },
       {
         "status": "ok",
         "configured_project_root": "plugins/super-product-manager",
-        "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/codex-f23-work-item-selection/plugins/super-product-manager",
+        "project_root": "/Users/siunin/Projects/Claude-Plugins/plugins/super-product-manager",
         "project_name": "SPM-PROG Harness Linkage",
         "completed": 0,
         "total": 0,
@@ -84,13 +84,7 @@
       }
     ]
   },
-  "active_routes": [
-    {
-      "project_code": "PT",
-      "feature_ref": "PT-F23",
-      "assigned_at": "2026-06-04T16:07:31.888372Z"
-    }
-  ],
+  "active_routes": [],
   "updates": [],
   "retrospectives": [],
   "tasks": [],
