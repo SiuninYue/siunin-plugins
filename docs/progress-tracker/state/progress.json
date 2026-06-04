@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "Test",
   "created_at": "2026-05-14T13:53:00.008608Z",
-  "updated_at": "2026-06-04T15:09:05.534815Z",
+  "updated_at": "2026-06-04T15:29:48.307585Z",
   "features": [],
   "current_feature_id": null,
   "tracker_role": "parent",
@@ -32,7 +32,7 @@
   ],
   "linked_snapshot": {
     "schema_version": "1.0",
-    "updated_at": "2026-06-04T15:09:05.534623Z",
+    "updated_at": "2026-06-04T15:29:48.215970Z",
     "projects": [
       {
         "status": "ok",
@@ -87,25 +87,26 @@
   "active_routes": [
     {
       "project_code": "PT",
-      "feature_ref": "PT-F22",
-      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-22-facade-round3",
-      "branch": "worktree-feature-22-facade-round3"
+      "feature_ref": "F23",
+      "feature_name": "progress_manager facade 收口 Round 4：Work-Item Selection and next_feature 外移",
+      "assigned_at": "2026-06-04T15:29:48.214062Z",
+      "status": "active"
     }
   ],
   "updates": [],
   "retrospectives": [],
   "tasks": [],
   "runtime_context": {
-    "recorded_at": "2026-06-04T14:04:23.762276Z",
-    "source": "route_select",
-    "workspace_mode": "worktree",
-    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-22-facade-round3",
-    "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-22-facade-round3",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-22-facade-round3",
-    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-22-facade-round3",
-    "branch": "worktree-feature-22-facade-round3",
-    "upstream": null,
-    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-22-facade-round3",
+    "recorded_at": "2026-06-04T15:17:33.797244Z",
+    "source": "session_start",
+    "workspace_mode": "in_place",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
+    "branch": "main",
+    "upstream": "origin/main",
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins",
     "current_feature_id": null,
     "workflow_phase": null,
     "current_task": null,

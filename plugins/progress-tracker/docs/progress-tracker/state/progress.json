@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-06-04T15:09:05.526551Z",
+  "updated_at": "2026-06-04T15:39:30.311036Z",
   "features": [
     {
       "id": 10,
@@ -3221,6 +3221,40 @@
       "summary": "F22 CEO review complete",
       "details": null,
       "feature_id": 22,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:ceo_review",
+        "doc:docs/plans/2026-06-03-progress-manager-facade-rounds.md"
+      ]
+    },
+    {
+      "id": "UPD-013",
+      "created_at": "2026-06-04T15:39:28.048605Z",
+      "category": "status",
+      "summary": "F23 planning approved in office hours",
+      "details": null,
+      "feature_id": 23,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:office_hours",
+        "doc:docs/plans/2026-06-03-progress-manager-facade-rounds.md"
+      ]
+    },
+    {
+      "id": "UPD-014",
+      "created_at": "2026-06-04T15:39:30.310607Z",
+      "category": "status",
+      "summary": "F23 CEO review complete",
+      "details": null,
+      "feature_id": 23,
       "bug_id": null,
       "role": null,
       "owner": null,

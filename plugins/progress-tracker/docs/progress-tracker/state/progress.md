@@ -35,14 +35,12 @@
 - [~] AI 可追溯与可回退机制 v1：变更记录 + 自动守卫 + 回退 SOP — Round 3 facade convergence is prioritized before F19 rollback mechanism
 
 ## Recent Updates
-- [UPD-008] decision: 登记 Round 0-1 为独立执行 feature，并显式排在 F19 前 (feature:20)
-  Next: Start Round 0 by hardening scripts/check_pm_boundary.sh before any code extraction.
-- [UPD-009] decision: 安排 facade 收口后续优先级：F21 执行 Round 2 readiness validation 外移，F19 暂后 (feature:21)
-  Next: Close/complete F20 after validation, then start F21 Round 2 readiness_validator.py extraction before returning to F19.
 - [UPD-010] decision: 设置 F21 closeout 防遗忘门槛：必须登记下一条 facade 收口 feature 或写明 defer 决策 (feature:21)
   Next: When closing F21, create the next facade convergence feature for Round 3-4 or record an explicit defer decision.
 - [UPD-011] status: F22 planning approved in office hours (feature:22)
 - [UPD-012] status: F22 CEO review complete (feature:22)
+- [UPD-013] status: F23 planning approved in office hours (feature:23)
+- [UPD-014] status: F23 CEO review complete (feature:23)
 
 ## Bug Backlog
 ### Medium Priority (🟡)
