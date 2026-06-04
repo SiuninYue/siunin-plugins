@@ -1,8 +1,8 @@
 # progress_manager Facade Module Map
 
-**Status:** F20 Round 1 navigation artifact  
+**Status:** F21 Round 2 navigation artifact  
 **Plan:** `docs/plans/2026-06-03-progress-manager-facade-rounds.md`  
-**Updated:** 2026-06-03
+**Updated:** 2026-06-04
 
 ## Purpose
 
@@ -45,6 +45,7 @@ New business logic should move into focused modules under
 | Evaluator gateway | `evaluator_gateway.py` | Wrapper/delegation | F18 extraction. |
 | Summary projection read path | `summary_projector.py` | F20 wrappers only | Owns status summary projection, fingerprinting, cache rebuild, relative time formatting. |
 | Status display/read command | `status_commands.py` | F20 wrappers only | Owns `status`, root dashboard, stale bug display, status handoff rendering. |
+| Readiness validation | `readiness_validator.py` | F21 wrappers only | Owns `validate_feature_readiness`, `print_readiness_warnings`, `_build_readiness_fix_commands`, `print_readiness_error`, `validate_readiness_command`, `validate_planning_command`, `fix_readiness_command`. Callbacks injected: load/save json, generate/save md, `_evaluate_planning_readiness`. |
 
 ## Remaining Facade Weight
 
@@ -53,7 +54,6 @@ are candidates for the next extraction rounds:
 
 | Planned round | Candidate module | Remaining behavior cluster |
 |---|---|---|
-| Round 2 | `readiness_validator.py` | Readiness validation, planning validation, readiness fix command. |
 | Round 3 | `feature_commands.py` | `set_current`, development-stage transitions, active feature mutation. |
 | Round 4 | `work_item_selector.py`, optional `next_feature_commands.py` | Work-item selection and `next_feature` routing. |
 | Round 5 | `completion_flow.py`, optional `acceptance_runner.py`, optional `completion_cleanup.py` | `done`, `complete_feature`, acceptance reports, finish-state cleanup. |

@@ -42,9 +42,9 @@
 - [ ] AI 可追溯与可回退机制 v1：变更记录 + 自动守卫 + 回退 SOP
 
 ## Workflow Context
-- Phase: planning:approved
-- Execution context: main @ Claude-Plugins [in_place]
-- Current session context: main @ Claude-Plugins [in_place]
+- Phase: execution
+- Execution context: f21 @ f21 [worktree]
+- Current session context: f21 @ f21 [worktree]
 
 ## Recent Updates
 - [UPD-006] status: Regression test update
