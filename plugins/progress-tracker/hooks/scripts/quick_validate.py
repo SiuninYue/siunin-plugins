@@ -24,6 +24,7 @@ REQUIRED_DESCRIPTION_TOKENS = {
 }
 
 REQUIRED_REFERENCE_FILES = [
+    "skills/feature-implement/references/complexity-scoring-haiku-prompt.md",
     "skills/feature-implement/references/session-playbook.md",
     "skills/feature-complete/references/verification-playbook.md",
     "skills/feature-complete/references/session-examples.md",
