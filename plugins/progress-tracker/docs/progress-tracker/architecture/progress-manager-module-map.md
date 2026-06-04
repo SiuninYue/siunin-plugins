@@ -46,6 +46,7 @@ New business logic should move into focused modules under
 | Summary projection read path | `summary_projector.py` | F20 wrappers only | Owns status summary projection, fingerprinting, cache rebuild, relative time formatting. |
 | Status display/read command | `status_commands.py` | F20 wrappers only | Owns `status`, root dashboard, stale bug display, status handoff rendering. |
 | Readiness validation | `readiness_validator.py` | F21 wrappers only | Owns `validate_feature_readiness`, `print_readiness_warnings`, `_build_readiness_fix_commands`, `print_readiness_error`, `validate_readiness_command`, `validate_planning_command`, `fix_readiness_command`, and `_evaluate_planning_readiness`. Callbacks injected: load/save json, generate/save md. |
+| Feature activation + stage commands | `feature_commands.py` | F22 wrappers only | `set_current`, `set_development_stage` extracted. Callbacks: load/save json, gen/save md, update_ctx, auto_state_commit, notify_parent_sync. |
 
 ## Remaining Facade Weight
 
