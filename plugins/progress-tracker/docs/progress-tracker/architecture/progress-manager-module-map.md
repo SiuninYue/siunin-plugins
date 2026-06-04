@@ -45,7 +45,7 @@ New business logic should move into focused modules under
 | Evaluator gateway | `evaluator_gateway.py` | Wrapper/delegation | F18 extraction. |
 | Summary projection read path | `summary_projector.py` | F20 wrappers only | Owns status summary projection, fingerprinting, cache rebuild, relative time formatting. |
 | Status display/read command | `status_commands.py` | F20 wrappers only | Owns `status`, root dashboard, stale bug display, status handoff rendering. |
-| Readiness validation | `readiness_validator.py` | F21 wrappers only | Owns `validate_feature_readiness`, `print_readiness_warnings`, `_build_readiness_fix_commands`, `print_readiness_error`, `validate_readiness_command`, `validate_planning_command`, `fix_readiness_command`. Callbacks injected: load/save json, generate/save md, `_evaluate_planning_readiness`. |
+| Readiness validation | `readiness_validator.py` | F21 wrappers only | Owns `validate_feature_readiness`, `print_readiness_warnings`, `_build_readiness_fix_commands`, `print_readiness_error`, `validate_readiness_command`, `validate_planning_command`, `fix_readiness_command`, and `_evaluate_planning_readiness`. Callbacks injected: load/save json, generate/save md. |
 
 ## Remaining Facade Weight
 

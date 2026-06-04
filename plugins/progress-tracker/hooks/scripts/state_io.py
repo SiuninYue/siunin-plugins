@@ -433,6 +433,21 @@ def _apply_schema_defaults_core(data: Dict[str, Any]) -> Optional[Tuple[str, str
 
     return migrated
 
+def _normalize_ref_tokens(refs: Optional[List[str]]) -> List[str]:
+    """Normalize and deduplicate ref tokens while preserving encounter order."""
+    normalized: List[str] = []
+    seen = set()
+    for raw in refs or []:
+        if not isinstance(raw, str):
+            continue
+        token = raw.strip()
+        if not token or token in seen:
+            continue
+        seen.add(token)
+        normalized.append(token)
+    return normalized
+
+
 
 def _normalize_context_path(value: Optional[str]) -> Optional[str]:
     """Normalize paths for cross-platform comparison."""

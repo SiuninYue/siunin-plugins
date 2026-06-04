@@ -121,6 +121,7 @@ from state_io import (
     _clear_feature_defer_state,
     _normalize_feature_contract,
     _normalize_optional_string,
+    _normalize_ref_tokens,
 )
 def __getattr__(name: str) -> Any:
     """Forward lock state aliases to lock_manager to avoid stale references."""
@@ -277,17 +278,6 @@ WORKFLOW_PROFILE_DEFAULT = "standard_task"
 UPDATE_CATEGORIES = ("status", "decision", "risk", "handoff", "assignment", "meeting")
 UPDATE_SOURCES = ("prog_update", "spm_meeting", "spm_assign", "spm_planning", "manual")
 UPDATE_REFS_INLINE_LIMIT = 12
-PLANNING_SOURCE = "spm_planning"
-PLANNING_REQUIRED_REFS = ("office_hours", "ceo_review")
-PLANNING_OPTIONAL_REFS = ("design_review", "devex_review")
-PLANNING_ARTIFACT_DIRS = ("docs/product-contracts", "docs/product-reviews")
-PLANNING_MESSAGE_KEYS = {
-    "gate_disabled": "planning.gate_disabled",
-    "missing": "planning.missing",
-    "optional_missing": "planning.optional_missing",
-    "ready": "planning.ready",
-}
-PLANNING_SCHEMA_VERSION = "1.0"
 RECONCILE_DIAGNOSES = (
     "in_sync",
     "implementation_ahead_of_tracker",
@@ -1320,7 +1310,6 @@ def _make_readiness_validator_services() -> ReadinessValidatorServices:
         save_progress_json_fn=save_progress_json,
         generate_progress_md_fn=generate_progress_md,
         save_progress_md_fn=save_progress_md,
-        evaluate_planning_readiness_fn=_evaluate_planning_readiness,
     )
 
 
@@ -1332,10 +1321,6 @@ validate_feature_readiness.is_wrapper = True
 def print_readiness_warnings(report: Dict[str, Any]) -> None:
     return readiness_validator.print_readiness_warnings(report)
 print_readiness_warnings.is_wrapper = True
-
-
-def _build_readiness_fix_commands(feature_id: int, errors: List[str]) -> List[str]:
-    return readiness_validator._build_readiness_fix_commands(feature_id, errors)
 
 
 def print_readiness_error(feature: Dict[str, Any], report: Dict[str, Any]) -> None:
@@ -4705,7 +4690,7 @@ def next_feature(output_json: bool = False, ack_planning_risk: bool = False) -> 
         "deferred": bool(feature.get("deferred", False)),
     }
 
-    planning_report = _evaluate_planning_readiness(data, feature_id=feature.get("id"))
+    planning_report = readiness_validator._evaluate_planning_readiness(data, feature_id=feature.get("id"))
     if planning_report["status"] in {"missing", "warn"} and not ack_planning_risk:
         blocked = {
             "status": "blocked",
@@ -6453,20 +6438,6 @@ def _format_feature_owners(feature: Dict[str, Any]) -> Optional[str]:
 _format_feature_owners.is_wrapper = True
 
 
-def _normalize_ref_tokens(refs: Optional[List[str]]) -> List[str]:
-    """Normalize and deduplicate ref tokens while preserving encounter order."""
-    normalized: List[str] = []
-    seen: Set[str] = set()
-    for raw in refs or []:
-        if not isinstance(raw, str):
-            continue
-        token = raw.strip()
-        if not token or token in seen:
-            continue
-        seen.add(token)
-        normalized.append(token)
-    return normalized
-
 
 def _collect_auto_update_refs(feature: Dict[str, Any]) -> List[str]:
     """Collect deterministic auto refs from a feature contract payload."""
@@ -6492,111 +6463,6 @@ def _compact_update_refs(refs: List[str]) -> Tuple[List[str], List[str]]:
         return refs, []
     return refs[:UPDATE_REFS_INLINE_LIMIT], refs[UPDATE_REFS_INLINE_LIMIT:]
 
-
-def _collect_update_refs(update_item: Dict[str, Any]) -> List[str]:
-    """Collect refs and overflow refs from one update item."""
-    refs: List[str] = []
-    inline_refs = update_item.get("refs")
-    if isinstance(inline_refs, list):
-        refs.extend([ref for ref in inline_refs if isinstance(ref, str)])
-    overflow_refs = update_item.get("refs_overflow")
-    if isinstance(overflow_refs, list):
-        refs.extend([ref for ref in overflow_refs if isinstance(ref, str)])
-    return _normalize_ref_tokens(refs)
-
-
-def _planning_gate_enabled(data: Dict[str, Any]) -> bool:
-    """Return whether preflight planning gate should be evaluated for this project."""
-    updates = data.get("updates", [])
-    if isinstance(updates, list):
-        for item in updates:
-            if not isinstance(item, dict):
-                continue
-            if str(item.get("source") or "").strip().lower() == PLANNING_SOURCE:
-                return True
-
-    project_root = find_project_root()
-    for rel_path in PLANNING_ARTIFACT_DIRS:
-        if (project_root / rel_path).exists():
-            return True
-    return False
-
-
-def _evaluate_planning_readiness(
-    data: Dict[str, Any],
-    feature_id: Optional[int] = None,
-) -> Dict[str, Any]:
-    """
-    Evaluate preflight planning readiness from updates + refs without schema changes.
-
-    Contract:
-      {
-        "ok": true,
-        "status": "ready|warn|missing",
-        "required": ["office_hours", "ceo_review"],
-        "missing": [...],
-        "optional_missing": [...],
-        "refs": ["doc:..."],
-        "message": "..."
-      }
-    """
-    required = list(PLANNING_REQUIRED_REFS)
-    optional = list(PLANNING_OPTIONAL_REFS)
-
-    planning_refs: List[str] = []
-    updates = data.get("updates", [])
-    if isinstance(updates, list):
-        for item in updates:
-            if not isinstance(item, dict):
-                continue
-            source = str(item.get("source") or "").strip().lower()
-            if source != PLANNING_SOURCE:
-                continue
-            item_feature_id = item.get("feature_id")
-            if feature_id is not None and item_feature_id not in (None, feature_id):
-                continue
-            planning_refs.extend(_collect_update_refs(item))
-
-    normalized_planning_refs = set(_normalize_ref_tokens(planning_refs))
-    doc_refs = sorted([ref for ref in normalized_planning_refs if ref.startswith("doc:")])
-
-    if not _planning_gate_enabled(data):
-        return {
-            "ok": True,
-            "status": "ready",
-            "required": required,
-            "missing": [],
-            "optional_missing": [],
-            "refs": doc_refs,
-            "message": PLANNING_MESSAGE_KEYS["gate_disabled"],
-            "schema_version": PLANNING_SCHEMA_VERSION,
-        }
-
-    missing = [name for name in required if f"planning:{name}" not in normalized_planning_refs]
-    optional_missing = [
-        name for name in optional if f"planning:{name}" not in normalized_planning_refs
-    ]
-
-    if missing:
-        status = "missing"
-        message = PLANNING_MESSAGE_KEYS["missing"]
-    elif optional_missing:
-        status = "warn"
-        message = PLANNING_MESSAGE_KEYS["optional_missing"]
-    else:
-        status = "ready"
-        message = PLANNING_MESSAGE_KEYS["ready"]
-
-    return {
-        "ok": True,
-        "status": status,
-        "required": required,
-        "missing": missing,
-        "optional_missing": optional_missing,
-        "refs": doc_refs,
-        "message": message,
-        "schema_version": PLANNING_SCHEMA_VERSION,
-    }
 
 
 def add_update(

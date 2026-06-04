@@ -2,30 +2,34 @@
 readiness_validator.py — Feature readiness validation and remediation commands.
 
 Extracted from progress_manager.py (F21 Round 2 modularisation).
-
-This module owns the readiness validation command cluster:
-- _has_non_empty_list_items
-- validate_feature_readiness
-- print_readiness_warnings
-- _build_readiness_fix_commands
-- print_readiness_error
-- validate_readiness_command
-- validate_planning_command
-- fix_readiness_command
-
-All progress_manager-owned helpers that cannot be imported directly are
-injected via a ReadinessValidatorServices dataclass. Submodule helpers
-(_normalize_feature_contract) are imported directly from state_io.
-
-This module must NOT import progress_manager (no reverse dependency).
 """
 from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Set
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
-from state_io import _normalize_feature_contract
+from state_io import _normalize_feature_contract, _normalize_ref_tokens
+from prog_paths import find_project_root
+
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
+PROG_CLI_COMMAND = "plugins/progress-tracker/prog"
+
+PLANNING_SCHEMA_VERSION = "1.0"
+PLANNING_SOURCE = "spm_planning"
+PLANNING_REQUIRED_REFS = ("office_hours", "ceo_review")
+PLANNING_OPTIONAL_REFS = ("design_review", "devex_review")
+PLANNING_ARTIFACT_DIRS = ("docs/product-contracts", "docs/product-reviews")
+PLANNING_MESSAGE_KEYS = {
+    "gate_disabled": "planning.gate_disabled",
+    "missing": "planning.missing",
+    "optional_missing": "planning.optional_missing",
+    "ready": "planning.ready",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -40,7 +44,116 @@ class ReadinessValidatorServices:
     save_progress_json_fn: Callable[[Dict[str, Any]], None]
     generate_progress_md_fn: Callable[[Dict[str, Any]], str]
     save_progress_md_fn: Callable[[str], None]
-    evaluate_planning_readiness_fn: Callable[..., Dict[str, Any]]
+
+
+# ---------------------------------------------------------------------------
+# Planning validation core business logic
+# ---------------------------------------------------------------------------
+
+def _collect_update_refs(update_item: Dict[str, Any]) -> List[str]:
+    """Collect refs and overflow refs from one update item."""
+    refs: List[str] = []
+    inline_refs = update_item.get("refs")
+    if isinstance(inline_refs, list):
+        refs.extend([ref for ref in inline_refs if isinstance(ref, str)])
+    overflow_refs = update_item.get("refs_overflow")
+    if isinstance(overflow_refs, list):
+        refs.extend([ref for ref in overflow_refs if isinstance(ref, str)])
+    return _normalize_ref_tokens(refs)
+
+
+def _planning_gate_enabled(data: Dict[str, Any]) -> bool:
+    """Return whether preflight planning gate should be evaluated for this project."""
+    updates = data.get("updates", [])
+    if isinstance(updates, list):
+        for item in updates:
+            if not isinstance(item, dict):
+                continue
+            if str(item.get("source") or "").strip().lower() == PLANNING_SOURCE:
+                return True
+
+    project_root = find_project_root()
+    for rel_path in PLANNING_ARTIFACT_DIRS:
+        if (project_root / rel_path).exists():
+            return True
+    return False
+
+
+def _evaluate_planning_readiness(
+    data: Dict[str, Any],
+    feature_id: Optional[int] = None,
+) -> Dict[str, Any]:
+    """
+    Evaluate preflight planning readiness from updates + refs without schema changes.
+
+    Contract:
+      {
+        "ok": true,
+        "status": "ready|warn|missing",
+        "required": ["office_hours", "ceo_review"],
+        "missing": [...],
+        "optional_missing": [...],
+        "refs": ["doc:..."],
+        "message": "..."
+      }
+    """
+    required = list(PLANNING_REQUIRED_REFS)
+    optional = list(PLANNING_OPTIONAL_REFS)
+
+    planning_refs: List[str] = []
+    updates = data.get("updates", [])
+    if isinstance(updates, list):
+        for item in updates:
+            if not isinstance(item, dict):
+                continue
+            source = str(item.get("source") or "").strip().lower()
+            if source != PLANNING_SOURCE:
+                continue
+            item_feature_id = item.get("feature_id")
+            if feature_id is not None and item_feature_id not in (None, feature_id):
+                continue
+            planning_refs.extend(_collect_update_refs(item))
+
+    normalized_planning_refs = set(_normalize_ref_tokens(planning_refs))
+    doc_refs = sorted([ref for ref in normalized_planning_refs if ref.startswith("doc:")])
+
+    if not _planning_gate_enabled(data):
+        return {
+            "ok": True,
+            "status": "ready",
+            "required": required,
+            "missing": [],
+            "optional_missing": [],
+            "refs": doc_refs,
+            "message": PLANNING_MESSAGE_KEYS["gate_disabled"],
+            "schema_version": PLANNING_SCHEMA_VERSION,
+        }
+
+    missing = [name for name in required if f"planning:{name}" not in normalized_planning_refs]
+    optional_missing = [
+        name for name in optional if f"planning:{name}" not in normalized_planning_refs
+    ]
+
+    if missing:
+        status = "missing"
+        message = PLANNING_MESSAGE_KEYS["missing"]
+    elif optional_missing:
+        status = "warn"
+        message = PLANNING_MESSAGE_KEYS["optional_missing"]
+    else:
+        status = "ready"
+        message = PLANNING_MESSAGE_KEYS["ready"]
+
+    return {
+        "ok": True,
+        "status": status,
+        "required": required,
+        "missing": missing,
+        "optional_missing": optional_missing,
+        "refs": doc_refs,
+        "message": message,
+        "schema_version": PLANNING_SCHEMA_VERSION,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -143,15 +256,15 @@ def _build_readiness_fix_commands(feature_id: int, errors: List[str]) -> List[st
     for error in errors:
         if "requirement_ids" in error:
             _add(
-                f"plugins/progress-tracker/prog fix-readiness {feature_id} --add-requirement {default_req}"
+                f"{PROG_CLI_COMMAND} fix-readiness {feature_id} --add-requirement {default_req}"
             )
         elif "change_spec.why" in error:
             _add(
-                f"plugins/progress-tracker/prog fix-readiness {feature_id} --set-why \"Detailed explanation...\""
+                f"{PROG_CLI_COMMAND} fix-readiness {feature_id} --set-why \"Detailed explanation...\""
             )
         elif "acceptance_scenarios" in error:
             _add(
-                f"plugins/progress-tracker/prog fix-readiness {feature_id} --add-acceptance \"Scenario: ...\""
+                f"{PROG_CLI_COMMAND} fix-readiness {feature_id} --add-acceptance \"Scenario: ...\""
             )
 
     return commands
@@ -243,7 +356,7 @@ def validate_planning_command(
         print(f"Feature ID {feature_id} not found")
         return False
 
-    report = services.evaluate_planning_readiness_fn(data, feature_id=feature_id)
+    report = _evaluate_planning_readiness(data, feature_id=feature_id)
     if output_json:
         print(json.dumps(report, ensure_ascii=False))
     else:
