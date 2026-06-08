@@ -155,6 +155,14 @@ import completion_flow
 from completion_flow import FINISH_PENDING_STATE, _is_project_fully_completed
 import progress_prompt_builders
 import readiness_validator
+from work_item_commands import (
+    UPDATE_CATEGORIES,
+    UPDATE_REFS_INLINE_LIMIT,
+    UPDATE_SOURCES,
+    WORKFLOW_PROFILE_DEFAULT,
+    WORKFLOW_PROFILE_VALUES,
+    WORK_ITEM_TAXONOMY,
+)
 from readiness_validator import ReadinessValidatorServices
 try:
     import audit_log
@@ -268,18 +276,6 @@ VALID_FINISH_STATES = ("merged_and_cleaned", "pr_open", "kept_with_reason")
 _IMMUTABLE_PROTECTED_RELPATHS: frozenset[str] = frozenset({
     "docs/progress-tracker/architecture/architecture.md",
 })
-WORK_ITEM_TAXONOMY = frozenset([
-    "epic", "feature", "task", "bug", "spike", "risk", "decision", "update"
-])
-
-WORKFLOW_PROFILE_VALUES = frozenset([
-    "quick_task", "standard_task", "feature_delivery", "hotfix"
-])
-WORKFLOW_PROFILE_DEFAULT = "standard_task"
-
-UPDATE_CATEGORIES = ("status", "decision", "risk", "handoff", "assignment", "meeting")
-UPDATE_SOURCES = ("prog_update", "spm_meeting", "spm_assign", "spm_planning", "manual")
-UPDATE_REFS_INLINE_LIMIT = 12
 RECONCILE_DIAGNOSES = (
     "in_sync",
     "implementation_ahead_of_tracker",
@@ -1295,14 +1291,6 @@ def route_select(
         collect_git_context_fn=collect_git_context,
     )
 route_select.is_wrapper = True
-
-
-def _apply_imported_feature_contract(feature: Dict[str, Any], contract: Dict[str, Any]) -> None:
-    """Apply imported contract payload onto a feature record."""
-    feature["requirement_ids"] = contract["requirement_ids"]
-    feature["change_spec"] = contract["change_spec"]
-    feature["acceptance_scenarios"] = contract["acceptance_scenarios"]
-    _normalize_feature_contract(feature)
 
 
 def _make_readiness_validator_services() -> ReadinessValidatorServices:
@@ -4679,48 +4667,25 @@ def undo_last_feature():
     return True
 
 
-def _next_update_id(updates: List[Dict[str, Any]]) -> str:
-    """Generate the next UPD-XXX identifier."""
-    max_num = 0
-    for item in updates:
-        update_id = str(item.get("id", ""))
-        match = re.match(r"^UPD-(\d+)$", update_id)
-        if match:
-            max_num = max(max_num, int(match.group(1)))
-    return f"UPD-{max_num + 1:03d}"
-
-
 def _format_feature_owners(feature: Dict[str, Any]) -> Optional[str]:
     import doc_generator
     return doc_generator._format_feature_owners(feature)
 _format_feature_owners.is_wrapper = True
 
 
+def _make_work_item_commands_services():
+    import work_item_commands
 
-def _collect_auto_update_refs(feature: Dict[str, Any]) -> List[str]:
-    """Collect deterministic auto refs from a feature contract payload."""
-    refs: List[str] = []
-    for req_id in feature.get("requirement_ids", []):
-        if isinstance(req_id, str) and req_id.strip():
-            refs.append(f"req:{req_id.strip()}")
-
-    change_spec = feature.get("change_spec")
-    if isinstance(change_spec, dict):
-        change_id = change_spec.get("change_id")
-        if isinstance(change_id, str) and change_id.strip():
-            refs.append(f"change:{change_id.strip()}")
-
-    normalized = _normalize_ref_tokens(refs)
-    normalized.sort()
-    return normalized
-
-
-def _compact_update_refs(refs: List[str]) -> Tuple[List[str], List[str]]:
-    """Split refs into inline and overflow buckets without dropping data."""
-    if len(refs) <= UPDATE_REFS_INLINE_LIMIT:
-        return refs, []
-    return refs[:UPDATE_REFS_INLINE_LIMIT], refs[UPDATE_REFS_INLINE_LIMIT:]
-
+    return work_item_commands.WorkItemCommandsServices(
+        load_progress_json_fn=load_progress_json,
+        save_progress_json_fn=save_progress_json,
+        generate_progress_md_fn=generate_progress_md,
+        save_progress_md_fn=save_progress_md,
+        update_runtime_context_fn=_update_runtime_context,
+        notify_parent_sync_fn=_notify_parent_sync,
+        add_bug_internal_fn=_add_bug_internal,
+        find_project_root_fn=find_project_root,
+    )
 
 
 def add_update(
@@ -4735,124 +4700,32 @@ def add_update(
     next_action: Optional[str] = None,
     refs: Optional[List[str]] = None,
 ) -> bool:
-    """Append a structured update entry into progress.json."""
-    data = load_progress_json()
-    if not data:
-        print("No progress tracking found. Use init first.")
-        return False
+    import work_item_commands
 
-    normalized_category = (category or "").strip().lower()
-    if normalized_category not in UPDATE_CATEGORIES:
-        print(
-            "Error: Invalid category "
-            f"'{category}'. Allowed: {', '.join(UPDATE_CATEGORIES)}"
-        )
-        return False
-
-    normalized_summary = (summary or "").strip()
-    if not normalized_summary:
-        print("Error: summary cannot be empty")
-        return False
-
-    normalized_role = None
-    if role:
-        normalized_role = role.strip().lower()
-        if normalized_role not in OWNER_ROLES:
-            print(f"Error: Invalid role '{role}'. Allowed: {', '.join(OWNER_ROLES)}")
-            return False
-
-    normalized_owner = owner.strip() if isinstance(owner, str) else owner
-    if normalized_owner and not normalized_role:
-        print("Error: owner requires role")
-        return False
-
-    normalized_source = (source or "").strip().lower()
-    if normalized_source not in UPDATE_SOURCES:
-        print(
-            "Error: Invalid source "
-            f"'{source}'. Allowed: {', '.join(UPDATE_SOURCES)}"
-        )
-        return False
-
-    target_feature: Optional[Dict[str, Any]] = None
-    if feature_id is not None:
-        features = data.get("features", [])
-        target_feature = next((f for f in features if f.get("id") == feature_id), None)
-        if target_feature is None:
-            print(f"Error: Feature ID {feature_id} not found")
-            return False
-
-    # Manual refs are authoritative when explicitly provided.
-    normalized_manual_refs = _normalize_ref_tokens(refs)
-    selected_refs = normalized_manual_refs
-    if feature_id is not None and not normalized_manual_refs and target_feature is not None:
-        selected_refs = _collect_auto_update_refs(target_feature)
-
-    refs_inline, refs_overflow = _compact_update_refs(selected_refs)
-
-    updates = data.setdefault("updates", [])
-    created_at = _iso_now()
-    update_item = {
-        "id": _next_update_id(updates),
-        "created_at": created_at,
-        "category": normalized_category,
-        "summary": normalized_summary,
-        "details": details.strip() if isinstance(details, str) and details.strip() else None,
-        "feature_id": feature_id,
-        "bug_id": bug_id.strip() if isinstance(bug_id, str) and bug_id.strip() else None,
-        "role": normalized_role,
-        "owner": normalized_owner if normalized_owner else None,
-        "source": normalized_source,
-        "next_action": (
-            next_action.strip()
-            if isinstance(next_action, str) and next_action.strip()
-            else None
-        ),
-        "refs": refs_inline,
-    }
-    if refs_overflow:
-        update_item["refs_overflow"] = refs_overflow
-        update_item["refs_overflow_count"] = len(refs_overflow)
-    updates.append(update_item)
-
-    save_progress_json(data)
-    save_progress_md(generate_progress_md(data))
-    print(f"Added update {update_item['id']}: {update_item['category']} - {update_item['summary']}")
-    return True
+    return work_item_commands.add_update_command(
+        category,
+        summary,
+        svc=_make_work_item_commands_services(),
+        details=details,
+        feature_id=feature_id,
+        bug_id=bug_id,
+        role=role,
+        owner=owner,
+        source=source,
+        next_action=next_action,
+        refs=refs,
+    )
+add_update.is_wrapper = True
 
 
 def list_updates(limit: int = 0) -> bool:
-    """List the latest structured updates. limit=0 means show all."""
-    data = load_progress_json()
-    if not data:
-        print("No progress tracking found")
-        return False
+    import work_item_commands
 
-    updates = data.get("updates", [])
-    if not updates:
-        print("No updates recorded.")
-        return True
-
-    if limit < 0:
-        print("Error: --limit must be 0 (all) or a positive integer")
-        return False
-
-    safe_limit = len(updates) if limit == 0 else min(len(updates), limit)
-    print(f"Showing {safe_limit} of {len(updates)} update(s):")
-    for item in updates[-safe_limit:]:
-        line = f"- [{item.get('id', 'UPD-???')}] {item.get('category', 'status')}: {item.get('summary', '')}"
-        source = str(item.get("source") or "").strip()
-        if source:
-            line += f" [source={source}]"
-        if item.get("feature_id") is not None:
-            line += f" (feature:{item['feature_id']})"
-        if item.get("role") and item.get("owner"):
-            line += f" [{item['role']}={item['owner']}]"
-        overflow_count = item.get("refs_overflow_count", 0) or 0
-        if overflow_count > 0:
-            line += f" [+{overflow_count} refs overflow]"
-        print(line)
-    return True
+    return work_item_commands.list_updates_command(
+        limit,
+        svc=_make_work_item_commands_services(),
+    )
+list_updates.is_wrapper = True
 
 
 def add_retro(
@@ -4861,173 +4734,52 @@ def add_retro(
     root_cause: str,
     action_items: Optional[List[str]] = None,
 ) -> bool:
-    """Add a retrospective entry for a feature."""
-    data = load_progress_json()
-    if not data:
-        print("No progress tracking found. Use init first.")
-        return False
+    import work_item_commands
 
-    features = data.get("features", [])
-    if not any(f.get("id") == feature_id for f in features):
-        print(f"Error: Feature ID {feature_id} not found")
-        return False
-
-    normalized_summary = (summary or "").strip()
-    if not normalized_summary:
-        print("Error: summary cannot be empty")
-        return False
-
-    normalized_root_cause = (root_cause or "").strip()
-    if not normalized_root_cause:
-        print("Error: root_cause cannot be empty")
-        return False
-
-    retrospectives = data.setdefault("retrospectives", [])
-    retro_id = f"RETRO-{feature_id}-{len(retrospectives) + 1:03d}"
-    created_at = _iso_now()
-
-    retro_item = {
-        "id": retro_id,
-        "created_at": created_at,
-        "feature_id": feature_id,
-        "summary": normalized_summary,
-        "root_cause": normalized_root_cause,
-        "action_items": [
-            item.strip() if isinstance(item, str) else item
-            for item in (action_items or [])
-            if isinstance(item, str) and item.strip()
-        ],
-    }
-
-    retrospectives.append(retro_item)
-    save_progress_json(data)
-    save_progress_md(generate_progress_md(data))
-    print(f"Added retrospective {retro_id}: {normalized_summary}")
-    return True
+    return work_item_commands.add_retro_command(
+        feature_id,
+        summary,
+        root_cause,
+        svc=_make_work_item_commands_services(),
+        action_items=action_items,
+    )
+add_retro.is_wrapper = True
 
 
-def set_feature_owner(feature_id: int, role: str, owner: str) -> bool:
-    """Set feature owner for a specific role."""
-    data = load_progress_json()
-    if not data:
-        print("No progress tracking found. Use init first.")
-        return False
+def set_feature_owner(feature_id: int, role: str, owner: Optional[str]) -> bool:
+    import work_item_commands
 
-    normalized_role = (role or "").strip().lower()
-    if normalized_role not in OWNER_ROLES:
-        print(f"Error: Invalid role '{role}'. Allowed: {', '.join(OWNER_ROLES)}")
-        return False
-
-    normalized_owner = (owner or "").strip()
-    owner_value = None if normalized_owner.lower() in {"", "-", "none", "null"} else normalized_owner
-
-    features = data.get("features", [])
-    feature = next((f for f in features if f.get("id") == feature_id), None)
-    if not feature:
-        print(f"Feature ID {feature_id} not found")
-        return False
-
-    _normalize_feature_owners(feature)
-    feature["owners"][normalized_role] = owner_value
-
-    save_progress_json(data)
-    save_progress_md(generate_progress_md(data))
-    assigned = owner_value if owner_value is not None else "None"
-    print(f"Set owner: feature {feature_id} {normalized_role} -> {assigned}")
-    return True
+    return work_item_commands.set_feature_owner_command(
+        feature_id,
+        role,
+        owner,
+        svc=_make_work_item_commands_services(),
+    )
+set_feature_owner.is_wrapper = True
 
 
 def add_feature(name, test_steps, workflow_profile=None):
-    """Add a new feature to the tracking."""
-    if workflow_profile is None:
-        workflow_profile = WORKFLOW_PROFILE_DEFAULT
-    data = load_progress_json()
-    if not data:
-        print("No progress tracking found. Use init first.")
-        return False
+    import work_item_commands
 
-    features = data.get("features", [])
-
-    # Generate new ID
-    max_id = max([f.get("id", 0) for f in features], default=0)
-    new_id = max_id + 1
-
-    new_feature = {
-        "id": new_id,
-        "name": name,
-        "test_steps": test_steps,
-        "workflow_profile": workflow_profile,
-        "completed": False,
-        "deferred": False,
-        "defer_reason": None,
-        "deferred_at": None,
-        "defer_group": None,
-        "owners": _default_owners(),
-    }
-    _normalize_feature_contract(new_feature)
-
-    try:
-        imported_contract = import_contract_for_feature(new_id)
-    except ContractImportError as exc:
-        print(f"Error: Failed to import contract for feature {new_id}: {exc}")
-        return False
-    if imported_contract:
-        _apply_imported_feature_contract(new_feature, imported_contract)
-
-    features.append(new_feature)
-    save_progress_json(data)
-
-    # Update progress.md
-    md_content = generate_progress_md(data)
-    save_progress_md(md_content)
-
-    print(f"Added feature: {name} (ID: {new_id})")
-    _notify_parent_sync()
-    return True
+    return work_item_commands.add_feature_command(
+        name,
+        test_steps,
+        svc=_make_work_item_commands_services(),
+        workflow_profile=workflow_profile,
+    )
+add_feature.is_wrapper = True
 
 
 def update_feature(feature_id, name, test_steps=None):
-    """Update an existing feature's name and optional test steps."""
-    data = load_progress_json()
-    if not data:
-        print("No progress tracking found. Use init first.")
-        return False
+    import work_item_commands
 
-    features = data.get("features", [])
-    feature = next((f for f in features if f.get("id") == feature_id), None)
-
-    if not feature:
-        print(f"Feature ID {feature_id} not found")
-        return False
-
-    normalized_name = name.strip()
-    if not normalized_name:
-        print("Feature name cannot be empty")
-        return False
-
-    feature["name"] = normalized_name
-    if test_steps:
-        feature["test_steps"] = test_steps
-    _normalize_feature_contract(feature)
-
-    try:
-        imported_contract = import_contract_for_feature(feature_id)
-    except ContractImportError as exc:
-        print(f"Error: Failed to import contract for feature {feature_id}: {exc}")
-        return False
-    if imported_contract:
-        _apply_imported_feature_contract(feature, imported_contract)
-
-    save_progress_json(data)
-
-    # Update progress.md
-    md_content = generate_progress_md(data)
-    save_progress_md(md_content)
-
-    print(f"Updated feature {feature_id}: {normalized_name}")
-    if test_steps:
-        print(f"Updated test steps ({len(test_steps)} step(s))")
-    return True
+    return work_item_commands.update_feature_command(
+        feature_id,
+        name,
+        svc=_make_work_item_commands_services(),
+        test_steps=test_steps,
+    )
+update_feature.is_wrapper = True
 
 
 def defer_features(
@@ -5036,111 +4788,27 @@ def defer_features(
     reason: str,
     defer_group: Optional[str] = None,
 ) -> bool:
-    """Defer one feature or all pending features without losing tracker state."""
-    data = load_progress_json()
-    if not data:
-        print("No progress tracking found. Use init first.")
-        return False
+    import work_item_commands
 
-    normalized_reason = _normalize_optional_string(reason)
-    if not normalized_reason:
-        print("Error: --reason is required and cannot be empty.")
-        return False
-
-    normalized_group = _normalize_optional_string(defer_group)
-    features = data.get("features", [])
-    targets: List[Dict[str, Any]] = []
-
-    if all_pending:
-        targets = [
-            f
-            for f in features
-            if isinstance(f, dict) and not f.get("completed", False)
-        ]
-        if not targets:
-            print("No pending features to defer.")
-            return False
-    else:
-        if feature_id is None:
-            print("Error: --feature-id is required when --all-pending is not set.")
-            return False
-        feature = next((f for f in features if f.get("id") == feature_id), None)
-        if not feature:
-            print(f"Feature ID {feature_id} not found")
-            return False
-        if feature.get("completed", False):
-            print(f"Feature ID {feature_id} is already completed and cannot be deferred.")
-            return False
-        targets = [feature]
-
-    now = _iso_now()
-    target_ids = {f.get("id") for f in targets}
-    for feature in targets:
-        feature["deferred"] = True
-        feature["defer_reason"] = normalized_reason
-        feature["deferred_at"] = now
-        feature["defer_group"] = normalized_group
-
-    cleared_active = False
-    if data.get("current_feature_id") in target_ids:
-        data["current_feature_id"] = None
-        if "workflow_state" in data:
-            del data["workflow_state"]
-        cleared_active = True
-
-    _update_runtime_context(data, source="defer")
-    save_progress_json(data)
-    save_progress_md(generate_progress_md(data))
-
-    print(f"Deferred {len(targets)} feature(s).")
-    print(f"Reason: {normalized_reason}")
-    if normalized_group:
-        print(f"Group: {normalized_group}")
-    if cleared_active:
-        print("Cleared active feature and workflow_state because the active feature was deferred.")
-    return True
+    return work_item_commands.defer_features_command(
+        feature_id,
+        all_pending,
+        reason,
+        svc=_make_work_item_commands_services(),
+        defer_group=defer_group,
+    )
+defer_features.is_wrapper = True
 
 
 def resume_deferred_features(defer_group: Optional[str], resume_all: bool) -> bool:
-    """Resume deferred features by group or resume all deferred features."""
-    data = load_progress_json()
-    if not data:
-        print("No progress tracking found. Use init first.")
-        return False
+    import work_item_commands
 
-    normalized_group = _normalize_optional_string(defer_group)
-    features = data.get("features", [])
-    targets: List[Dict[str, Any]] = []
-
-    for feature in features:
-        if not isinstance(feature, dict):
-            continue
-        if feature.get("completed", False):
-            continue
-        if not _is_feature_deferred(feature):
-            continue
-        if not resume_all and feature.get("defer_group") != normalized_group:
-            continue
-        targets.append(feature)
-
-    if not targets:
-        if resume_all:
-            print("No deferred pending features to resume.")
-        else:
-            print(f"No deferred pending features found for group: {normalized_group}")
-        return False
-
-    for feature in targets:
-        _clear_feature_defer_state(feature)
-
-    _update_runtime_context(data, source="resume")
-    save_progress_json(data)
-    save_progress_md(generate_progress_md(data))
-
-    print(f"Resumed {len(targets)} deferred feature(s).")
-    if not resume_all:
-        print(f"Group: {normalized_group}")
-    return True
+    return work_item_commands.resume_deferred_features_command(
+        defer_group,
+        resume_all,
+        svc=_make_work_item_commands_services(),
+    )
+resume_deferred_features.is_wrapper = True
 
 
 def get_next_bug_id():
@@ -5192,68 +4860,6 @@ def get_next_bug_id():
     fallback_id = f"BUG-{timestamp_suffix:03d}"
     logger.warning(f"Using timestamp-based bug ID: {fallback_id}")
     return fallback_id
-
-
-def _push_bug_to_routing_queue(data: Dict[str, Any], bug_id: str, priority: str) -> None:
-    """Insert bug_id into routing_queue at the position matching its priority tier.
-
-    Priority tier mapping (bug.priority field -> tier weight):
-        high   -> P0 (weight 0, inserted before P1/P2 bugs and all other entries)
-        medium -> P1 (weight 1, inserted before P2 bugs, after P0)
-        low    -> P2 (weight 2, appended after all P0/P1 bugs)
-
-    routing_queue entries can be:
-        - Project codes (e.g. "PT", "ROOT") -> weight 1.5 (between P1 and P2)
-        - Bug IDs ("BUG-*") -> weight depends on their priority in bugs[]
-        - Task IDs ("TASK-*") -> weight 1.5 (same as project codes for ordering purposes)
-
-    Idempotent: if bug_id is already in routing_queue, this is a no-op.
-
-    Args:
-        data: The loaded progress.json dict (will be mutated in-place).
-        bug_id: The bug ID to insert (e.g. "BUG-001").
-        priority: The bug's priority string ("high", "medium", "low").
-    """
-    queue = data.setdefault("routing_queue", [])
-    if not isinstance(queue, list):
-        queue = []
-        data["routing_queue"] = queue
-
-    # Idempotent: bail out if already present
-    if bug_id in queue:
-        return
-
-    # Map bug priority to tier weight
-    priority_to_weight = {"high": 0.0, "medium": 1.0, "low": 2.0}
-    new_weight = priority_to_weight.get(priority, 1.0)
-
-    # Build lookup from existing bug IDs to their priorities (for queue items
-    # that are BUG-* entries — we need to know their tier weight).
-    bug_priority_map: Dict[str, str] = {}
-    for bug in data.get("bugs") or []:
-        if isinstance(bug, dict):
-            bid = bug.get("id")
-            bprio = bug.get("priority")
-            if isinstance(bid, str) and isinstance(bprio, str):
-                bug_priority_map[bid] = bprio
-
-    def _entry_weight(entry: str) -> float:
-        # BUG-* entries draw their weight from bugs[]; if the bug is missing
-        # from bugs[] for any reason, treat it as medium (1.0) as a safe default.
-        if isinstance(entry, str) and entry.startswith("BUG-"):
-            prio = bug_priority_map.get(entry, "medium")
-            return priority_to_weight.get(prio, 1.0)
-        # Project codes / TASK-* / ROOT / anything else: weight 1.5
-        return 1.5
-
-    # Find first existing entry whose weight is >= new_weight; insert before it.
-    insert_idx = len(queue)
-    for idx, entry in enumerate(queue):
-        if _entry_weight(entry) >= new_weight:
-            insert_idx = idx
-            break
-
-    queue.insert(insert_idx, bug_id)
 
 
 def _add_bug_internal(
@@ -5311,92 +4917,19 @@ def add_task_item(
     workflow_profile: str = WORKFLOW_PROFILE_DEFAULT,
     parent_feature_id: Optional[int] = None,
 ) -> Optional[str]:
-    """Write a standalone task item to tasks[].
+    import work_item_commands
 
-    Returns the new task ID on success, None on failure.
-    Priority values: P0, P1, P2.
-    workflow_profile must be one of WORKFLOW_PROFILE_VALUES.
-
-    Note: Callers that invoke this outside the CLI MUST hold a progress_transaction()
-    lock to avoid concurrent write races. The CLI wires mutating commands through
-    MUTATING_COMMANDS + progress_transaction() automatically.
-    """
-    if not description or not description.strip():
-        raise ValueError("Description cannot be empty")
-
-    description = description.strip()
-
-    if len(description) > 2000:
-        raise ValueError(f"Description too long ({len(description)} chars, max 2000)")
-
-    valid_priorities = ["P0", "P1", "P2"]
-    if priority not in valid_priorities:
-        raise ValueError(f"Invalid priority '{priority}'. Must be one of: {valid_priorities}")
-
-    if workflow_profile not in WORKFLOW_PROFILE_VALUES:
-        raise ValueError(
-            f"Invalid workflow_profile '{workflow_profile}'. "
-            f"Allowed: {sorted(WORKFLOW_PROFILE_VALUES)}"
-        )
-
-    # Sanitize control characters (preserve newline/tab)
-    description = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', description)
-    if details:
-        details = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', details)
-
-    # Defensive copy of refs to avoid aliasing mutation
-    refs = list(refs) if refs else []
-
-    data = load_progress_json()
-    if not data:
-        print("No progress tracking found. Use init first.")
-        return None
-
-    # Validate parent_feature_id if provided (single load, no TOCTOU window).
-    if parent_feature_id is not None:
-        features = data.get("features", [])
-        if not any(f.get("id") == parent_feature_id for f in features):
-            print(f"Error: feature {parent_feature_id} not found")
-            return None
-
-    tasks = data.setdefault("tasks", [])
-
-    # Generate task ID
-    existing_ids = [t.get("id", "") for t in tasks if isinstance(t, dict)]
-    n = len(tasks) + 1
-    while f"TASK-{n:03d}" in existing_ids:
-        n += 1
-    task_id = f"TASK-{n:03d}"
-
-    new_task = {
-        "id": task_id,
-        "type": "task",
-        "description": description,
-        "workflow_profile": workflow_profile,
-        "status": "pending",
-        "priority": priority,
-        "details": details.strip() if details else "",
-        "refs": refs,
-        "next_action": next_action.strip() if next_action else "",
-        "created_at": _iso_now(),
-        "parent_feature_id": parent_feature_id,
-    }
-
-    tasks.append(new_task)
-    data["tasks"] = tasks
-
-    save_progress_json(data)
-    md_content = generate_progress_md(data)
-    save_progress_md(md_content)
-
-    print(f"Task recorded: {task_id}")
-    print(f"Description: {description}")
-    print(f"workflow_profile: {workflow_profile}")
-    return task_id
-
-
-# Priority mapping for smart_intake: P0/P1/P2 → high/medium/low (add_bug priority)
-_SMART_INTAKE_PRIORITY_MAP = {"P0": "high", "P1": "medium", "P2": "low"}
+    return work_item_commands.add_task_item_command(
+        description,
+        svc=_make_work_item_commands_services(),
+        details=details,
+        refs=refs,
+        next_action=next_action,
+        priority=priority,
+        workflow_profile=workflow_profile,
+        parent_feature_id=parent_feature_id,
+    )
+add_task_item.is_wrapper = True
 
 
 def smart_intake(
@@ -5404,141 +4937,15 @@ def smart_intake(
     commit: Optional[str] = None,
     workflow_profile: str = WORKFLOW_PROFILE_DEFAULT,
 ) -> bool:
-    """Deterministic work-item intake executor.
+    import work_item_commands
 
-    Preview mode (commit=None):
-        Parse candidate_json, display type/confidence/profile fields.
-        If confidence < 0.6: print one clarification prompt, no JSON write.
-        Always returns True (success) on valid candidate, never mutates progress.json.
-
-    Commit mode (commit="bug"|"feature"|"task"|"update"):
-        Must be called inside progress_transaction() by the caller (CLI dispatch).
-        Routes to the appropriate write function based on commit type.
-        Returns True on success, False on failure.
-
-    Args:
-        candidate_json: JSON string with type, confidence, and profile fields.
-        commit: Commit target work-item type, or None for preview.
-        workflow_profile: Used only when commit="task". Ignored for all other
-            commit types and in preview mode.
-    """
-    # Parse and validate candidate_json
-    try:
-        candidate = json.loads(candidate_json)
-    except (json.JSONDecodeError, TypeError) as e:
-        print(f"Error: invalid candidate JSON: {e}")
-        return False
-
-    if not isinstance(candidate, dict):
-        print("Error: candidate JSON must be an object")
-        return False
-
-    item_type = candidate.get("type", "")
-    try:
-        confidence = float(candidate.get("confidence", 0.0))
-    except (TypeError, ValueError):
-        print("Error: confidence must be a number")
-        return False
-
-    profile = candidate.get("profile", {})
-    if not isinstance(profile, dict):
-        print("Error: profile must be an object")
-        return False
-
-    description = (profile.get("description") or "").strip()
-
-    if not description:
-        print("Error: profile.description is required")
-        return False
-
-    if item_type not in WORK_ITEM_TAXONOMY:
-        print(
-            f"Error: invalid type '{item_type}'. "
-            f"Must be one of: {sorted(WORK_ITEM_TAXONOMY)}"
-        )
-        return False
-
-    # Preview branch: zero mutation
-    if not commit:
-        print("[候选工作项]")
-        print(f"  type:        {item_type}")
-        print(f"  confidence:  {confidence:.2f}")
-        print("  profile:")
-        print(f"    description: {description}")
-        for key in ("priority", "details", "refs", "next_action"):
-            val = profile.get(key)
-            if val:
-                print(f"    {key}: {val}")
-
-        if confidence < 0.6:
-            print()
-            print(
-                "needs_clarification: 请补充信息 — 这条记录更接近 bug、"
-                "feature、task 还是 update？"
-            )
-            print("  → 确认后用 --commit <type> 重新提交")
-            return True
-
-        print()
-        print(f"→ 使用 --commit {item_type} 写入，或指定其他类型")
-        return True
-
-    # Commit branch: caller must hold progress_transaction() lock
-    if commit == "bug":
-        priority_str = profile.get("priority", "P1")
-        bug_priority = _SMART_INTAKE_PRIORITY_MAP.get(priority_str, "medium")
-        try:
-            success, bug_id = _add_bug_internal(
-                description=description,
-                priority=bug_priority,
-            )
-        except ValueError as exc:
-            print(f"Error: {exc}")
-            return False
-        if success and bug_id:
-            data = load_progress_json()
-            _push_bug_to_routing_queue(data, bug_id, bug_priority)
-            save_progress_json(data)
-            md_content = generate_progress_md(data)
-            save_progress_md(md_content)
-        return success
-
-    if commit == "task":
-        raw_priority = profile.get("priority", "P1")
-        if raw_priority not in ("P0", "P1", "P2"):
-            raw_priority = "P1"
-        task_id = add_task_item(
-            description=description,
-            details=profile.get("details", "") or "",
-            refs=profile.get("refs") or [],
-            next_action=profile.get("next_action", "") or "",
-            priority=raw_priority,
-            workflow_profile=workflow_profile,
-        )
-        return task_id is not None
-
-    if commit == "feature":
-        result = add_feature(
-            name=description,
-            test_steps=[],
-            workflow_profile=workflow_profile,
-        )
-        # add_feature returns bool; treat None as False defensively.
-        return bool(result)
-
-    if commit == "update":
-        raw_category = profile.get("category", "status")
-        category = raw_category if raw_category in UPDATE_CATEGORIES else "status"
-        return add_update(
-            category=category,
-            summary=description,
-            details=profile.get("details") or None,
-            next_action=profile.get("next_action") or None,
-            refs=profile.get("refs") or None,
-        )
-
-    print(f"Error: unknown commit type '{commit}'")
-    return False
+    return work_item_commands.smart_intake_command(
+        candidate_json,
+        svc=_make_work_item_commands_services(),
+        commit=commit,
+        workflow_profile=workflow_profile,
+    )
+smart_intake.is_wrapper = True
 
 
 def update_bug(
