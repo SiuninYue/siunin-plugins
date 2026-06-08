@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-06-08T14:11:37.415639Z",
+  "updated_at": "2026-06-08T14:31:34.426658Z",
   "features": [
     {
       "id": 10,
@@ -3082,7 +3082,7 @@
         "DoD: F24 closeout 前必须登记下一条收口 feature (Round 6) 或写入 defer 决策"
       ],
       "workflow_profile": "standard_task",
-      "completed": false,
+      "completed": true,
       "deferred": false,
       "defer_reason": null,
       "deferred_at": null,
@@ -3092,7 +3092,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "implementing",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-024"
       ],
@@ -3186,7 +3186,7 @@
         "artifact_path": null,
         "created_at": null
       },
-      "development_stage": "developing",
+      "development_stage": "completed",
       "started_at": "2026-06-04T09:34:30.782749",
       "ai_metrics": {
         "complexity_score": 51,
@@ -3199,7 +3199,24 @@
           "routed_bucket": "standard",
           "confidence": "high"
         },
-        "started_at": "2026-06-04T17:53:36.784575Z"
+        "started_at": "2026-06-04T17:53:36.784575Z",
+        "finished_at": "2026-06-08T14:31:34.383467+08:00",
+        "duration_seconds": 304677
+      },
+      "completed_at": "2026-06-08T14:31:34.383530Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-06-08T14:31:34.383537Z",
+      "commit_hash": "aeb542542d025d6ed3e94da781c440cebcd3d48e",
+      "plan_path": "docs/plans/2026-06-04-f24-completion-flow.md",
+      "archive_info": {
+        "archived_at": "2026-06-08T14:31:34.426314Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-06-04-f24-completion-flow.md",
+            "to": "docs/archive/plans/2026-06-04-f24-completion-flow.md"
+          }
+        ]
       }
     },
     {
@@ -3359,7 +3376,7 @@
       }
     }
   ],
-  "current_feature_id": 24,
+  "current_feature_id": null,
   "linked_projects": [],
   "linked_snapshot": {
     "schema_version": "1.0",
@@ -3624,8 +3641,8 @@
   ],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-06-08T10:09:22.074419Z",
-    "source": "set_workflow_state",
+    "recorded_at": "2026-06-08T14:31:34.383582Z",
+    "source": "finalize",
     "workspace_mode": "worktree",
     "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-24-completion-flow",
     "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-24-completion-flow",
@@ -3634,11 +3651,11 @@
     "branch": "worktree-feature-24-completion-flow",
     "upstream": null,
     "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-24-completion-flow/plugins/progress-tracker",
-    "current_feature_id": 24,
-    "workflow_phase": "execution_complete",
+    "current_feature_id": null,
+    "workflow_phase": null,
     "current_task": null,
     "total_tasks": null,
-    "next_action": "verify_and_complete"
+    "next_action": null
   },
   "bugs": [
     {
@@ -3761,22 +3778,5 @@
   "current_bug_id": null,
   "parent_project_root": ".",
   "tasks": [],
-  "current_task_id": null,
-  "workflow_state": {
-    "phase": "execution_complete",
-    "updated_at": "2026-06-08T10:09:22.058191Z",
-    "plan_path": "docs/plans/2026-06-04-f24-completion-flow.md",
-    "execution_context": {
-      "recorded_at": "2026-06-08T10:09:22.058212Z",
-      "source": "set_workflow_state",
-      "workspace_mode": "worktree",
-      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-24-completion-flow",
-      "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-24-completion-flow",
-      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-24-completion-flow/plugins/progress-tracker",
-      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-24-completion-flow",
-      "branch": "worktree-feature-24-completion-flow",
-      "upstream": null
-    },
-    "next_action": "verify_and_complete"
-  }
+  "current_task_id": null
 }
