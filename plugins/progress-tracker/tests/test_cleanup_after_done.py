@@ -4,12 +4,12 @@ T1: RED tests for _run_post_done_cleanup() and cleanup sub-functions.
 All 12 scenarios are pure unit tests — git operations are injected via
 unittest.mock.patch on the 5 sub-function names. No real git repo is used.
 
-Patch targets (in progress_manager module):
-  _is_worktree_dirty
-  _resolve_upstream
-  _remove_worktree
-  _delete_local_branch
-  _delete_remote_branch
+Patch targets (in completion_flow module, where the implementation now lives):
+  completion_flow.worktree_handler._is_worktree_dirty
+  completion_flow.git_utils._resolve_upstream
+  completion_flow.git_utils._remove_worktree
+  completion_flow.git_utils._delete_local_branch
+  completion_flow.git_utils._delete_remote_branch
 """
 
 from __future__ import annotations
@@ -37,11 +37,11 @@ def _patch_all(dirty=False, upstream=("origin", "feature-25"),
                remove=True, local=True, remote=True):
     """Return a stack of 5 patches with default happy-path values."""
     return [
-        patch("progress_manager._is_worktree_dirty", return_value=dirty),
-        patch("progress_manager._resolve_upstream", return_value=upstream),
-        patch("progress_manager._remove_worktree", return_value=remove),
-        patch("progress_manager._delete_local_branch", return_value=local),
-        patch("progress_manager._delete_remote_branch", return_value=remote),
+        patch("completion_flow.worktree_handler._is_worktree_dirty", return_value=dirty),
+        patch("completion_flow.git_utils._resolve_upstream", return_value=upstream),
+        patch("completion_flow.git_utils._remove_worktree", return_value=remove),
+        patch("completion_flow.git_utils._delete_local_branch", return_value=local),
+        patch("completion_flow.git_utils._delete_remote_branch", return_value=remote),
     ]
 
 
@@ -55,9 +55,12 @@ def test_worktree_clean_all_succeed():
     patches = _patch_all()
     with patches[0], patches[1], patches[2] as m_remove, patches[3] as m_local, patches[4] as m_remote:
         progress_manager._run_post_done_cleanup(ctx, skip=False)
-    m_remove.assert_called_once_with(ctx["worktree_path"])
-    m_local.assert_called_once_with(ctx["branch"])
-    m_remote.assert_called_once_with("origin", "feature-25")
+    m_remove.assert_called_once()
+    assert m_remove.call_args[0][0] == ctx["worktree_path"]
+    m_local.assert_called_once()
+    assert m_local.call_args[0][0] == ctx["branch"]
+    m_remote.assert_called_once()
+    assert m_remote.call_args[0][:2] == ("origin", "feature-25")
 
 
 def test_worktree_clean_remote_fail_does_not_raise():
@@ -77,7 +80,8 @@ def test_inplace_clean_branch_delete_fails_warn_remote_still_runs():
         progress_manager._run_post_done_cleanup(ctx, skip=False)
     # in-place: no worktree remove
     m_remove.assert_not_called()
-    m_local.assert_called_once_with(ctx["branch"])
+    m_local.assert_called_once()
+    assert m_local.call_args[0][0] == ctx["branch"]
     # remote delete must still run even though local failed
     m_remote.assert_called_once()
 
@@ -89,7 +93,8 @@ def test_inplace_clean_no_upstream_remote_skipped_silently():
     with patches[0], patches[1], patches[2] as m_remove, patches[3], patches[4] as m_remote:
         progress_manager._run_post_done_cleanup(ctx, skip=False)
     m_remove.assert_not_called()
-    m_remote.assert_called_once_with("", "")  # called with empty → implementation silently skips
+    m_remote.assert_called_once()
+    assert m_remote.call_args[0][:2] == ("", "")  # called with empty → implementation silently skips
 
 
 # ---------------------------------------------------------------------------
@@ -153,24 +158,24 @@ def test_upstream_resolved_before_local_branch_deleted():
     ctx = _worktree_ctx()
     call_order: list[str] = []
 
-    def fake_resolve(branch):
+    def fake_resolve(branch, **kwargs):
         call_order.append("resolve_upstream")
         return ("origin", "feature-25")
 
-    def fake_delete_local(branch):
+    def fake_delete_local(branch, **kwargs):
         call_order.append("delete_local")
         return True
 
-    def fake_delete_remote(remote, remote_branch):
+    def fake_delete_remote(remote, remote_branch, **kwargs):
         call_order.append("delete_remote")
         return True
 
     with (
-        patch("progress_manager._is_worktree_dirty", return_value=False),
-        patch("progress_manager._resolve_upstream", side_effect=fake_resolve),
-        patch("progress_manager._remove_worktree", return_value=True),
-        patch("progress_manager._delete_local_branch", side_effect=fake_delete_local),
-        patch("progress_manager._delete_remote_branch", side_effect=fake_delete_remote),
+        patch("completion_flow.worktree_handler._is_worktree_dirty", return_value=False),
+        patch("completion_flow.git_utils._resolve_upstream", side_effect=fake_resolve),
+        patch("completion_flow.git_utils._remove_worktree", return_value=True),
+        patch("completion_flow.git_utils._delete_local_branch", side_effect=fake_delete_local),
+        patch("completion_flow.git_utils._delete_remote_branch", side_effect=fake_delete_remote),
     ):
         progress_manager._run_post_done_cleanup(ctx, skip=False)
 
@@ -185,7 +190,8 @@ def test_worktree_remove_fail_continues_to_branch_delete():
     patches = _patch_all(remove=False)
     with patches[0], patches[1], patches[2], patches[3] as m_local, patches[4]:
         progress_manager._run_post_done_cleanup(ctx, skip=False)
-    m_local.assert_called_once_with(ctx["branch"])
+    m_local.assert_called_once()
+    assert m_local.call_args[0][0] == ctx["branch"]
 
 
 def test_branch_delete_fail_continues_to_remote_delete():
@@ -194,7 +200,8 @@ def test_branch_delete_fail_continues_to_remote_delete():
     patches = _patch_all(local=False)
     with patches[0], patches[1], patches[2], patches[3], patches[4] as m_remote:
         progress_manager._run_post_done_cleanup(ctx, skip=False)
-    m_remote.assert_called_once_with("origin", "feature-25")
+    m_remote.assert_called_once()
+    assert m_remote.call_args[0][:2] == ("origin", "feature-25")
 
 
 def test_no_upstream_remote_delete_skipped_silently():
@@ -204,4 +211,5 @@ def test_no_upstream_remote_delete_skipped_silently():
     with patches[0], patches[1], patches[2], patches[3], patches[4] as m_remote:
         progress_manager._run_post_done_cleanup(ctx, skip=False)
     # _delete_remote_branch called with empty strings → implementation skips internally
-    m_remote.assert_called_once_with("", "")
+    m_remote.assert_called_once()
+    assert m_remote.call_args[0][:2] == ("", "")

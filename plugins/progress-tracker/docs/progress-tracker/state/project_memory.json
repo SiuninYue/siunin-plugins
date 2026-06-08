@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "created_at": "2026-04-12T09:38:02.910760Z",
-  "updated_at": "2026-06-04T09:19:49.108921Z",
-  "next_capability_seq": 29,
+  "updated_at": "2026-06-05T02:02:48.275834Z",
+  "next_capability_seq": 31,
   "last_synced_commit": null,
   "capabilities": [
     {
@@ -511,6 +511,38 @@
       },
       "created_at": "2026-06-04T09:19:49.108869Z",
       "updated_at": "2026-06-04T09:19:49.108869Z"
+    },
+    {
+      "cap_id": "CAP-029",
+      "fingerprint": "faa5f4a5a0dfc68b",
+      "title": "Feature 1",
+      "summary": "Completed feature 1: Feature 1",
+      "tags": [],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 1,
+        "commit_hash": "abc123",
+        "commit_range": ""
+      },
+      "created_at": "2026-06-05T01:56:49.984990Z",
+      "updated_at": "2026-06-05T01:56:49.984990Z"
+    },
+    {
+      "cap_id": "CAP-030",
+      "fingerprint": "03446db496e5c955",
+      "title": "Feature 1",
+      "summary": "Completed feature 1: Feature 1",
+      "tags": [],
+      "confidence": 1.0,
+      "source": {
+        "origin": "prog_done",
+        "feature_id": 1,
+        "commit_hash": "abc",
+        "commit_range": ""
+      },
+      "created_at": "2026-06-05T02:02:48.275808Z",
+      "updated_at": "2026-06-05T02:02:48.275808Z"
     }
   ],
   "rejected_fingerprints": [],

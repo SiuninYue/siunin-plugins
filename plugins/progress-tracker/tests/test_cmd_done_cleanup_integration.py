@@ -184,15 +184,16 @@ def seeded_done_env(tmp_path):
 def test_cmd_done_snapshots_branch_before_finalize(seeded_done_env):
     """cleanup_ctx captures branch/mode/path BEFORE in-memory finalization."""
     captured: dict = {}
-    original_finalize = progress_manager._finalize_completion_state_in_memory
+    import completion_flow as _cf
+    original_finalize = _cf._finalize_completion_state_in_memory
 
-    def spy_finalize(data, feature_id, commit_hash=None):
+    def spy_finalize(data, feature_id, services, commit_hash=None):
         captured["called"] = True
-        return original_finalize(data, feature_id, commit_hash=commit_hash)
+        return original_finalize(data, feature_id, services, commit_hash=commit_hash)
 
     with (
-        patch("progress_manager._finalize_completion_state_in_memory", side_effect=spy_finalize),
-        patch("progress_manager._run_post_done_cleanup") as mock_cleanup,
+        patch("completion_flow._finalize_completion_state_in_memory", side_effect=spy_finalize),
+        patch("completion_flow._run_post_done_cleanup") as mock_cleanup,
     ):
         rc = progress_manager.cmd_done()
 
@@ -207,13 +208,13 @@ def test_cmd_done_snapshots_branch_before_finalize(seeded_done_env):
 
 def test_cmd_done_no_cleanup_flag_skips_cleanup(seeded_done_env):
     """cmd_done(no_cleanup=True) → _run_post_done_cleanup called with skip=True."""
-    with patch("progress_manager._run_post_done_cleanup") as mock_cleanup:
+    with patch("completion_flow._run_post_done_cleanup") as mock_cleanup:
         rc = progress_manager.cmd_done(no_cleanup=True)
 
     assert rc == 0
     mock_cleanup.assert_called_once()
     _, kwargs = mock_cleanup.call_args
-    assert kwargs.get("skip") is True or mock_cleanup.call_args[0][1] is True
+    assert kwargs.get("skip") is True or (len(mock_cleanup.call_args[0]) > 1 and mock_cleanup.call_args[0][2] is True)
 
 
 def test_cmd_done_cleanup_failure_preserves_completion_state(seeded_done_env):
@@ -227,10 +228,10 @@ def test_cmd_done_cleanup_failure_preserves_completion_state(seeded_done_env):
       because _reset_active_progress clears active state; otherwise features
       must show completed=True.
     """
-    def raise_on_cleanup(ctx, skip=False):
+    def raise_on_cleanup(ctx, services, skip=False):
         raise RuntimeError("simulated cleanup failure")
 
-    with patch("progress_manager._run_post_done_cleanup", side_effect=raise_on_cleanup):
+    with patch("completion_flow._run_post_done_cleanup", side_effect=raise_on_cleanup):
         rc = progress_manager.cmd_done()
 
     assert rc == 0, f"cmd_done must return 0 even when cleanup raises; got {rc}"
@@ -261,9 +262,9 @@ def test_cmd_done_non_git_context_does_not_block(seeded_done_env):
     with (
         patch("progress_manager.collect_git_context",
               return_value={"branch": "", "workspace_mode": "unknown", "worktree_path": None}),
-        patch("progress_manager._remove_worktree") as m_remove,
-        patch("progress_manager._delete_local_branch") as m_local,
-        patch("progress_manager._delete_remote_branch") as m_remote,
+        patch("completion_flow.git_utils._remove_worktree") as m_remove,
+        patch("completion_flow.git_utils._delete_local_branch") as m_local,
+        patch("completion_flow.git_utils._delete_remote_branch") as m_remote,
     ):
         rc = progress_manager.cmd_done()
 
@@ -386,7 +387,7 @@ def test_cmd_done_completion_state_stable_before_cleanup_runs(seeded_done_env):
     progress_file = state_dir / "progress.json"
     observed_during_cleanup: dict = {}
 
-    def inspect_state_during_cleanup(ctx, skip=False):
+    def inspect_state_during_cleanup(ctx, services, skip=False):
         raw = progress_file.read_text()
         data = json.loads(raw)
         features = data.get("features", [])
@@ -399,7 +400,7 @@ def test_cmd_done_completion_state_stable_before_cleanup_runs(seeded_done_env):
         observed_during_cleanup["current_feature_id"] = data.get("current_feature_id")
         observed_during_cleanup["features_empty"] = len(features) == 0
 
-    with patch("progress_manager._run_post_done_cleanup",
+    with patch("completion_flow._run_post_done_cleanup",
                side_effect=inspect_state_during_cleanup):
         rc = progress_manager.cmd_done()
 

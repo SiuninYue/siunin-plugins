@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-06-04T17:34:30.814131Z",
+  "updated_at": "2026-06-08T14:11:37.415639Z",
   "features": [
     {
       "id": 10,
@@ -3119,11 +3119,22 @@
       ],
       "quality_gates": {
         "evaluator": {
-          "status": "pending",
-          "score": null,
-          "defects": [],
-          "last_run_at": null,
-          "evaluator_model": null
+          "status": "pass",
+          "score": 90,
+          "defects": [
+            {
+              "id": "D24-1",
+              "severity": "minor",
+              "description": "archive_feature_docs wrapper 委托给 doc_generator 而非 completion_flow，与其他 completion flow 提取模式不完全一致，但功能正确"
+            },
+            {
+              "id": "D24-2",
+              "severity": "minor",
+              "description": "验收标准第5条指定 test_completion_flow.py，实际覆盖分散在5个文件，无功能缺口但命名有歧义"
+            }
+          ],
+          "last_run_at": "2026-06-08T05:26:18Z",
+          "evaluator_model": "claude-sonnet-4-6"
         },
         "reviews": {
           "required": [
@@ -3131,23 +3142,41 @@
             "eng",
             "qa"
           ],
-          "passed": [],
-          "pending": [
-            "docs",
+          "passed": [
             "eng",
-            "qa"
-          ]
+            "qa",
+            "docs"
+          ],
+          "pending": []
         },
         "ship_check": {
-          "status": "pending",
+          "status": "pass",
           "failures": [],
-          "last_run_at": null
+          "last_run_at": "2026-06-08T05:29:20Z"
+        },
+        "review_evidence": {
+          "eng": {
+            "evidence": "Final code review: completion_flow.py (1306 lines) - no reverse imports, no security issues, wrapper pattern compliant, subprocess.run shell=True confirmed safe for local developer tool. All 1095 tests pass.",
+            "recorded_at": "2026-06-08T13:29:07.910246Z"
+          },
+          "qa": {
+            "evidence": "Acceptance verification: all 7 test_steps confirmed via prog done --check (Gate 5 pass). 1095 tests pass including 46 completion flow specific tests covering test_completion_flow_contract.py, test_cleanup_after_done.py, test_cmd_done_cleanup_integration.py.",
+            "recorded_at": "2026-06-08T13:29:12.340288Z"
+          },
+          "docs": {
+            "evidence": "Plan: docs/plans/2026-06-04-f24-completion-flow.md. Module map updated: progress-manager-module-map.md line 52. Changes index: docs/changes/index.jsonl entry 20260604-completion-flow-r5. generate_prog_docs.py --check passes.",
+            "recorded_at": "2026-06-08T13:29:17.123031Z"
+          }
         }
       },
       "sprint_contract": {
-        "scope": "",
-        "done_criteria": [],
-        "test_plan": [],
+        "scope": "Extracted completion pipeline (~1000 lines) from progress_manager.py into completion_flow.py with CompletionFlowServices injection",
+        "done_criteria": [
+          "Round 6 feature registered (ID: 26)"
+        ],
+        "test_plan": [
+          "uv run pytest tests/ -q → 1095 passed, 55 warnings"
+        ],
         "accepted_by": null,
         "accepted_at": null
       },
@@ -3158,7 +3187,20 @@
         "created_at": null
       },
       "development_stage": "developing",
-      "started_at": "2026-06-04T09:34:30.782749"
+      "started_at": "2026-06-04T09:34:30.782749",
+      "ai_metrics": {
+        "complexity_score": 51,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "scoring_v2": {
+          "score": 51,
+          "raw_score_bucket": "standard",
+          "routed_bucket": "standard",
+          "confidence": "high"
+        },
+        "started_at": "2026-06-04T17:53:36.784575Z"
+      }
     },
     {
       "id": 25,
@@ -3205,6 +3247,83 @@
         "Scenario: Task 4: Integrate Safe Entropy Preflight into next_feature",
         "Scenario: Task 5: Add Audit Report and Change Record",
         "Scenario: Acceptance: Safe entropy-fix applied, branch deleted only when merged, next_feature runs preflight and passes all tests"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
+    },
+    {
+      "id": 26,
+      "name": "progress_manager facade 收口 Round 6：Backlog and Intake Mutation Commands 外移",
+      "test_steps": [
+        "Run: bash scripts/check_pm_boundary.sh",
+        "Run: python3 hooks/scripts/generate_prog_docs.py --check",
+        "Run: uv run pytest tests/ -q",
+        "Confirm work_item_commands.py or backlog_commands.py exists with smart_intake, add_feature, update_feature, defer_features, resume_deferred_features, add_update, list_updates, add_retro, set_feature_owner extracted",
+        "Confirm progress_manager.py line count decreased by >= 300 lines vs F24 baseline of 7121"
+      ],
+      "workflow_profile": "standard_task",
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-026"
+      ],
+      "change_spec": {
+        "why": "Deliver progress_manager facade 收口 Round 6：Backlog and Intake Mutation Commands 外移 with traceable acceptance coverage.",
+        "in_scope": [
+          "progress_manager facade 收口 Round 6：Backlog and Intake Mutation Commands 外移"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: Run: bash scripts/check_pm_boundary.sh",
+        "Scenario: Run: python3 hooks/scripts/generate_prog_docs.py --check",
+        "Scenario: Run: uv run pytest tests/ -q",
+        "Scenario: Confirm work_item_commands.py or backlog_commands.py exists with smart_intake, add_feature, update_feature, defer_features, resume_deferred_features, add_update, list_updates, add_retro, set_feature_owner extracted",
+        "Scenario: Confirm progress_manager.py line count decreased by >= 300 lines vs F24 baseline of 7121"
       ],
       "quality_gates": {
         "evaluator": {
@@ -3505,21 +3624,21 @@
   ],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-06-04T17:34:30.783418Z",
-    "source": "set_current",
-    "workspace_mode": "in_place",
-    "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
-    "project_root": "/Users/siunin/Projects/Claude-Plugins",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins",
-    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
-    "branch": "main",
-    "upstream": "origin/main",
-    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+    "recorded_at": "2026-06-08T10:09:22.074419Z",
+    "source": "set_workflow_state",
+    "workspace_mode": "worktree",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-24-completion-flow",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-24-completion-flow",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-24-completion-flow",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-24-completion-flow",
+    "branch": "worktree-feature-24-completion-flow",
+    "upstream": null,
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-24-completion-flow/plugins/progress-tracker",
     "current_feature_id": 24,
-    "workflow_phase": "planning",
+    "workflow_phase": "execution_complete",
     "current_task": null,
     "total_tasks": null,
-    "next_action": null
+    "next_action": "verify_and_complete"
   },
   "bugs": [
     {
@@ -3644,7 +3763,20 @@
   "tasks": [],
   "current_task_id": null,
   "workflow_state": {
-    "phase": "planning",
-    "updated_at": "2026-06-04T09:34:30.782949"
+    "phase": "execution_complete",
+    "updated_at": "2026-06-08T10:09:22.058191Z",
+    "plan_path": "docs/plans/2026-06-04-f24-completion-flow.md",
+    "execution_context": {
+      "recorded_at": "2026-06-08T10:09:22.058212Z",
+      "source": "set_workflow_state",
+      "workspace_mode": "worktree",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-24-completion-flow",
+      "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-24-completion-flow",
+      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-24-completion-flow/plugins/progress-tracker",
+      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-24-completion-flow",
+      "branch": "worktree-feature-24-completion-flow",
+      "upstream": null
+    },
+    "next_action": "verify_and_complete"
   }
 }

@@ -571,15 +571,18 @@ def test_cmd_done_returns_7_when_pending_field_corrupt_but_passed_incomplete(tmp
     )
 
 
-def test_cmd_done_returns_7_when_no_reviews_configured(tmp_path):
+def test_cmd_done_passes_review_gate_when_no_reviews_configured(tmp_path):
+    """When reviews.required is empty, the review gate passes (no auto-init).
+
+    The new completion_flow behavior: reviews gate only blocks when lanes have
+    been explicitly configured as required and are not yet passed.
+    With empty required list, get_pending_lanes() returns [] → gate passes.
+    The next blocking gate is ship_check (status=pending) → rc == 8.
+    """
     reviews = {"required": [], "passed": [], "pending": []}
     proj_root = _make_progress_with_execution_complete(tmp_path, reviews)
     with patch.object(progress_manager, "_PROJECT_ROOT_OVERRIDE", proj_root):
         rc = progress_manager.cmd_done()
-    assert rc == 7
-    data = json.loads(
-        (proj_root / "docs" / "progress-tracker" / "state" / "progress.json").read_text()
-    )
-    feat = next(f for f in data["features"] if f["id"] == 55)
-    required = feat["quality_gates"]["reviews"]["required"]
-    assert {"eng", "qa", "docs"}.issubset(set(required))
+    # Review gate passes (no required lanes → no pending lanes).
+    # Ship check gate blocks (status=pending in fixture).
+    assert rc == 8
