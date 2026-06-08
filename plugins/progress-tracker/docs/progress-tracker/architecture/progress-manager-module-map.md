@@ -49,6 +49,7 @@ New business logic should move into focused modules under
 | Feature activation + stage commands | `feature_commands.py` | F22 wrappers only | `set_current`, `set_development_stage` extracted. Callbacks: load/save json, gen/save md, update_ctx, auto_state_commit, notify_parent_sync. |
 | Work-item selection | `work_item_selector.py` | F23 wrappers only | Owns `get_next_feature`, child/root dispatch selection, and unified bug/task/feature priority selection. Callbacks: state load, defer check, timestamp parse, linked-root resolution, child payload load. |
 | Next-feature command | `next_feature_commands.py` | F23 wrappers only | Owns `next_feature` orchestration, JSON/text rendering, task activation, parent active-route bookkeeping, planning gate display, and feature payload output. Callbacks: state IO, git helpers, reconcile analysis, planning readiness, selector, linked snapshot refresh. |
+| Completion pipeline | `completion_flow.py` | F24 wrappers only | Owns `cmd_done`, `complete_feature`, acceptance tests (`_run_acceptance_tests`), done preflight (`_run_done_preflight`), state finalization (`_finalize_completion_state_in_memory`), archive record saving, capability memory append, post-done cleanup, and all related helpers. Services injected via `CompletionFlowServices` dataclass: load/save json, gen/save md, sprint ledger, notify_parent_sync, git context, archive, reconcile analysis. `progress_manager.py` reduced from 8122 → 7121 lines (−1001). |
 
 ## Remaining Facade Weight
 
@@ -57,7 +58,7 @@ are candidates for the next extraction rounds:
 
 | Planned round | Candidate module | Remaining behavior cluster |
 |---|---|---|
-| Round 5 | `completion_flow.py`, optional `acceptance_runner.py`, optional `completion_cleanup.py` | `done`, `complete_feature`, acceptance reports, finish-state cleanup. |
+| Round 5 | ✅ DONE — `completion_flow.py` | `done`, `complete_feature`, acceptance reports, finish-state cleanup. Completed F24. |
 | Round 6 | `work_item_commands.py` or `backlog_commands.py` | Intake, feature/backlog/update/retro/owner mutation commands. |
 | Round 7 | `workflow_commands.py` | Workflow state commands, plan validation command, health check, reconcile command. |
 | Final | existing allowlisted modules | Remove remaining reverse imports and compress parser/dispatch structure. |
