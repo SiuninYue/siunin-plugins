@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "Test",
   "created_at": "2026-05-14T13:53:00.008608Z",
-  "updated_at": "2026-06-08T17:42:34.377466Z",
+  "updated_at": "2026-06-09T21:04:32.635339Z",
   "features": [],
   "current_feature_id": null,
   "tracker_role": "parent",
@@ -32,12 +32,12 @@
   ],
   "linked_snapshot": {
     "schema_version": "1.0",
-    "updated_at": "2026-06-08T14:48:00.585754Z",
+    "updated_at": "2026-06-09T21:04:32.634927Z",
     "projects": [
       {
         "status": "ok",
         "configured_project_root": "plugins/note-organizer",
-        "project_root": "/Users/siunin/Projects/Claude-Plugins/plugins/note-organizer",
+        "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-26-formal-closeout/plugins/note-organizer",
         "project_name": "Note Organizer Plugin",
         "completed": 0,
         "total": 0,
@@ -53,23 +53,23 @@
       {
         "status": "ok",
         "configured_project_root": "plugins/progress-tracker",
-        "project_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+        "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-26-formal-closeout/plugins/progress-tracker",
         "project_name": "progress-tracker-sop-compliance-optimization",
-        "completed": 24,
+        "completed": 25,
         "total": 27,
-        "completion_rate": 0.8888888888888888,
-        "updated_at": "2026-06-08T14:48:00.202283Z",
+        "completion_rate": 0.9259259259259259,
+        "updated_at": "2026-06-09T21:04:32.413631Z",
         "is_stale": false,
-        "active_feature_ref": "PT-F26",
+        "active_feature_ref": null,
         "project_code": "PT",
         "child_project_code": "PT",
-        "workspace": "in_place",
+        "workspace": "worktree",
         "route_status": "active"
       },
       {
         "status": "ok",
         "configured_project_root": "plugins/super-product-manager",
-        "project_root": "/Users/siunin/Projects/Claude-Plugins/plugins/super-product-manager",
+        "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-26-formal-closeout/plugins/super-product-manager",
         "project_name": "SPM-PROG Harness Linkage",
         "completed": 0,
         "total": 0,
@@ -84,15 +84,7 @@
       }
     ]
   },
-  "active_routes": [
-    {
-      "project_code": "PT",
-      "feature_ref": "PT-F26",
-      "assigned_at": "2026-06-08T14:48:00.585777Z",
-      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-26-formal-closeout",
-      "branch": "worktree-feature-26-formal-closeout"
-    }
-  ],
+  "active_routes": [],
   "updates": [],
   "retrospectives": [],
   "tasks": [],

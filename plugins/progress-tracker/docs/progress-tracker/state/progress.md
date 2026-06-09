@@ -2,7 +2,7 @@
 
 **Created**: 2026-04-23T00:28:18.285129Z
 
-**Status**: 24/27 completed
+**Status**: 25/27 completed
 
 ## Completed
 - [x] 根目录混合宿主架构：Monorepo /prog 支持
@@ -29,27 +29,13 @@
 - [x] progress_manager facade 收口 Round 3：Feature Activation and Stage Commands 外移
 - [x] progress_manager facade 收口 Round 4：Work-Item Selection and next_feature 外移
 - [x] progress_manager facade 收口 Round 5：Completion Flow and Cleanup 外移
-
-## In Progress
-- [ ] progress_manager facade 收口 Round 6：Backlog and Intake Mutation Commands 外移
-  **Test steps**:
-  - Run: bash scripts/check_pm_boundary.sh
-  - Run: python3 hooks/scripts/generate_prog_docs.py --check
-  - Run: uv run pytest tests/ -q
-  - Confirm work_item_commands.py or backlog_commands.py exists with smart_intake, add_feature, update_feature, defer_features, resume_deferred_features, add_update, list_updates, add_retro, set_feature_owner extracted
-  - Confirm progress_manager.py line count decreased by >= 300 lines vs F24 baseline of 7121
+- [x] progress_manager facade 收口 Round 6：Backlog and Intake Mutation Commands 外移
 
 ## Pending
 - [ ] AI Workspace Entropy Manager
 
 ## Deferred
 - [~] AI 可追溯与可回退机制 v1：变更记录 + 自动守卫 + 回退 SOP — Round 3 facade convergence is prioritized before F19 rollback mechanism
-
-## Workflow Context
-- Phase: execution_complete
-- Next action: verify_and_complete
-- Execution context: worktree-feature-26-formal-closeout @ feature-26-formal-closeout [worktree]
-- Current session context: worktree-feature-26-formal-closeout @ feature-26-formal-closeout [worktree]
 
 ## Recent Updates
 - [UPD-010] decision: 设置 F21 closeout 防遗忘门槛：必须登记下一条 facade 收口 feature 或写明 defer 决策 (feature:21)
