@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-06-08T09:46:18.879867Z",
+  "updated_at": "2026-06-09T13:04:32.631396Z",
   "source": {
     "generator": "summary_projector.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,8 +11,8 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1780911812002448464,
-      "size": 168561
+      "mtime_ns": 1781010272434866419,
+      "size": 168333
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
@@ -22,21 +22,21 @@
     }
   },
   "progress": {
-    "completed": 24,
+    "completed": 25,
     "total": 27,
-    "percentage": 88
+    "percentage": 92
   },
   "next_action": {
     "type": "feature",
-    "feature_id": 26,
-    "feature_name": "progress_manager facade 收口 Round 6：Backlog and Intake Mutation Commands 外移",
-    "development_stage": "developing",
-    "stage_label": "开发中"
+    "feature_id": 19,
+    "feature_name": "AI 可追溯与可回退机制 v1：变更记录 + 自动守卫 + 回退 SOP",
+    "development_stage": "pending",
+    "stage_label": "待开始"
   },
   "plan_health": {
-    "status": "OK",
-    "plan_path": "docs/plans/2026-06-08-f26-work-item-commands-extraction.md",
-    "message": "计划文件完整且符合规范"
+    "status": "N/A",
+    "plan_path": null,
+    "message": "无活跃计划"
   },
   "risk_blocker": {
     "has_risk": false,
@@ -47,6 +47,6 @@
   "recent_snapshot": {
     "exists": true,
     "timestamp": "2026-06-08T15:43:43.122625+08:00",
-    "relative_time": "2 小时前"
+    "relative_time": "1 天前"
   }
 }
