@@ -2,7 +2,7 @@
 
 **Created**: 2026-04-23T00:28:18.285129Z
 
-**Status**: 25/27 completed
+**Status**: 25/29 completed
 
 ## Completed
 - [x] 根目录混合宿主架构：Monorepo /prog 支持
@@ -31,19 +31,32 @@
 - [x] progress_manager facade 收口 Round 5：Completion Flow and Cleanup 外移
 - [x] progress_manager facade 收口 Round 6：Backlog and Intake Mutation Commands 外移
 
+## In Progress
+- [ ] progress_manager facade 收口 Round 7：Workflow and Reconcile Commands 外移
+  **Test steps**:
+  - Run: bash scripts/check_pm_boundary.sh
+  - Run: python3 hooks/scripts/generate_prog_docs.py --check
+  - Run: uv run pytest tests/ -q
+  - Confirm workflow_commands.py exists with set_workflow_state, update_workflow_task, clear_workflow_state, validate_plan, health_check, reconcile extracted
+  - Confirm progress_manager.py line count decreased vs F26 baseline of 6528 lines
+
 ## Pending
-- [ ] AI Workspace Entropy Manager
+- [ ] progress_manager facade 收口 Final Round：Reverse Import Cleanup and Facade Compression
 
 ## Deferred
 - [~] AI 可追溯与可回退机制 v1：变更记录 + 自动守卫 + 回退 SOP — Round 3 facade convergence is prioritized before F19 rollback mechanism
+- [~] AI Workspace Entropy Manager — F27/F28 facade 收口 Round 7 + Final Round 优先于 F25 Entropy Manager；待 facade 收口完成后再评估 F25 排期
+
+## Workflow Context
+- Phase: planning
+- Current session context: main @ Claude-Plugins [in_place]
 
 ## Recent Updates
-- [UPD-010] decision: 设置 F21 closeout 防遗忘门槛：必须登记下一条 facade 收口 feature 或写明 defer 决策 (feature:21)
-  Next: When closing F21, create the next facade convergence feature for Round 3-4 or record an explicit defer decision.
-- [UPD-011] status: F22 planning approved in office hours (feature:22)
 - [UPD-012] status: F22 CEO review complete (feature:22)
 - [UPD-013] status: F23 planning approved in office hours (feature:23)
 - [UPD-014] status: F23 CEO review complete (feature:23)
+- [UPD-015] status: F27 planning approved in office hours (feature:27)
+- [UPD-016] status: F27 CEO review complete (feature:27)
 
 ## Bug Backlog
 ### Medium Priority (🟡)
