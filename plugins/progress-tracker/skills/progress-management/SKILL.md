@@ -2,16 +2,6 @@
 name: progress-management
 description: This skill should be used when the user runs "/prog reset", "/prog undo", asks to "reset progress tracking", "revert last completed feature", or needs safe administrative rollback operations.
 model: sonnet
-version: "1.0.0"
-scope: skill
-inputs:
-  - 用户问题或场景
-  - 约束与目标（如有）
-outputs:
-  - 方法与模板
-  - 注意事项与检查项
-evidence: optional
-references: []
 ---
 
 # Progress Management Skill

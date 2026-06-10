@@ -2,15 +2,6 @@
 name: feature-implement
 description: This skill should be used when the user runs "/prog next", asks to "implement next feature", "start next feature", "continue implementation", or needs to resume interrupted feature execution. Routes features to appropriate implementation paths based on complexity assessment.
 model: sonnet
-version: "3.2.0"
-scope: skill
-inputs:
-  - 用户问题或场景
-  - 约束与目标（如有）
-outputs:
-  - 方法与模板
-  - 注意事项与检查项
-evidence: optional
 references:
   - "superpowers:brainstorming"
   - "superpowers:using-git-worktrees"

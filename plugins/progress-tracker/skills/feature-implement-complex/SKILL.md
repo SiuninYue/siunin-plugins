@@ -2,19 +2,7 @@
 name: feature-implement-complex
 description: This skill should be used when feature complexity is complex (score 26-40) and the coordinator delegates architecture-heavy or multi-file implementation. Executes brainstorming, planning, and subagent-driven execution with opus and updates workflow and AI metrics.
 model: opus
-version: "1.1.0"
-scope: skill
 user-invocable: false
-inputs:
-  - feature_id
-  - feature_name
-  - feature test steps
-  - complexity_score
-outputs:
-  - design plan and execution summary
-  - workflow state update
-  - ai_metrics update
-evidence: optional
 references:
   - "superpowers:brainstorming"
   - "superpowers:using-git-worktrees"

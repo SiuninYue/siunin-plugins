@@ -2,15 +2,6 @@
 name: feature-complete
 description: This skill should be used when the user asks to "/prog done", "complete feature", "mark feature as done", "finish implementation", or runs the prog-done command. Handles feature verification, progress tracking updates, and Git commits.
 model: sonnet
-version: "2.3.0"
-scope: skill
-inputs:
-  - 用户问题或场景
-  - 约束与目标（如有）
-outputs:
-  - 方法与模板
-  - 注意事项与检查项
-evidence: optional
 references:
   - "testing-standards"
   - "superpowers:requesting-code-review"

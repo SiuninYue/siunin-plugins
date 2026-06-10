@@ -1,15 +1,6 @@
 ---
 name: bug-fix
 description: Use when a bug is reported, discovered, or needs investigation — including /prog-fix, "something is broken", "debug this", "failing test", or any request to investigate, record, schedule, or fix a bug. Invoke even when the user doesn't say "bug" explicitly.
-version: "1.0.0"
-scope: skill
-inputs:
-  - Bug description or no arguments
-outputs:
-  - Bug verification results
-  - Smart scheduling recommendations
-  - Coordinated debugging and fixing workflow
-evidence: optional
 references:
   - "testing-standards"
   - "superpowers:systematic-debugging"
