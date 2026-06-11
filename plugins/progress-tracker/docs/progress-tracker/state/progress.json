@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-06-09T21:04:32.413631Z",
+  "updated_at": "2026-06-11T16:54:01.173296Z",
   "features": [
     {
       "id": 10,
@@ -3232,9 +3232,9 @@
       ],
       "workflow_profile": "standard_task",
       "completed": false,
-      "deferred": false,
-      "defer_reason": null,
-      "deferred_at": null,
+      "deferred": true,
+      "defer_reason": "F27/F28 facade 收口 Round 7 + Final Round 优先于 F25 Entropy Manager；待 facade 收口完成后再评估 F25 排期",
+      "deferred_at": "2026-06-10T17:39:27.306654Z",
       "defer_group": null,
       "owners": {
         "architecture": null,
@@ -3436,9 +3436,209 @@
           }
         ]
       }
+    },
+    {
+      "id": 27,
+      "name": "progress_manager facade 收口 Round 7：Workflow and Reconcile Commands 外移",
+      "test_steps": [
+        "Run: bash scripts/check_pm_boundary.sh",
+        "Run: python3 hooks/scripts/generate_prog_docs.py --check",
+        "Run: uv run pytest tests/ -q",
+        "Confirm workflow_commands.py exists with set_workflow_state, update_workflow_task, clear_workflow_state, validate_plan, health_check, reconcile extracted",
+        "Confirm progress_manager.py line count decreased vs F26 baseline of 6528 lines"
+      ],
+      "workflow_profile": "standard_task",
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "implementing",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "change_spec": {
+        "why": "Deliver progress_manager facade 收口 Round 7：Workflow and Reconcile Commands 外移 with traceable acceptance coverage.",
+        "in_scope": [
+          "progress_manager facade 收口 Round 7：Workflow and Reconcile Commands 外移"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: Run: bash scripts/check_pm_boundary.sh",
+        "Scenario: Run: python3 hooks/scripts/generate_prog_docs.py --check",
+        "Scenario: Run: uv run pytest tests/ -q",
+        "Scenario: Confirm workflow_commands.py exists with set_workflow_state, update_workflow_task, clear_workflow_state, validate_plan, health_check, reconcile extracted",
+        "Scenario: Confirm progress_manager.py line count decreased vs F26 baseline of 6528 lines"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 100,
+          "defects": [],
+          "last_run_at": "2026-06-11T08:53:34Z",
+          "evaluator_model": "gpt-5 same-session fallback"
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [
+            "eng",
+            "qa",
+            "docs"
+          ],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pass",
+          "failures": [],
+          "last_run_at": "2026-06-11T08:54:01Z"
+        },
+        "review_evidence": {
+          "eng": {
+            "evidence": "Manual code review 2026-06-11: inspected workflow_commands extraction, progress_manager facade wrappers, and new contract tests; no blocking defects found; wrapper compatibility and constant re-exports preserved; git diff --check clean.",
+            "recorded_at": "2026-06-11T16:53:42.683089Z"
+          },
+          "qa": {
+            "evidence": "Acceptance preflight 2026-06-11: bash scripts/check_pm_boundary.sh passed; python3 hooks/scripts/generate_prog_docs.py --check passed; uv run pytest tests/ -q passed with 1181 tests green in 51.80s.",
+            "recorded_at": "2026-06-11T16:53:48.863420Z"
+          },
+          "docs": {
+            "evidence": "Documentation verification 2026-06-11: plan /Users/siunin/Projects/Claude-Plugins/.claude/worktrees/worktree-feature-27-workflow-reconcile/plugins/progress-tracker/docs/plans/2026-06-10-feature-27-progress-manager-facade-round-7-workflow-and-rec.md present and generate_prog_docs.py --check reported generated docs up to date.",
+            "recorded_at": "2026-06-11T16:53:56.385475Z"
+          }
+        }
+      },
+      "sprint_contract": {
+        "scope": "Extract 8 workflow-state and reconcile functions from progress_manager.py into workflow_commands.py with WorkflowCommandsServices injection; facade keeps is_wrapper=True thin wrappers and re-exports RECONCILE constants",
+        "done_criteria": [
+          "workflow_commands.py exists with all 8 *_command functions",
+          "all 8 facade wrappers marked is_wrapper=True and constants re-exported",
+          "progress_manager.py line count < 6528 (now 5877)",
+          "check_pm_boundary.sh and generate_prog_docs --check pass"
+        ],
+        "test_plan": [
+          "uv run pytest tests/ -q (1181 passed)",
+          "tests/test_workflow_commands.py injected-unit tests (25)",
+          "tests/test_workflow_commands_extraction_contract.py facade contract tests (3)"
+        ],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "development_stage": "developing",
+      "started_at": "2026-06-10T09:42:34.107334",
+      "ai_metrics": {
+        "complexity_score": 42,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "scoring_v2": {
+          "score": 42,
+          "raw_score_bucket": "standard",
+          "routed_bucket": "standard",
+          "confidence": "high"
+        },
+        "started_at": "2026-06-10T17:58:46.617673Z"
+      }
+    },
+    {
+      "id": 28,
+      "name": "progress_manager facade 收口 Final Round：Reverse Import Cleanup and Facade Compression",
+      "test_steps": [
+        "Run: bash scripts/check_pm_boundary.sh",
+        "Run: python3 hooks/scripts/generate_prog_docs.py --check",
+        "Run: uv run pytest tests/ -q",
+        "Confirm no reverse imports to progress_manager remain in submodules (wf_auto_driver.py, sprint_ledger.py, lifecycle_state_machine.py, progress_ui_server.py)",
+        "Confirm progress_manager.py is compressed to parser, dispatch, and thin wrappers only"
+      ],
+      "workflow_profile": "standard_task",
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-028"
+      ],
+      "change_spec": {
+        "why": "Deliver progress_manager facade 收口 Final Round：Reverse Import Cleanup and Facade Compression with traceable acceptance coverage.",
+        "in_scope": [
+          "progress_manager facade 收口 Final Round：Reverse Import Cleanup and Facade Compression"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: Run: bash scripts/check_pm_boundary.sh",
+        "Scenario: Run: python3 hooks/scripts/generate_prog_docs.py --check",
+        "Scenario: Run: uv run pytest tests/ -q",
+        "Scenario: Confirm no reverse imports to progress_manager remain in submodules (wf_auto_driver.py, sprint_ledger.py, lifecycle_state_machine.py, progress_ui_server.py)",
+        "Scenario: Confirm progress_manager.py is compressed to parser, dispatch, and thin wrappers only"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
     }
   ],
-  "current_feature_id": null,
+  "current_feature_id": 27,
   "linked_projects": [],
   "linked_snapshot": {
     "schema_version": "1.0",
@@ -3699,25 +3899,59 @@
         "planning:ceo_review",
         "doc:docs/plans/2026-06-03-progress-manager-facade-rounds.md"
       ]
+    },
+    {
+      "id": "UPD-015",
+      "created_at": "2026-06-10T17:41:54.291113Z",
+      "category": "status",
+      "summary": "F27 planning approved in office hours",
+      "details": null,
+      "feature_id": 27,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:office_hours",
+        "doc:docs/plans/2026-06-03-progress-manager-facade-rounds.md"
+      ]
+    },
+    {
+      "id": "UPD-016",
+      "created_at": "2026-06-10T17:41:57.286568Z",
+      "category": "status",
+      "summary": "F27 CEO review complete",
+      "details": null,
+      "feature_id": 27,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:ceo_review",
+        "doc:docs/plans/2026-06-03-progress-manager-facade-rounds.md"
+      ]
     }
   ],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-06-09T21:04:32.360815Z",
-    "source": "finalize",
+    "recorded_at": "2026-06-11T16:44:13.441756Z",
+    "source": "set_workflow_state",
     "workspace_mode": "worktree",
-    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-26-formal-closeout",
-    "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-26-formal-closeout",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-26-formal-closeout",
-    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-26-formal-closeout",
-    "branch": "worktree-feature-26-formal-closeout",
-    "upstream": "origin/worktree-feature-26-formal-closeout",
-    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-26-formal-closeout/plugins/progress-tracker",
-    "current_feature_id": null,
-    "workflow_phase": null,
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/worktree-feature-27-workflow-reconcile",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/worktree-feature-27-workflow-reconcile",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/worktree-feature-27-workflow-reconcile/plugins/progress-tracker",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/worktree-feature-27-workflow-reconcile",
+    "branch": "worktree-feature-27-workflow-reconcile",
+    "upstream": null,
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/worktree-feature-27-workflow-reconcile/plugins/progress-tracker",
+    "current_feature_id": 27,
+    "workflow_phase": "execution_complete",
     "current_task": null,
     "total_tasks": null,
-    "next_action": null
+    "next_action": "verify_and_complete"
   },
   "bugs": [
     {
@@ -3840,5 +4074,23 @@
   "current_bug_id": null,
   "parent_project_root": ".",
   "tasks": [],
-  "current_task_id": null
+  "current_task_id": null,
+  "workflow_state": {
+    "phase": "execution_complete",
+    "updated_at": "2026-06-11T16:44:13.389382Z",
+    "plan_path": "docs/plans/2026-06-10-feature-27-progress-manager-facade-round-7-workflow-and-rec.md",
+    "next_action": "verify_and_complete",
+    "execution_context": {
+      "recorded_at": "2026-06-11T16:44:13.396722Z",
+      "source": "set_workflow_state",
+      "workspace_mode": "worktree",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/worktree-feature-27-workflow-reconcile",
+      "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/worktree-feature-27-workflow-reconcile",
+      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/worktree-feature-27-workflow-reconcile/plugins/progress-tracker",
+      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/worktree-feature-27-workflow-reconcile",
+      "branch": "worktree-feature-27-workflow-reconcile",
+      "upstream": null
+    },
+    "pending_action": "run_prog_done"
+  }
 }
