@@ -1,5 +1,5 @@
 {
-  "last_checkpoint_at": "2026-06-08T15:43:43.122625+08:00",
+  "last_checkpoint_at": "2026-06-11T14:50:24.786783+08:00",
   "max_entries": 50,
   "entries": [
     {
@@ -488,6 +488,21 @@
       "feature_name": "progress_manager facade 收口 Round 6：Backlog and Intake Mutation Commands 外移",
       "phase": "planning:review",
       "plan_path": "docs/plans/2026-06-08-f26-work-item-commands-extraction.md",
+      "current_task": null,
+      "total_tasks": null,
+      "next_action": null,
+      "workspace_mode": "in_place",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+      "branch": "main",
+      "upstream": "origin/main",
+      "reason": "auto_interval"
+    },
+    {
+      "timestamp": "2026-06-11T14:50:24.786783+08:00",
+      "feature_id": 27,
+      "feature_name": "progress_manager facade 收口 Round 7：Workflow and Reconcile Commands 外移",
+      "phase": "planning",
+      "plan_path": null,
       "current_task": null,
       "total_tasks": null,
       "next_action": null,
