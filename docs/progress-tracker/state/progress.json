@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "Test",
   "created_at": "2026-05-14T13:53:00.008608Z",
-  "updated_at": "2026-06-10T17:58:21.895939Z",
+  "updated_at": "2026-06-11T17:01:53.521080Z",
   "features": [],
   "current_feature_id": null,
   "tracker_role": "parent",
@@ -32,12 +32,12 @@
   ],
   "linked_snapshot": {
     "schema_version": "1.0",
-    "updated_at": "2026-06-09T21:04:32.634927Z",
+    "updated_at": "2026-06-11T17:01:53.520951Z",
     "projects": [
       {
         "status": "ok",
         "configured_project_root": "plugins/note-organizer",
-        "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-26-formal-closeout/plugins/note-organizer",
+        "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/worktree-feature-27-workflow-reconcile/plugins/note-organizer",
         "project_name": "Note Organizer Plugin",
         "completed": 0,
         "total": 0,
@@ -53,12 +53,12 @@
       {
         "status": "ok",
         "configured_project_root": "plugins/progress-tracker",
-        "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-26-formal-closeout/plugins/progress-tracker",
+        "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/worktree-feature-27-workflow-reconcile/plugins/progress-tracker",
         "project_name": "progress-tracker-sop-compliance-optimization",
-        "completed": 25,
-        "total": 27,
-        "completion_rate": 0.9259259259259259,
-        "updated_at": "2026-06-09T21:04:32.413631Z",
+        "completed": 26,
+        "total": 29,
+        "completion_rate": 0.896551724137931,
+        "updated_at": "2026-06-11T17:01:53.491999Z",
         "is_stale": false,
         "active_feature_ref": null,
         "project_code": "PT",
@@ -69,7 +69,7 @@
       {
         "status": "ok",
         "configured_project_root": "plugins/super-product-manager",
-        "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-26-formal-closeout/plugins/super-product-manager",
+        "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/worktree-feature-27-workflow-reconcile/plugins/super-product-manager",
         "project_name": "SPM-PROG Harness Linkage",
         "completed": 0,
         "total": 0,
@@ -84,14 +84,7 @@
       }
     ]
   },
-  "active_routes": [
-    {
-      "project_code": "PT",
-      "feature_ref": "PT-F27",
-      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/worktree-feature-27-workflow-reconcile",
-      "branch": "worktree-feature-27-workflow-reconcile"
-    }
-  ],
+  "active_routes": [],
   "updates": [],
   "retrospectives": [],
   "tasks": [],
