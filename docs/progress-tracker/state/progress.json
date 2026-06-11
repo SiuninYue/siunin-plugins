@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "Test",
   "created_at": "2026-05-14T13:53:00.008608Z",
-  "updated_at": "2026-06-09T21:04:32.635339Z",
+  "updated_at": "2026-06-10T17:58:21.895939Z",
   "features": [],
   "current_feature_id": null,
   "tracker_role": "parent",
@@ -84,21 +84,28 @@
       }
     ]
   },
-  "active_routes": [],
+  "active_routes": [
+    {
+      "project_code": "PT",
+      "feature_ref": "PT-F27",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/worktree-feature-27-workflow-reconcile",
+      "branch": "worktree-feature-27-workflow-reconcile"
+    }
+  ],
   "updates": [],
   "retrospectives": [],
   "tasks": [],
   "runtime_context": {
-    "recorded_at": "2026-06-08T17:42:34.342074Z",
+    "recorded_at": "2026-06-10T17:58:21.852312Z",
     "source": "route_select",
     "workspace_mode": "worktree",
-    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-26-formal-closeout",
-    "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-26-formal-closeout",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-26-formal-closeout",
-    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-26-formal-closeout",
-    "branch": "worktree-feature-26-formal-closeout",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/worktree-feature-27-workflow-reconcile",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/worktree-feature-27-workflow-reconcile",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/worktree-feature-27-workflow-reconcile",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/worktree-feature-27-workflow-reconcile",
+    "branch": "worktree-feature-27-workflow-reconcile",
     "upstream": null,
-    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/feature-26-formal-closeout",
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/worktree-feature-27-workflow-reconcile",
     "current_feature_id": null,
     "workflow_phase": null,
     "current_task": null,

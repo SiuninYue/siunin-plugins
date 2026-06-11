@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-06-11T14:53:14.648436Z",
+  "updated_at": "2026-06-11T16:54:01.173296Z",
   "features": [
     {
       "id": 10,
@@ -3483,11 +3483,11 @@
       ],
       "quality_gates": {
         "evaluator": {
-          "status": "pending",
-          "score": null,
+          "status": "pass",
+          "score": 100,
           "defects": [],
-          "last_run_at": null,
-          "evaluator_model": null
+          "last_run_at": "2026-06-11T08:53:34Z",
+          "evaluator_model": "gpt-5 same-session fallback"
         },
         "reviews": {
           "required": [
@@ -3495,23 +3495,46 @@
             "eng",
             "qa"
           ],
-          "passed": [],
-          "pending": [
-            "docs",
+          "passed": [
             "eng",
-            "qa"
-          ]
+            "qa",
+            "docs"
+          ],
+          "pending": []
         },
         "ship_check": {
-          "status": "pending",
+          "status": "pass",
           "failures": [],
-          "last_run_at": null
+          "last_run_at": "2026-06-11T08:54:01Z"
+        },
+        "review_evidence": {
+          "eng": {
+            "evidence": "Manual code review 2026-06-11: inspected workflow_commands extraction, progress_manager facade wrappers, and new contract tests; no blocking defects found; wrapper compatibility and constant re-exports preserved; git diff --check clean.",
+            "recorded_at": "2026-06-11T16:53:42.683089Z"
+          },
+          "qa": {
+            "evidence": "Acceptance preflight 2026-06-11: bash scripts/check_pm_boundary.sh passed; python3 hooks/scripts/generate_prog_docs.py --check passed; uv run pytest tests/ -q passed with 1181 tests green in 51.80s.",
+            "recorded_at": "2026-06-11T16:53:48.863420Z"
+          },
+          "docs": {
+            "evidence": "Documentation verification 2026-06-11: plan /Users/siunin/Projects/Claude-Plugins/.claude/worktrees/worktree-feature-27-workflow-reconcile/plugins/progress-tracker/docs/plans/2026-06-10-feature-27-progress-manager-facade-round-7-workflow-and-rec.md present and generate_prog_docs.py --check reported generated docs up to date.",
+            "recorded_at": "2026-06-11T16:53:56.385475Z"
+          }
         }
       },
       "sprint_contract": {
-        "scope": "",
-        "done_criteria": [],
-        "test_plan": [],
+        "scope": "Extract 8 workflow-state and reconcile functions from progress_manager.py into workflow_commands.py with WorkflowCommandsServices injection; facade keeps is_wrapper=True thin wrappers and re-exports RECONCILE constants",
+        "done_criteria": [
+          "workflow_commands.py exists with all 8 *_command functions",
+          "all 8 facade wrappers marked is_wrapper=True and constants re-exported",
+          "progress_manager.py line count < 6528 (now 5877)",
+          "check_pm_boundary.sh and generate_prog_docs --check pass"
+        ],
+        "test_plan": [
+          "uv run pytest tests/ -q (1181 passed)",
+          "tests/test_workflow_commands.py injected-unit tests (25)",
+          "tests/test_workflow_commands_extraction_contract.py facade contract tests (3)"
+        ],
         "accepted_by": null,
         "accepted_at": null
       },
@@ -3522,7 +3545,20 @@
         "created_at": null
       },
       "development_stage": "developing",
-      "started_at": "2026-06-10T09:42:34.107334"
+      "started_at": "2026-06-10T09:42:34.107334",
+      "ai_metrics": {
+        "complexity_score": 42,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "scoring_v2": {
+          "score": 42,
+          "raw_score_bucket": "standard",
+          "routed_bucket": "standard",
+          "confidence": "high"
+        },
+        "started_at": "2026-06-10T17:58:46.617673Z"
+      }
     },
     {
       "id": 28,
@@ -3901,21 +3937,21 @@
   ],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-06-10T17:42:34.116214Z",
-    "source": "set_current",
-    "workspace_mode": "in_place",
-    "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
-    "project_root": "/Users/siunin/Projects/Claude-Plugins",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
-    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
-    "branch": "main",
-    "upstream": "origin/main",
-    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+    "recorded_at": "2026-06-11T16:44:13.441756Z",
+    "source": "set_workflow_state",
+    "workspace_mode": "worktree",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/worktree-feature-27-workflow-reconcile",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/worktree-feature-27-workflow-reconcile",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/worktree-feature-27-workflow-reconcile/plugins/progress-tracker",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/worktree-feature-27-workflow-reconcile",
+    "branch": "worktree-feature-27-workflow-reconcile",
+    "upstream": null,
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/worktree-feature-27-workflow-reconcile/plugins/progress-tracker",
     "current_feature_id": 27,
-    "workflow_phase": "planning",
+    "workflow_phase": "execution_complete",
     "current_task": null,
     "total_tasks": null,
-    "next_action": null
+    "next_action": "verify_and_complete"
   },
   "bugs": [
     {
@@ -4040,7 +4076,21 @@
   "tasks": [],
   "current_task_id": null,
   "workflow_state": {
-    "phase": "planning",
-    "updated_at": "2026-06-10T09:42:34.107567"
+    "phase": "execution_complete",
+    "updated_at": "2026-06-11T16:44:13.389382Z",
+    "plan_path": "docs/plans/2026-06-10-feature-27-progress-manager-facade-round-7-workflow-and-rec.md",
+    "next_action": "verify_and_complete",
+    "execution_context": {
+      "recorded_at": "2026-06-11T16:44:13.396722Z",
+      "source": "set_workflow_state",
+      "workspace_mode": "worktree",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/worktree-feature-27-workflow-reconcile",
+      "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/worktree-feature-27-workflow-reconcile",
+      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/worktree-feature-27-workflow-reconcile/plugins/progress-tracker",
+      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/worktree-feature-27-workflow-reconcile",
+      "branch": "worktree-feature-27-workflow-reconcile",
+      "upstream": null
+    },
+    "pending_action": "run_prog_done"
   }
 }
