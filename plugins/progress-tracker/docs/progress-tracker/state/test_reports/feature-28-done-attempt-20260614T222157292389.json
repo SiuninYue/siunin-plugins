@@ -1,0 +1,35 @@
+{
+  "feature_id": 28,
+  "feature_name": "progress_manager facade 收口 Final Round：Reverse Import Cleanup and Facade Compression",
+  "done_attempt_at": "2026-06-14T22:21:57.292481Z",
+  "overall_success": true,
+  "results": [
+    {
+      "step": "Run: bash scripts/check_pm_boundary.sh",
+      "command": "bash scripts/check_pm_boundary.sh",
+      "success": true,
+      "output_summary": "[pm-boundary] Rule file consistency OK\n[pm-boundary] progress_manager.py line budget OK (5796/10000)\n[pm-boundary] No reverse imports to progress_manager detected\n[pm-boundary] All checks passed",
+      "duration_ms": 56,
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "step": "Run: python3 hooks/scripts/generate_prog_docs.py --check",
+      "command": "python3 hooks/scripts/generate_prog_docs.py --check",
+      "success": true,
+      "output_summary": "Generated docs are up to date.",
+      "duration_ms": 51,
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "step": "Run: uv run pytest tests/ -q",
+      "command": "uv run pytest tests/ -q",
+      "success": true,
+      "output_summary": "........................................................................ [  6%]\n........................................................................ [ 12%]\n........................................................................ [ 18%]\n........................................................................ [ 24%]\n........................................................................ [ 30%]\n........................................................................ [ 36%]\n....................",
+      "duration_ms": 122013,
+      "exit_code": 0,
+      "error": null
+    }
+  ]
+}
