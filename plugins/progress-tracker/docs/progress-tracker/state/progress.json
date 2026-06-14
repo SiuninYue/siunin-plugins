@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-06-14T15:14:25.951248Z",
+  "updated_at": "2026-06-14T22:12:49.045471Z",
   "features": [
     {
       "id": 10,
@@ -3623,11 +3623,32 @@
       ],
       "quality_gates": {
         "evaluator": {
-          "status": "pending",
-          "score": null,
-          "defects": [],
-          "last_run_at": null,
-          "evaluator_model": null
+          "status": "pass",
+          "score": 95,
+          "defects": [
+            {
+              "id": "pm-duplicate-plan-prefix-constants",
+              "severity": "info",
+              "description": "PLAN_PATH_PREFIX/SUPERPOWERS_PLAN_PATH_PREFIX/VALID_PLAN_PREFIXES are now duplicated in doc_generator.py and left unused in progress_manager.py."
+            },
+            {
+              "id": "pm-callable-unimported",
+              "severity": "minor",
+              "description": "progress_manager.validate_plan_path new signature uses Callable[[], Path] without importing Callable from typing; only safe due to requires-python>=3.14 PEP 649 deferred annotations."
+            },
+            {
+              "id": "ui-dead-progress-manager-available-branches",
+              "severity": "info",
+              "description": "progress_ui_server.py hardcodes PROGRESS_MANAGER_AVAILABLE=True, leaving three unreachable if-not branches with stale progress_manager error strings."
+            },
+            {
+              "id": "wf-auto-driver-stale-docstring",
+              "severity": "info",
+              "description": "wf_auto_driver.py module docstring still claims pending_action write-back goes via progress_manager, which is no longer accurate."
+            }
+          ],
+          "last_run_at": "2026-06-14T14:11:59Z",
+          "evaluator_model": "claude-sonnet-4-6"
         },
         "reviews": {
           "required": [
@@ -3635,23 +3656,46 @@
             "eng",
             "qa"
           ],
-          "passed": [],
-          "pending": [
-            "docs",
+          "passed": [
             "eng",
-            "qa"
-          ]
+            "qa",
+            "docs"
+          ],
+          "pending": []
         },
         "ship_check": {
-          "status": "pending",
+          "status": "pass",
           "failures": [],
-          "last_run_at": null
+          "last_run_at": "2026-06-14T14:12:48Z"
+        },
+        "review_evidence": {
+          "eng": {
+            "evidence": "commit 21f16fa (refactor(PT-F28): facade final round - clear reverse-import allowlist); independent evaluator-gate code review (agent a96b19a2fc7723702): status=pass score=95, 4 minor/info defects only, no blocking/major",
+            "recorded_at": "2026-06-14T22:12:42.337378Z"
+          },
+          "qa": {
+            "evidence": "uv run pytest plugins/progress-tracker/tests/ -q: 1181 passed, 55 warnings (121.75s); ./scripts/check_pm_boundary.sh: no reverse imports detected; prog done --check Gate 5 Acceptance Tests: all passed",
+            "recorded_at": "2026-06-14T22:12:43.869911Z"
+          },
+          "docs": {
+            "evidence": "python3 hooks/scripts/generate_prog_docs.py --check: docs in sync; design doc docs/superpowers/specs/2026-06-14-pt-f28-facade-final-round-design.md; plan docs/plans/2026-06-03-progress-manager-facade-rounds.md",
+            "recorded_at": "2026-06-14T22:12:44.938740Z"
+          }
         }
       },
       "sprint_contract": {
-        "scope": "",
-        "done_criteria": [],
-        "test_plan": [],
+        "scope": "Eliminate the final 4 reverse-import violations from progress-tracker submodules (wf_auto_driver, sprint_ledger, lifecycle_state_machine, progress_ui_server) to progress_manager, via callback injection, prog_paths-based stateless path resolution, and module relocation (validate_plan_path -> doc_generator, load_checkpoints -> state_io), clearing the pm_boundary_allowlist entirely.",
+        "done_criteria": [
+          "scripts/.pm_boundary_allowlist contains no active exemption entries",
+          "./scripts/check_pm_boundary.sh reports no reverse imports to progress_manager",
+          "progress_ui_server.py no longer imports progress_manager",
+          "python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check passes"
+        ],
+        "test_plan": [
+          "uv run pytest plugins/progress-tracker/tests/ -q",
+          "./scripts/check_pm_boundary.sh",
+          "python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check"
+        ],
         "accepted_by": null,
         "accepted_at": null
       },
@@ -3998,21 +4042,21 @@
   ],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-06-14T15:14:25.920144Z",
-    "source": "set_current",
+    "recorded_at": "2026-06-14T17:35:23.530248Z",
+    "source": "set_workflow_state",
     "workspace_mode": "in_place",
     "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
     "project_root": "/Users/siunin/Projects/Claude-Plugins",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins",
     "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
     "branch": "main",
     "upstream": "origin/main",
     "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
     "current_feature_id": 28,
-    "workflow_phase": "planning",
+    "workflow_phase": "execution_complete",
     "current_task": null,
     "total_tasks": null,
-    "next_action": null
+    "next_action": "verify_and_complete"
   },
   "bugs": [
     {
@@ -4137,7 +4181,21 @@
   "tasks": [],
   "current_task_id": null,
   "workflow_state": {
-    "phase": "planning",
-    "updated_at": "2026-06-14T07:14:25.915389"
+    "phase": "execution_complete",
+    "updated_at": "2026-06-14T17:35:23.500463Z",
+    "pending_action": "run_prog_done",
+    "plan_path": "docs/plans/2026-06-03-progress-manager-facade-rounds.md",
+    "next_action": "verify_and_complete",
+    "execution_context": {
+      "recorded_at": "2026-06-14T17:35:23.500729Z",
+      "source": "set_workflow_state",
+      "workspace_mode": "in_place",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+      "project_root": "/Users/siunin/Projects/Claude-Plugins",
+      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
+      "branch": "main",
+      "upstream": "origin/main"
+    }
   }
 }
