@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.28] — 2026-06-14
+
+### Changed
+- Finalized the F28 facade cleanup round:
+  - removed the remaining dead `progress_manager`-availability branches in `progress_ui_server.py`
+  - updated `wf_auto_driver.py` docs to match the direct write-back path
+  - deduplicated plan-path constants and fixed the `Callable` typing import in `progress_manager.py`
+
+### Fixed
+- `/prog done` integration coverage now resolves `test_reports` relative to the test state file, preventing cwd-dependent leakage into the repository root during isolated test runs.
+- Refreshed the root marketplace parent-tracker projection after the F28 closeout so the published repo state reflects `27/29` completed features on `main`.
+
 ## [1.6.18] — 2026-04-28
 
 ### Fixed
