@@ -18,7 +18,7 @@ NOW invoke the skill:
 
 Use the Skill tool with these exact parameters:
   - skill: "progress-tracker:prog-smart"
-  - args: "$ARGUMENTS"
+  - args: "{user_input}"
 
 WAIT for the skill to complete.
 </CRITICAL>
