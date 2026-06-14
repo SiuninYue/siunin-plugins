@@ -429,9 +429,10 @@ def _execute_transition(
 
         # 4. 更新 progress.md（非阻塞）
         try:
-            from progress_manager import generate_progress_md, save_progress_md
+            from doc_generator import generate_progress_md
+            from state_io import save_progress_md
             md_content = generate_progress_md(data)
-            save_progress_md(md_content)
+            save_progress_md(state_dir, md_content)
         except Exception:
             pass  # markdown 更新失败不影响核心功能
 

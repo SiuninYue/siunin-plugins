@@ -59,7 +59,7 @@ reverse_imports="$(rg -n \
 # Filter out allowlisted violations
 if [ -f "$ALLOWLIST" ]; then
   # Build a grep pattern from allowlist entries (skip comment lines, strip line numbers, strip paths)
-  allowlist_pattern=$(grep -v '^#' "$ALLOWLIST" | grep -v '^[[:space:]]*$' | sed -E 's|:[0-9]+||' | sed 's|.*/||' | sort -u | paste -sd'|' -)
+  allowlist_pattern=$(grep -v '^#' "$ALLOWLIST" | grep -v '^[[:space:]]*$' | sed -E 's|:[0-9]+||' | sed 's|.*/||' | sort -u | paste -sd'|' - || true)
   if [ -n "$allowlist_pattern" ]; then
     reverse_imports=$(echo "$reverse_imports" | grep -v -E "($allowlist_pattern)" || true)
   fi

@@ -46,12 +46,99 @@ def _slugify(text: Optional[str], fallback: str = "project") -> str:
     return slug[:48] if slug else fallback
 
 
+PLAN_PATH_PREFIX = "docs/plans/"
+SUPERPOWERS_PLAN_PATH_PREFIX = "docs/superpowers/plans/"
+VALID_PLAN_PREFIXES = (PLAN_PATH_PREFIX, SUPERPOWERS_PLAN_PATH_PREFIX)
+
+
+def validate_plan_path(
+    plan_path: Optional[str],
+    require_exists: bool = False,
+    target_root: Optional[Path] = None,
+    *,
+    find_project_root_fn: Optional[Callable[[], Path]] = None,
+) -> Dict[str, Optional[str]]:
+    """
+    Validate workflow plan path shape and optional existence.
+
+    Accepted formats:
+    - docs/plans/<YYYY-MM-DD-name>.md
+    - docs/superpowers/plans/<YYYY-MM-DD-name>.md  (writing-plans skill)
+    """
+    if plan_path is None:
+        return {"valid": True, "normalized_path": None, "error": None}
+
+    normalized = plan_path.strip().replace("\\", "/")
+    if normalized == "":
+        return {"valid": True, "normalized_path": "", "error": None}
+
+    if Path(normalized).is_absolute():
+        return {
+            "valid": False,
+            "normalized_path": None,
+            "error": "plan_path must be relative (absolute paths are not allowed)",
+        }
+
+    if not any(normalized.startswith(prefix) for prefix in VALID_PLAN_PREFIXES):
+        return {
+            "valid": False,
+            "normalized_path": None,
+            "error": (
+                f"plan_path must be under '{PLAN_PATH_PREFIX}' or "
+                f"'{SUPERPOWERS_PLAN_PATH_PREFIX}' ending with .md"
+            ),
+        }
+
+    if not normalized.endswith(".md"):
+        return {
+            "valid": False,
+            "normalized_path": None,
+            "error": "plan_path must end with .md",
+        }
+
+    if ".." in Path(normalized).parts:
+        return {
+            "valid": False,
+            "normalized_path": None,
+            "error": "plan_path cannot contain '..' segments",
+        }
+
+    if require_exists:
+        base_root = (target_root or (find_project_root_fn() if find_project_root_fn else prog_paths.find_project_root())).resolve()
+        absolute_path = base_root / normalized
+        if not absolute_path.exists():
+            # Walk up to git root to find plan files written by writing-plans
+            # skill at the repo/worktree root level (e.g. docs/superpowers/plans/).
+            found = False
+            try:
+                git_root = prog_paths.resolve_repo_root(base_root).resolve()
+            except Exception:
+                git_root = None
+            cursor = base_root
+            while True:
+                cursor = cursor.parent
+                if (cursor / normalized).exists():
+                    found = True
+                    break
+                # Stop after checking git root (or filesystem root).
+                if (git_root is not None and cursor == git_root) or cursor == cursor.parent:
+                    break
+            if not found:
+                return {
+                    "valid": False,
+                    "normalized_path": None,
+                    "error": f"plan_path does not exist: {normalized}",
+                }
+
+    return {"valid": True, "normalized_path": normalized, "error": None}
+
+
 def validate_plan_document(
     plan_path: str,
     target_root: Optional[Path] = None,
     *,
     find_project_root_fn: Optional[Callable[[], Path]] = None,
-    validate_plan_path_fn: Callable[..., Dict[str, Any]],
+    validate_plan_path_fn: Optional[Callable[..., Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """
     Validate minimum plan structure for feature execution.
@@ -70,8 +157,12 @@ def validate_plan_document(
 
     In format (2), missing strict sections are treated as warnings.
     """
-    path_validation = validate_plan_path_fn(
-        plan_path, require_exists=True, target_root=target_root
+    val_fn = validate_plan_path_fn or validate_plan_path
+    path_validation = val_fn(
+        plan_path,
+        require_exists=True,
+        target_root=target_root,
+        find_project_root_fn=find_project_root_fn,
     )
     if not path_validation["valid"]:
         return {

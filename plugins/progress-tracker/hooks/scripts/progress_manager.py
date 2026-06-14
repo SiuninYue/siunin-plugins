@@ -503,6 +503,8 @@ def validate_plan_path(
     plan_path: Optional[str],
     require_exists: bool = False,
     target_root: Optional[Path] = None,
+    *,
+    find_project_root_fn: Optional[Callable[[], Path]] = None,
 ) -> Dict[str, Optional[str]]:
     """
     Validate workflow plan path shape and optional existence.
@@ -511,72 +513,14 @@ def validate_plan_path(
     - docs/plans/<YYYY-MM-DD-name>.md
     - docs/superpowers/plans/<YYYY-MM-DD-name>.md  (writing-plans skill)
     """
-    if plan_path is None:
-        return {"valid": True, "normalized_path": None, "error": None}
-
-    normalized = plan_path.strip().replace("\\", "/")
-    if normalized == "":
-        return {"valid": True, "normalized_path": "", "error": None}
-
-    if Path(normalized).is_absolute():
-        return {
-            "valid": False,
-            "normalized_path": None,
-            "error": "plan_path must be relative (absolute paths are not allowed)",
-        }
-
-    if not any(normalized.startswith(prefix) for prefix in VALID_PLAN_PREFIXES):
-        return {
-            "valid": False,
-            "normalized_path": None,
-            "error": (
-                f"plan_path must be under '{PLAN_PATH_PREFIX}' or "
-                f"'{SUPERPOWERS_PLAN_PATH_PREFIX}' ending with .md"
-            ),
-        }
-
-    if not normalized.endswith(".md"):
-        return {
-            "valid": False,
-            "normalized_path": None,
-            "error": "plan_path must end with .md",
-        }
-
-    if ".." in Path(normalized).parts:
-        return {
-            "valid": False,
-            "normalized_path": None,
-            "error": "plan_path cannot contain '..' segments",
-        }
-
-    if require_exists:
-        base_root = (target_root or find_project_root()).resolve()
-        absolute_path = base_root / normalized
-        if not absolute_path.exists():
-            # Walk up to git root to find plan files written by writing-plans
-            # skill at the repo/worktree root level (e.g. docs/superpowers/plans/).
-            found = False
-            try:
-                git_root = _resolve_repo_root(base_root).resolve()
-            except Exception:
-                git_root = None
-            cursor = base_root
-            while True:
-                cursor = cursor.parent
-                if (cursor / normalized).exists():
-                    found = True
-                    break
-                # Stop after checking git root (or filesystem root).
-                if (git_root is not None and cursor == git_root) or cursor == cursor.parent:
-                    break
-            if not found:
-                return {
-                    "valid": False,
-                    "normalized_path": None,
-                    "error": f"plan_path does not exist: {normalized}",
-                }
-
-    return {"valid": True, "normalized_path": normalized, "error": None}
+    import doc_generator
+    return doc_generator.validate_plan_path(
+        plan_path=plan_path,
+        require_exists=require_exists,
+        target_root=target_root,
+        find_project_root_fn=find_project_root_fn or find_project_root,
+    )
+validate_plan_path.is_wrapper = True
 
 
 def _normalize_plan_path_cli_arg(
@@ -2204,45 +2148,10 @@ def _build_checkpoint_context(entry: Optional[Dict[str, Any]]) -> Optional[Dict[
 
 def load_checkpoints(path: Optional[Path] = None) -> Dict[str, Any]:
     """Load checkpoints from docs/progress-tracker/state/checkpoints.json."""
+    import state_io
     checkpoints_path = path or (get_progress_dir() / CHECKPOINTS_JSON)
-    if not checkpoints_path.exists():
-        return {
-            "last_checkpoint_at": None,
-            "max_entries": CHECKPOINT_MAX_ENTRIES,
-            "entries": [],
-        }
-
-    try:
-        with open(checkpoints_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-    except (json.JSONDecodeError, OSError):
-        logger.warning(f"Corrupted checkpoints file: {checkpoints_path}. Reinitializing.")
-        return {
-            "last_checkpoint_at": None,
-            "max_entries": CHECKPOINT_MAX_ENTRIES,
-            "entries": [],
-        }
-
-    if not isinstance(data, dict):
-        return {
-            "last_checkpoint_at": None,
-            "max_entries": CHECKPOINT_MAX_ENTRIES,
-            "entries": [],
-        }
-
-    entries = data.get("entries", [])
-    if not isinstance(entries, list):
-        entries = []
-
-    max_entries = data.get("max_entries", CHECKPOINT_MAX_ENTRIES)
-    if not isinstance(max_entries, int) or max_entries <= 0:
-        max_entries = CHECKPOINT_MAX_ENTRIES
-
-    return {
-        "last_checkpoint_at": data.get("last_checkpoint_at"),
-        "max_entries": max_entries,
-        "entries": entries,
-    }
+    return state_io.load_checkpoints_from_file(checkpoints_path)
+load_checkpoints.is_wrapper = True
 
 
 def save_checkpoints(data: Dict[str, Any], path: Optional[Path] = None) -> None:
@@ -4810,6 +4719,16 @@ class _ProgressArgumentParser(argparse.ArgumentParser):
                     sys.stderr.write(f"{self.prog}: error: {message}\n")
                 sys.exit(2)
         super().error(message)
+
+
+if SPRINT_LEDGER_AVAILABLE:
+    import sprint_ledger
+    sprint_ledger.register_callbacks(
+        progress_transaction_fn=progress_transaction,
+        load_progress_json_fn=load_progress_json,
+        save_progress_json_fn=save_progress_json,
+        find_project_root_fn=find_project_root,
+    )
 
 
 def main():

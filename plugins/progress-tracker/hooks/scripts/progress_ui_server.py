@@ -32,17 +32,10 @@ from prog_paths import (
     resolve_target_project_root,
 )
 
-# Import validation functions from progress_manager
-sys.path.insert(0, str(Path(__file__).parent))
-progress_manager_module = None
-try:
-    import progress_manager as progress_manager_module
-    from progress_manager import validate_plan_path, validate_plan_document, compare_contexts
-    PROGRESS_MANAGER_AVAILABLE = True
-except ImportError:
-    PROGRESS_MANAGER_AVAILABLE = False
-    compare_contexts = None  # type: ignore[assignment]
-    print("Warning: progress_manager module not available, plan validation will be disabled", file=sys.stderr)
+# Import validation/contexts functions from local submodules (avoiding progress_manager facade)
+from doc_generator import validate_plan_path, validate_plan_document
+from state_io import compare_contexts
+PROGRESS_MANAGER_AVAILABLE = True
 
 PORT_RANGE = range(3737, 3748)  # 3737-3747 inclusive
 BIND_HOST = "127.0.0.1"  # P0: Localhost only
@@ -950,20 +943,30 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
         Returns:
             Dictionary with progress, next_action, plan_health, risk_blocker, recent_snapshot
         """
-        if PROGRESS_MANAGER_AVAILABLE and progress_manager_module is not None:
-            projection_loader = getattr(
-                progress_manager_module,
-                "load_status_summary_projection",
-                None,
+        try:
+            import summary_projector
+            import state_io
+            from doc_generator import validate_plan_path, validate_plan_document
+            
+            def ui_apply_schema_defaults(data: dict) -> None:
+                state_io.apply_schema_defaults(data)
+
+            def ui_load_checkpoints(path: Optional[Path] = None) -> Dict[str, Any]:
+                resolved_path = path or get_checkpoints_path(self.working_dir)
+                return state_io.load_checkpoints_from_file(resolved_path)
+
+            return summary_projector.load_status_summary_projection(
+                str(self.working_dir),
+                apply_schema_defaults_fn=ui_apply_schema_defaults,
+                load_checkpoints_fn=ui_load_checkpoints,
+                validate_plan_path_fn=lambda p, require_exists=False, target_root=None: validate_plan_path(p, require_exists=require_exists, target_root=target_root or self.working_dir),
+                validate_plan_document_fn=lambda p, target_root=None: validate_plan_document(p, target_root=target_root or self.working_dir),
             )
-            if callable(projection_loader):
-                try:
-                    return projection_loader(project_root=str(self.working_dir))
-                except Exception as exc:
-                    print(
-                        f"Warning: shared status projection unavailable, falling back to inline summary ({exc})",
-                        file=sys.stderr,
-                    )
+        except Exception as exc:
+            print(
+                f"Warning: shared status projection unavailable, falling back to inline summary ({exc})",
+                file=sys.stderr,
+            )
 
         progress_data = load_json_with_cache(
             get_progress_json_path(self.working_dir), "progress_json"
@@ -1486,12 +1489,6 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
 
 def create_handler(working_dir: Path):
     """Factory to create handler with working_dir injected"""
-    if progress_manager_module is not None:
-        # create_handler() may be used in unit tests with temporary directories
-        # that are outside the current repository root. Inject scope directly.
-        progress_manager_module._PROJECT_ROOT_OVERRIDE = working_dir.resolve()
-        progress_manager_module._STORAGE_READY_ROOT = None
-
     def handler(*args, **kwargs):
         return ProgressUIHandler(*args, working_dir=working_dir, **kwargs)
     return handler
@@ -1547,8 +1544,6 @@ def main() -> int:
 
     ensure_tracker_layout(working_dir)
     ensure_storage_migrated(working_dir)
-    if progress_manager_module is not None:
-        progress_manager_module.configure_project_scope(str(working_dir))
 
     # Determine port
     port = args.port if args.port else find_available_port()

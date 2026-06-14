@@ -73,13 +73,13 @@ def _drive(project_root: Optional[str] = None) -> None:
 
 def _load_progress_direct(project_root: Optional[str]) -> dict:
     """直接读取 progress.json，不依赖 configure_project_scope。"""
+    from prog_paths import find_project_root, ensure_tracker_layout, ensure_storage_migrated, get_state_dir
     import json as _json
 
-    if project_root is not None:
-        state_dir = Path(project_root) / "docs" / "progress-tracker" / "state"
-    else:
-        import progress_manager
-        state_dir = progress_manager.get_progress_dir()
+    root = Path(project_root) if project_root is not None else find_project_root()
+    ensure_tracker_layout(root)
+    ensure_storage_migrated(root)
+    state_dir = get_state_dir(root)
 
     progress_file = state_dir / "progress.json"
     if not progress_file.exists():
@@ -93,14 +93,14 @@ def _load_progress_direct(project_root: Optional[str]) -> dict:
 
 def _write_back_pending_action(pending_action: str, project_root: Optional[str]) -> None:
     """在文件锁内原子写回 pending_action。"""
-    import progress_manager
+    from prog_paths import find_project_root
     from lifecycle_state_machine import acquire_lock
     from pathlib import Path
     import json
     import os
 
-    # 找到 progress.json 路径
-    project_path = Path(project_root) if project_root else progress_manager.find_project_root()
+    # 找到 progress.json 路径，使用 prog_paths.find_project_root() 代替 progress_manager.find_project_root()
+    project_path = Path(project_root) if project_root else find_project_root()
     state_dir = project_path / "docs" / "progress-tracker" / "state"
     progress_file = state_dir / "progress.json"
     lock_path = state_dir / "progress.lock"

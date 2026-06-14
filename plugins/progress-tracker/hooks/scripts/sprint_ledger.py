@@ -9,7 +9,34 @@ import tempfile
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
+
+# Callback registry to avoid reverse dependency on progress_manager
+_progress_transaction_cb: Optional[Callable[[], Any]] = None
+_load_progress_json_cb: Optional[Callable[[], Dict[str, Any]]] = None
+_save_progress_json_cb: Optional[Callable[[Dict[str, Any]], None]] = None
+_find_project_root_cb: Optional[Callable[[], Path]] = None
+
+
+def register_callbacks(
+    *,
+    progress_transaction_fn: Callable[[], Any],
+    load_progress_json_fn: Callable[[], Dict[str, Any]],
+    save_progress_json_fn: Callable[[Dict[str, Any]], None],
+    find_project_root_fn: Callable[[], Path],
+) -> None:
+    global _progress_transaction_cb, _load_progress_json_cb, _save_progress_json_cb, _find_project_root_cb
+    _progress_transaction_cb = progress_transaction_fn
+    _load_progress_json_cb = load_progress_json_fn
+    _save_progress_json_cb = save_progress_json_fn
+    _find_project_root_cb = find_project_root_fn
+
+
+def _resolve_project_root() -> Path:
+    if _find_project_root_cb is not None:
+        return _find_project_root_cb()
+    import prog_paths
+    return prog_paths.find_project_root()
 
 
 class SprintLedgerError(Exception):
@@ -36,12 +63,11 @@ def _utc_now_z() -> str:
 
 
 def _default_ledger_path() -> Path:
-    try:
-        import progress_manager
-
-        return progress_manager.get_progress_dir() / "sprint_ledger.jsonl"
-    except Exception:
-        return Path.cwd() / "docs" / "progress-tracker" / "state" / "sprint_ledger.jsonl"
+    import prog_paths
+    root = _resolve_project_root()
+    prog_paths.ensure_tracker_layout(root)
+    prog_paths.ensure_storage_migrated(root)
+    return prog_paths.get_state_dir(root) / "sprint_ledger.jsonl"
 
 
 def _atomic_write_text(path: Path, content: str) -> None:
@@ -92,9 +118,15 @@ def _append_json_line_serialized(
         return
 
     try:
-        import progress_manager
+        if _progress_transaction_cb is not None:
+            tx_manager = _progress_transaction_cb
+        else:
+            import lock_manager
+            tx_manager = lambda: lock_manager.progress_transaction(
+                timeout_seconds=10.0, project_root=_resolve_project_root()
+            )
 
-        with progress_manager.progress_transaction():
+        with tx_manager():
             _append_without_lock()
     except Exception as exc:
         raise SprintLedgerError(f"failed serialized ledger append: {exc}") from exc
@@ -233,10 +265,27 @@ def mark_handoff(
     if not str(artifact_path).strip():
         raise SprintLedgerError("artifact_path must be non-empty")
 
-    import progress_manager  # Local import to avoid cycle with progress_manager module import.
+    if _progress_transaction_cb is not None:
+        tx_manager = _progress_transaction_cb
+    else:
+        import lock_manager
+        tx_manager = lambda: lock_manager.progress_transaction(
+            timeout_seconds=10.0, project_root=_resolve_project_root()
+        )
 
-    with progress_manager.progress_transaction():
-        data = progress_manager.load_progress_json()
+    with tx_manager():
+        if _load_progress_json_cb is not None and _save_progress_json_cb is not None:
+            data = _load_progress_json_cb()
+        else:
+            import state_io
+            import prog_paths
+            root = _resolve_project_root()
+            state_dir = prog_paths.get_state_dir(root)
+            data = state_io.load_progress_json(
+                progress_dir=state_dir,
+                apply_schema_defaults=state_io.apply_schema_defaults,
+            )
+
         if not isinstance(data, dict):
             raise SprintLedgerError("progress tracking not initialized")
 
@@ -250,7 +299,22 @@ def mark_handoff(
             "artifact_path": artifact_path,
             "created_at": _utc_now_z(),
         }
-        progress_manager.save_progress_json(data)
+
+        if _save_progress_json_cb is not None:
+            _save_progress_json_cb(data)
+        else:
+            import state_io
+            import prog_paths
+            root = _resolve_project_root()
+            state_dir = prog_paths.get_state_dir(root)
+            state_io.save_progress_json(
+                progress_dir=state_dir,
+                data=data,
+                touch_updated_at=True,
+                apply_schema_defaults=state_io.apply_schema_defaults,
+                now_fn=_utc_now_z,
+            )
+
         return record(
             feature_id=feature_id,
             phase="handoff",

@@ -581,3 +581,66 @@ def compare_contexts(
         }
     )
     return result
+
+
+# ---------------------------------------------------------------------------
+# Checkpoints & Schema defaults
+# ---------------------------------------------------------------------------
+
+CHECKPOINTS_JSON = "checkpoints.json"
+CHECKPOINT_MAX_ENTRIES = 50
+
+
+def apply_schema_defaults(data: Dict[str, Any]) -> None:
+    """Apply default schema values to progress data in-place."""
+    _apply_schema_defaults_core(data)
+
+
+def load_checkpoints(progress_dir: Path) -> Dict[str, Any]:
+    """Load checkpoints from progress_dir/checkpoints.json."""
+    return load_checkpoints_from_file(progress_dir / CHECKPOINTS_JSON)
+
+
+def load_checkpoints_from_file(path: Path) -> Dict[str, Any]:
+    """Load checkpoints from explicit file path."""
+    if not path.exists():
+        return {
+            "last_checkpoint_at": None,
+            "max_entries": CHECKPOINT_MAX_ENTRIES,
+            "entries": [],
+        }
+
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        import logging
+        logging.getLogger("progress_tracker.state_io").warning(
+            f"Corrupted checkpoints file: {path}. Reinitializing."
+        )
+        return {
+            "last_checkpoint_at": None,
+            "max_entries": CHECKPOINT_MAX_ENTRIES,
+            "entries": [],
+        }
+
+    if not isinstance(data, dict):
+        return {
+            "last_checkpoint_at": None,
+            "max_entries": CHECKPOINT_MAX_ENTRIES,
+            "entries": [],
+        }
+
+    entries = data.get("entries", [])
+    if not isinstance(entries, list):
+        entries = []
+
+    max_entries = data.get("max_entries", CHECKPOINT_MAX_ENTRIES)
+    if not isinstance(max_entries, int) or max_entries <= 0:
+        max_entries = CHECKPOINT_MAX_ENTRIES
+
+    return {
+        "last_checkpoint_at": data.get("last_checkpoint_at"),
+        "max_entries": max_entries,
+        "entries": entries,
+    }
