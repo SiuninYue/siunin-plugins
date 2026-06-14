@@ -53,7 +53,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Optional, List, Dict, Any, Tuple, Set, Sequence
+from typing import Optional, List, Dict, Any, Tuple, Set, Sequence, Callable
 
 try:
     import fcntl  # POSIX only
@@ -249,10 +249,6 @@ STATE_DIR_NAMES = [
     "test_reports",
     "progress_archive",
 ]
-# Superpowers writing-plans standard: docs/plans/ and docs/superpowers/plans/
-PLAN_PATH_PREFIX = "docs/plans/"
-SUPERPOWERS_PLAN_PATH_PREFIX = "docs/superpowers/plans/"
-VALID_PLAN_PREFIXES = (PLAN_PATH_PREFIX, SUPERPOWERS_PLAN_PATH_PREFIX)
 PROGRESS_ARCHIVE_MAX_ENTRIES = 200
 STATUS_SUMMARY_FILE = "status_summary.v1.json"
 STATUS_SUMMARY_LEGACY_FILE = "status_summary.json"

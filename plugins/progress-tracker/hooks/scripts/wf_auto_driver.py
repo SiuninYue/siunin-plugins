@@ -4,7 +4,7 @@ wf_auto_driver.py — 薄层自动驱动器（hook 入口）
 职责：
 1. 读取 workflow_state.phase
 2. 调用 wf_state_machine.compute_next_action()
-3. 写回 workflow_state.pending_action（在锁内，via progress_manager）
+3. 写回 workflow_state.pending_action（在锁内，直接更新 progress.json）
 4. fail-open：任何异常静默退出 0，不阻塞 Claude Code
 
 入口：

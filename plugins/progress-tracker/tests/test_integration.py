@@ -202,7 +202,7 @@ class TestFullWorkflow:
         assert feature['development_stage'] == 'completed'
         assert data['current_feature_id'] is None
 
-        report_dir = Path('docs/progress-tracker/state/test_reports')
+        report_dir = progress_file.parent / 'test_reports'
         assert any(report_dir.glob('feature-1-done-attempt-*.json'))
 
     def test_add_multiple_features(self):

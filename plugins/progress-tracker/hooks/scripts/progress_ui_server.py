@@ -35,7 +35,6 @@ from prog_paths import (
 # Import validation/contexts functions from local submodules (avoiding progress_manager facade)
 from doc_generator import validate_plan_path, validate_plan_document
 from state_io import compare_contexts
-PROGRESS_MANAGER_AVAILABLE = True
 
 PORT_RANGE = range(3737, 3748)  # 3737-3747 inclusive
 BIND_HOST = "127.0.0.1"  # P0: Localhost only
@@ -779,20 +778,13 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
         }
 
     def _check_plan_health(self, progress_data: Dict) -> Dict[str, Any]:
-        """Check plan compliance using progress_manager validation"""
+        """Check plan compliance using shared validation helpers."""
         workflow_state = progress_data.get("workflow_state")
 
         if not workflow_state or not workflow_state.get("plan_path"):
             return {"status": "N/A", "plan_path": None, "message": "无活跃计划"}
 
         plan_path = workflow_state["plan_path"]
-
-        if not PROGRESS_MANAGER_AVAILABLE:
-            return {
-                "status": "N/A",
-                "plan_path": plan_path,
-                "message": "计划验证模块不可用"
-            }
 
         try:
             # Path validation
@@ -1073,21 +1065,6 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
 
         # Case 2: Has active plan, perform validation
         plan_path = workflow_state["plan_path"]
-
-        if not PROGRESS_MANAGER_AVAILABLE:
-            return {
-                "panel": "plan",
-                "title": "计划合规详情",
-                "summary": "验证模块不可用",
-                "sections": [
-                    {
-                        "type": "text",
-                        "content": "无法验证计划文件：progress_manager 模块未加载"
-                    }
-                ],
-                "sources": [],
-                "actions": []
-            }
 
         try:
             path_result = validate_plan_path(
@@ -1448,13 +1425,6 @@ class ProgressUIHandler(BaseHTTPRequestHandler):
 
         if not plan_path:
             return {"error": "path parameter required"}, 400
-
-        if not PROGRESS_MANAGER_AVAILABLE:
-            return {
-                "error": "progress_manager module not available",
-                "plan_path": plan_path,
-                "overall_status": "N/A"
-            }, 200
 
         try:
             path_result = validate_plan_path(
