@@ -1,7 +1,7 @@
 {
   "schema_version": "status_summary.v1",
   "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
-  "updated_at": "2026-06-14T14:21:42.312979Z",
+  "updated_at": "2026-06-14T14:21:57.830255Z",
   "source": {
     "generator": "summary_projector.load_status_summary_projection",
     "progress_path": "docs/progress-tracker/state/progress.json",
@@ -11,8 +11,8 @@
     "progress": {
       "path": "docs/progress-tracker/state/progress.json",
       "exists": true,
-      "mtime_ns": 1781446369047163153,
-      "size": 183162
+      "mtime_ns": 1781446917401872262,
+      "size": 183190
     },
     "checkpoints": {
       "path": "docs/progress-tracker/state/checkpoints.json",
@@ -22,21 +22,21 @@
     }
   },
   "progress": {
-    "completed": 26,
+    "completed": 27,
     "total": 29,
-    "percentage": 89
+    "percentage": 93
   },
   "next_action": {
     "type": "feature",
-    "feature_id": 28,
-    "feature_name": "progress_manager facade 收口 Final Round：Reverse Import Cleanup and Facade Compression",
-    "development_stage": "developing",
-    "stage_label": "开发中"
+    "feature_id": 19,
+    "feature_name": "AI 可追溯与可回退机制 v1：变更记录 + 自动守卫 + 回退 SOP",
+    "development_stage": "pending",
+    "stage_label": "待开始"
   },
   "plan_health": {
-    "status": "OK",
-    "plan_path": "docs/plans/2026-06-03-progress-manager-facade-rounds.md",
-    "message": "计划文件完整且符合规范"
+    "status": "N/A",
+    "plan_path": null,
+    "message": "无活跃计划"
   },
   "risk_blocker": {
     "has_risk": false,
