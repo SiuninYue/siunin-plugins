@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-06-11T17:01:53.491999Z",
+  "updated_at": "2026-06-14T15:14:25.951248Z",
   "features": [
     {
       "id": 10,
@@ -3598,7 +3598,7 @@
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "approved",
+      "lifecycle_state": "implementing",
       "requirement_ids": [
         "REQ-028"
       ],
@@ -3630,9 +3630,17 @@
           "evaluator_model": null
         },
         "reviews": {
-          "required": [],
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
           "passed": [],
-          "pending": []
+          "pending": [
+            "docs",
+            "eng",
+            "qa"
+          ]
         },
         "ship_check": {
           "status": "pending",
@@ -3652,10 +3660,12 @@
         "to_phase": null,
         "artifact_path": null,
         "created_at": null
-      }
+      },
+      "development_stage": "developing",
+      "started_at": "2026-06-14T07:14:25.915254"
     }
   ],
-  "current_feature_id": null,
+  "current_feature_id": 28,
   "linked_projects": [],
   "linked_snapshot": {
     "schema_version": "1.0",
@@ -3950,22 +3960,56 @@
         "planning:ceo_review",
         "doc:docs/plans/2026-06-03-progress-manager-facade-rounds.md"
       ]
+    },
+    {
+      "id": "UPD-017",
+      "created_at": "2026-06-14T15:14:13.221663Z",
+      "category": "status",
+      "summary": "F28 planning approved in office hours",
+      "details": null,
+      "feature_id": 28,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:office_hours",
+        "doc:docs/plans/2026-06-03-progress-manager-facade-rounds.md"
+      ]
+    },
+    {
+      "id": "UPD-018",
+      "created_at": "2026-06-14T15:14:13.337612Z",
+      "category": "status",
+      "summary": "F28 CEO review complete",
+      "details": null,
+      "feature_id": 28,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:ceo_review",
+        "doc:docs/plans/2026-06-03-progress-manager-facade-rounds.md"
+      ]
     }
   ],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-06-11T17:01:53.472467Z",
-    "source": "finalize",
-    "workspace_mode": "worktree",
-    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/worktree-feature-27-workflow-reconcile",
-    "project_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/worktree-feature-27-workflow-reconcile",
-    "cwd": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/worktree-feature-27-workflow-reconcile",
-    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/worktree-feature-27-workflow-reconcile",
-    "branch": "worktree-feature-27-workflow-reconcile",
-    "upstream": null,
-    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.claude/worktrees/worktree-feature-27-workflow-reconcile/plugins/progress-tracker",
-    "current_feature_id": null,
-    "workflow_phase": null,
+    "recorded_at": "2026-06-14T15:14:25.920144Z",
+    "source": "set_current",
+    "workspace_mode": "in_place",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
+    "branch": "main",
+    "upstream": "origin/main",
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+    "current_feature_id": 28,
+    "workflow_phase": "planning",
     "current_task": null,
     "total_tasks": null,
     "next_action": null
@@ -4091,5 +4135,9 @@
   "current_bug_id": null,
   "parent_project_root": ".",
   "tasks": [],
-  "current_task_id": null
+  "current_task_id": null,
+  "workflow_state": {
+    "phase": "planning",
+    "updated_at": "2026-06-14T07:14:25.915389"
+  }
 }

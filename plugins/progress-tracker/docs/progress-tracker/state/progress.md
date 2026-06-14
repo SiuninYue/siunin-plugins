@@ -32,19 +32,29 @@
 - [x] progress_manager facade 收口 Round 6：Backlog and Intake Mutation Commands 外移
 - [x] progress_manager facade 收口 Round 7：Workflow and Reconcile Commands 外移
 
-## Pending
+## In Progress
 - [ ] progress_manager facade 收口 Final Round：Reverse Import Cleanup and Facade Compression
+  **Test steps**:
+  - Run: bash scripts/check_pm_boundary.sh
+  - Run: python3 hooks/scripts/generate_prog_docs.py --check
+  - Run: uv run pytest tests/ -q
+  - Confirm no reverse imports to progress_manager remain in submodules (wf_auto_driver.py, sprint_ledger.py, lifecycle_state_machine.py, progress_ui_server.py)
+  - Confirm progress_manager.py is compressed to parser, dispatch, and thin wrappers only
 
 ## Deferred
 - [~] AI 可追溯与可回退机制 v1：变更记录 + 自动守卫 + 回退 SOP — Round 3 facade convergence is prioritized before F19 rollback mechanism
 - [~] AI Workspace Entropy Manager — F27/F28 facade 收口 Round 7 + Final Round 优先于 F25 Entropy Manager；待 facade 收口完成后再评估 F25 排期
 
+## Workflow Context
+- Phase: planning
+- Current session context: main @ Claude-Plugins [in_place]
+
 ## Recent Updates
-- [UPD-012] status: F22 CEO review complete (feature:22)
-- [UPD-013] status: F23 planning approved in office hours (feature:23)
 - [UPD-014] status: F23 CEO review complete (feature:23)
 - [UPD-015] status: F27 planning approved in office hours (feature:27)
 - [UPD-016] status: F27 CEO review complete (feature:27)
+- [UPD-017] status: F28 planning approved in office hours (feature:28)
+- [UPD-018] status: F28 CEO review complete (feature:28)
 
 ## Bug Backlog
 ### Medium Priority (🟡)
