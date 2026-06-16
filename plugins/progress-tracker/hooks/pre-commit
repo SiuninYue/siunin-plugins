@@ -1,27 +1,55 @@
 #!/bin/bash
-# Pre-commit hook: enforce PROG docs single-source parity.
+# Pre-commit hook: enforce PROG docs single-source parity and change record contracts.
 # Installed via: prog install-git-hooks
-# Blocks commits when generated docs are out of sync with PROG_COMMANDS.md.
+# Blocks commits when generated docs are out of sync or change record validation fails.
 
 set -euo pipefail
 
 REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+
+# 1. Change record validation & CHANGELOG rendering
+VALIDATOR_SCRIPT="${REPO_ROOT}/plugins/progress-tracker/hooks/scripts/validate_change_record.py"
+RENDERER_SCRIPT="${REPO_ROOT}/plugins/progress-tracker/hooks/scripts/render_changelog_from_index.py"
+
+if [ ! -f "$VALIDATOR_SCRIPT" ]; then
+  echo "[change-record] ERROR: Validator script not found at $VALIDATOR_SCRIPT (fail-closed)." >&2
+  exit 1
+fi
+
+if [ ! -f "$RENDERER_SCRIPT" ]; then
+  echo "[change-record] ERROR: Renderer script not found at $RENDERER_SCRIPT (fail-closed)." >&2
+  exit 1
+fi
+
+echo "[change-record] Running change record validation..."
+if ! python3 "$VALIDATOR_SCRIPT" --project-root "${REPO_ROOT}/plugins/progress-tracker"; then
+  echo "[change-record] ERROR: Change record validation failed." >&2
+  exit 1
+fi
+
+echo "[change-record] Regenerating CHANGELOG.md..."
+if ! python3 "$RENDERER_SCRIPT" --project-root "${REPO_ROOT}/plugins/progress-tracker"; then
+  echo "[change-record] ERROR: CHANGELOG regeneration failed." >&2
+  exit 1
+fi
+  if ! git diff --exit-code "${REPO_ROOT}/plugins/progress-tracker/CHANGELOG.md" >/dev/null 2>&1; then
+    echo "[change-record] Auto-staging regenerated CHANGELOG.md..."
+    git add "${REPO_ROOT}/plugins/progress-tracker/CHANGELOG.md"
+  fi
+
+# 2. Original doc-parity checks
 SCRIPT="${REPO_ROOT}/plugins/progress-tracker/hooks/scripts/generate_prog_docs.py"
 
 if [ ! -f "$SCRIPT" ]; then
   echo "[doc-parity] WARNING: generate_prog_docs.py not found at $SCRIPT, skipping check."
-  exit 0
-fi
-
-echo "[doc-parity] Checking PROG docs are up to date..."
-
-# generator 保持机器可读简讯；hook 负责人类引导文案
-OUTPUT=$(python3 "$SCRIPT" --check 2>&1) && rc=$? || rc=$?
-
-if [ $rc -eq 0 ]; then
-  echo "[doc-parity] OK: docs in sync."
 else
-  cat << MSG
+  echo "[doc-parity] Checking PROG docs are up to date..."
+  OUTPUT=$(python3 "$SCRIPT" --check 2>&1) && rc=$? || rc=$?
+
+  if [ $rc -eq 0 ]; then
+    echo "[doc-parity] OK: docs in sync."
+  else
+    cat << MSG
 
 ========================================
 [doc-parity] FAILED: Generated docs are out of date.
@@ -40,10 +68,11 @@ Then stage the updated files:
 Then retry your commit.
 ========================================
 MSG
-
-  exit 1
+    exit 1
+  fi
 fi
 
+# 3. Original pm-boundary checks
 STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR || true)
 if echo "$STAGED_FILES" | grep -Eq '^(plugins/progress-tracker/|AGENTS\.md$|CLAUDE\.md$|GEMINI\.md$|scripts/check_pm_boundary\.sh$)'; then
   BOUNDARY_SCRIPT="${REPO_ROOT}/scripts/check_pm_boundary.sh"
