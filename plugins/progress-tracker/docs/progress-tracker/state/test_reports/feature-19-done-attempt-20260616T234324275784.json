@@ -1,0 +1,17 @@
+{
+  "feature_id": 19,
+  "feature_name": "AI 可追溯与可回退机制 v1：变更记录 + 自动守卫 + 回退 SOP",
+  "done_attempt_at": "2026-06-16T23:43:24.275804Z",
+  "overall_success": true,
+  "results": [
+    {
+      "step": "git log --all --diff-filter=A -S '\"change_id\": \"<id>\"' -- docs/changes/index.jsonl → 唯一命中目标 commit SHA",
+      "command": "git log --all --diff-filter=A -S '\"change_id\": \"<id>\"' -- docs/changes/index.jsonl → 唯一命中目标 commit SHA",
+      "success": true,
+      "output_summary": "",
+      "duration_ms": 10,
+      "exit_code": 0,
+      "error": null
+    }
+  ]
+}

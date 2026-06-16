@@ -1,3 +1,6 @@
+> [!NOTE]
+> This file is marked as a `legacy_record`. Canonical change records now live in `plugins/progress-tracker/docs/changes/`.
+
 # 修复 worktree 状态分裂问题 - Walkthrough
 
 我们已经审查并执行了 `~/.claude/plans/glowing-snacking-sunbeam.md` 所列出的“最强大脑审查计划”，完成了所有功能修复，并完成了以下四项高优先级修正，确保 git worktree 能够完美共享状态而不导致分裂，并具有零误判和强并发保障。

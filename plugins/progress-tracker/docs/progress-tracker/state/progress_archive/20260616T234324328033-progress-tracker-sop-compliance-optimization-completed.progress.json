@@ -1,0 +1,4337 @@
+{
+  "schema_version": "2.1",
+  "project_name": "progress-tracker-sop-compliance-optimization",
+  "created_at": "2026-04-23T00:28:18.285129Z",
+  "updated_at": "2026-06-16T23:43:24.322743Z",
+  "features": [
+    {
+      "id": 10,
+      "name": "根目录混合宿主架构：Monorepo /prog 支持",
+      "test_steps": [
+        "在仓库根目录运行 prog init，确认生成 tracker_role=parent 的 progress.json 并自动发现子插件",
+        "在根目录运行 prog，确认面板展示所有子目录完成率和当前活跃 feature",
+        "在根目录运行 prog next-feature，确认按 routing_queue 顺序 dispatch 到子目录",
+        "运行 prog prioritize PT，确认输出 [OK] PT moved to front 并更新队列",
+        "运行 pytest -q plugins/progress-tracker/tests/ 确认回归测试全部通过"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "change_spec": {
+        "why": "Deliver 根目录混合宿主架构：Monorepo /prog 支持 with traceable acceptance coverage.",
+        "in_scope": [
+          "根目录混合宿主架构：Monorepo /prog 支持"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 在仓库根目录运行 prog init，确认生成 tracker_role=parent 的 progress.json 并自动发现子插件",
+        "Scenario: 在根目录运行 prog，确认面板展示所有子目录完成率和当前活跃 feature",
+        "Scenario: 在根目录运行 prog next-feature，确认按 routing_queue 顺序 dispatch 到子目录",
+        "Scenario: 运行 prog prioritize PT，确认输出 [OK] PT moved to front 并更新队列",
+        "Scenario: 运行 pytest -q plugins/progress-tracker/tests/ 确认回归测试全部通过"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 100,
+          "defects": [],
+          "last_run_at": "2026-06-04T09:16:46Z",
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [],
+          "pending": [
+            "docs",
+            "eng",
+            "qa"
+          ]
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "ai_metrics": {
+        "complexity_score": 33,
+        "complexity_bucket": "complex",
+        "selected_model": "opus",
+        "workflow_path": "full_design_plan_execute",
+        "started_at": "2026-04-24T22:07:49.718328Z",
+        "finished_at": "2026-04-26T10:17:49.686467+08:00",
+        "duration_seconds": 101399
+      },
+      "development_stage": "completed",
+      "started_at": "2026-04-26T10:17:27.609133Z",
+      "completed_at": "2026-04-26T10:17:40.326250Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-26T10:17:40.326261Z",
+      "commit_hash": "2a6c963c60197e7b24a0c8e5e968aaadc9eb597f",
+      "archive_info": {
+        "archived_at": "2026-04-26T10:17:40.363592Z",
+        "files_moved": 0,
+        "files": []
+      }
+    },
+    {
+      "id": 0,
+      "name": "Robust Progress State Architecture - Event Sourcing & Reconciliation",
+      "test_steps": [
+        "Configure Git union merge for audit.log via .gitattributes",
+        "Define event schema whitelist (feature_completed, feature_undone, state_restored, tracker_reset, manual_state_override)",
+        "Implement reconcile-state command with drift detection and auto-ingestion",
+        "Add post-merge Git hook that auto-commits reconciled progress.json",
+        "Verify Feature 9 state recovery through audit.log replay",
+        "Test union merge behavior with concurrent audit.log appends",
+        "Validate manual state override events are properly recorded and replayed"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-ARCH-001"
+      ],
+      "change_spec": {
+        "why": "Implement Event Sourcing pattern to prevent progress state loss during Git merges. The current single-file progress.json approach loses completed state when merge conflicts are resolved by picking base branch version. This architecture uses audit.log as the single source of truth with union merge strategy, automatic reconciliation, and full audit trail for all state changes including manual edits.",
+        "in_scope": [
+          "Git union merge configuration for audit.log",
+          "Event schema whitelist and normalization",
+          "Reconciliation module with drift detection",
+          "Manual state override event recording",
+          "Post-merge Git hook with auto-commit",
+          "Feature 9 immediate repair through automated backfill"
+        ],
+        "out_of_scope": [
+          "Modifying core business logic of existing commands",
+          "Changing the progress.json schema structure",
+          "Implementing new quality gates or review processes"
+        ],
+        "risks": [
+          "Union merge edge cases with concurrent appends may require deduplication logic",
+          "Event ordering issues if branches append different events simultaneously",
+          "Git hook requires user.name/user.email configuration",
+          "Schema evolution needs version field for future compatibility"
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: Git merge of audit.log uses union strategy without conflicts",
+        "Scenario: reconcile-state correctly replays events and reconstructs state",
+        "Scenario: Manual edits to progress.json are recorded as manual_state_override events",
+        "Scenario: Post-merge hook auto-commits reconciled progress.json with [skip ci]",
+        "Scenario: Feature 9 state is recovered through audit.log replay after merge",
+        "Scenario: Duplicate events are properly deduplicated during reconciliation"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 87,
+          "defects": [
+            "I-01: manual_state_override event type whitelisted but no call-site detects/records manual edits to progress.json — acceptance scenario 3 partially unmet",
+            "I-02: append_audit_record temp-file pattern provides no atomicity guarantee; code misleadingly suggests atomic rename semantics",
+            "I-03: state_restored event type whitelisted but never emitted",
+            "S-01: _write_audit_event test helper uses mutable default arg counter=[0]",
+            "S-02: deduplicate_audit_log in-memory only; never writes deduped records back to audit.log",
+            "S-03: post_merge_hook.sh $? in warn block captures echo exit code not reconcile-state exit code"
+          ],
+          "last_run_at": "2026-04-24T13:16:34.067745+00:00",
+          "evaluator_model": "claude-sonnet-4-6"
+        },
+        "reviews": {
+          "required": [
+            "architecture",
+            "eng"
+          ],
+          "passed": [
+            "architecture",
+            "eng"
+          ],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "Implement Event Sourcing architecture for robust progress state management",
+        "done_criteria": [
+          "Git union merge configured and tested",
+          "Event schema whitelist defined and documented",
+          "reconcile-state command implemented and tested",
+          "Post-merge Git hook installed and functional",
+          "Feature 9 state recovered and verified",
+          "All acceptance scenarios validated"
+        ],
+        "test_plan": [
+          "Configure .gitattributes with audit.log merge=union",
+          "Test union merge with concurrent audit.log appends",
+          "Implement event schema whitelist in audit_log.py",
+          "Implement reconcile-state command in progress_manager.py",
+          "Add manual_state_override event recording",
+          "Create post-merge hook script",
+          "Run prog install-git-hooks",
+          "Verify Feature 9 state recovery",
+          "Run integration tests for reconciliation flow"
+        ],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "development_stage": "completed",
+      "started_at": "2026-04-24T00:00:00.000000Z",
+      "ai_metrics": {
+        "complexity_score": 35,
+        "complexity_bucket": "complex",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-24T00:00:00.000000Z"
+      }
+    },
+    {
+      "id": 1,
+      "name": "Baseline compliance scan for frontmatter and routable descriptions",
+      "test_steps": [
+        "Run baseline contract scan: python3 plugins/progress-tracker/hooks/scripts/quick_validate.py",
+        "Run validation test: pytest -q plugins/progress-tracker/tests/test_quick_validate.py",
+        "Confirm output reports prohibited fields and non-routable descriptions with file paths"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-001"
+      ],
+      "change_spec": {
+        "why": "Deliver Baseline compliance scan for frontmatter and routable descriptions with traceable acceptance coverage.",
+        "in_scope": [
+          "Baseline compliance scan for frontmatter and routable descriptions"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: Run baseline contract scan: python3 plugins/progress-tracker/hooks/scripts/quick_validate.py",
+        "Scenario: Run validation test: pytest -q plugins/progress-tracker/tests/test_quick_validate.py",
+        "Scenario: Confirm output reports prohibited fields and non-routable descriptions with file paths"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 100,
+          "defects": [],
+          "last_run_at": "2026-04-22T18:13:55Z",
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pass",
+          "failures": [],
+          "last_run_at": "2026-04-28T13:30:48Z"
+        }
+      },
+      "sprint_contract": {
+        "scope": "Complete baseline compliance scan closure and tracker state sync",
+        "done_criteria": [
+          "Feature 1 marked completed with commit c7637ec",
+          "Evaluator, review lanes, and ship_check all pass"
+        ],
+        "test_plan": [
+          "prog reconcile-evaluator --feature-id 1",
+          "prog review-pass --feature-id 1 --lane docs/eng/qa",
+          "prog ship-check --feature-id 1",
+          "prog done --commit c7637ec --no-cleanup"
+        ],
+        "accepted_by": "tracker-recovery",
+        "accepted_at": "2026-04-23T00:00:00Z"
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "development_stage": "completed",
+      "started_at": "2026-04-23T00:36:50.582028Z",
+      "ai_metrics": {
+        "complexity_score": 9,
+        "complexity_bucket": "simple",
+        "selected_model": "haiku",
+        "workflow_path": "direct_tdd",
+        "started_at": "2026-04-23T00:37:43.483341Z",
+        "finished_at": "2026-04-23T02:14:30.355178+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-23T02:14:30.404285Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-23T02:14:30.404396Z",
+      "commit_hash": "c7637ec",
+      "archive_info": {
+        "archived_at": "2026-04-23T02:14:30.493722Z",
+        "files_moved": 0,
+        "files": []
+      }
+    },
+    {
+      "id": 9,
+      "name": "Refactor progress_manager into modular command helpers",
+      "test_steps": [
+        "Extract handoff and completion prompt builders into dedicated helper modules",
+        "Add regression tests for /prog done and /prog status handoff output",
+        "Run targeted regression tests: pytest -q plugins/progress-tracker/tests/test_progress_manager.py -k \"done_command_outputs_next_feature_handoff or done_command_outputs_completion_summary_when_all_complete or status_handoff_block_execution_complete\""
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "change_spec": {
+        "why": "Deliver Refactor progress_manager into modular command helpers with traceable acceptance coverage.",
+        "in_scope": [
+          "Refactor progress_manager into modular command helpers"
+        ],
+        "out_of_scope": [
+          "Unrelated behavior changes outside the progress_manager structure refactor."
+        ],
+        "risks": [
+          "Potential regression in /prog done and /prog status output; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: Extract handoff and completion prompt builders into dedicated helper modules",
+        "Scenario: Add regression tests for /prog done and /prog status handoff output",
+        "Scenario: Run targeted regression tests: pytest -q plugins/progress-tracker/tests/test_progress_manager.py -k \"done_command_outputs_next_feature_handoff or done_command_outputs_completion_summary_when_all_complete or status_handoff_block_execution_complete\""
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 100,
+          "defects": [],
+          "last_run_at": "2026-06-04T09:16:46Z",
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [],
+          "pending": [
+            "docs",
+            "eng",
+            "qa"
+          ]
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "development_stage": "completed",
+      "started_at": "2026-04-23T23:31:35.975656Z",
+      "ai_metrics": {
+        "complexity_score": 21,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-23T23:38:15.417138Z",
+        "finished_at": "2026-04-26T18:46:59.781126+08:00",
+        "duration_seconds": 212924
+      },
+      "completed_at": "2026-04-26T18:46:54.403351Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-26T18:46:54.403355Z",
+      "commit_hash": "ee9fb92",
+      "archive_info": {
+        "archived_at": "2026-04-26T18:46:54.421938Z",
+        "files_moved": 0,
+        "files": []
+      }
+    },
+    {
+      "id": 2,
+      "name": "Normalize skill frontmatter to SOP-compliant shape",
+      "test_steps": [
+        "Update target SKILL.md frontmatter to keep required fields and remove prohibited keys",
+        "Run contract tests: pytest -q plugins/progress-tracker/tests/test_command_discovery_contract.py",
+        "Re-run scan: python3 plugins/progress-tracker/hooks/scripts/quick_validate.py"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "change_spec": {
+        "why": "Deliver Normalize skill frontmatter to SOP-compliant shape with traceable acceptance coverage.",
+        "in_scope": [
+          "Normalize skill frontmatter to SOP-compliant shape"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: Update target SKILL.md frontmatter to keep required fields and remove prohibited keys",
+        "Scenario: Run contract tests: pytest -q plugins/progress-tracker/tests/test_command_discovery_contract.py",
+        "Scenario: Re-run scan: python3 plugins/progress-tracker/hooks/scripts/quick_validate.py"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 100,
+          "defects": [],
+          "last_run_at": "2026-06-04T09:16:46Z",
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [],
+          "pending": [
+            "docs",
+            "eng",
+            "qa"
+          ]
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "development_stage": "completed",
+      "started_at": "2026-04-26T18:51:00.420037Z",
+      "completed_at": "2026-04-26T15:39:16.000000Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-26T15:39:16.000000Z",
+      "commit_hash": "3a30b24",
+      "archive_info": {
+        "archived_at": "2026-04-26T15:39:16.000000Z",
+        "files_moved": 0,
+        "files": []
+      }
+    },
+    {
+      "id": 3,
+      "name": "Enforce plugin metadata traceability fields",
+      "test_steps": [
+        "Audit metadata keys: rg -n '\"homepage\"|\"repository\"' plugins/*/.claude-plugin/plugin.json",
+        "Run manifest contract test: pytest -q plugins/progress-tracker/tests/test_plugin_manifest_contract.py",
+        "Confirm no plugin manifests are missing required keys"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-003"
+      ],
+      "change_spec": {
+        "why": "Deliver Enforce plugin metadata traceability fields with traceable acceptance coverage.",
+        "in_scope": [
+          "Enforce plugin metadata traceability fields"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: Audit metadata keys: rg -n '\"homepage\"|\"repository\"' plugins/*/.claude-plugin/plugin.json",
+        "Scenario: Run manifest contract test: pytest -q plugins/progress-tracker/tests/test_plugin_manifest_contract.py",
+        "Scenario: Confirm no plugin manifests are missing required keys"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 95,
+          "defects": [],
+          "last_run_at": "2026-04-27T10:45:00Z",
+          "evaluator_model": "claude-opus-4-6"
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [],
+          "pending": [
+            "docs",
+            "eng",
+            "qa"
+          ]
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "development_stage": "completed",
+      "started_at": "2026-04-27T08:09:12.134798Z",
+      "ai_metrics": {
+        "started_at": "2026-04-27T10:52:37.088194+08:00",
+        "finished_at": "2026-04-27T10:52:43.902675+08:00",
+        "duration_seconds": 6
+      },
+      "completed_at": "2026-04-27T10:52:37.089419Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-27T10:52:37.089425Z",
+      "commit_hash": "5bcd87ce742e7f6683b2527c75bc4cfe6c58b8f3",
+      "plan_path": "docs/plans/2026-04-27-f3-plugin-metadata-traceability.md",
+      "archive_info": {
+        "archived_at": "2026-04-27T10:52:37.109461Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-04-27-f3-plugin-metadata-traceability.md",
+            "to": "docs/archive/plans/2026-04-27-f3-plugin-metadata-traceability.md"
+          }
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "name": "Add explicit model declaration checks for required skill scopes",
+      "test_steps": [
+        "Update required skill frontmatter with model declarations",
+        "Run skill contract tests: pytest -q plugins/progress-tracker/tests/test_project_memory_skill_contract.py",
+        "Re-run scan and confirm no missing model in required scopes"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "change_spec": {
+        "why": "Deliver Add explicit model declaration checks for required skill scopes with traceable acceptance coverage.",
+        "in_scope": [
+          "Add explicit model declaration checks for required skill scopes"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: Update required skill frontmatter with model declarations",
+        "Scenario: Run skill contract tests: pytest -q plugins/progress-tracker/tests/test_project_memory_skill_contract.py",
+        "Scenario: Re-run scan and confirm no missing model in required scopes"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 100,
+          "defects": [],
+          "last_run_at": "2026-04-27T06:02:35Z",
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pass",
+          "failures": [],
+          "last_run_at": "2026-04-27T06:04:08Z"
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "development_stage": "completed",
+      "started_at": "2026-04-27T13:36:13.830830Z",
+      "ai_metrics": {
+        "complexity_score": 9,
+        "complexity_bucket": "simple",
+        "selected_model": "haiku",
+        "workflow_path": "direct_tdd",
+        "started_at": "2026-04-27T13:38:28.665817Z",
+        "finished_at": "2026-04-27T14:15:48.062459+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-27T14:15:42.366651Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-27T14:15:42.366684Z",
+      "commit_hash": "684266ba51696420b07568c378736540e63e71e0",
+      "plan_path": "docs/plans/2026-04-27-feature-4-add-explicit-model-declaration-checks-for-requir.md",
+      "archive_info": {
+        "archived_at": "2026-04-27T14:15:42.562476Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-04-27-feature-4-add-explicit-model-declaration-checks-for-requir.md",
+            "to": "docs/archive/plans/2026-04-27-feature-4-add-explicit-model-declaration-checks-for-requir.md"
+          }
+        ]
+      }
+    },
+    {
+      "id": 5,
+      "name": "Apply progressive disclosure budget to oversized SKILL files",
+      "test_steps": [
+        "Audit main SKILL line counts: wc -l plugins/*/skills/*/SKILL.md | sort -nr | head",
+        "Move long examples/templates into references/ and keep link integrity",
+        "Run discovery contract test: pytest -q plugins/progress-tracker/tests/test_command_discovery_contract.py"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-005"
+      ],
+      "change_spec": {
+        "why": "Deliver Apply progressive disclosure budget to oversized SKILL files with traceable acceptance coverage.",
+        "in_scope": [
+          "Apply progressive disclosure budget to oversized SKILL files"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: Audit main SKILL line counts: wc -l plugins/*/skills/*/SKILL.md | sort -nr | head",
+        "Scenario: Move long examples/templates into references/ and keep link integrity",
+        "Scenario: Run discovery contract test: pytest -q plugins/progress-tracker/tests/test_command_discovery_contract.py"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 100,
+          "defects": [],
+          "last_run_at": "2026-06-04T09:16:46Z",
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [],
+          "pending": [
+            "docs",
+            "eng",
+            "qa"
+          ]
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "development_stage": "completed",
+      "started_at": "2026-04-27T14:37:11.790928Z",
+      "ai_metrics": {
+        "complexity_score": 21,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-27T14:37:50.774729Z",
+        "finished_at": "2026-04-28T09:32:59.115509+08:00",
+        "duration_seconds": 39308
+      },
+      "completed_at": "2026-04-28T09:32:41.446050Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-28T09:32:41.446056Z",
+      "commit_hash": "0f236688354a24f973d44cf479bfde5c87e6d3d1",
+      "plan_path": "docs/plans/2026-04-27-f5-progressive-disclosure-skill-files.md",
+      "archive_info": {
+        "archived_at": "2026-04-28T09:32:41.471348Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-04-27-f5-progressive-disclosure-skill-files.md",
+            "to": "docs/archive/plans/2026-04-27-f5-progressive-disclosure-skill-files.md"
+          }
+        ]
+      }
+    },
+    {
+      "id": 6,
+      "name": "Harden command lifecycle boundaries and architecture immutability guard",
+      "test_steps": [
+        "Run closeout contract test: pytest -q plugins/progress-tracker/tests/test_feature_complete_closeout_contract.py",
+        "Run workflow state tests: pytest -q plugins/progress-tracker/tests/test_workflow_state.py plugins/progress-tracker/tests/test_wf_state_machine.py",
+        "Validate done flow does not mutate docs/progress-tracker/architecture/architecture.md"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "change_spec": {
+        "why": "Deliver Harden command lifecycle boundaries and architecture immutability guard with traceable acceptance coverage.",
+        "in_scope": [
+          "Harden command lifecycle boundaries and architecture immutability guard"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: Run closeout contract test: pytest -q plugins/progress-tracker/tests/test_feature_complete_closeout_contract.py",
+        "Scenario: Run workflow state tests: pytest -q plugins/progress-tracker/tests/test_workflow_state.py plugins/progress-tracker/tests/test_wf_state_machine.py",
+        "Scenario: Validate done flow does not mutate docs/progress-tracker/architecture/architecture.md"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 100,
+          "defects": [],
+          "last_run_at": "2026-04-28T02:12:03Z",
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pass",
+          "failures": [],
+          "last_run_at": "2026-04-28T02:12:03Z"
+        }
+      },
+      "sprint_contract": {
+        "scope": "In-scope:\n- Add _IMMUTABLE_PROTECTED_FILES constant + _is_immutable_protected() helper in progress_manager.py\n- Apply guard in archive_feature_docs() at both file-move sites (plan_path route + glob route)\n- Add 2 tests to test_cmd_done_cleanup_integration.py\n\nOut-of-scope:\n- Changes to SKILL.md content\n- Changes to workflow state machine\n- Any other test files",
+        "done_criteria": [
+          "closeout contract tests pass: pytest -q test_feature_complete_closeout_contract.py",
+          "workflow state tests pass: pytest -q test_workflow_state.py test_wf_state_machine.py",
+          "done flow does not mutate architecture.md (guard + tests verified)",
+          "All F6 target tests green (55+ tests)"
+        ],
+        "test_plan": [
+          "T1 RED: test_archive_docs_skips_protected_architecture_md — fails before guard implementation",
+          "T2 GREEN: Implement _IMMUTABLE_PROTECTED_FILES + _is_immutable_protected() guard in archive_feature_docs()",
+          "T3 GREEN: test_cmd_done_preserves_architecture_md — functional-level invariant test",
+          "T4 Verify: Run all F6 target tests — all green"
+        ],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "development_stage": "completed",
+      "started_at": "2026-04-28T09:35:49.810367Z",
+      "ai_metrics": {
+        "complexity_score": 12,
+        "complexity_bucket": "simple",
+        "selected_model": "haiku",
+        "workflow_path": "direct_tdd",
+        "started_at": "2026-04-28T09:39:22.604680Z",
+        "finished_at": "2026-04-28T11:54:49.246260+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-28T11:54:49.249162Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-28T11:54:49.249174Z",
+      "commit_hash": "0f236688354a24f973d44cf479bfde5c87e6d3d1",
+      "plan_path": "docs/plans/2026-04-28-f6-lifecycle-boundaries-arch-immutability.md",
+      "archive_info": {
+        "archived_at": "2026-04-28T11:54:49.294296Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-04-28-f6-lifecycle-boundaries-arch-immutability.md",
+            "to": "docs/archive/plans/2026-04-28-f6-lifecycle-boundaries-arch-immutability.md"
+          }
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "name": "Enforce PROG command docs single-source parity",
+      "test_steps": [
+        "Run docs parity gate: python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check",
+        "Run docs generator tests: pytest -q plugins/progress-tracker/tests/test_generate_prog_docs.py",
+        "Confirm README.md, readme-zh.md, and docs/PROG_HELP.md stay synchronized"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "change_spec": {
+        "why": "Deliver Enforce PROG command docs single-source parity with traceable acceptance coverage.",
+        "in_scope": [
+          "Enforce PROG command docs single-source parity"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ],
+        "categories": [
+          "docs"
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: Run docs parity gate: python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check",
+        "Scenario: Run docs generator tests: pytest -q plugins/progress-tracker/tests/test_generate_prog_docs.py",
+        "Scenario: Confirm README.md, readme-zh.md, and docs/PROG_HELP.md stay synchronized"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 100,
+          "defects": [],
+          "last_run_at": "2026-06-04T09:16:46Z",
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [
+            "docs"
+          ],
+          "passed": [],
+          "pending": [
+            "docs"
+          ]
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "development_stage": "completed",
+      "started_at": "2026-04-28T12:49:12.782715Z",
+      "ai_metrics": {
+        "complexity_score": 10,
+        "complexity_bucket": "simple",
+        "selected_model": "haiku",
+        "workflow_path": "direct_tdd",
+        "started_at": "2026-04-28T12:55:44.091441Z",
+        "finished_at": "2026-04-28T16:13:08.249672+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-04-28T16:12:49.777395Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-28T16:12:49.777428Z",
+      "commit_hash": "0a33eb18fa693783bfec31baf12faac68156b653",
+      "plan_path": "docs/plans/2026-04-28-f7-prog-docs-single-source-parity.md",
+      "archive_info": {
+        "archived_at": "2026-04-28T16:12:49.965957Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-04-28-f7-prog-docs-single-source-parity.md",
+            "to": "docs/archive/plans/2026-04-28-f7-prog-docs-single-source-parity.md"
+          }
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "name": "Implement fail-closed release gate with sync compatibility evidence",
+      "test_steps": [
+        "Run unified gate: python3 plugins/progress-tracker/hooks/scripts/ship_check.py",
+        "Run gate tests: pytest -q plugins/progress-tracker/tests/test_ship_check.py",
+        "Run compatibility dry-run: codex-plugin-sync --dry-run"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "change_spec": {
+        "why": "Deliver Implement fail-closed release gate with sync compatibility evidence with traceable acceptance coverage.",
+        "in_scope": [
+          "Implement fail-closed release gate with sync compatibility evidence"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: Run unified gate: python3 plugins/progress-tracker/hooks/scripts/ship_check.py",
+        "Scenario: Run gate tests: pytest -q plugins/progress-tracker/tests/test_ship_check.py",
+        "Scenario: Run compatibility dry-run: codex-plugin-sync --dry-run"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 80,
+          "defects": [
+            {
+              "id": "F8-DEVIATION-01",
+              "severity": "minor",
+              "description": "Extra test test_update_progress_json_writes_ship_check_result not in plan (Task 3 planned 3 tests, implementation has 4). Justified: validates persistence function directly."
+            },
+            {
+              "id": "F8-DEVIATION-02",
+              "severity": "minor",
+              "description": "_collect_real_signals has extra subprocess.TimeoutExpired and general Exception handling not in original plan. Justified: fail-closed defensive programming for robustness."
+            },
+            {
+              "id": "F8-DEVIATION-03",
+              "severity": "minor",
+              "description": "__main__ block has try/except SystemExit wrapper remapping argparse exit code 2 (usage/help errors) to 8 (fail). Not in original plan. Justified: fail-closed — argparse errors should not escape as exit 2."
+            },
+            {
+              "id": "F8-DEVIATION-04",
+              "severity": "minor",
+              "description": "progress_manager.py modified beyond plan scope: removed dead code (_validate_completion_reconcile, _validate_completion_plan_document, _finalize_completion_state_in_memory, _record_feature_completed_event, _append_capability_memory), simplified determine_recovery_action, added dirty_on_default_branch handling in analyze_git_auto_preflight. Plan said 'Existing library API and 7 passing tests are untouched.' However, all 855 tests pass with zero regressions and changes are cleanup/consolidation."
+            }
+          ],
+          "last_run_at": "2026-04-28T15:45:47Z",
+          "evaluator_model": "claude-sonnet-4-6"
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [
+            "eng",
+            "qa",
+            "docs"
+          ],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pass",
+          "failures": [],
+          "last_run_at": "2026-04-30T15:42:31Z"
+        },
+        "review_evidence": {
+          "eng": {
+            "evidence": "ship_check.py: 15/15 tests pass, 880/880 regression pass, evaluator score 80/status pass",
+            "recorded_at": "2026-04-30T23:42:11.092619Z"
+          },
+          "qa": {
+            "evidence": "Acceptance: CLI gate=pass(excl docs_sync drift), 15 tests, sync_compat pass, 880 regression pass",
+            "recorded_at": "2026-04-30T23:42:11.218864Z"
+          },
+          "docs": {
+            "evidence": "Plan docs/plans/2026-04-28-f8-fail-closed-release-gate.md validated, all tasks implemented",
+            "recorded_at": "2026-04-30T23:42:11.345981Z"
+          }
+        }
+      },
+      "sprint_contract": {
+        "scope": "Implement fail-closed release gate: ship_check.py as standalone CLI with sync_compat, real signal collection, and exit code 8 on failure",
+        "done_criteria": [
+          "15 tests pass, evaluator score>=80, ship_check pass, regression 880 pass"
+        ],
+        "test_plan": [
+          "CLI gate, test_ship_check.py, sync compat dry-run, full regression"
+        ],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "ai_metrics": {
+        "complexity_score": 21,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-04-28T16:52:25.320269Z",
+        "finished_at": "2026-04-30T23:52:46.584867+08:00",
+        "duration_seconds": 169221
+      },
+      "development_stage": "completed",
+      "started_at": "2026-04-28T16:53:47.905459Z",
+      "completed_at": "2026-04-30T23:52:46.585064Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-30T23:52:46.585067Z",
+      "commit_hash": "7357882",
+      "plan_path": "docs/plans/2026-04-28-f8-fail-closed-release-gate.md",
+      "archive_info": {
+        "archived_at": "2026-04-30T23:52:46.603275Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-04-28-f8-fail-closed-release-gate.md",
+            "to": "docs/archive/plans/2026-04-28-f8-fail-closed-release-gate.md"
+          }
+        ]
+      }
+    },
+    {
+      "id": 11,
+      "name": "plan_path CLI normalization",
+      "test_steps": [
+        "Normalize plan_path at CLI entry point",
+        "Improve validate_plan_path error message"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-011"
+      ],
+      "change_spec": {
+        "why": "Deliver plan_path CLI normalization with traceable acceptance coverage.",
+        "in_scope": [
+          "plan_path CLI normalization"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ],
+        "categories": [
+          "cli"
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: Normalize plan_path at CLI entry point",
+        "Scenario: Improve validate_plan_path error message"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 85,
+          "defects": [
+            {
+              "id": "F11-DEVIATION-01",
+              "severity": "minor",
+              "description": "Plan called for normalization in set_workflow_state() function body; implementation moved it to main() CLI dispatch layer instead. This is a justified improvement (cleaner separation of concerns) but deviates from the plan."
+            },
+            {
+              "id": "F11-DEVIATION-02",
+              "severity": "minor",
+              "description": "Plan specified _normalize_plan_path name; implementation uses _normalize_plan_path_cli_arg. The name change reflects the architectural shift to CLI-layer normalization."
+            },
+            {
+              "id": "F11-MISSING-01",
+              "severity": "minor",
+              "description": "Plan Case 2 (stripping redundant project-root prefix from relative paths like plugins/foo/docs/plans/bar.md) is not implemented. Only absolute path resolution (Case 1) is handled. Relative paths with accidental project-root prefix will not be auto-stripped."
+            }
+          ],
+          "last_run_at": "2026-04-26T17:21:22Z",
+          "evaluator_model": "claude-opus-4-6"
+        },
+        "reviews": {
+          "required": [
+            "devex",
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [],
+          "pending": [
+            "devex",
+            "docs",
+            "eng",
+            "qa"
+          ]
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "development_stage": "completed",
+      "started_at": "2026-04-24T15:54:37.202730Z",
+      "ai_metrics": {
+        "started_at": "2026-04-27T01:34:12.898699+08:00",
+        "finished_at": "2026-04-27T01:34:32.288396+08:00",
+        "duration_seconds": 19
+      },
+      "completed_at": "2026-04-27T01:34:12.899997Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-04-27T01:34:12.900003Z",
+      "commit_hash": "e11f2d58268bf34946e3a756ad0a2e0a217208fc",
+      "archive_info": {
+        "archived_at": "2026-04-27T01:34:12.918163Z",
+        "files_moved": 0,
+        "files": []
+      }
+    },
+    {
+      "id": 12,
+      "name": "Complexity scoring v2: weighted rubric via haiku subagent",
+      "test_steps": [
+        "Remove/deprecate complexity_analyzer.py and complexity-assessment.md",
+        "Run haiku subagent scoring on 3 known features and confirm bucket matches expectation",
+        "Verify ai_metrics.scoring_v2 fields are persisted in progress.json after scoring",
+        "Run pytest -q tests/ to confirm zero regressions"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-005"
+      ],
+      "change_spec": {
+        "why": "Replace low-accuracy keyword-counter complexity_analyzer.py with a haiku subagent running a weighted 4-dimension rubric (Design Decisions x4, Pattern Familiarity x3, Integration Surface x2, File Impact x1). Score range 0-100, buckets simple/standard/complex with confidence field for uncertainty handling.",
+        "in_scope": [
+          "Remove complexity_analyzer.py (keyword counter)",
+          "Remove/deprecate complexity-assessment.md (inline rubric in coordinator context)",
+          "Create haiku subagent prompt with weighted 4-dim rubric",
+          "Add /prog-next Step 3: spawn haiku subagent instead of loading rubric inline",
+          "Persist scoring_v2 breakdown + confidence in ai_metrics",
+          "Add confidence-based routing: low -> upgrade one tier"
+        ],
+        "out_of_scope": [
+          "Changing determine_complexity_bucket thresholds in progress_manager.py",
+          "Modifying feature-implement routing logic beyond Step 3",
+          "Changing team dispatch or Codex integration"
+        ],
+        "risks": [
+          "Haiku scoring accuracy may differ from current scoring — threshold (38/63) may need calibration after rollout",
+          "Haiku subagent unavailability: must fail open to coordinator self-scoring fallback"
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: Remove complexity_analyzer.py and confirm no import references remain",
+        "Scenario: Run /prog-next on 3 features of known complexity — haiku subagent scores correctly within expected bucket",
+        "Scenario: Feature scored low confidence — coordinator upgrades one tier and continues",
+        "Scenario: Haiku subagent unavailable — coordinator falls back to inline rubric self-scoring",
+        "Scenario: pytest -q tests/ — all existing tests pass, no regressions"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 100,
+          "defects": [],
+          "last_run_at": "2026-05-06T10:10:45Z",
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [
+            "eng",
+            "qa",
+            "docs"
+          ],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pass",
+          "failures": [],
+          "last_run_at": "2026-05-06T10:51:10Z"
+        },
+        "review_evidence": {
+          "docs": {
+            "evidence": "Plan and tracker artifacts synced",
+            "recorded_at": "2026-05-06T18:51:00.624047Z"
+          },
+          "eng": {
+            "evidence": "F12 code merged and contract tests green",
+            "recorded_at": "2026-05-06T18:51:04.303474Z"
+          },
+          "qa": {
+            "evidence": "Acceptance checks prepared and verified",
+            "recorded_at": "2026-05-06T18:51:07.345755Z"
+          }
+        }
+      },
+      "sprint_contract": {
+        "scope": "Ship PT-F12 complexity scoring v2 with tracker state consistency",
+        "done_criteria": [
+          "Complexity scoring v2 code merged on main",
+          "Tracker state and audit event synchronized",
+          "Core F12 contract tests pass"
+        ],
+        "test_plan": [
+          "Run pytest -q tests/test_complexity_scoring_v2_contract.py",
+          "Run pytest -q tests/",
+          "Verify feature_completed event exists for feature_id=12"
+        ],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "development_stage": "completed",
+      "started_at": "2026-05-06T18:08:49.636120Z",
+      "ai_metrics": {
+        "complexity_score": 21,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "started_at": "2026-05-06T14:03:51.634712Z",
+        "finished_at": "2026-05-11T15:48:13.335474+08:00",
+        "duration_seconds": 409461
+      },
+      "completed_at": "2026-05-11T15:48:13.335568Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-05-11T15:48:13.335577Z",
+      "commit_hash": "901f47c",
+      "plan_path": "docs/plans/2026-05-06-f12-complexity-scoring-v2.md",
+      "archive_info": {
+        "archived_at": "2026-05-11T15:48:13.404683Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-05-06-f12-complexity-scoring-v2.md",
+            "to": "docs/archive/plans/2026-05-06-f12-complexity-scoring-v2.md"
+          }
+        ]
+      }
+    },
+    {
+      "id": 13,
+      "name": "Unified work-item intake and profile routing (task/feature/bug) via /prog next",
+      "test_steps": [
+        "Run: prog smart '<long discussion>' → output shows candidate list with type/confidence/profile fields; no JSON mutation occurs before confirmation.",
+        "Run: prog smart '<ambiguous input>' → exactly one clarification question printed; re-run with confirmation → record written with details/refs/next_action preserved.",
+        "Run: prog smart '<clear bug report>' → bug written to bugs[] AND routing_queue contains new bug-id with correct priority weight.",
+        "Run: prog next → P0 bug appears above standalone tasks in selection output; priority order matches P0>P1>task>feature_task>P2 policy.",
+        "Run: prog add-feature / add-bug / add-update → commands succeed without regression; /prog-fix contract unchanged."
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "verified",
+      "requirement_ids": [
+        "REQ-013"
+      ],
+      "change_spec": {
+        "why": "Current intake can collapse rich discussions into sparse notes. Introduce unified work-item intake with profile-aware routing so discussions are decomposed into actionable artifacts without forcing every item into full feature workflow.",
+        "in_scope": [
+          "Define work-item taxonomy used by intake: epic|feature|task|bug|spike|risk|decision|update.",
+          "Define workflow profiles: quick_task|standard_task|feature_delivery|hotfix with explicit branch/verification/done policies.",
+          "Design deterministic intake contract: candidate list -> clarification (if needed) -> explicit confirmation -> commit writes.",
+          "Design /prog next routing precedence: P0 bug > P1 bug > standalone task > active feature task > P2 bug > next feature.",
+          "Persist rich context fields (details, refs, next_action, rationale) to avoid title-only loss.",
+          "Add workflow_profile field to work-item records (tasks and features); allowed values: quick_task|standard_task|feature_delivery|hotfix; default: standard_task.",
+          "When bug intake writes to bugs[], simultaneously push bug-id into routing_queue with priority weight (P0=critical, P1=high, P2=normal).",
+          "Extend wf_state_machine.py to handle new profile states; compute_next_action() must never return None for any valid profile state."
+        ],
+        "out_of_scope": [
+          "Immediate removal of legacy features/bugs/updates collections before compatibility adapters exist.",
+          "Automatic no-confirmation mutation for ambiguous intents.",
+          "Rewriting bug lifecycle semantics in /prog-fix."
+        ],
+        "risks": [
+          "Misclassification can still occur on mixed-intent input; must enforce confidence + clarification gate.",
+          "Routing ambiguity between task and feature can confuse users without explicit output contract in /prog next.",
+          "Schema expansion without migration plan may break downstream readers."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: mixed discussion is decomposed into multiple candidate items with confidence and explicit write confirmation.",
+        "Scenario: ambiguous item is blocked from mutation until user confirms the target type/profile.",
+        "Scenario: committed items retain execution-ready fields (summary/details/refs/next_action) instead of title-only entries.",
+        "Scenario: /prog next deterministic priority order matches profile policy and current runtime context.",
+        "Scenario: existing CLI write commands remain valid and produce no regressions."
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 95,
+          "defects": [
+            {
+              "id": "GAP-F13-001",
+              "severity": "minor",
+              "description": "add_feature() does not include workflow_profile field. change_spec requires: Add workflow_profile field to work-item records (tasks and features). Only add_task_item() sets it."
+            }
+          ],
+          "last_run_at": "2026-05-12T15:30:00Z",
+          "evaluator_model": "claude-opus-4-7"
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [
+            "eng",
+            "qa",
+            "docs"
+          ],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pass",
+          "failures": [],
+          "last_run_at": "2026-05-12T15:33:53Z"
+        },
+        "review_evidence": {
+          "eng": {
+            "evidence": "code_review: all 945 tests pass, 19 new F13 tests cover smart_intake and _select_next_work_item, evaluator gate pass (95/100)",
+            "recorded_at": "2026-05-12T23:33:39.190493Z"
+          },
+          "qa": {
+            "evidence": "acceptance: 5/5 test steps passed — preview no-mutation, ambiguous clarification, bug commit+routing_queue, next alias, add-feature/add-bug/add-update regression-free",
+            "recorded_at": "2026-05-12T23:33:39.523013Z"
+          },
+          "docs": {
+            "evidence": "plan: docs/plans/2026-05-11-f13-unified-intake-detailed.md validated, PROG_COMMANDS.md updated with smart command, new command/skill docs added",
+            "recorded_at": "2026-05-12T23:33:39.816947Z"
+          }
+        }
+      },
+      "sprint_contract": {
+        "scope": "prog smart CLI deterministic executor; _select_next_work_item unified selector; workflow_profile taxonomy; wf_state_machine intake/task states; prog next alias",
+        "done_criteria": [
+          "945 tests passing (926 existing + 19 new)"
+        ],
+        "test_plan": [
+          "test_unified_selection.py: 8 tests (priority ordering/skip/fallback)"
+        ],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "plan_path": "docs/plans/2026-05-08-f13-prog-smart-ai-routing.md",
+      "ai_metrics": {
+        "complexity_score": 24,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "scoring_v2": {
+          "score": 24,
+          "raw_score_bucket": "simple",
+          "routed_bucket": "standard",
+          "confidence": "medium"
+        },
+        "started_at": "2026-05-11T23:22:11.620757Z"
+      },
+      "development_stage": "completed",
+      "started_at": "2026-05-11T23:26:18.048282Z"
+    },
+    {
+      "id": 14,
+      "name": "Task execution semantics and visibility (standalone task vs feature task) with profile-aware done gates",
+      "test_steps": [
+        "Run: prog next → selects quick_task; verify a short-lived branch is created automatically.",
+        "Run: prog next --done on active quick_task → squash-merge succeeds, branch deleted, exactly 1 commit added to main; no feature done gate triggered.",
+        "Run: prog next --done on feature-bound task → task marked complete, parent feature progress advances, parent feature NOT auto-closed.",
+        "Run: prog next --done on quick_task → confirm close path does not trigger MUTATING_COMMANDS outer lock (no 10s timeout / RC=9).",
+        "Run: prog status → actionable updates shown; stale P0/P1 bugs displayed as warnings; hidden-history count shown; list-updates returns full unfiltered history."
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-014"
+      ],
+      "change_spec": {
+        "why": "Small tasks should not be forced through heavy feature completion gates. Need a clear split between standalone tasks and feature-subtasks while preserving observability in /prog status.",
+        "prerequisites": [
+          "F13 must be shipped: workflow_profile taxonomy, schema extension, and intake contract must be merged before F14 execution."
+        ],
+        "in_scope": [
+          "Define execution semantics for standalone task and feature task under current workflow_state model.",
+          "Define /prog next --done shortcut behavior for profiles that allow lightweight closure.",
+          "Define done-gate matrix by workflow_profile (none/light/standard/strict).",
+          "All workflow profiles create a short-lived branch on start; quick_task branches have minimal lifetime but still squash-merge on close — no profile commits directly to main mid-task.",
+          "Extend /prog next CLI with --done flag using argparse; flag is backward-compatible (absent = default routing behavior).",
+          "Refine status visibility to show active memo/actionable notes and hide stale history with counters; surface stale P0/P1 bug warnings (P0 pending >1d, P1 pending >3d).",
+          "Maintain full audit/history retrieval through list-updates."
+        ],
+        "out_of_scope": [
+          "Auto-completing parent feature when any child task closes.",
+          "Removing execution_complete gate for feature_delivery workflow.",
+          "Destructive cleanup of historical update records."
+        ],
+        "risks": [
+          "Over-aggressive quick close can produce false done signals without evidence checks.",
+          "If visibility filter is too strict, critical context may be hidden from status view.",
+          "Inconsistent task-parent linkage can produce orphan task states."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: standalone quick task closes in one step and does not require /prog-done on a feature.",
+        "Scenario: feature task closure updates task progress only; parent feature still requires explicit completion gate.",
+        "Scenario: profile gate matrix enforces different validation depths per item class.",
+        "Scenario: status output keeps actionable context visible while reporting hidden-history count.",
+        "Scenario: list-updates exposes complete historical notes for audit and recovery."
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 75,
+          "defects": [
+            "AC-3 (profile gate matrix) partially covered: tests verify quick_task/feature-id exclusivity but not different validation-depth behaviours per workflow profile",
+            "Defensive branches in _get_stale_bugs() not covered (non-dict, missing ts, naive datetime)",
+            "Error-recovery branches in _git_squash_close_task() not covered (checkout/merge/commit/delete failures)"
+          ],
+          "last_run_at": "2026-05-16T11:26:51.211398+00:00",
+          "evaluator_model": "deepseek-v4-pro:cloud"
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pass",
+          "failures": [],
+          "last_run_at": "2026-05-16T14:01:29Z"
+        },
+        "review_evidence": {
+          "docs": {
+            "evidence": "plan: docs/superpowers/plans/2026-05-15-task-execution-semantics.md, validated by validate-plan",
+            "recorded_at": "2026-05-16T21:41:06.423880Z"
+          },
+          "eng": {
+            "evidence": "code-reviewed: 1 CRITICAL + 5 IMPORTANT fixed, 39/39 tests pass, no unresolved findings",
+            "recorded_at": "2026-05-16T21:41:06.726683Z"
+          },
+          "qa": {
+            "evidence": "acceptance: all 5 test steps verified, 39/39 tests pass, evaluator gate status=pass score=75",
+            "recorded_at": "2026-05-16T21:41:07.010131Z"
+          }
+        }
+      },
+      "sprint_contract": {
+        "scope": "Implement task execution/closure semantics and visibility policy that align with profile routing while preserving current feature lifecycle guarantees.",
+        "done_criteria": [
+          "Standalone task and feature-task flows are explicitly differentiated in command behavior and docs.",
+          "Profile-based done gate rules are test-covered and deterministic.",
+          "/prog next --done flag exists in CLI; /prog next without --done produces no regression.",
+          "All profiles (including quick_task) create a branch on start and squash-merge on close; no profile writes WIP commits directly to main.",
+          "quick_task close path does not acquire MUTATING_COMMANDS outer lock (no nested lock deadlock matching BUG-002 pattern).",
+          "/prog status shows actionable updates by default, hidden history summary, and stale P0/P1 bug warnings.",
+          "Full history remains accessible through list-updates without mutation or loss."
+        ],
+        "test_plan": [
+          "Behavior tests for /prog next and /prog next --done across profile types.",
+          "Validation tests ensuring parent feature completion gate still requires execution_complete path.",
+          "Status rendering tests for active-vs-history filters and hidden-count summaries.",
+          "Audit tests for history retrieval correctness and no-drop guarantees."
+        ],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "plan_path": "docs/plans/2026-05-15-task-execution-semantics.md",
+      "development_stage": "completed",
+      "started_at": "2026-05-14T18:07:56.904049Z",
+      "ai_metrics": {
+        "started_at": "2026-05-16T22:14:13.551571+08:00",
+        "finished_at": "2026-05-16T22:14:13.551571+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-05-16T22:14:13.551604Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-05-16T22:14:13.551610Z",
+      "commit_hash": "17912d8a4838d1a3356283af36eef953e6a7921c",
+      "archive_info": {
+        "archived_at": "2026-05-16T22:14:13.594902Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-05-15-task-execution-semantics.md",
+            "to": "docs/archive/plans/2026-05-15-task-execution-semantics.md"
+          }
+        ]
+      }
+    },
+    {
+      "id": 15,
+      "name": "prog-fix skill 嵌入4阶段调试方法论",
+      "test_steps": [
+        "Scenario 3 新增结构化证据收集步骤：明确列出复现路径、错误日志、输入输出对比",
+        "Scenario 3 新增触发模式分析步骤：识别稳定触发条件和边界条件",
+        "假设建立环节加入唯一性验证检查：排除竞争假设后确认该假设是唯一成立原因",
+        "TDD 完成后加显式回归检查项：确认问题A已消失且功能B未受影响",
+        "原有 systematic-debugging / TDD / git-auto 委托调用不受影响，Scenario 1 和 Scenario 2 保持原样"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "verified",
+      "requirement_ids": [
+        "REQ-015"
+      ],
+      "change_spec": {
+        "why": "Deliver prog-fix skill 嵌入4阶段调试方法论 with traceable acceptance coverage.",
+        "in_scope": [
+          "prog-fix skill 嵌入4阶段调试方法论"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: Scenario 3 新增结构化证据收集步骤：明确列出复现路径、错误日志、输入输出对比",
+        "Scenario: Scenario 3 新增触发模式分析步骤：识别稳定触发条件和边界条件",
+        "Scenario: 假设建立环节加入唯一性验证检查：排除竞争假设后确认该假设是唯一成立原因",
+        "Scenario: TDD 完成后加显式回归检查项：确认问题A已消失且功能B未受影响",
+        "Scenario: 原有 systematic-debugging / TDD / git-auto 委托调用不受影响，Scenario 1 和 Scenario 2 保持原样"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 90,
+          "defects": [],
+          "last_run_at": "2026-05-16T18:00:18.541043+00:00",
+          "evaluator_model": "claude-sonnet-4-6",
+          "note": "Recovery backfill — F15 merged via PR #49 (4f12d69), worktree cleaned up"
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [
+            "eng",
+            "qa",
+            "docs"
+          ],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pass",
+          "failures": [],
+          "last_run_at": "2026-05-16T16:07:15Z"
+        },
+        "review_evidence": {
+          "eng": {
+            "evidence": "code-review: 评估门 100/100 pass, reviewer confirmed 5/5 test_steps satisfied, Scenario 2 renames are intentional to avoid phase number collision",
+            "recorded_at": "2026-05-17T00:07:12.193148Z"
+          },
+          "qa": {
+            "evidence": "acceptance: all 5 test_steps verified with grep evidence. Phase 1-4 methodology correctly embedded in Scenario 3. Regression check bidirectional.",
+            "recorded_at": "2026-05-17T00:07:12.325916Z"
+          },
+          "docs": {
+            "evidence": "SKILL.md contains full 4-phase methodology documentation with structured Phase 1-5. Delegation calls documented. State routing logic documented.",
+            "recorded_at": "2026-05-17T00:07:12.474728Z"
+          }
+        }
+      },
+      "sprint_contract": {
+        "scope": "Embed 4-phase debugging methodology (evidence collection, trigger analysis, hypothesis uniqueness, regression check) into Scenario 3 of bug-fix skill",
+        "done_criteria": [
+          "Scenario 1 and Scenario 2 preserved unchanged"
+        ],
+        "test_plan": [
+          "Full test suite: 8 pre-existing failures unchanged, no new regressions"
+        ],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "plan_path": "docs/plans/2026-05-11-f15-prog-fix-debug-methodology.md",
+      "development_stage": "completed",
+      "started_at": "2026-05-16T22:53:31.243640Z",
+      "ai_metrics": {
+        "complexity_score": 20,
+        "complexity_bucket": "simple",
+        "selected_model": "haiku",
+        "workflow_path": "direct_tdd",
+        "scoring_v2": {
+          "score": 20,
+          "raw_score_bucket": "simple",
+          "routed_bucket": "simple",
+          "confidence": "high"
+        },
+        "started_at": "2026-05-16T23:07:11.458758Z",
+        "finished_at": "2026-05-17T02:00:23.575183+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-05-17T02:00:23.575218Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-05-17T02:00:23.575221Z",
+      "commit_hash": "4f12d69"
+    },
+    {
+      "id": 16,
+      "name": "Git Squash Merge SOP — 集成到 prog-done 自动化流程",
+      "test_steps": [
+        "feature 分支有多个中间 commit 时执行 prog done，确认合入 main 后只增加 1 个 squash commit，分支自动删除",
+        "main 分支 git log 中不出现 WIP/fix typo/chore 类中间 commit，每个 feature 对应一个语义完整的 commit",
+        "project_memory.json 中 CAP 记录的 commit_hash 正确指向 squash 后的最终 commit",
+        "Feature 分支在 squash merge 完成后自动清理：删除本地分支+远程 tracking 分支，失败非阻塞",
+        "已有仓库可选执行历史 squash+hash remap 脚本，所有追踪文件中的旧 hash 正确更新为新 hash"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-016"
+      ],
+      "change_spec": {
+        "why": "每个 work item 无论 profile 类型（feature / task / bug）都应在合入 main 时产生恰好 1 个语义完整的 commit；WIP/调试/fix typo 类中间 commit 不应污染 main 历史。",
+        "in_scope": [
+          "Squash merge 适用于所有使用分支的 workflow profile（quick_task / standard_task / feature_delivery / hotfix）；main 始终每个 work item 对应 1 个 commit。",
+          "quick_task / standard_task squash 范围：分支创建到关闭的所有 commit → 1 commit；message 格式：task(scope): 描述。",
+          "feature_delivery squash 范围：保持原设计（feat(scope): 描述 + 详细 body）；通过完整 prog-done gate 触发。",
+          "profile-aware squash 触发点：quick_task/standard_task 走轻量关闭路径；feature_delivery 走完整 prog-done gate；两者共用同一 squash-merge 工具函数。",
+          "状态一致性：project_memory.json 和 sprint_ledger.jsonl 的 commit_hash 始终指向 squash 后的最终 commit，所有 profile 均适用。"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: feature 分支有多个中间 commit 时执行 prog done，确认合入 main 后只增加 1 个 squash commit，分支自动删除",
+        "Scenario: main 分支 git log 中不出现 WIP/fix typo/chore 类中间 commit，每个 feature 对应一个语义完整的 commit",
+        "Scenario: project_memory.json 中 CAP 记录的 commit_hash 正确指向 squash 后的最终 commit",
+        "Scenario: Feature 分支在 squash merge 完成后自动清理：删除本地分支+远程 tracking 分支，失败非阻塞",
+        "Scenario: 已有仓库可选执行历史 squash+hash remap 脚本，所有追踪文件中的旧 hash 正确更新为新 hash"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 88,
+          "defects": [
+            "L-01: squash-remap-history.sh OLD_HASH/NEW_HASH not validated as hex → sed metachar risk (fixed: added hex regex guard)",
+            "L-02: TRACKER_DIR hardcoded path assumption in remap script",
+            "L-03: is_working_directory_clean() false-negative on git error (pre-existing)",
+            "I-01: no automated test for CAP commit_hash → squash SHA mapping"
+          ],
+          "last_run_at": "2026-05-21T00:49:39.968780+00:00",
+          "evaluator_model": "claude-sonnet-4-6"
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [
+            "eng",
+            "qa",
+            "docs"
+          ],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pass",
+          "failures": [],
+          "last_run_at": "2026-05-17T17:16:35Z"
+        },
+        "review_evidence": {
+          "eng": {
+            "evidence": "code review: squash merge enforcement (MUST), CommitHash source (MUST), branch cleanup non-blocking, git_validator ( ) removal safe (subprocess no shell)",
+            "recorded_at": "2026-05-18T01:16:30.968005Z"
+          },
+          "qa": {
+            "evidence": "43/43 tests pass; 4 new: conflict-fail, cleanup-non-blocking, msg-format, fallback; no regression (1031 pass)",
+            "recorded_at": "2026-05-18T01:16:31.128093Z"
+          },
+          "docs": {
+            "evidence": "docs/plans/2026-05-11-f16-git-squash-merge-sop.md + git-auto/SKILL.md + feature-complete/SKILL.md updated",
+            "recorded_at": "2026-05-18T01:16:31.285112Z"
+          }
+        }
+      },
+      "sprint_contract": {
+        "scope": "squash merge SOP: 强制 commit_push_pr_merge 使用 gh pr merge --squash --delete-branch，CommitHash 来自 default branch HEAD，task close 路径使用 task(id): description 格式",
+        "done_criteria": [
+          "git-auto SKILL.md 将 squash merge 从 Prefer 升级为 MUST，CommitHash 来源明确为 git rev-parse origin/<default_branch>",
+          "feature-complete SKILL.md Step 5 新增 squash merge 不可跳过检查项",
+          "git_validator.py 允许括号字符（Conventional Commits 格式）",
+          "_git_squash_close_task commit message 格式升级为 task(id): description",
+          "test_task_execution_semantics.py 新增冲突失败/cleanup失败非阻塞/message格式4个测试用例",
+          "squash-remap-history.sh 可选历史 hash remap 脚本"
+        ],
+        "test_plan": [
+          "43/43 TestGitSquashCloseTask + TestCloseCurrentTask 测试通过",
+          "1031 tests passed，6个预存在失败不在F16范围内"
+        ],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "plan_path": "docs/plans/2026-05-11-f16-git-squash-merge-sop.md",
+      "development_stage": "completed",
+      "started_at": "2026-05-17T02:02:32.210787Z",
+      "ai_metrics": {
+        "complexity_score": 45,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "scoring_v2": {
+          "score": 45,
+          "raw_score_bucket": "standard",
+          "routed_bucket": "standard",
+          "confidence": "high"
+        },
+        "started_at": "2026-05-18T00:25:18.004989Z",
+        "finished_at": "2026-05-21T08:49:46.600715+08:00",
+        "duration_seconds": 260668
+      },
+      "completed_at": "2026-05-21T08:49:46.600780Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-05-21T08:49:46.600788Z",
+      "commit_hash": "8d99f207dfa9194838b171802393db85f83f77e9",
+      "archive_info": {
+        "archived_at": "2026-05-21T08:49:46.649222Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-05-11-f16-git-squash-merge-sop.md",
+            "to": "docs/archive/plans/2026-05-11-f16-git-squash-merge-sop.md"
+          }
+        ]
+      }
+    },
+    {
+      "id": 17,
+      "name": "Parent-Child Route 同步：子插件 set_current/done 回写父 active_routes",
+      "test_steps": [
+        "子项目 prog set-current 14 → 检查 root active_routes 是否有 PT -> PT-F14",
+        "子项目 /prog done → 检查 root active_routes 是否已移除 PT",
+        "root features[] 仍为空或只含 root-level feature，不复制 child feature",
+        "set_current() 的 worktree_path/branch 来源为 child runtime_context 或 collect_git_context() fallback",
+        "set-current 在父 linked_projects 不完整时仍允许执行（bootstrap），输出 warn",
+        "多个子项目同时 active → root dashboard 列出全部活跃路由 + RecommendedRoute",
+        "set_current() 检测并行路由时即时输出 [WARNING]",
+        "sync-linked --repair-routes 从 child current_feature_id 重建 route，跳过 completed/deferred",
+        "uv run pytest tests/test_parent_route_writeback_f17.py tests/test_parent_writeback.py -q",
+        "uv run pytest tests/test_scope_fail_closed.py tests/test_dispatch_child_feature.py tests/test_route_commands.py tests/test_root_dashboard.py tests/test_sync_linked_command.py -q"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-017"
+      ],
+      "change_spec": {
+        "why": "根仪表盘无法直接定位子插件活跃 feature，每次 /prog next 需要扫描 routing_queue（读取多个空 progress.json），浪费 token。子项目 set_current() 和 cmd_done() 是正确插入点，应在此处自动同步父 active_routes。",
+        "prerequisites": [
+          "F14 (task execution semantics) 必须合并 — set_current() 和 cmd_done() 的最终形态依赖 F14",
+          "F16 (git squash merge SOP) 必须合并 — cmd_done() 的 squash 逻辑在此之前稳定"
+        ],
+        "in_scope": [
+          "新增 6 个 route helper：_format_route_feature_ref / _build_child_active_route / _upsert_active_route / _remove_active_route / _refresh_parent_linked_snapshot / _apply_parent_route_writeback",
+          "扩展 _notify_parent_sync(route_event)：支持 activate 和 clear 两种 route event",
+          "set_current() 后调用 _notify_parent_sync(activate)，回写父 active_routes",
+          "cmd_done() 后调用 _notify_parent_sync(clear)，移除父 active_routes 中对应项目",
+          "route preflight 新增 set-current bootstrap 例外：信任 child 自身的 parent_project_root",
+          "父 prog next dispatch 写入格式修正：F14 → PT-F14，补齐 feature_id/feature_name/child_project_root/source",
+          "root dashboard handoff 三态输出：0 active → queue-based / 1 active → direct resume / 2+ → list+recommend",
+          "sync-linked --repair-routes：从 child current_feature_id 重建 root route 投影",
+          "set_current() 即时并行路由 warning",
+          "progress-status SKILL.md handoff 模板同步更新",
+          "route + linked_snapshot 单次 save，不出现状态分裂"
+        ],
+        "out_of_scope": [
+          "复制子 feature 到 root features[]",
+          "在 active_routes 中保留 status=done 的历史路由",
+          "子项目 prog next preview 阶段写父 route（只有 set_current 锁定后才写）",
+          "移除 execution_complete gate",
+          "修改 task 级别的父协调（standalone task 不需要父 route）"
+        ],
+        "risks": [
+          "F14/F16 合并后 set_current() 和 cmd_done() 的代码形态可能与计划假设有差异，需实现时验证",
+          "并行活跃路由可能造成用户困惑，dashboard 必须显式暴露冲突",
+          "父 progress.json 损坏时 route 写入失败为 warn-only，需 sync-linked --repair-routes 修复"
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 子项目 set_current(14) 后，root active_routes 自动出现 PT -> PT-F14 条目",
+        "Scenario: 子项目 cmd_done() 后，root active_routes 中 PT 条目被移除",
+        "Scenario: root features[] 保持空数组，不接收子 feature 副本",
+        "Scenario: 两个子项目同时活跃时，root dashboard 列出所有活跃路由并标注推荐",
+        "Scenario: sync-linked --repair-routes 从 child 状态重建完整 route 投影",
+        "Scenario: 父 progress.json 缺失时子项目 set_current() 不报错，仅 warn"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 95,
+          "defects": [],
+          "last_run_at": "2026-05-21T09:16:47.319386+00:00",
+          "evaluator_model": "claude-opus-4-7"
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [
+            "eng",
+            "qa",
+            "docs"
+          ],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pass",
+          "failures": [],
+          "last_run_at": "2026-05-21T09:08:28Z"
+        },
+        "review_evidence": {
+          "eng": {
+            "evidence": "Code review: 3 route helpers + extended _notify_parent_sync + bootstrap exception scoped to check-5-only + repair-routes preserving JSON contract. All logic isolated behind try/except warn-only boundary. No defects.",
+            "recorded_at": "2026-05-21T17:08:16.143536Z"
+          },
+          "qa": {
+            "evidence": "Acceptance: 90 tests pass (test_parent_route_writeback_f17 x4, test_scope_fail_closed x25, test_sync_linked x15, test_route_commands x14, test_root_dashboard x10, others). All 6 acceptance scenarios covered.",
+            "recorded_at": "2026-05-21T17:08:20.635170Z"
+          },
+          "docs": {
+            "evidence": "Plan: docs/superpowers/plans/2026-05-16-f17-parent-route-writeback.md (validated). SKILL.md updated with 3-state active_routes handoff template.",
+            "recorded_at": "2026-05-21T17:08:25.210747Z"
+          }
+        }
+      },
+      "sprint_contract": {
+        "scope": "实现子插件与父跟踪器间的 active_routes 同步机制，消除 root dashboard 的队列扫描 token 浪费",
+        "done_criteria": [
+          "子 set-current 后父 active_routes 自动 upsert",
+          "子 cmd_done 后父 active_routes 自动 remove",
+          "root features[] 不包含子 feature 副本",
+          "route preflight 允许 set-current bootstrap",
+          "父 dispatch 使用 PT-F14 格式",
+          "root dashboard handoff 三态输出正确",
+          "sync-linked --repair-routes 可重建路由",
+          "并行路由即时 warn",
+          "所有测试 pass + 回归 pass"
+        ],
+        "test_plan": [
+          "Unit tests for 6 route helpers",
+          "Integration tests for set_current → parent writeback",
+          "Integration tests for cmd_done → parent route removal",
+          "Route preflight bootstrap tests",
+          "Dashboard handoff rendering tests",
+          "sync-linked --repair-routes rebuild tests",
+          "Regression: pytest on test_parent_writeback / test_dispatch_child_feature / test_route_commands / test_root_dashboard / test_sync_linked_command"
+        ],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "plan_path": "docs/superpowers/plans/2026-05-16-f17-parent-route-writeback.md",
+      "development_stage": "completed",
+      "started_at": "2026-05-21T16:16:51.490265Z",
+      "ai_metrics": {
+        "complexity_score": 32,
+        "complexity_bucket": "simple",
+        "selected_model": "opus",
+        "workflow_path": "full_design_plan_execute",
+        "scoring_v2": {
+          "score": 32,
+          "raw_score_bucket": "simple",
+          "routed_bucket": "simple",
+          "confidence": "low"
+        },
+        "started_at": "2026-05-21T16:17:40.989141Z",
+        "finished_at": "2026-05-21T17:17:00.264377+08:00",
+        "duration_seconds": 0
+      },
+      "integration_status": "merged_and_cleaned",
+      "completed_at": "2026-05-21T17:17:00.264509Z",
+      "finish_state_resolved_at": "2026-05-21T17:17:00.264520Z",
+      "commit_hash": "6e697435fe095679df405fb9380602e58acdaf97",
+      "archive_info": {
+        "archived_at": "2026-05-21T17:17:00.328137Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/superpowers/plans/2026-05-16-f17-parent-route-writeback.md",
+            "to": "docs/archive/plans/2026-05-16-f17-parent-route-writeback.md"
+          }
+        ]
+      }
+    },
+    {
+      "id": 18,
+      "name": "progress_manager.py 深度模块化拆分（Phase 2 技术债偿还）",
+      "test_steps": [
+        "DoD: 拆分后各子模块可独立 import，无循环依赖（人工核验）",
+        "DoD: progress_manager.py 主入口文件降至 1500 行以下；各子模块均不超过 1000 行（人工核验）",
+        "uv run pytest plugins/progress-tracker/tests/ -q",
+        "bash -lc \"if git grep -E 'from progress_manager import|import progress_manager' -- plugins/progress-tracker/hooks/scripts plugins/progress-tracker/tests; then exit 1; else exit 0; fi\"",
+        "DoD: 拆分本身以符合 F19 变更记录模板写入 docs/changes/（人工核验）"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-018"
+      ],
+      "change_spec": {
+        "why": "F9 仅提取了 prompt builders，progress_manager.py 当前仍有 13,392 行。任何 AI session 都无法在单次 context 内全量读取该文件，是后续所有高风险修复（并发锁、worktree、evaluator 等）出现难以定位 bug 的根因。F19 的可追溯机制建立在该文件可被 AI 稳定理解的前提上，因此拆分优先于追溯机制落地。",
+        "prerequisites": [
+          "F9 (modular command helpers) 已完成 — prompt builder 已提取，本次继续拆分剩余职责"
+        ],
+        "in_scope": [
+          "按职责将 progress_manager.py 拆分为 6-8 个子模块，候选边界：lock_manager.py（锁与事务）、worktree_handler.py（git worktree 路由与路径解析）、state_io.py（progress.json 读写）、lifecycle_state_machine.py（已存在，确认边界）、evaluator_gateway.py（evaluator 调用与结果写入）、route_manager.py（parent-child 路由同步）、cmd_handlers/（各 prog 子命令入口）",
+          "主入口 progress_manager.py 保留为 thin dispatcher，仅做 import 和路由",
+          "全部现有测试 pass（零回归）",
+          "拆分完成后以 F19 要求的变更记录格式在 docs/changes/ 写入首条记录（dogfooding）"
+        ],
+        "out_of_scope": [
+          "修改任何现有行为或命令语义",
+          "新增功能",
+          "F19 追溯机制本体（pre-commit 守卫、index.jsonl 等）"
+        ],
+        "risks": [
+          "循环依赖：拆分时可能出现 lock_manager ↔ state_io 的循环 import，需提前规划依赖方向",
+          "隐式全局状态：progress_manager.py 中可能有模块级全局变量被多处引用，提取时需显式传参",
+          "测试覆盖不足：当前测试可能 mock 了 progress_manager 顶层，拆分后 mock 路径失效"
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: progress_manager.py 主文件行数 ≤ 1500，各子模块 ≤ 1000 行",
+        "Scenario: 各子模块可独立 import，无循环依赖",
+        "Scenario: 全套测试 pass（uv run pytest plugins/progress-tracker/tests/ -q）",
+        "Scenario: 拆分记录以 F19 模板格式写入 docs/changes/index.jsonl（首条 dogfooding 条目）"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 100,
+          "defects": [],
+          "last_run_at": "2026-05-24T00:13:06Z",
+          "evaluator_model": "deepseek-v4-pro:cloud"
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [
+            "eng",
+            "qa",
+            "docs"
+          ],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pass",
+          "failures": [],
+          "last_run_at": "2026-05-26T09:03:35Z"
+        },
+        "review_evidence": {
+          "eng": {
+            "evidence": "Code review complete: F18 modularization files updated under hooks/scripts; PM boundary checks passed on 2026-05-26.",
+            "recorded_at": "2026-05-26T17:03:03.549707Z"
+          },
+          "qa": {
+            "evidence": "Acceptance verification: uv run pytest plugins/progress-tracker/tests/ -q => 1076 passed, 1 warning (2026-05-26).",
+            "recorded_at": "2026-05-26T17:03:14.532047Z"
+          },
+          "docs": {
+            "evidence": "Plan validated: docs/plans/2026-05-21-f18-progress-manager-modularization.md; generate_prog_docs.py --check passed (2026-05-26).",
+            "recorded_at": "2026-05-26T17:03:26.261834Z"
+          }
+        }
+      },
+      "sprint_contract": {
+        "scope": "将 progress_manager.py 从 13,392 行单文件拆分为职责单一的多模块架构，消除 AI session 无法全量读取的认知瓶颈",
+        "done_criteria": [
+          "主文件 ≤ 1500 行，子模块各 ≤ 1000 行",
+          "无循环依赖，各模块可独立 import",
+          "uv run pytest plugins/progress-tracker/tests/ -q 全部 pass",
+          "拆分本身写入 docs/changes/index.jsonl 作为 dogfooding 首条记录"
+        ],
+        "test_plan": [
+          "Import isolation: python -c 'from <module> import *' 对各子模块独立验证",
+          "Regression: uv run pytest plugins/progress-tracker/tests/ -q",
+          "Manual smoke: prog status / prog next / prog done 核心命令功能验证"
+        ],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "plan_path": "docs/plans/2026-05-21-f18-progress-manager-modularization.md",
+      "development_stage": "completed",
+      "started_at": "2026-05-21T17:38:49.290926Z",
+      "ai_metrics": {
+        "complexity_score": 61,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "scoring_v2": {
+          "score": 61,
+          "raw_score_bucket": "standard",
+          "routed_bucket": "standard",
+          "confidence": "medium"
+        },
+        "started_at": "2026-05-21T17:54:18.387204Z",
+        "finished_at": "2026-05-26T17:09:17.386007+08:00",
+        "duration_seconds": 400498
+      },
+      "completed_at": "2026-05-26T17:09:17.386091Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-05-26T17:09:17.386098Z",
+      "commit_hash": "b36ca8519c25fe39df818d8baa6e57e571c2b07f",
+      "archive_info": {
+        "archived_at": "2026-05-26T17:09:17.456180Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-05-21-f18-progress-manager-modularization.md",
+            "to": "docs/archive/plans/2026-05-21-f18-progress-manager-modularization.md"
+          }
+        ]
+      }
+    },
+    {
+      "id": 20,
+      "name": "progress_manager facade 收口 Round 0-1：边界护栏 + 状态/摘要只读链路外移",
+      "test_steps": [
+        "scripts/check_pm_boundary.sh 能对局部 import progress_manager / from progress_manager import ... fail-closed",
+        "python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check",
+        "uv run pytest plugins/progress-tracker/tests/test_root_dashboard.py plugins/progress-tracker/tests/test_status_linked_summary.py plugins/progress-tracker/tests/test_summary_writeback.py plugins/progress-tracker/tests/test_progress_ui_status.py -q",
+        "DoD: summary_projector.py 与 status_commands.py 建立，progress_manager.py 对应链路仅保留 facade wrapper",
+        "DoD: 本轮变更按 F19 记录格式写入 docs/changes/index.jsonl 与对应 markdown record"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-020"
+      ],
+      "change_spec": {
+        "why": "虽然 F18 已把 progress_manager.py 压到 10k 行以内，但 facade 与业务逻辑仍未真正分层。继续在当前结构上叠加修复会放大 AI session 的定位成本与边界回流风险，因此先做 Round 0-1：修正边界护栏并外移只读状态链路。",
+        "prerequisites": [
+          "docs/plans/2026-06-03-progress-manager-facade-rounds.md 已作为本轮 canonical 计划文档落盘"
+        ],
+        "in_scope": [
+          "修正 scripts/check_pm_boundary.sh，使其能拦截局部 reverse import progress_manager",
+          "新建 summary_projector.py，迁移状态摘要投影链路",
+          "新建 status_commands.py，迁移 status / root dashboard 的只读展示链路",
+          "在 progress_manager.py 中保留稳定 facade wrapper 与兼容导出"
+        ],
+        "out_of_scope": [
+          "next_feature / work_item_selector 抽离",
+          "cmd_done / complete_feature 抽离",
+          "smart_intake / add_feature / defer/resume 等写路径命令抽离",
+          "F19 机制本体（守卫、render、rollback SOP）"
+        ],
+        "risks": [
+          "边界检查脚本修复不完整时，会继续产生对 reverse import 的假阴性",
+          "status 链路函数迁移时若注入接口设计不清，会引入新的耦合或 facade 泄漏",
+          "若本轮混入写路径逻辑，回归面会迅速扩大，削弱本轮低风险目标"
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 子模块内新增局部 import progress_manager 后，scripts/check_pm_boundary.sh 立即失败",
+        "Scenario: status 与 summary 相关测试集在模块外移后保持通过",
+        "Scenario: progress_manager.py 中 status/summary 对应实现收敛为 facade wrapper"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 93,
+          "defects": [],
+          "last_run_at": "2026-06-03T09:45:20.485910Z",
+          "evaluator_model": "claude-sonnet-4-6"
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [
+            "eng",
+            "qa",
+            "docs"
+          ],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pass",
+          "failures": [],
+          "last_run_at": "2026-06-03T09:46:17Z"
+        },
+        "review_evidence": {
+          "eng": {
+            "evidence": "Evaluator gate passed (score 93/100): 50 tests pass, facade wrappers correctly marked with is_wrapper=True, no reverse imports in new modules, boundary checker verified. summary_projector.py (531 lines) + status_commands.py (708 lines) extracted from progress_manager.py.",
+            "recorded_at": "2026-06-03T17:46:05.557443Z"
+          },
+          "qa": {
+            "evidence": "All 50 acceptance tests pass: test_root_dashboard (10), test_status_linked_summary (13), test_summary_writeback (2), test_progress_ui_status (25). Boundary checker pass, docs generation check pass. All acceptance scenarios verified.",
+            "recorded_at": "2026-06-03T17:46:09.355208Z"
+          },
+          "docs": {
+            "evidence": "Plan document: plugins/progress-tracker/docs/plans/2026-06-03-progress-manager-facade-rounds.md. Change records: docs/changes/20260603-boundary-fix-r0.md, docs/changes/20260603-summary-status-r1.md. Index: docs/changes/index.jsonl (2 new entries). generate_prog_docs.py --check passed.",
+            "recorded_at": "2026-06-03T17:46:13.770528Z"
+          }
+        }
+      },
+      "sprint_contract": {
+        "scope": "完成 progress_manager facade 收口的 Round 0-1：先修边界护栏，再把 summary/status 只读链路移出主文件。",
+        "done_criteria": [
+          "scripts/check_pm_boundary.sh 能拦截局部 reverse import",
+          "summary_projector.py 与 status_commands.py 建立并承接对应实现",
+          "progress_manager.py 仅保留对应 facade wrapper",
+          "相关 focused tests 与 required checks 全部通过"
+        ],
+        "test_plan": [
+          "Boundary: scripts/check_pm_boundary.sh",
+          "Docs: python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check",
+          "Focused pytest: root dashboard / status summary / UI status / summary writeback"
+        ],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "plan_path": "docs/plans/2026-06-03-progress-manager-facade-rounds.md",
+      "development_stage": "completed",
+      "started_at": "2026-06-03T15:15:33.752580Z",
+      "ai_metrics": {
+        "complexity_score": 24,
+        "complexity_bucket": "complex",
+        "selected_model": "opus",
+        "workflow_path": "full_design_plan_execute",
+        "scoring_v2": {
+          "score": 24,
+          "raw_score_bucket": "simple",
+          "routed_bucket": "complex",
+          "confidence": "low"
+        },
+        "started_at": "2026-06-03T15:32:55.934018Z",
+        "finished_at": "2026-06-03T17:48:48.817671+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-06-03T17:48:48.817755Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-06-03T17:48:48.817763Z",
+      "commit_hash": "55ad0165daed0fc1b101b165b9e720295e6a8f2a",
+      "archive_info": {
+        "archived_at": "2026-06-03T17:48:48.869380Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-06-03-progress-manager-facade-rounds.md",
+            "to": "docs/archive/plans/2026-06-03-progress-manager-facade-rounds.md"
+          }
+        ]
+      }
+    },
+    {
+      "id": 21,
+      "name": "progress_manager facade 收口 Round 2：readiness validation 外移",
+      "test_steps": [
+        "新建 readiness_validator.py，迁移 validate_feature_readiness / print_readiness_warnings / _build_readiness_fix_commands / print_readiness_error",
+        "迁移 validate_readiness_command / validate_planning_command / fix_readiness_command，并保留 progress_manager.py facade wrappers + is_wrapper = True",
+        "子模块不得 import progress_manager；仅对 load/save progress state、schema defaults、plan validation 等 facade-owned 行为使用 callback injection",
+        "运行 scripts/check_pm_boundary.sh",
+        "运行 python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check",
+        "运行 uv run pytest plugins/progress-tracker/tests/test_prog_readiness.py plugins/progress-tracker/tests/test_validate_planning_json_contract.py plugins/progress-tracker/tests/test_feature_contract_readiness.py -q",
+        "DoD: progress-manager-module-map.md 更新 Round 2 ownership/migration status，并追加 docs/changes 记录",
+        "DoD: F21 closeout 前必须登记下一条 facade 收口 feature（建议 Round 3-4）或写入明确 defer 决策，避免 Round 3+ 遗漏"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-021"
+      ],
+      "change_spec": {
+        "why": "F20 已完成 status/summary 只读链路外移，但 progress_manager.py 仍保留 readiness/planning validation 逻辑。Round 2 先抽离验证链路，继续降低 facade 体积，同时避开 done/backlog 等高风险写链路。",
+        "prerequisites": [
+          "F20 Round 0-1 required checks 通过并完成 closeout",
+          "docs/plans/2026-06-03-progress-manager-facade-rounds.md 作为 canonical plan",
+          "docs/progress-tracker/architecture/progress-manager-module-map.md 已记录当前模块归属"
+        ],
+        "in_scope": [
+          "新建 readiness_validator.py",
+          "迁移 readiness/planning validation 与 fix-readiness 命令实现",
+          "在 progress_manager.py 保留兼容 facade wrapper 与 is_wrapper = True",
+          "精简 callback 注入，只保留依赖 facade 状态读写或 schema/path 兼容的入口"
+        ],
+        "out_of_scope": [
+          "set_current / set_development_stage 外移（Round 3）",
+          "next_feature / work_item_selector 外移（Round 4）",
+          "done / complete_feature / backlog 写链路外移（Round 5-6）",
+          "F19 变更记录守卫机制本体"
+        ],
+        "risks": [
+          "readiness 校验被 set-current 和 set-development-stage 调用，callback 边界错误会导致启动流程回归",
+          "fix-readiness 会写 progress.json，必须保留事务/IO 兼容语义",
+          "测试长期 patch progress_manager facade 名称，wrapper 兼容性不能破坏"
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: validate_feature_readiness 迁移后，现有 readiness 单元测试保持通过",
+        "Scenario: validate-readiness / validate-planning / fix-readiness CLI 行为保持兼容",
+        "Scenario: progress_manager.py 对 Round 2 函数仅保留 thin wrapper 且 wrapper 标记 is_wrapper = True",
+        "Scenario: readiness_validator.py 不 import progress_manager，boundary check 通过"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 100,
+          "defects": [],
+          "last_run_at": "2026-06-04T02:23:08Z",
+          "evaluator_model": "claude-sonnet-4-6"
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [
+            "qa",
+            "eng",
+            "docs"
+          ],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pass",
+          "failures": [],
+          "last_run_at": "2026-06-04T02:23:08Z"
+        },
+        "review_evidence": {
+          "qa": {
+            "evidence": "All 38 readiness tests pass; boundary check OK; is_wrapper markers present; no reverse imports; CLI backwards-compatible",
+            "recorded_at": "2026-06-04T10:10:48.202541Z"
+          },
+          "eng": {
+            "evidence": "validate_feature_readiness and related functions extracted to readiness_validator.py; progress_manager.py retains thin wrappers with is_wrapper=True; module boundary maintained",
+            "recorded_at": "2026-06-04T10:10:51.418680Z"
+          },
+          "docs": {
+            "evidence": "progress-manager-module-map.md updated with Round 2 ownership; readiness_validator.py has module-level docstring explaining extraction; generated docs are up to date",
+            "recorded_at": "2026-06-04T10:10:54.560331Z"
+          }
+        }
+      },
+      "sprint_contract": {
+        "scope": "将 readiness validation 责任集群从 progress_manager.py 迁移到 readiness_validator.py，保留 facade wrappers，继续推进 facade 收口计划",
+        "done_criteria": [
+          "module map 与 docs/changes 记录同步更新"
+        ],
+        "test_plan": [
+          "uv run pytest plugins/progress-tracker/tests -q (1077 passed)"
+        ],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "plan_path": "docs/plans/2026-06-03-progress-manager-facade-rounds.md",
+      "development_stage": "completed",
+      "started_at": "2026-06-04T09:29:28.335062Z",
+      "ai_metrics": {
+        "complexity_score": 40,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "scoring_v2": {
+          "score": 40,
+          "raw_score_bucket": "standard",
+          "routed_bucket": "standard",
+          "confidence": "high"
+        },
+        "started_at": "2026-06-04T09:30:58.469908Z",
+        "finished_at": "2026-06-04T10:28:26.117465+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-06-04T10:28:26.117526Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-06-04T10:28:26.117532Z",
+      "commit_hash": "c2678b2d1a84f482df89e7b0b75e667edceab68c",
+      "archive_info": {
+        "archived_at": "2026-06-04T10:28:26.159852Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-06-03-progress-manager-facade-rounds.md",
+            "to": "docs/archive/plans/2026-06-03-progress-manager-facade-rounds_20260604_102826.md"
+          }
+        ]
+      }
+    },
+    {
+      "id": 19,
+      "name": "AI 可追溯与可回退机制 v1：变更记录 + 自动守卫 + 回退 SOP",
+      "test_steps": [
+        "校验器：index.jsonl JSONL 语法错误 → 阻断提交",
+        "校验器：缺少必填字段（任意一个）→ 阻断提交",
+        "校验器：change_id 冲突（已存在相同 ID）→ 阻断提交",
+        "校验器：record_path 文件不存在 → 阻断提交",
+        "校验器：high_risk_scripts.txt 不存在 → fail-closed（阻断）",
+        "校验器自身内部异常（如 import error）→ 非零退出阻断提交（exit code 2，区别于记录缺失的 exit code 1）",
+        "手动修改 CHANGELOG.md 后提交 → 渲染结果与暂存区不一致，pre-commit 自动修正并阻断",
+        "未运行渲染器直接提交高风险改动 → CHANGELOG 暂存区与重新生成版本不一致，阻断",
+        "完整流程（写记录 + git add）→ 提交通过，CHANGELOG.md 自动 stage 同步",
+        "git log --all --diff-filter=A -S '\"change_id\": \"<id>\"' -- docs/changes/index.jsonl → 唯一命中目标 commit SHA",
+        "修改 index.jsonl 中已有条目的 summary → git log 仅命中原始添加提交，不含修改提交",
+        "场景 A：archive 可用 → restore-archive 成功 + reconcile-state --check pass",
+        "场景 B：archive 不可用 → 自动 git revert + reconcile-state --check 输出 + 人工确认提示",
+        "场景 C：B 路后 reconcile-state --check 仍失败 → 流程立即非零退出，输出固定诊断命令集合"
+      ],
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-019"
+      ],
+      "change_spec": {
+        "why": "高风险修复（worktree 状态分裂、并发锁、evaluator 写入等）频繁出现，AI session 无法稳定回答「改了什么/风险是什么/怎么回退」。现有能力（progress_transaction、list-archives、reconcile-state）分散，缺乏统一的结构化入口和强制记录约束。本机制在 F18 完成模块化拆分后落地，让 AI 能基于机器可读索引精准定位变更并执行标准化回退。",
+        "prerequisites": [
+          "F18 (progress_manager.py 深度模块化拆分) 必须完成 — 追溯机制的目标文件需可被 AI 全量读取，拆分本身作为首条 index.jsonl dogfooding 记录"
+        ],
+        "in_scope": [
+          "新增 docs/changes/index.jsonl（唯一事实源），每条一行 JSON，固定字段：change_id / date / component / summary / root_cause / fixes / touched_files / test_command / test_result / rollback_strategy / record_path。注：commit_sha 不存储，运行时通过 git log 派生",
+          "CHANGELOG.md 禁止手工维护，始终由 render_changelog_from_index.py 从 index.jsonl 生成",
+          "新增 docs/changes/*.md 变更详情模板（固定小节：问题现象/根因/修复点/影响面/验证命令/回退步骤/残余风险），由 index.jsonl.record_path 引用",
+          "change_id 强制格式：YYYYMMDD-<slug>-<4hex>（例：20260521-worktree-a3f2），由脚本提供唯一生成入口，禁止手写自由命名",
+          "新增 docs/changes/high_risk_scripts.txt（每行一个文件名，支持 # 注释，不支持 glob），初始包含拆分后各子模块中与 worktree/lock/evaluator 相关的模块",
+          "新增 validate_change_record.py（pre-commit 守卫）：读取 high_risk_scripts.txt，命中高风险变更时强制要求 index.jsonl 新条目 + record_path 存在且可读 + change_id 全局唯一 + JSONL 语法与必填字段完整；exit code 1=记录不合规，exit code 2=校验器自身崩溃，均阻断提交",
+          "新增 render_changelog_from_index.py：从 index.jsonl 全量渲染 CHANGELOG.md，稳定排序（date + change_id），无重复条目",
+          "pre-commit 每次重跑渲染器，比对输出与 git show :CHANGELOG.md（暂存区版本，非磁盘文件）；不一致则自动 stage 渲染结果（避免用户手动二次 git add）",
+          "标准 commit 定位命令：git log --all --diff-filter=A -S '\"change_id\": \"<id>\"' --pretty=format:\"%H\" -- docs/changes/index.jsonl（必须加 --diff-filter=A，否则修改已有条目的提交也会命中）",
+          "若命中多个 SHA（cherry-pick/squash 场景），解析器按最近提交优先并输出歧义警告列出候选",
+          "回退三路 SOP：A路=archive 可用(restore-archive + reconcile check)；B路=archive 不可用(git revert + reconcile check + 人工确认)；C路=B路后 reconcile 仍失败(非零退出 + 固定诊断命令集合)",
+          "walkthrough_git_worktree.md 标记为 legacy_record（历史保留，非模板样例）",
+          "新增一条符合模板的标准记录（worktree 修复事件），写入 index.jsonl，作为 AI 检索样板"
+        ],
+        "out_of_scope": [
+          "全仓推广（Phase 1 仅覆盖 progress-tracker）",
+          "progress_manager.py 拆分（F18 负责）",
+          "CI 集成（本阶段采用 pre-commit 半自动，不接入 GitHub Actions）",
+          "index.jsonl 历史条目归档/截断策略（留 Phase 2）"
+        ],
+        "risks": [
+          "渲染器性能：index.jsonl 长期增长后每次提交全量渲染开销上升，暂无截断策略",
+          "Squash merge 粒度：squash commit 包含多个子改动，git revert 回退粒度过粗；建议在变更记录中注明 squash 范围",
+          "high_risk_scripts.txt 腐化：新增模块未及时加入清单时守卫静默失效，需周期性审查",
+          "C路最坏场景依赖人工判断：reconcile 失败时无自动修复能力，只能给出诊断命令集合"
+        ],
+        "technical_decisions": {
+          "commit_sha_removed": "从 index.jsonl 字段中移除，避免 pre-commit 时序冲突（commit 创建前 SHA 不存在）。运行时通过 git log --all --diff-filter=A -S 从 git 历史派生，确定性且无歧义。",
+          "fail_closed": "validate_change_record.py 自身异常时一律非零退出阻断提交。exit code 2=校验器内部崩溃，区别于 exit code 1=记录不合规，方便用户区分是补记录还是修校验器。",
+          "changelog_source_of_truth": "index.jsonl 为唯一写入点，CHANGELOG.md 为派生产物。pre-commit 自动 stage 渲染结果，避免用户手动二次 git add。",
+          "changelog_diff_method": "与暂存区版本（git show :CHANGELOG.md）比对，而非磁盘文件，避免用户有未暂存修改时产生误报。",
+          "git_log_filter": "必须使用 --diff-filter=A（仅匹配添加操作），否则修改 index.jsonl 已有条目的提交也会被 -S 匹配，导致 git revert 回退错误的 commit。",
+          "archive_fallback": "archive 不可用时自动切换 git revert（代码回退自动化），但 reconcile-state --check 结果需人工确认后方可继续（状态恢复不确定性高于代码回退）。"
+        }
+      },
+      "acceptance_scenarios": [
+        "Scenario: 修改高风险脚本但不补 index.jsonl 记录 → pre-commit 阻断，输出明确提示",
+        "Scenario: 直接编辑 CHANGELOG.md 并暂存 → pre-commit 渲染结果与暂存区不一致，自动修正并阻断",
+        "Scenario: 通过 change_id 用标准命令定位 commit SHA → 唯一命中原始添加提交",
+        "Scenario: archive 可用时 A 路回退 → restore-archive 成功 + reconcile-state --check pass",
+        "Scenario: archive 不可用时 B 路回退 → git revert 执行 + 人工确认 reconcile 结果",
+        "Scenario: B 路后 reconcile 失败（C 路）→ 流程立即中止，输出固定诊断命令集合"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 100,
+          "defects": [],
+          "last_run_at": "2026-06-16T15:42:46Z",
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pass",
+          "failures": [],
+          "last_run_at": "2026-06-16T15:42:45Z"
+        },
+        "review_evidence": {
+          "docs": {
+            "evidence": "docs/plans/2026-06-16-f19-traceability-rollback-v1.md",
+            "recorded_at": "2026-06-16T23:42:48.913238Z"
+          },
+          "eng": {
+            "evidence": "pytest 100% green",
+            "recorded_at": "2026-06-16T23:42:48.993958Z"
+          },
+          "qa": {
+            "evidence": "tests/test_rollback_drills.py",
+            "recorded_at": "2026-06-16T23:42:49.073088Z"
+          }
+        }
+      },
+      "sprint_contract": {
+        "scope": "在 progress-tracker 范围内建立 AI 可追溯与可回退机制：index.jsonl 事实源 + pre-commit 守卫 + 标准化回退 SOP",
+        "done_criteria": [
+          "docs/changes/index.jsonl 存在，字段格式合规",
+          "validate_change_record.py：高风险改动缺记录时 exit 1 阻断；自身异常时 exit 2 阻断（fail-closed）",
+          "render_changelog_from_index.py：从 index.jsonl 稳定渲染 CHANGELOG.md",
+          "pre-commit 自动 stage 渲染结果，无需用户手动 git add",
+          "git log --all --diff-filter=A 能通过 change_id 唯一定位原始提交 SHA",
+          "回退 SOP A/B/C 三路均有测试覆盖",
+          "walkthrough_git_worktree.md 标记 legacy_record，新增符合模板的首条 dogfooding 记录",
+          "全套现有测试 pass（无回归）"
+        ],
+        "test_plan": [
+          "Unit: validate_change_record.py 覆盖 6 类失败场景（JSONL 语法/缺字段/change_id 冲突/record_path 缺失/high_risk_scripts.txt 不存在/校验器自身崩溃）",
+          "Unit: render_changelog_from_index.py 固定 snapshot 生成稳定输出，无重复条目",
+          "Integration: pre-commit hook 流程（阻断 / 通过 / 自动 stage CHANGELOG.md）",
+          "Integration: git log --diff-filter=A 定位 SHA（唯一命中 + 多命中歧义警告）",
+          "Rollback drill A: archive 可用路径",
+          "Rollback drill B: archive 不可用 → git revert + 人工确认",
+          "Rollback drill C: reconcile 失败 → 立即中止 + 诊断输出",
+          "Regression: uv run pytest plugins/progress-tracker/tests/ -q"
+        ],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "plan_path": "docs/plans/2026-06-16-f19-traceability-rollback-v1.md",
+      "development_stage": "completed",
+      "started_at": "2026-06-16T15:42:29.761567",
+      "ai_metrics": {
+        "started_at": "2026-06-16T23:43:24.301054+08:00",
+        "finished_at": "2026-06-16T23:43:24.301054+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-06-16T23:43:24.301080Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-06-16T23:43:24.301083Z",
+      "commit_hash": "0a2da72ef6f620ddcd020baee8973236647dd144",
+      "archive_info": {
+        "archived_at": "2026-06-16T23:43:24.322577Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-06-16-f19-traceability-rollback-v1.md",
+            "to": "docs/archive/plans/2026-06-16-f19-traceability-rollback-v1.md"
+          }
+        ]
+      }
+    },
+    {
+      "id": 22,
+      "name": "progress_manager facade 收口 Round 3：Feature Activation and Stage Commands 外移",
+      "test_steps": [
+        "新建 feature_commands.py，迁移 set_current 与 set_development_stage 核心实现",
+        "在 progress_manager.py 中保留 wrappers 并标记 is_wrapper = True",
+        "子模块不得反向 import progress_manager，通过 callback 注入 state/md 读写与运行时上下文更新接口",
+        "运行 scripts/check_pm_boundary.sh 与 generate_prog_docs.py --check 通过",
+        "运行 uv run pytest 覆盖 feature activation 单元测试与全量回归通过",
+        "DoD: 更新 progress-manager-module-map.md，并在 docs/changes/index.jsonl 中追加变更记录",
+        "DoD: F22 closeout 前必须登记下一条收口 feature (Round 4) 或写入 defer 决策"
+      ],
+      "workflow_profile": "standard_task",
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "implementing",
+      "requirement_ids": [
+        "REQ-022"
+      ],
+      "change_spec": {
+        "why": "Deliver progress_manager facade 收口 Round 3：Feature Activation and Stage Commands 外移 with traceable acceptance coverage.",
+        "in_scope": [
+          "progress_manager facade 收口 Round 3：Feature Activation and Stage Commands 外移"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 新建 feature_commands.py，迁移 set_current 与 set_development_stage 核心实现",
+        "Scenario: 在 progress_manager.py 中保留 wrappers 并标记 is_wrapper = True",
+        "Scenario: 子模块不得反向 import progress_manager，通过 callback 注入 state/md 读写与运行时上下文更新接口",
+        "Scenario: 运行 scripts/check_pm_boundary.sh 与 generate_prog_docs.py --check 通过",
+        "Scenario: 运行 uv run pytest 覆盖 feature activation 单元测试与全量回归通过",
+        "Scenario: DoD: 更新 progress-manager-module-map.md，并在 docs/changes/index.jsonl 中追加变更记录",
+        "Scenario: DoD: F22 closeout 前必须登记下一条收口 feature (Round 4) 或写入 defer 决策"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 100,
+          "defects": [],
+          "last_run_at": "2026-06-04T06:47:06Z",
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [
+            "eng",
+            "qa",
+            "docs"
+          ],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pass",
+          "failures": [],
+          "last_run_at": "2026-06-04T06:52:16Z"
+        },
+        "review_evidence": {
+          "eng": {
+            "evidence": "F22: feature_commands.py extracted with FeatureCommandsServices callback injection. PM wrappers marked is_wrapper=True. boundary check passed, generate_prog_docs --check passed. 7/7 unit tests green, 1084 progress-tracker tests pass.",
+            "recorded_at": "2026-06-04T14:52:05.911234Z"
+          },
+          "qa": {
+            "evidence": "F22 acceptance verification: tests/test_feature_commands.py 7/7 pass (set_current: 4 cases, set_development_stage: 3 cases). Full progress-tracker regression 1084 PASS 0 FAIL. No functional regressions.",
+            "recorded_at": "2026-06-04T14:52:10.242535Z"
+          },
+          "docs": {
+            "evidence": "F22 docs: progress-manager-module-map.md updated with feature_commands.py row; docs/changes/index.jsonl appended (date=2026-06-04, round=3); plan 2026-06-04-f22-feature-commands-round3.md has acceptance_mapping and risks sections; Round 4 registered in module map.",
+            "recorded_at": "2026-06-04T14:52:12.593543Z"
+          }
+        }
+      },
+      "sprint_contract": {
+        "scope": "从 progress_manager.py 提取 set_current 和 set_development_stage 到新模块 feature_commands.py，通过 FeatureCommandsServices 注入依赖",
+        "done_criteria": [
+          "feature_commands.py 包含 set_current_command 和 set_development_stage_command 实现",
+          "progress_manager.py 中相应函数替换为 is_wrapper=True 的薄包装器",
+          "tests/test_feature_commands.py 全部通过",
+          "scripts/check_pm_boundary.sh 和 generate_prog_docs.py --check 均退出 0",
+          "uv run pytest -q 通过 1077+ 用例"
+        ],
+        "test_plan": [
+          "T2: 7 个测试场景覆盖 set_current 和 set_development_stage 的成功/失败路径",
+          "T5: boundary 检查和 docs 生成检查",
+          "T6: 完整回归测试套件"
+        ],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "development_stage": "developing",
+      "started_at": "2026-06-04T13:55:36.190295Z",
+      "ai_metrics": {
+        "complexity_score": 65,
+        "complexity_bucket": "complex",
+        "selected_model": "opus",
+        "workflow_path": "full_design_plan_execute",
+        "scoring_v2": {
+          "score": 65,
+          "raw_score_bucket": "complex",
+          "routed_bucket": "complex",
+          "confidence": "medium"
+        },
+        "started_at": "2026-06-04T14:06:12.540607Z"
+      },
+      "finished_at": "2026-06-04T07:00:56.783601Z",
+      "commit_hash": "436039c8835bc976334c3541e3c9aa3053064e9c"
+    },
+    {
+      "id": 23,
+      "name": "progress_manager facade 收口 Round 4：Work-Item Selection and next_feature 外移",
+      "test_steps": [
+        "新建 work_item_selector.py 与 next_feature_commands.py，迁移 get_next_feature, _get_dispatched_child_feature, _select_next_work_item, next_feature 核心实现",
+        "在 progress_manager.py 中保留 wrappers 并标记 is_wrapper = True",
+        "子模块不得反向 import progress_manager，通过 callback 注入 state/md 读写、运行时上下文更新与 git 探针接口",
+        "运行 scripts/check_pm_boundary.sh 与 generate_prog_docs.py --check 通过",
+        "运行 uv run pytest 覆盖 work-item selector 与 next-feature 单元测试与全量回归通过",
+        "DoD: 更新 progress-manager-module-map.md，并在 docs/changes/index.jsonl 中追加变更记录",
+        "DoD: F23 closeout 前必须登记下一条收口 feature (Round 5) 或写入 defer 决策"
+      ],
+      "workflow_profile": "standard_task",
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-023"
+      ],
+      "change_spec": {
+        "why": "Deliver progress_manager facade 收口 Round 4：Work-Item Selection and next_feature 外移 with traceable acceptance coverage.",
+        "in_scope": [
+          "progress_manager facade 收口 Round 4：Work-Item Selection and next_feature 外移"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 新建 work_item_selector.py 与 next_feature_commands.py，迁移 get_next_feature, _get_dispatched_child_feature, _select_next_work_item, next_feature 核心实现",
+        "Scenario: 在 progress_manager.py 中保留 wrappers 并标记 is_wrapper = True",
+        "Scenario: 子模块不得反向 import progress_manager，通过 callback 注入 state/md 读写、运行时上下文更新与 git 探针接口",
+        "Scenario: 运行 scripts/check_pm_boundary.sh 与 generate_prog_docs.py --check 通过",
+        "Scenario: 运行 uv run pytest 覆盖 work-item selector 与 next-feature 单元测试与全量回归通过",
+        "Scenario: DoD: 更新 progress-manager-module-map.md，并在 docs/changes/index.jsonl 中追加变更记录",
+        "Scenario: DoD: F23 closeout 前必须登记下一条收口 feature (Round 5) 或写入 defer 决策"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 100,
+          "defects": [],
+          "last_run_at": "2026-06-04T09:16:47Z",
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [
+            "eng",
+            "qa",
+            "docs"
+          ],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pass",
+          "failures": [],
+          "last_run_at": "2026-06-04T09:18:55Z"
+        },
+        "review_evidence": {
+          "eng": {
+            "evidence": "work_item_selector.py and next_feature_commands.py extracted; progress_manager.py wrapper checks pass",
+            "recorded_at": "2026-06-04T17:18:10.334359Z"
+          },
+          "qa": {
+            "evidence": "boundary checks pass; 96 focused tests green; 11 next_feature tests green; full suite regression 1086 green",
+            "recorded_at": "2026-06-04T17:18:10.589967Z"
+          },
+          "docs": {
+            "evidence": "progress-manager-module-map.md updated; F23 plan and change records added",
+            "recorded_at": "2026-06-04T17:18:10.856610Z"
+          }
+        }
+      },
+      "sprint_contract": {
+        "scope": "Extract work-item selection and next-feature command logic into dedicated modules with injected dependencies while preserving public facade imports and CLI behavior.",
+        "done_criteria": [
+          "work_item_selector.py owns pure selection and dispatch helpers",
+          "next_feature_commands.py owns next-feature command orchestration",
+          "progress_manager.py retains wrappers marked with is_wrapper = True",
+          "No submodule imports progress_manager",
+          "Module map and change record are updated",
+          "Required boundary, docs, focused, and full regression checks pass"
+        ],
+        "test_plan": [
+          "scripts/check_pm_boundary.sh",
+          "python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check",
+          "uv run pytest plugins/progress-tracker/tests/test_dispatch_child_feature.py plugins/progress-tracker/tests/test_unified_selection.py plugins/progress-tracker/tests/test_task_execution_semantics.py plugins/progress-tracker/tests/test_scope_fail_closed.py -q",
+          "uv run pytest plugins/progress-tracker/tests/test_progress_manager.py -k 'next_feature or planning_gate or finish_pending' -q",
+          "uv run pytest plugins/progress-tracker/tests/ -q"
+        ],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "development_stage": "completed",
+      "started_at": "2026-06-04T08:07:31.615497",
+      "ai_metrics": {
+        "complexity_score": 27,
+        "complexity_bucket": "complex",
+        "selected_model": "opus",
+        "workflow_path": "full_design_plan_execute",
+        "scoring_v2": {
+          "score": 27,
+          "raw_score_bucket": "simple",
+          "routed_bucket": "complex",
+          "confidence": "low"
+        },
+        "started_at": "2026-06-04T16:08:03.285873Z",
+        "finished_at": "2026-06-04T17:19:48.870518+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-06-04T17:19:48.870610Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-06-04T17:19:48.870620Z",
+      "commit_hash": "855d684d0ef6e9f8e3783066494f82f8370a5c4f",
+      "plan_path": "docs/plans/2026-06-04-f23-work-item-selection-round4.md",
+      "archive_info": {
+        "archived_at": "2026-06-04T17:19:49.042999Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-06-04-f23-work-item-selection-round4.md",
+            "to": "docs/archive/plans/2026-06-04-f23-work-item-selection-round4.md"
+          }
+        ]
+      }
+    },
+    {
+      "id": 24,
+      "name": "progress_manager facade 收口 Round 5：Completion Flow and Cleanup 外移",
+      "test_steps": [
+        "新建 completion_flow.py，迁移 done, complete_feature, archive_feature_docs, _run_acceptance_tests, cleanup 核心实现",
+        "在 progress_manager.py 中保留 wrappers 并标记 is_wrapper = True",
+        "子模块不得反向 import progress_manager，通过 callback 注入 state 读写、git操作与 docs 生成等接口",
+        "运行 scripts/check_pm_boundary.sh 与 generate_prog_docs.py --check 通过",
+        "运行 uv run pytest 覆盖 completion flow 单元测试与全量回归通过",
+        "DoD: 更新 progress-manager-module-map.md，并在 docs/changes/index.jsonl 中追加变更记录",
+        "DoD: F24 closeout 前必须登记下一条收口 feature (Round 6) 或写入 defer 决策"
+      ],
+      "workflow_profile": "standard_task",
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-024"
+      ],
+      "change_spec": {
+        "why": "Deliver progress_manager facade 收口 Round 5：Completion Flow and Cleanup 外移 with traceable acceptance coverage.",
+        "in_scope": [
+          "progress_manager facade 收口 Round 5：Completion Flow and Cleanup 外移"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: 新建 completion_flow.py，迁移 done, complete_feature, archive_feature_docs, _run_acceptance_tests, cleanup 核心实现",
+        "Scenario: 在 progress_manager.py 中保留 wrappers 并标记 is_wrapper = True",
+        "Scenario: 子模块不得反向 import progress_manager，通过 callback 注入 state 读写、git操作与 docs 生成等接口",
+        "Scenario: 运行 scripts/check_pm_boundary.sh 与 generate_prog_docs.py --check 通过",
+        "Scenario: 运行 uv run pytest 覆盖 completion flow 单元测试与全量回归通过",
+        "Scenario: DoD: 更新 progress-manager-module-map.md，并在 docs/changes/index.jsonl 中追加变更记录",
+        "Scenario: DoD: F24 closeout 前必须登记下一条收口 feature (Round 6) 或写入 defer 决策"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 90,
+          "defects": [
+            {
+              "id": "D24-1",
+              "severity": "minor",
+              "description": "archive_feature_docs wrapper 委托给 doc_generator 而非 completion_flow，与其他 completion flow 提取模式不完全一致，但功能正确"
+            },
+            {
+              "id": "D24-2",
+              "severity": "minor",
+              "description": "验收标准第5条指定 test_completion_flow.py，实际覆盖分散在5个文件，无功能缺口但命名有歧义"
+            }
+          ],
+          "last_run_at": "2026-06-08T05:26:18Z",
+          "evaluator_model": "claude-sonnet-4-6"
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [
+            "eng",
+            "qa",
+            "docs"
+          ],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pass",
+          "failures": [],
+          "last_run_at": "2026-06-08T05:29:20Z"
+        },
+        "review_evidence": {
+          "eng": {
+            "evidence": "Final code review: completion_flow.py (1306 lines) - no reverse imports, no security issues, wrapper pattern compliant, subprocess.run shell=True confirmed safe for local developer tool. All 1095 tests pass.",
+            "recorded_at": "2026-06-08T13:29:07.910246Z"
+          },
+          "qa": {
+            "evidence": "Acceptance verification: all 7 test_steps confirmed via prog done --check (Gate 5 pass). 1095 tests pass including 46 completion flow specific tests covering test_completion_flow_contract.py, test_cleanup_after_done.py, test_cmd_done_cleanup_integration.py.",
+            "recorded_at": "2026-06-08T13:29:12.340288Z"
+          },
+          "docs": {
+            "evidence": "Plan: docs/plans/2026-06-04-f24-completion-flow.md. Module map updated: progress-manager-module-map.md line 52. Changes index: docs/changes/index.jsonl entry 20260604-completion-flow-r5. generate_prog_docs.py --check passes.",
+            "recorded_at": "2026-06-08T13:29:17.123031Z"
+          }
+        }
+      },
+      "sprint_contract": {
+        "scope": "Extracted completion pipeline (~1000 lines) from progress_manager.py into completion_flow.py with CompletionFlowServices injection",
+        "done_criteria": [
+          "Round 6 feature registered (ID: 26)"
+        ],
+        "test_plan": [
+          "uv run pytest tests/ -q → 1095 passed, 55 warnings"
+        ],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "development_stage": "completed",
+      "started_at": "2026-06-04T09:34:30.782749",
+      "ai_metrics": {
+        "complexity_score": 51,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "scoring_v2": {
+          "score": 51,
+          "raw_score_bucket": "standard",
+          "routed_bucket": "standard",
+          "confidence": "high"
+        },
+        "started_at": "2026-06-04T17:53:36.784575Z",
+        "finished_at": "2026-06-08T14:31:34.383467+08:00",
+        "duration_seconds": 304677
+      },
+      "completed_at": "2026-06-08T14:31:34.383530Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-06-08T14:31:34.383537Z",
+      "commit_hash": "aeb542542d025d6ed3e94da781c440cebcd3d48e",
+      "plan_path": "docs/plans/2026-06-04-f24-completion-flow.md",
+      "archive_info": {
+        "archived_at": "2026-06-08T14:31:34.426314Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-06-04-f24-completion-flow.md",
+            "to": "docs/archive/plans/2026-06-04-f24-completion-flow.md"
+          }
+        ]
+      }
+    },
+    {
+      "id": 25,
+      "name": "AI Workspace Entropy Manager",
+      "test_steps": [
+        "Task 1: Add Entropy Report Model and Dirty-Change Classifier",
+        "Task 2: Add Branch Cleanup Eligibility",
+        "Task 3: Add entropy-check and entropy-fix Facade Commands",
+        "Task 4: Integrate Safe Entropy Preflight into next_feature",
+        "Task 5: Add Audit Report and Change Record",
+        "Acceptance: Safe entropy-fix applied, branch deleted only when merged, next_feature runs preflight and passes all tests"
+      ],
+      "workflow_profile": "standard_task",
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-025"
+      ],
+      "change_spec": {
+        "why": "Deliver AI Workspace Entropy Manager with traceable acceptance coverage.",
+        "in_scope": [
+          "AI Workspace Entropy Manager"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: Task 1: Add Entropy Report Model and Dirty-Change Classifier",
+        "Scenario: Task 2: Add Branch Cleanup Eligibility",
+        "Scenario: Task 3: Add entropy-check and entropy-fix Facade Commands",
+        "Scenario: Task 4: Integrate Safe Entropy Preflight into next_feature",
+        "Scenario: Task 5: Add Audit Report and Change Record",
+        "Scenario: Acceptance: Safe entropy-fix applied, branch deleted only when merged, next_feature runs preflight and passes all tests"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 100,
+          "defects": [],
+          "last_run_at": "2026-06-16T09:07:01Z",
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pass",
+          "failures": [],
+          "last_run_at": "2026-06-16T09:06:33Z"
+        },
+        "review_evidence": {
+          "docs": {
+            "evidence": "docs/PROG_COMMANDS.md",
+            "recorded_at": "2026-06-16T17:04:00.474641Z"
+          },
+          "eng": {
+            "evidence": "plugins/progress-tracker/hooks/scripts/workspace_entropy.py",
+            "recorded_at": "2026-06-16T17:04:34.807570Z"
+          },
+          "qa": {
+            "evidence": "plugins/progress-tracker/tests/test_workspace_entropy.py",
+            "recorded_at": "2026-06-16T17:05:14.938642Z"
+          }
+        }
+      },
+      "sprint_contract": {
+        "scope": "Add workspace entropy detection and safe-fix engine; integrate into next_feature preflight",
+        "done_criteria": [
+          "prog entropy-check --json returns deterministic report (dirty/branches/routes/worktrees)",
+          "prog entropy-fix --safe applies only green actions idempotently",
+          "Local branches deleted only when merged, not protected, not checked-out in worktree",
+          "Red decisions block with JSON reason=workspace_entropy_red",
+          "next_feature runs entropy preflight before workflow stops",
+          "scripts/check_pm_boundary.sh and generate_prog_docs.py --check pass"
+        ],
+        "test_plan": [
+          "uv run pytest tests/test_workspace_entropy.py -q",
+          "uv run pytest tests/test_next_feature_entropy_preflight.py -q",
+          "uv run pytest tests/ -q (full regression)"
+        ],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "development_stage": "completed",
+      "started_at": "2026-06-14T15:09:52.569483",
+      "ai_metrics": {
+        "complexity_score": 71,
+        "complexity_bucket": "complex",
+        "selected_model": "opus",
+        "workflow_path": "full_design_plan_execute",
+        "scoring_v2": {
+          "score": 71,
+          "raw_score_bucket": "complex",
+          "routed_bucket": "complex",
+          "confidence": "medium"
+        },
+        "started_at": "2026-06-15T14:26:15.599321Z",
+        "finished_at": "2026-06-16T17:10:24.396158+08:00",
+        "duration_seconds": 67448
+      },
+      "completed_at": "2026-06-16T17:10:24.396222Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-06-16T17:10:24.396230Z",
+      "commit_hash": "71096abda562251946ebfcc6d7b037d70d84d2e5",
+      "plan_path": "docs/plans/2026-06-04-f25-ai-workspace-entropy-manager.md",
+      "archive_info": {
+        "archived_at": "2026-06-16T17:10:24.665123Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-06-04-f25-ai-workspace-entropy-manager.md",
+            "to": "docs/archive/plans/2026-06-04-f25-ai-workspace-entropy-manager.md"
+          }
+        ]
+      }
+    },
+    {
+      "id": 26,
+      "name": "progress_manager facade 收口 Round 6：Backlog and Intake Mutation Commands 外移",
+      "test_steps": [
+        "Run: bash scripts/check_pm_boundary.sh",
+        "Run: python3 hooks/scripts/generate_prog_docs.py --check",
+        "Run: uv run pytest tests/ -q",
+        "Confirm work_item_commands.py or backlog_commands.py exists with smart_intake, add_feature, update_feature, defer_features, resume_deferred_features, add_update, list_updates, add_retro, set_feature_owner extracted",
+        "Confirm progress_manager.py line count decreased by >= 300 lines vs F24 baseline of 7121"
+      ],
+      "workflow_profile": "standard_task",
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-026"
+      ],
+      "change_spec": {
+        "why": "Deliver progress_manager facade 收口 Round 6：Backlog and Intake Mutation Commands 外移 with traceable acceptance coverage.",
+        "in_scope": [
+          "progress_manager facade 收口 Round 6：Backlog and Intake Mutation Commands 外移"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: Run: bash scripts/check_pm_boundary.sh",
+        "Scenario: Run: python3 hooks/scripts/generate_prog_docs.py --check",
+        "Scenario: Run: uv run pytest tests/ -q",
+        "Scenario: Confirm work_item_commands.py or backlog_commands.py exists with smart_intake, add_feature, update_feature, defer_features, resume_deferred_features, add_update, list_updates, add_retro, set_feature_owner extracted",
+        "Scenario: Confirm progress_manager.py line count decreased by >= 300 lines vs F24 baseline of 7121"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 100,
+          "defects": [],
+          "last_run_at": "2026-06-08T09:29:37Z",
+          "evaluator_model": "local-deterministic-evaluator"
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [
+            "docs",
+            "qa",
+            "eng"
+          ],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pass",
+          "failures": [],
+          "last_run_at": "2026-06-08T09:29:49Z"
+        },
+        "review_evidence": {
+          "docs": {
+            "evidence": "Plan docs/plans/2026-06-08-f26-work-item-commands-extraction.md aligned with execution_complete state; python3 hooks/scripts/generate_prog_docs.py --check passed on 2026-06-08.",
+            "recorded_at": "2026-06-08T17:29:37.543609Z"
+          },
+          "qa": {
+            "evidence": "Acceptance rerun on 2026-06-08: uv run pytest tests/ -q => 1153 passed in 111.56s; required doc parity check also passed.",
+            "recorded_at": "2026-06-08T17:29:37.744541Z"
+          },
+          "eng": {
+            "evidence": "Facade extraction reviewed locally: progress_manager.py reduced to 6528 lines, work_item_commands.py owns extracted mutations, bash scripts/check_pm_boundary.sh passed, targeted extraction tests 58 passed on 2026-06-08.",
+            "recorded_at": "2026-06-08T17:29:37.798193Z"
+          }
+        }
+      },
+      "sprint_contract": {
+        "scope": "Extract backlog and intake mutation commands into work_item_commands.py and convert progress_manager.py to thin facade wrappers.",
+        "done_criteria": [
+          "work_item_commands.py owns the extracted backlog/intake mutation logic and helper flows.",
+          "progress_manager.py delegates via injected services and stays within the F26 line budget.",
+          "Boundary, docs parity, and full plugin test suite pass after the extraction."
+        ],
+        "test_plan": [
+          "bash scripts/check_pm_boundary.sh",
+          "python3 hooks/scripts/generate_prog_docs.py --check",
+          "uv run pytest tests/ -q"
+        ],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "development_stage": "completed",
+      "started_at": "2026-06-08T06:48:00.159266",
+      "ai_metrics": {
+        "complexity_score": 42,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "scoring_v2": {
+          "score": 42,
+          "raw_score_bucket": "standard",
+          "routed_bucket": "standard",
+          "confidence": "high"
+        },
+        "started_at": "2026-06-08T14:49:05.283500Z",
+        "finished_at": "2026-06-09T21:04:32.359741+08:00",
+        "duration_seconds": 80127
+      },
+      "completed_at": "2026-06-09T21:04:32.360519Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-06-09T21:04:32.360649Z",
+      "commit_hash": "647adec000a1c84e3d7cbd747214766e375728c5",
+      "plan_path": "docs/plans/2026-06-08-f26-work-item-commands-extraction.md",
+      "archive_info": {
+        "archived_at": "2026-06-09T21:04:32.409031Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-06-08-f26-work-item-commands-extraction.md",
+            "to": "docs/archive/plans/2026-06-08-f26-work-item-commands-extraction.md"
+          }
+        ]
+      }
+    },
+    {
+      "id": 27,
+      "name": "progress_manager facade 收口 Round 7：Workflow and Reconcile Commands 外移",
+      "test_steps": [
+        "Run: bash scripts/check_pm_boundary.sh",
+        "Run: python3 hooks/scripts/generate_prog_docs.py --check",
+        "Run: uv run pytest tests/ -q",
+        "Confirm workflow_commands.py exists with set_workflow_state, update_workflow_task, clear_workflow_state, validate_plan, health_check, reconcile extracted",
+        "Confirm progress_manager.py line count decreased vs F26 baseline of 6528 lines"
+      ],
+      "workflow_profile": "standard_task",
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "change_spec": {
+        "why": "Deliver progress_manager facade 收口 Round 7：Workflow and Reconcile Commands 外移 with traceable acceptance coverage.",
+        "in_scope": [
+          "progress_manager facade 收口 Round 7：Workflow and Reconcile Commands 外移"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: Run: bash scripts/check_pm_boundary.sh",
+        "Scenario: Run: python3 hooks/scripts/generate_prog_docs.py --check",
+        "Scenario: Run: uv run pytest tests/ -q",
+        "Scenario: Confirm workflow_commands.py exists with set_workflow_state, update_workflow_task, clear_workflow_state, validate_plan, health_check, reconcile extracted",
+        "Scenario: Confirm progress_manager.py line count decreased vs F26 baseline of 6528 lines"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 100,
+          "defects": [],
+          "last_run_at": "2026-06-11T08:53:34Z",
+          "evaluator_model": "gpt-5 same-session fallback"
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [
+            "eng",
+            "qa",
+            "docs"
+          ],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pass",
+          "failures": [],
+          "last_run_at": "2026-06-11T08:54:01Z"
+        },
+        "review_evidence": {
+          "eng": {
+            "evidence": "Manual code review 2026-06-11: inspected workflow_commands extraction, progress_manager facade wrappers, and new contract tests; no blocking defects found; wrapper compatibility and constant re-exports preserved; git diff --check clean.",
+            "recorded_at": "2026-06-11T16:53:42.683089Z"
+          },
+          "qa": {
+            "evidence": "Acceptance preflight 2026-06-11: bash scripts/check_pm_boundary.sh passed; python3 hooks/scripts/generate_prog_docs.py --check passed; uv run pytest tests/ -q passed with 1181 tests green in 51.80s.",
+            "recorded_at": "2026-06-11T16:53:48.863420Z"
+          },
+          "docs": {
+            "evidence": "Documentation verification 2026-06-11: plan /Users/siunin/Projects/Claude-Plugins/.claude/worktrees/worktree-feature-27-workflow-reconcile/plugins/progress-tracker/docs/plans/2026-06-10-feature-27-progress-manager-facade-round-7-workflow-and-rec.md present and generate_prog_docs.py --check reported generated docs up to date.",
+            "recorded_at": "2026-06-11T16:53:56.385475Z"
+          }
+        }
+      },
+      "sprint_contract": {
+        "scope": "Extract 8 workflow-state and reconcile functions from progress_manager.py into workflow_commands.py with WorkflowCommandsServices injection; facade keeps is_wrapper=True thin wrappers and re-exports RECONCILE constants",
+        "done_criteria": [
+          "workflow_commands.py exists with all 8 *_command functions",
+          "all 8 facade wrappers marked is_wrapper=True and constants re-exported",
+          "progress_manager.py line count < 6528 (now 5877)",
+          "check_pm_boundary.sh and generate_prog_docs --check pass"
+        ],
+        "test_plan": [
+          "uv run pytest tests/ -q (1181 passed)",
+          "tests/test_workflow_commands.py injected-unit tests (25)",
+          "tests/test_workflow_commands_extraction_contract.py facade contract tests (3)"
+        ],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "development_stage": "completed",
+      "started_at": "2026-06-10T09:42:34.107334",
+      "ai_metrics": {
+        "complexity_score": 42,
+        "complexity_bucket": "standard",
+        "selected_model": "sonnet",
+        "workflow_path": "plan_execute",
+        "scoring_v2": {
+          "score": 42,
+          "raw_score_bucket": "standard",
+          "routed_bucket": "standard",
+          "confidence": "high"
+        },
+        "started_at": "2026-06-10T17:58:46.617673Z",
+        "finished_at": "2026-06-11T17:01:53.472419+08:00",
+        "duration_seconds": 54186
+      },
+      "completed_at": "2026-06-11T17:01:53.472442Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-06-11T17:01:53.472445Z",
+      "commit_hash": "bf5bf0a1f981ac3cc5fa4c3e4133c96423838fb2",
+      "plan_path": "docs/plans/2026-06-10-feature-27-progress-manager-facade-round-7-workflow-and-rec.md",
+      "archive_info": {
+        "archived_at": "2026-06-11T17:01:53.491747Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-06-10-feature-27-progress-manager-facade-round-7-workflow-and-rec.md",
+            "to": "docs/archive/plans/2026-06-10-feature-27-progress-manager-facade-round-7-workflow-and-rec.md"
+          }
+        ]
+      }
+    },
+    {
+      "id": 28,
+      "name": "progress_manager facade 收口 Final Round：Reverse Import Cleanup and Facade Compression",
+      "test_steps": [
+        "Run: bash scripts/check_pm_boundary.sh",
+        "Run: python3 hooks/scripts/generate_prog_docs.py --check",
+        "Run: uv run pytest tests/ -q",
+        "Confirm no reverse imports to progress_manager remain in submodules (wf_auto_driver.py, sprint_ledger.py, lifecycle_state_machine.py, progress_ui_server.py)",
+        "Confirm progress_manager.py is compressed to parser, dispatch, and thin wrappers only"
+      ],
+      "workflow_profile": "standard_task",
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "archived",
+      "requirement_ids": [
+        "REQ-028"
+      ],
+      "change_spec": {
+        "why": "Deliver progress_manager facade 收口 Final Round：Reverse Import Cleanup and Facade Compression with traceable acceptance coverage.",
+        "in_scope": [
+          "progress_manager facade 收口 Final Round：Reverse Import Cleanup and Facade Compression"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: Run: bash scripts/check_pm_boundary.sh",
+        "Scenario: Run: python3 hooks/scripts/generate_prog_docs.py --check",
+        "Scenario: Run: uv run pytest tests/ -q",
+        "Scenario: Confirm no reverse imports to progress_manager remain in submodules (wf_auto_driver.py, sprint_ledger.py, lifecycle_state_machine.py, progress_ui_server.py)",
+        "Scenario: Confirm progress_manager.py is compressed to parser, dispatch, and thin wrappers only"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pass",
+          "score": 95,
+          "defects": [
+            {
+              "id": "pm-duplicate-plan-prefix-constants",
+              "severity": "info",
+              "description": "PLAN_PATH_PREFIX/SUPERPOWERS_PLAN_PATH_PREFIX/VALID_PLAN_PREFIXES are now duplicated in doc_generator.py and left unused in progress_manager.py."
+            },
+            {
+              "id": "pm-callable-unimported",
+              "severity": "minor",
+              "description": "progress_manager.validate_plan_path new signature uses Callable[[], Path] without importing Callable from typing; only safe due to requires-python>=3.14 PEP 649 deferred annotations."
+            },
+            {
+              "id": "ui-dead-progress-manager-available-branches",
+              "severity": "info",
+              "description": "progress_ui_server.py hardcodes PROGRESS_MANAGER_AVAILABLE=True, leaving three unreachable if-not branches with stale progress_manager error strings."
+            },
+            {
+              "id": "wf-auto-driver-stale-docstring",
+              "severity": "info",
+              "description": "wf_auto_driver.py module docstring still claims pending_action write-back goes via progress_manager, which is no longer accurate."
+            }
+          ],
+          "last_run_at": "2026-06-14T14:11:59Z",
+          "evaluator_model": "claude-sonnet-4-6"
+        },
+        "reviews": {
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [
+            "eng",
+            "qa",
+            "docs"
+          ],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pass",
+          "failures": [],
+          "last_run_at": "2026-06-14T14:12:48Z"
+        },
+        "review_evidence": {
+          "eng": {
+            "evidence": "commit 21f16fa (refactor(PT-F28): facade final round - clear reverse-import allowlist); independent evaluator-gate code review (agent a96b19a2fc7723702): status=pass score=95, 4 minor/info defects only, no blocking/major",
+            "recorded_at": "2026-06-14T22:12:42.337378Z"
+          },
+          "qa": {
+            "evidence": "uv run pytest plugins/progress-tracker/tests/ -q: 1181 passed, 55 warnings (121.75s); ./scripts/check_pm_boundary.sh: no reverse imports detected; prog done --check Gate 5 Acceptance Tests: all passed",
+            "recorded_at": "2026-06-14T22:12:43.869911Z"
+          },
+          "docs": {
+            "evidence": "python3 hooks/scripts/generate_prog_docs.py --check: docs in sync; design doc docs/superpowers/specs/2026-06-14-pt-f28-facade-final-round-design.md; plan docs/plans/2026-06-03-progress-manager-facade-rounds.md",
+            "recorded_at": "2026-06-14T22:12:44.938740Z"
+          }
+        }
+      },
+      "sprint_contract": {
+        "scope": "Eliminate the final 4 reverse-import violations from progress-tracker submodules (wf_auto_driver, sprint_ledger, lifecycle_state_machine, progress_ui_server) to progress_manager, via callback injection, prog_paths-based stateless path resolution, and module relocation (validate_plan_path -> doc_generator, load_checkpoints -> state_io), clearing the pm_boundary_allowlist entirely.",
+        "done_criteria": [
+          "scripts/.pm_boundary_allowlist contains no active exemption entries",
+          "./scripts/check_pm_boundary.sh reports no reverse imports to progress_manager",
+          "progress_ui_server.py no longer imports progress_manager",
+          "python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check passes"
+        ],
+        "test_plan": [
+          "uv run pytest plugins/progress-tracker/tests/ -q",
+          "./scripts/check_pm_boundary.sh",
+          "python3 plugins/progress-tracker/hooks/scripts/generate_prog_docs.py --check"
+        ],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      },
+      "development_stage": "completed",
+      "started_at": "2026-06-14T07:14:25.915254",
+      "ai_metrics": {
+        "started_at": "2026-06-14T22:21:57.346435+08:00",
+        "finished_at": "2026-06-14T22:21:57.346435+08:00",
+        "duration_seconds": 0
+      },
+      "completed_at": "2026-06-14T22:21:57.346511Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-06-14T22:21:57.346519Z",
+      "commit_hash": "39cfe10cfc7916256d42abbc4b2733c6eca5bb60",
+      "plan_path": "docs/plans/2026-06-03-progress-manager-facade-rounds.md",
+      "archive_info": {
+        "archived_at": "2026-06-14T22:21:57.400397Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-06-03-progress-manager-facade-rounds.md",
+            "to": "docs/archive/plans/2026-06-03-progress-manager-facade-rounds_20260614_222157.md"
+          }
+        ]
+      }
+    }
+  ],
+  "current_feature_id": null,
+  "linked_projects": [],
+  "linked_snapshot": {
+    "schema_version": "1.0",
+    "updated_at": null,
+    "projects": []
+  },
+  "tracker_role": "child",
+  "project_code": "PT",
+  "routing_queue": [],
+  "active_routes": [
+    {
+      "project_code": "PT",
+      "feature_ref": "PT-F18",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+      "branch": "f18"
+    }
+  ],
+  "updates": [
+    {
+      "id": "UPD-001",
+      "created_at": "2026-05-08T23:52:41.545940Z",
+      "category": "decision",
+      "summary": "F13 planning frozen: AI-only intent classification for prog-smart",
+      "details": "Decision: remove backend auto-classification fallback; AI decides bug/feature/update. Ambiguous inputs must ask one clarification question before mutation.",
+      "feature_id": 13,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "manual",
+      "next_action": "When F13 is active, implement /prog-smart command+skill and add ambiguity no-mutation tests",
+      "refs": [
+        "doc:docs/plans/2026-05-08-f13-prog-smart-ai-routing.md",
+        "decision:ai_classification_only"
+      ]
+    },
+    {
+      "id": "UPD-002",
+      "created_at": "2026-05-08T23:52:41.599173Z",
+      "category": "decision",
+      "summary": "F14 planning frozen: /prog note visibility split into active memo vs history",
+      "details": "Decision: /prog should prioritize actionable/recent memo context and avoid stale note noise; full historical notes stay accessible via list-updates.",
+      "feature_id": 14,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "manual",
+      "next_action": "When F14 is active, implement status/md filtering and hidden-history summary plus regression tests",
+      "refs": [
+        "doc:docs/plans/2026-05-08-f14-note-visibility-active-vs-history.md",
+        "decision:active_memo_vs_history"
+      ]
+    },
+    {
+      "id": "UPD-003",
+      "created_at": "2026-05-11T06:59:39.156659Z",
+      "category": "decision",
+      "summary": "F13/F14 rebaselined: unified work-item architecture with profile-driven /prog next routing",
+      "details": "Adopted two-layer execution model: standalone task flow and feature-bound flow. Introduced workflow_profile concept (quick_task/standard_task/feature_delivery/hotfix) to control branch requirement, verification depth, and done gate strictness. Intake will use candidate->clarify->confirm->commit to prevent title-only or ambiguous writes.",
+      "feature_id": 13,
+      "bug_id": null,
+      "role": "architecture",
+      "owner": "ai-collab",
+      "source": "manual",
+      "next_action": "Draft schema-compatible rollout plan and command contracts before code mutation",
+      "refs": [
+        "planning:f13_rebaseline",
+        "planning:f14_rebaseline",
+        "memo:2026-05-11-task-profile-routing"
+      ]
+    },
+    {
+      "id": "UPD-004",
+      "created_at": "2026-05-11T06:59:39.156659Z",
+      "category": "handoff",
+      "summary": "Execution strategy captured: /prog next selects tasks first, feature done gate remains explicit",
+      "details": "Agreed operational rule: /prog next should select next actionable item across classes, but only feature_delivery path requires full execution_complete + /prog-done closeout. quick_task may close via one-step action, while feature tasks advance parent progress only.",
+      "feature_id": 14,
+      "bug_id": null,
+      "role": "architecture",
+      "owner": "ai-collab",
+      "source": "manual",
+      "next_action": "Implement minimal task state fields and add profile-aware next/done behavior tests",
+      "refs": [
+        "planning:task_vs_feature_flow",
+        "memo:2026-05-11-next-done-semantics"
+      ]
+    },
+    {
+      "id": "UPD-005",
+      "created_at": "2026-05-11T08:00:00.000000Z",
+      "category": "decision",
+      "summary": "执行顺序确定：BUG-002 hotfix → BUG-003/004 hotfix → F13 → F14 → F15 → F16",
+      "details": "P0/P1 bug 不等待新 feature 开发，立即走 /prog-fix 独立修复通道。BUG-002（complete 嵌套锁死）优先级最高，单独 hotfix；BUG-003/004 共享同一根因（planning:review 未接入状态机），批量一次修复。BUG-005（P2）低优先级，随 F13 实现时回填 routing_queue 自然调度。F13 实现完成后，存量 pending bug 通过 routing_queue 回填机制进入正常调度流程。",
+      "feature_id": null,
+      "bug_id": null,
+      "role": "architecture",
+      "owner": "ai-collab",
+      "source": "manual",
+      "next_action": "立即启动 BUG-002 hotfix：定位 progress_manager.py:11145/11341 的嵌套锁路径并重构",
+      "refs": [
+        "bug:BUG-002",
+        "bug:BUG-003",
+        "bug:BUG-004",
+        "memo:2026-05-11-execution-order"
+      ]
+    },
+    {
+      "id": "UPD-006",
+      "created_at": "2026-05-12T22:53:58.416989Z",
+      "category": "status",
+      "summary": "Regression test update",
+      "details": null,
+      "feature_id": null,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "prog_update",
+      "next_action": null,
+      "refs": []
+    },
+    {
+      "id": "UPD-007",
+      "created_at": "2026-06-03T06:57:39Z",
+      "category": "decision",
+      "summary": "记录 progress_manager facade 收敛分轮方案；详细执行计划转移到 docs/plans/2026-06-03-progress-manager-facade-rounds.md",
+      "details": "progress.json 仅保留计划指针，不内嵌完整方案正文；progress-manager-module-map.md 延后到 Round 1 完成后创建，用作模块所有权与迁移进度导航。",
+      "feature_id": null,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": "Execute Round 0 boundary-check hardening, then Round 1 summary/status extraction.",
+      "refs": [
+        "doc:docs/plans/2026-06-03-progress-manager-facade-rounds.md",
+        "planning:pm_facade_rounds",
+        "decision:progress_json_pointer_only"
+      ]
+    },
+    {
+      "id": "UPD-008",
+      "created_at": "2026-06-03T07:07:38Z",
+      "category": "decision",
+      "summary": "登记 Round 0-1 为独立执行 feature，并显式排在 F19 前",
+      "details": "本轮不按叶子模块拆成多个 feature；只登记一个可执行 tranche 覆盖边界护栏与 summary/status 只读链路。其余 rounds 继续保留在计划文档中，待 Round 1 完成后再决定是否拆成后续 feature。",
+      "feature_id": 20,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": "Start Round 0 by hardening scripts/check_pm_boundary.sh before any code extraction.",
+      "refs": [
+        "doc:docs/plans/2026-06-03-progress-manager-facade-rounds.md",
+        "req:REQ-020",
+        "decision:round0_1_before_f19"
+      ]
+    },
+    {
+      "id": "UPD-009",
+      "created_at": "2026-06-03T09:21:40Z",
+      "category": "decision",
+      "summary": "安排 facade 收口后续优先级：F21 执行 Round 2 readiness validation 外移，F19 暂后",
+      "details": "保留 UPD-007/008 作为规划审计；不把完整 Round 2-7 roadmap 内嵌 progress.json。新增 F21 作为下一条窄 scope 可执行 feature，继续引用 canonical plan 与 module map。",
+      "feature_id": 21,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "manual",
+      "next_action": "Close/complete F20 after validation, then start F21 Round 2 readiness_validator.py extraction before returning to F19.",
+      "refs": [
+        "doc:docs/plans/2026-06-03-progress-manager-facade-rounds.md",
+        "doc:docs/progress-tracker/architecture/progress-manager-module-map.md",
+        "req:REQ-021",
+        "decision:f21_before_f19"
+      ]
+    },
+    {
+      "id": "UPD-010",
+      "created_at": "2026-06-03T09:32:43Z",
+      "category": "decision",
+      "summary": "设置 F21 closeout 防遗忘门槛：必须登记下一条 facade 收口 feature 或写明 defer 决策",
+      "details": "不提前把 Round 3-7 全部登记成 pending feature，以免 progress.json 积压噪音；改为在 F21 的 DoD 中加入 follow-up registration gate。F21 完成前必须创建下一条可执行 feature（建议 Round 3-4）或明确记录 defer 原因。",
+      "feature_id": 21,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "manual",
+      "next_action": "When closing F21, create the next facade convergence feature for Round 3-4 or record an explicit defer decision.",
+      "refs": [
+        "doc:docs/plans/2026-06-03-progress-manager-facade-rounds.md",
+        "doc:docs/progress-tracker/architecture/progress-manager-module-map.md",
+        "decision:followup_registration_gate"
+      ]
+    },
+    {
+      "id": "UPD-011",
+      "created_at": "2026-06-04T13:51:15.979479Z",
+      "category": "status",
+      "summary": "F22 planning approved in office hours",
+      "details": null,
+      "feature_id": 22,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:office_hours",
+        "doc:docs/plans/2026-06-03-progress-manager-facade-rounds.md"
+      ]
+    },
+    {
+      "id": "UPD-012",
+      "created_at": "2026-06-04T13:51:19.725302Z",
+      "category": "status",
+      "summary": "F22 CEO review complete",
+      "details": null,
+      "feature_id": 22,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:ceo_review",
+        "doc:docs/plans/2026-06-03-progress-manager-facade-rounds.md"
+      ]
+    },
+    {
+      "id": "UPD-013",
+      "created_at": "2026-06-04T15:39:28.048605Z",
+      "category": "status",
+      "summary": "F23 planning approved in office hours",
+      "details": null,
+      "feature_id": 23,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:office_hours",
+        "doc:docs/plans/2026-06-03-progress-manager-facade-rounds.md"
+      ]
+    },
+    {
+      "id": "UPD-014",
+      "created_at": "2026-06-04T15:39:30.310607Z",
+      "category": "status",
+      "summary": "F23 CEO review complete",
+      "details": null,
+      "feature_id": 23,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:ceo_review",
+        "doc:docs/plans/2026-06-03-progress-manager-facade-rounds.md"
+      ]
+    },
+    {
+      "id": "UPD-015",
+      "created_at": "2026-06-10T17:41:54.291113Z",
+      "category": "status",
+      "summary": "F27 planning approved in office hours",
+      "details": null,
+      "feature_id": 27,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:office_hours",
+        "doc:docs/plans/2026-06-03-progress-manager-facade-rounds.md"
+      ]
+    },
+    {
+      "id": "UPD-016",
+      "created_at": "2026-06-10T17:41:57.286568Z",
+      "category": "status",
+      "summary": "F27 CEO review complete",
+      "details": null,
+      "feature_id": 27,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:ceo_review",
+        "doc:docs/plans/2026-06-03-progress-manager-facade-rounds.md"
+      ]
+    },
+    {
+      "id": "UPD-017",
+      "created_at": "2026-06-14T15:14:13.221663Z",
+      "category": "status",
+      "summary": "F28 planning approved in office hours",
+      "details": null,
+      "feature_id": 28,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:office_hours",
+        "doc:docs/plans/2026-06-03-progress-manager-facade-rounds.md"
+      ]
+    },
+    {
+      "id": "UPD-018",
+      "created_at": "2026-06-14T15:14:13.337612Z",
+      "category": "status",
+      "summary": "F28 CEO review complete",
+      "details": null,
+      "feature_id": 28,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:ceo_review",
+        "doc:docs/plans/2026-06-03-progress-manager-facade-rounds.md"
+      ]
+    },
+    {
+      "id": "UPD-019",
+      "created_at": "2026-06-14T23:22:12.486949Z",
+      "category": "decision",
+      "summary": "office-hours complete: F25: AI Workspace Entropy Manager",
+      "details": "Planner contract captured (goals/scope/acceptance/risks).",
+      "feature_id": 25,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:office_hours",
+        "doc:docs/product-contracts/2026-06-14-f25-ai-workspace-entropy-manager-office-hours.md",
+        "doc:plugins/progress-tracker/docs/plans/2026-06-04-f25-ai-workspace-entropy-manager.md"
+      ]
+    },
+    {
+      "id": "UPD-020",
+      "created_at": "2026-06-14T23:23:32.193667Z",
+      "category": "decision",
+      "summary": "plan-ceo-review complete: F25: AI Workspace Entropy Manager (pass)",
+      "details": "CEO-level opportunity/risk review captured.",
+      "feature_id": 25,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:ceo_review",
+        "doc:docs/product-reviews/2026-06-14-f25-ai-workspace-entropy-manager-plan-ceo-review.md",
+        "doc:plugins/progress-tracker/docs/plans/2026-06-04-f25-ai-workspace-entropy-manager.md"
+      ]
+    }
+  ],
+  "retrospectives": [],
+  "runtime_context": {
+    "recorded_at": "2026-06-16T23:43:24.301103Z",
+    "source": "finalize",
+    "workspace_mode": "worktree",
+    "worktree_path": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-19-traceability-rollback",
+    "project_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-19-traceability-rollback",
+    "cwd": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-19-traceability-rollback",
+    "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git/worktrees/feature-19-traceability-rollback",
+    "branch": "feature-19-traceability-rollback",
+    "upstream": null,
+    "tracker_root": "/Users/siunin/Projects/Claude-Plugins/.worktrees/feature-19-traceability-rollback/plugins/progress-tracker",
+    "current_feature_id": null,
+    "workflow_phase": null,
+    "current_task": null,
+    "total_tasks": null,
+    "next_action": null
+  },
+  "bugs": [
+    {
+      "id": "BUG-001",
+      "description": "Python falsy trap: current_feature_id=0 被 not 误判为 None，导致 set-workflow-state/auto_checkpoint/wf_auto_driver/route_status 等函数在 feature ID 为 0 时异常跳过",
+      "status": "fixed",
+      "priority": "high",
+      "category": "bug",
+      "created_at": "2026-04-24T15:21:20.997557Z",
+      "quick_verification": {},
+      "updated_at": "2026-04-24T15:21:47.589961Z",
+      "root_cause": "Python truthy/falsy trap: not 0 == True，导致 ID=0 的 feature 被误判为不存在",
+      "investigation": {
+        "root_cause": "Python truthy/falsy trap: not 0 == True，导致 ID=0 的 feature 被误判为不存在",
+        "confirmed_at": "2026-04-24T15:21:47.589970Z"
+      }
+    },
+    {
+      "id": "BUG-002",
+      "description": "P0: complete 重定向后被外层锁卡死。complete 走 MUTATING_COMMANDS 外层 progress_transaction()，但 cmd_done 内部路径（record_sprint_artifact、嵌套 prog 命令）会再次拿锁，导致 10 秒锁超时，RC=9。关键位置: progress_manager.py:11145, 11341",
+      "status": "fixed",
+      "priority": "high",
+      "category": "bug",
+      "created_at": "2026-04-28T17:34:41.245568Z",
+      "quick_verification": {},
+      "schedule": "hotfix-1",
+      "next_action": "立即修复：定位 progress_manager.py:11145/11341，将 cmd_done 内部嵌套 prog 调用改为直接函数调用，绕过外层锁路径",
+      "updated_at": "2026-05-11T17:05:53.115309Z",
+      "root_cause": "complete 在 MUTATING_COMMANDS 中但未加入 done 的锁豁免分支（progress_manager.py:11490），导致 _dispatch_command() 被 progress_transaction() 包裹。cmd_done() 的 _run_acceptance_tests() 通过 subprocess.run 调用嵌套 prog 命令，子进程无法感知父进程持有的 fcntl.LOCK_EX 锁，等待 10 秒超时后返回 RC=9。",
+      "investigation": {
+        "root_cause": "complete 在 MUTATING_COMMANDS 中但未加入 done 的锁豁免分支（progress_manager.py:11490），导致 _dispatch_command() 被 progress_transaction() 包裹。cmd_done() 的 _run_acceptance_tests() 通过 subprocess.run 调用嵌套 prog 命令，子进程无法感知父进程持有的 fcntl.LOCK_EX 锁，等待 10 秒超时后返回 RC=9。",
+        "confirmed_at": "2026-05-11T17:05:50.054542Z"
+      },
+      "fix_summary": "Fix applied (commit: ab3a38d99d090a629d71065e19ddb2d124ba249b) — progress_manager.py:11490 extend lock exemption to {done, complete}; regression test added (925 tests pass).",
+      "fixed_at": "2026-05-11T17:08:32.713544Z"
+    },
+    {
+      "id": "BUG-003",
+      "description": "P1: planning:review phase 未接入状态机。skill 已引入 planning:review 停点，但 wf_state_machine.py 映射只有 planning:draft/clarifying/approved，导致 compute_next_action() 对 planning:review 返回 None。关键位置: wf_state_machine.py:21-27",
+      "status": "fixed",
+      "priority": "medium",
+      "category": "bug",
+      "created_at": "2026-04-28T17:34:48.121330Z",
+      "quick_verification": {},
+      "schedule": "hotfix-2",
+      "next_action": "与 BUG-004 批量修复：在 wf_state_machine.py:21-27 补全 planning:review 状态映射，确保 compute_next_action() 返回有效值",
+      "fix_summary": "与 BUG-004 同一次改动修复：wf_state_machine.py:21-27 补全 planning:review 状态映射，compute_next_action() 现在对 planning:review 返回 resume_planning_draft",
+      "fixed_at": "2026-05-11T17:57:07"
+    },
+    {
+      "id": "BUG-004",
+      "description": "P1: 恢复策略未覆盖 planning:review，降级为 manual_review。determine_recovery_action() 只覆盖 planning:draft/clarifying/approved，writing planning:review 后走 manual_review 分支，与 skill 定义的单次审批恢复路径不一致。关键位置: progress_manager.py:6439-6462",
+      "status": "fixed",
+      "priority": "medium",
+      "category": "bug",
+      "created_at": "2026-04-28T17:34:54.217426Z",
+      "quick_verification": {},
+      "schedule": "hotfix-2",
+      "next_action": "与 BUG-003 批量修复：在 progress_manager.py:6439-6462 的 determine_recovery_action() 补全 planning:review 分支，返回单次审批恢复路径",
+      "fix_summary": "与 BUG-003 同一次改动修复：progress_manager.py:6439-6462 的 determine_recovery_action() 补全 planning:review 分支，返回单次审批恢复路径",
+      "fixed_at": "2026-05-11T17:57:07"
+    },
+    {
+      "id": "BUG-005",
+      "description": "P2: complete 未走 fail-closed worktree/branch 一致性检查。一致性检查只对 next-feature 和 done 执行，complete 重定向到 cmd_done 后绕过该检查入口。关键位置: progress_manager.py:11336-11339",
+      "status": "pending_investigation",
+      "priority": "low",
+      "category": "bug",
+      "created_at": "2026-04-28T17:34:54.371818Z",
+      "quick_verification": {},
+      "schedule": "via-f13",
+      "next_action": "随 F13 实现时回填 routing_queue 自动调度；F13 done_criteria 已包含存量 pending bug 回填要求"
+    },
+    {
+      "id": "BUG-007",
+      "description": "Regression test bug",
+      "status": "pending_investigation",
+      "priority": "low",
+      "category": "bug",
+      "created_at": "2026-05-12T22:53:58.127487Z",
+      "quick_verification": {}
+    },
+    {
+      "id": "BUG-008",
+      "description": "F14: AC-3 profile gate matrix — mutual exclusivity tested but different validation-depth per profile not explicitly validated",
+      "status": "pending_investigation",
+      "priority": "medium",
+      "category": "technical_debt",
+      "created_at": "2026-05-16T21:40:55.663538Z",
+      "quick_verification": {}
+    },
+    {
+      "id": "BUG-009",
+      "description": "F14: _git_squash_close_task error-recovery branches (checkout/merge/commit failures) not covered by tests",
+      "status": "pending_investigation",
+      "priority": "medium",
+      "category": "technical_debt",
+      "created_at": "2026-05-16T21:40:55.937172Z",
+      "quick_verification": {}
+    },
+    {
+      "id": "BUG-010",
+      "description": "P0: standalone task 分支从当前 HEAD 创建而非默认分支，可能把无关改动一起 squash 到默认分支",
+      "status": "fixed",
+      "priority": "high",
+      "category": "bug",
+      "created_at": "2026-05-16T22:41:30.281847Z",
+      "quick_verification": {}
+    },
+    {
+      "id": "BUG-011",
+      "description": "P0: squash merge/commit 失败后回滚不完整 — reset --mixed 不清理 worktree 冲突内容，未切回原分支",
+      "status": "fixed",
+      "priority": "high",
+      "category": "bug",
+      "created_at": "2026-05-16T22:41:30.451435Z",
+      "quick_verification": {}
+    }
+  ],
+  "current_bug_id": null,
+  "parent_project_root": ".",
+  "tasks": [],
+  "current_task_id": null
+}

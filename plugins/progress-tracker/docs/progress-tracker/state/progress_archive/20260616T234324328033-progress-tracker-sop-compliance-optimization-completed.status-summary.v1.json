@@ -1,0 +1,52 @@
+{
+  "schema_version": "status_summary.v1",
+  "projection_path": "docs/progress-tracker/state/status_summary.v1.json",
+  "updated_at": "2026-06-16T15:42:29.977842Z",
+  "source": {
+    "generator": "summary_projector.load_status_summary_projection",
+    "progress_path": "docs/progress-tracker/state/progress.json",
+    "checkpoints_path": "docs/progress-tracker/state/checkpoints.json"
+  },
+  "inputs": {
+    "progress": {
+      "path": "docs/progress-tracker/state/progress.json",
+      "exists": true,
+      "mtime_ns": 1781624549780227633,
+      "size": 187388
+    },
+    "checkpoints": {
+      "path": "docs/progress-tracker/state/checkpoints.json",
+      "exists": true,
+      "mtime_ns": 1781623324493418953,
+      "size": 19129
+    }
+  },
+  "progress": {
+    "completed": 28,
+    "total": 29,
+    "percentage": 96
+  },
+  "next_action": {
+    "type": "feature",
+    "feature_id": 19,
+    "feature_name": "AI 可追溯与可回退机制 v1：变更记录 + 自动守卫 + 回退 SOP",
+    "development_stage": "developing",
+    "stage_label": "开发中"
+  },
+  "plan_health": {
+    "status": "N/A",
+    "plan_path": null,
+    "message": "无活跃计划"
+  },
+  "risk_blocker": {
+    "has_risk": false,
+    "high_priority_bugs": 0,
+    "blocked_count": 0,
+    "message": "正常"
+  },
+  "recent_snapshot": {
+    "exists": true,
+    "timestamp": "2026-06-14T16:52:38.871447+08:00",
+    "relative_time": "2 天前"
+  }
+}
