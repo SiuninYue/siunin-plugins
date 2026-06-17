@@ -2,7 +2,7 @@
 
 **Created**: 2026-04-23T00:28:18.285129Z
 
-**Status**: 27/29 completed
+**Status**: 28/29 completed
 
 ## Completed
 - [x] 根目录混合宿主架构：Monorepo /prog 支持
@@ -29,20 +29,41 @@
 - [x] progress_manager facade 收口 Round 3：Feature Activation and Stage Commands 外移
 - [x] progress_manager facade 收口 Round 4：Work-Item Selection and next_feature 外移
 - [x] progress_manager facade 收口 Round 5：Completion Flow and Cleanup 外移
+- [x] AI Workspace Entropy Manager
 - [x] progress_manager facade 收口 Round 6：Backlog and Intake Mutation Commands 外移
 - [x] progress_manager facade 收口 Round 7：Workflow and Reconcile Commands 外移
 - [x] progress_manager facade 收口 Final Round：Reverse Import Cleanup and Facade Compression
 
-## Deferred
-- [~] AI 可追溯与可回退机制 v1：变更记录 + 自动守卫 + 回退 SOP — Round 3 facade convergence is prioritized before F19 rollback mechanism
-- [~] AI Workspace Entropy Manager — F27/F28 facade 收口 Round 7 + Final Round 优先于 F25 Entropy Manager；待 facade 收口完成后再评估 F25 排期
+## In Progress
+- [ ] AI 可追溯与可回退机制 v1：变更记录 + 自动守卫 + 回退 SOP
+  **Test steps**:
+  - 校验器：index.jsonl JSONL 语法错误 → 阻断提交
+  - 校验器：缺少必填字段（任意一个）→ 阻断提交
+  - 校验器：change_id 冲突（已存在相同 ID）→ 阻断提交
+  - 校验器：record_path 文件不存在 → 阻断提交
+  - 校验器：high_risk_scripts.txt 不存在 → fail-closed（阻断）
+  - 校验器自身内部异常（如 import error）→ 非零退出阻断提交（exit code 2，区别于记录缺失的 exit code 1）
+  - 手动修改 CHANGELOG.md 后提交 → 渲染结果与暂存区不一致，pre-commit 自动修正并阻断
+  - 未运行渲染器直接提交高风险改动 → CHANGELOG 暂存区与重新生成版本不一致，阻断
+  - 完整流程（写记录 + git add）→ 提交通过，CHANGELOG.md 自动 stage 同步
+  - git log --all --diff-filter=A -S '"change_id": "<id>"' -- docs/changes/index.jsonl → 唯一命中目标 commit SHA
+  - 修改 index.jsonl 中已有条目的 summary → git log 仅命中原始添加提交，不含修改提交
+  - 场景 A：archive 可用 → restore-archive 成功 + reconcile-state --check pass
+  - 场景 B：archive 不可用 → 自动 git revert + reconcile-state --check 输出 + 人工确认提示
+  - 场景 C：B 路后 reconcile-state --check 仍失败 → 流程立即非零退出，输出固定诊断命令集合
+
+## Workflow Context
+- Phase: planning:review
+- Next action: Review plan and approve or request changes
+- Execution context: main @ Claude-Plugins [in_place]
+- Current session context: main @ Claude-Plugins [in_place]
 
 ## Recent Updates
-- [UPD-014] status: F23 CEO review complete (feature:23)
-- [UPD-015] status: F27 planning approved in office hours (feature:27)
-- [UPD-016] status: F27 CEO review complete (feature:27)
-- [UPD-017] status: F28 planning approved in office hours (feature:28)
-- [UPD-018] status: F28 CEO review complete (feature:28)
+- [UPD-019] decision: office-hours complete: F25: AI Workspace Entropy Manager (feature:25)
+- [UPD-020] decision: plan-ceo-review complete: F25: AI Workspace Entropy Manager (pass) (feature:25)
+- [UPD-021] decision: plan-ceo-review complete: F19 traceability rollback v1 (pass with devex scrutiny) (feature:19)
+- [UPD-022] decision: plan-devex-review complete: F19 traceability rollback v1 (score=8/10) (feature:19)
+- [UPD-023] decision: office-hours complete: F19 traceability rollback v1 (feature:19)
 
 ## Bug Backlog
 ### Medium Priority (🟡)

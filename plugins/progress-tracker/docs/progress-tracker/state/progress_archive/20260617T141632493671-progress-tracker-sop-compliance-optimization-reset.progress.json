@@ -2,7 +2,7 @@
   "schema_version": "2.1",
   "project_name": "progress-tracker-sop-compliance-optimization",
   "created_at": "2026-04-23T00:28:18.285129Z",
-  "updated_at": "2026-06-14T22:21:57.400750Z",
+  "updated_at": "2026-06-16T23:42:46.584612Z",
   "features": [
     {
       "id": 10,
@@ -2667,16 +2667,16 @@
         "场景 C：B 路后 reconcile-state --check 仍失败 → 流程立即非零退出，输出固定诊断命令集合"
       ],
       "completed": false,
-      "deferred": true,
-      "defer_reason": "Round 3 facade convergence is prioritized before F19 rollback mechanism",
-      "deferred_at": "2026-06-04T13:55:13.345251Z",
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
       "defer_group": null,
       "owners": {
         "architecture": null,
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "approved",
+      "lifecycle_state": "implementing",
       "requirement_ids": [
         "REQ-019"
       ],
@@ -2731,10 +2731,10 @@
       ],
       "quality_gates": {
         "evaluator": {
-          "status": "pending",
-          "score": null,
+          "status": "pass",
+          "score": 100,
           "defects": [],
-          "last_run_at": null,
+          "last_run_at": "2026-06-16T15:42:46Z",
           "evaluator_model": null
         },
         "reviews": {
@@ -2788,8 +2788,21 @@
         "created_at": null
       },
       "plan_path": null,
-      "development_stage": "planning",
-      "started_at": null
+      "development_stage": "developing",
+      "started_at": "2026-06-16T09:27:58.202861",
+      "ai_metrics": {
+        "complexity_score": 66,
+        "complexity_bucket": "complex",
+        "selected_model": "opus",
+        "workflow_path": "full_design_plan_execute",
+        "scoring_v2": {
+          "score": 66,
+          "raw_score_bucket": "complex",
+          "routed_bucket": "complex",
+          "confidence": "medium"
+        },
+        "started_at": "2026-06-16T17:29:52.511788Z"
+      }
     },
     {
       "id": 22,
@@ -3231,17 +3244,17 @@
         "Acceptance: Safe entropy-fix applied, branch deleted only when merged, next_feature runs preflight and passes all tests"
       ],
       "workflow_profile": "standard_task",
-      "completed": false,
-      "deferred": true,
-      "defer_reason": "F27/F28 facade 收口 Round 7 + Final Round 优先于 F25 Entropy Manager；待 facade 收口完成后再评估 F25 排期",
-      "deferred_at": "2026-06-10T17:39:27.306654Z",
+      "completed": true,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
       "defer_group": null,
       "owners": {
         "architecture": null,
         "coding": null,
         "testing": null
       },
-      "lifecycle_state": "approved",
+      "lifecycle_state": "archived",
       "requirement_ids": [
         "REQ-025"
       ],
@@ -3267,27 +3280,60 @@
       ],
       "quality_gates": {
         "evaluator": {
-          "status": "pending",
-          "score": null,
+          "status": "pass",
+          "score": 100,
           "defects": [],
-          "last_run_at": null,
+          "last_run_at": "2026-06-16T09:07:01Z",
           "evaluator_model": null
         },
         "reviews": {
-          "required": [],
-          "passed": [],
+          "required": [
+            "docs",
+            "eng",
+            "qa"
+          ],
+          "passed": [
+            "docs",
+            "eng",
+            "qa"
+          ],
           "pending": []
         },
         "ship_check": {
-          "status": "pending",
+          "status": "pass",
           "failures": [],
-          "last_run_at": null
+          "last_run_at": "2026-06-16T09:06:33Z"
+        },
+        "review_evidence": {
+          "docs": {
+            "evidence": "docs/PROG_COMMANDS.md",
+            "recorded_at": "2026-06-16T17:04:00.474641Z"
+          },
+          "eng": {
+            "evidence": "plugins/progress-tracker/hooks/scripts/workspace_entropy.py",
+            "recorded_at": "2026-06-16T17:04:34.807570Z"
+          },
+          "qa": {
+            "evidence": "plugins/progress-tracker/tests/test_workspace_entropy.py",
+            "recorded_at": "2026-06-16T17:05:14.938642Z"
+          }
         }
       },
       "sprint_contract": {
-        "scope": "",
-        "done_criteria": [],
-        "test_plan": [],
+        "scope": "Add workspace entropy detection and safe-fix engine; integrate into next_feature preflight",
+        "done_criteria": [
+          "prog entropy-check --json returns deterministic report (dirty/branches/routes/worktrees)",
+          "prog entropy-fix --safe applies only green actions idempotently",
+          "Local branches deleted only when merged, not protected, not checked-out in worktree",
+          "Red decisions block with JSON reason=workspace_entropy_red",
+          "next_feature runs entropy preflight before workflow stops",
+          "scripts/check_pm_boundary.sh and generate_prog_docs.py --check pass"
+        ],
+        "test_plan": [
+          "uv run pytest tests/test_workspace_entropy.py -q",
+          "uv run pytest tests/test_next_feature_entropy_preflight.py -q",
+          "uv run pytest tests/ -q (full regression)"
+        ],
         "accepted_by": null,
         "accepted_at": null
       },
@@ -3296,6 +3342,38 @@
         "to_phase": null,
         "artifact_path": null,
         "created_at": null
+      },
+      "development_stage": "completed",
+      "started_at": "2026-06-14T15:09:52.569483",
+      "ai_metrics": {
+        "complexity_score": 71,
+        "complexity_bucket": "complex",
+        "selected_model": "opus",
+        "workflow_path": "full_design_plan_execute",
+        "scoring_v2": {
+          "score": 71,
+          "raw_score_bucket": "complex",
+          "routed_bucket": "complex",
+          "confidence": "medium"
+        },
+        "started_at": "2026-06-15T14:26:15.599321Z",
+        "finished_at": "2026-06-16T17:10:24.396158+08:00",
+        "duration_seconds": 67448
+      },
+      "completed_at": "2026-06-16T17:10:24.396222Z",
+      "integration_status": "merged_and_cleaned",
+      "finish_state_resolved_at": "2026-06-16T17:10:24.396230Z",
+      "commit_hash": "71096abda562251946ebfcc6d7b037d70d84d2e5",
+      "plan_path": "docs/plans/2026-06-04-f25-ai-workspace-entropy-manager.md",
+      "archive_info": {
+        "archived_at": "2026-06-16T17:10:24.665123Z",
+        "files_moved": 1,
+        "files": [
+          {
+            "from": "docs/plans/2026-06-04-f25-ai-workspace-entropy-manager.md",
+            "to": "docs/archive/plans/2026-06-04-f25-ai-workspace-entropy-manager.md"
+          }
+        ]
       }
     },
     {
@@ -3729,7 +3807,7 @@
       }
     }
   ],
-  "current_feature_id": null,
+  "current_feature_id": 19,
   "linked_projects": [],
   "linked_snapshot": {
     "schema_version": "1.0",
@@ -4058,12 +4136,102 @@
         "planning:ceo_review",
         "doc:docs/plans/2026-06-03-progress-manager-facade-rounds.md"
       ]
+    },
+    {
+      "id": "UPD-019",
+      "created_at": "2026-06-14T23:22:12.486949Z",
+      "category": "decision",
+      "summary": "office-hours complete: F25: AI Workspace Entropy Manager",
+      "details": "Planner contract captured (goals/scope/acceptance/risks).",
+      "feature_id": 25,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:office_hours",
+        "doc:docs/product-contracts/2026-06-14-f25-ai-workspace-entropy-manager-office-hours.md",
+        "doc:plugins/progress-tracker/docs/plans/2026-06-04-f25-ai-workspace-entropy-manager.md"
+      ]
+    },
+    {
+      "id": "UPD-020",
+      "created_at": "2026-06-14T23:23:32.193667Z",
+      "category": "decision",
+      "summary": "plan-ceo-review complete: F25: AI Workspace Entropy Manager (pass)",
+      "details": "CEO-level opportunity/risk review captured.",
+      "feature_id": 25,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:ceo_review",
+        "doc:docs/product-reviews/2026-06-14-f25-ai-workspace-entropy-manager-plan-ceo-review.md",
+        "doc:plugins/progress-tracker/docs/plans/2026-06-04-f25-ai-workspace-entropy-manager.md"
+      ]
+    },
+    {
+      "id": "UPD-021",
+      "created_at": "2026-06-16T17:27:10.177883Z",
+      "category": "decision",
+      "summary": "plan-ceo-review complete: F19 traceability rollback v1 (pass with devex scrutiny)",
+      "details": "CEO-level opportunity/risk review captured.",
+      "feature_id": 19,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:ceo_review",
+        "doc:docs/product-reviews/2026-06-16-f19-traceability-rollback-v1-plan-ceo-review.md",
+        "req:REQ-019"
+      ]
+    },
+    {
+      "id": "UPD-022",
+      "created_at": "2026-06-16T17:27:10.299650Z",
+      "category": "decision",
+      "summary": "plan-devex-review complete: F19 traceability rollback v1 (score=8/10)",
+      "details": "Developer experience review recorded.",
+      "feature_id": 19,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:devex_review",
+        "doc:docs/product-reviews/2026-06-16-f19-traceability-rollback-v1-plan-devex-review.md",
+        "req:REQ-019"
+      ]
+    },
+    {
+      "id": "UPD-023",
+      "created_at": "2026-06-16T17:27:10.394501Z",
+      "category": "decision",
+      "summary": "office-hours complete: F19 traceability rollback v1",
+      "details": "Planner contract captured (goals/scope/acceptance/risks).",
+      "feature_id": 19,
+      "bug_id": null,
+      "role": null,
+      "owner": null,
+      "source": "spm_planning",
+      "next_action": null,
+      "refs": [
+        "planning:office_hours",
+        "doc:docs/product-contracts/2026-06-16-f19-traceability-rollback-v1-office-hours.md",
+        "req:REQ-019"
+      ]
     }
   ],
   "retrospectives": [],
   "runtime_context": {
-    "recorded_at": "2026-06-14T22:21:57.346567Z",
-    "source": "finalize",
+    "recorded_at": "2026-06-16T17:29:57.218682Z",
+    "source": "set_workflow_state",
     "workspace_mode": "in_place",
     "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
     "project_root": "/Users/siunin/Projects/Claude-Plugins",
@@ -4072,11 +4240,11 @@
     "branch": "main",
     "upstream": "origin/main",
     "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
-    "current_feature_id": null,
-    "workflow_phase": null,
+    "current_feature_id": 19,
+    "workflow_phase": "planning:review",
     "current_task": null,
     "total_tasks": null,
-    "next_action": null
+    "next_action": "Review plan and approve or request changes"
   },
   "bugs": [
     {
@@ -4199,5 +4367,22 @@
   "current_bug_id": null,
   "parent_project_root": ".",
   "tasks": [],
-  "current_task_id": null
+  "current_task_id": null,
+  "workflow_state": {
+    "phase": "planning:review",
+    "updated_at": "2026-06-16T17:29:57.165374Z",
+    "plan_path": "docs/plans/2026-06-16-f19-traceability-rollback-v1.md",
+    "next_action": "Review plan and approve or request changes",
+    "execution_context": {
+      "recorded_at": "2026-06-16T17:29:57.165727Z",
+      "source": "set_workflow_state",
+      "workspace_mode": "in_place",
+      "worktree_path": "/Users/siunin/Projects/Claude-Plugins",
+      "project_root": "/Users/siunin/Projects/Claude-Plugins",
+      "tracker_root": "/Users/siunin/Projects/Claude-Plugins/plugins/progress-tracker",
+      "git_dir": "/Users/siunin/Projects/Claude-Plugins/.git",
+      "branch": "main",
+      "upstream": "origin/main"
+    }
+  }
 }

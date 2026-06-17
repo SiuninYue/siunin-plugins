@@ -23,5 +23,35 @@
         "archive_path": "progress_archive/20260514T135259933741-claude-plugins-monorepo-test-reinitialize.progress.md"
       }
     ]
+  },
+  {
+    "archive_id": "20260617T142029102169-test-reset",
+    "archived_at": "2026-06-17T14:20:29.103843Z",
+    "reason": "reset",
+    "project_name": "Test",
+    "total_features": 0,
+    "completed_features": 0,
+    "current_feature_id": null,
+    "progress_json": "progress_archive/20260617T142029102169-test-reset.progress.json",
+    "progress_md": "progress_archive/20260617T142029102169-test-reset.progress.md",
+    "status_summary_v1": "progress_archive/20260617T142029102169-test-reset.status-summary.v1.json",
+    "status_summary_legacy": null,
+    "archived_artifacts": [
+      {
+        "kind": "progress_json",
+        "source_path": "docs/progress-tracker/state/progress.json",
+        "archive_path": "progress_archive/20260617T142029102169-test-reset.progress.json"
+      },
+      {
+        "kind": "progress_md",
+        "source_path": "docs/progress-tracker/state/progress.md",
+        "archive_path": "progress_archive/20260617T142029102169-test-reset.progress.md"
+      },
+      {
+        "kind": "status_summary_v1",
+        "source_path": "docs/progress-tracker/state/status_summary.v1.json",
+        "archive_path": "progress_archive/20260617T142029102169-test-reset.status-summary.v1.json"
+      }
+    ]
   }
 ]
