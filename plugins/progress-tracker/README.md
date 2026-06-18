@@ -193,6 +193,8 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-feature-ai-m
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py complete-feature-ai-metrics <feature_id>
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py auto-checkpoint
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py git-auto-preflight [--json]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py entropy-check [--json]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py entropy-fix [--safe] [--apply] [--json]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py sync-runtime-context [--source <session_start|manual>] [--quiet] [--force]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-plan [--plan-path <path>]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-planning <feature_id> [--json]
@@ -206,6 +208,52 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py add-bug --descri
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py update-bug --bug-id "BUG-XXX" [--status <status>] [--root-cause "<cause>"] [--fix-summary "<summary>"]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py list-bugs
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py remove-bug "BUG-XXX"
+```
+
+### Workspace Entropy (`entropy-check` / `entropy-fix`)
+
+`entropy-check` inspects workspace entropy and emits a tri-state cleanup decision
+without mutating anything. `entropy-fix` applies only the safe (green) cleanup
+actions it derives from the same report.
+
+Usage:
+
+```bash
+prog entropy-check [--json]
+prog entropy-fix [--safe] [--apply] [--json]
+```
+
+Green / yellow / red policy:
+
+- Green (safe): tracker-state file edits (classified as `auto_commit` in the report;
+  auto-commit action is reserved for a future iteration) and local branches that are
+  merged, not current, and not checked out in a worktree.
+  `entropy-fix --safe` deletes those merged branches with `git branch -d`.
+- Yellow (quarantine): non-tracker source edits. Reported only; never deleted or
+  reverted. `--apply` is reserved for opting into yellow handling.
+- Red (block): deletion of non-tracker-state files. `entropy-check` reports it and
+  `entropy-fix` refuses to act, exiting non-zero with a `blocked` status.
+
+No-destructive-action guarantee: `entropy-check` never mutates the workspace.
+`entropy-fix` performs at most safe-delete of merged branches (`git branch -d`,
+which itself refuses unmerged branches); it never force-deletes, never touches
+working-tree files, and never reverts source edits.
+
+Example JSON output (`entropy-check --json`):
+
+```json
+{
+  "status": "ok",
+  "decision": "safe_fix_available",
+  "dirty_changes": {
+    "auto_commit": ["docs/progress-tracker/state/progress.json"],
+    "quarantine": ["hooks/scripts/foo.py"],
+    "block": []
+  },
+  "branches": {"delete_local": ["f21"], "review": ["old-topic"], "keep": ["main"]},
+  "routes": {"repair": [], "block": []},
+  "worktrees": {"prune": false, "block": []}
+}
 ```
 
 ### Project Memory CLI

@@ -192,6 +192,8 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py set-feature-ai-m
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py complete-feature-ai-metrics <feature_id>
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py auto-checkpoint
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py git-auto-preflight [--json]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py entropy-check [--json]
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py entropy-fix [--safe] [--apply] [--json]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py sync-runtime-context [--source <session_start|manual>] [--quiet] [--force]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-plan [--plan-path <path>]
 python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/progress_manager.py validate-planning <feature_id> [--json]

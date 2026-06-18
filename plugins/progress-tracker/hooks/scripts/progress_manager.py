@@ -2037,6 +2037,7 @@ import git_utils
 from git_utils import RUNTIME_CONTEXT_COMPARE_KEYS
 import worktree_handler
 import route_sync
+import workspace_entropy
 
 
 def _normalize_context_path(value: Optional[str]) -> Optional[str]:
@@ -3374,6 +3375,7 @@ def _next_feature_command_services():
         linked_snapshot_schema_version=LINKED_SNAPSHOT_SCHEMA_VERSION,
         root_route_code=ROOT_ROUTE_CODE,
         repo_root=_REPO_ROOT,
+        entropy_preflight_fn=workspace_entropy.run_safe_entropy_preflight,
     )
 
 
@@ -4727,6 +4729,24 @@ if SPRINT_LEDGER_AVAILABLE:
     )
 
 
+def entropy_check(output_json: bool = False) -> int:
+    return workspace_entropy.entropy_check_command(output_json=output_json)
+
+
+entropy_check.is_wrapper = True
+
+
+def entropy_fix(*, safe: bool = False, apply: bool = False, output_json: bool = False) -> int:
+    return workspace_entropy.entropy_fix_command(
+        safe=safe,
+        apply=apply,
+        output_json=output_json,
+    )
+
+
+entropy_fix.is_wrapper = True
+
+
 def main():
     parser = _ProgressArgumentParser(description="Progress Tracker Manager")
     parser.add_argument(
@@ -5147,6 +5167,28 @@ def main():
         help="Run git-auto preflight and emit tri-state workspace decision",
     )
     preflight_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="output_json",
+        help="Emit machine-readable JSON output",
+    )
+
+    entropy_check_parser = subparsers.add_parser(
+        "entropy-check", help="Inspect workspace entropy and emit cleanup decisions"
+    )
+    entropy_check_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="output_json",
+        help="Emit machine-readable JSON output",
+    )
+
+    entropy_fix_parser = subparsers.add_parser(
+        "entropy-fix", help="Apply safe workspace entropy cleanup actions"
+    )
+    entropy_fix_parser.add_argument("--safe", action="store_true", help="Apply only green (safe) actions")
+    entropy_fix_parser.add_argument("--apply", action="store_true", help="Also apply yellow (quarantine) actions")
+    entropy_fix_parser.add_argument(
         "--json",
         action="store_true",
         dest="output_json",
@@ -5629,6 +5671,14 @@ def main():
             return git_sync_check()
         if args.command == "git-auto-preflight":
             return git_auto_preflight(output_json=args.output_json)
+        if args.command == "entropy-check":
+            return entropy_check(output_json=getattr(args, "output_json", False))
+        if args.command == "entropy-fix":
+            return entropy_fix(
+                safe=getattr(args, "safe", False),
+                apply=getattr(args, "apply", False),
+                output_json=getattr(args, "output_json", False),
+            )
         if args.command == "set-feature-ai-metrics":
             return set_feature_ai_metrics(
                 args.feature_id,

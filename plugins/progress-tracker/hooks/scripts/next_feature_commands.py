@@ -39,6 +39,7 @@ class NextFeatureCommandServices:
     linked_snapshot_schema_version: str
     root_route_code: str
     repo_root: Optional[Path]
+    entropy_preflight_fn: Optional[Callable[["Path"], Any]] = None
 
 
 def _activate_task(
@@ -126,6 +127,21 @@ def next_feature_command(
         raise ValueError("NextFeatureCommandServices is required")
 
     data = svc.load_progress_json_fn()
+
+    # Entropy preflight: block on red destructive changes
+    if svc.entropy_preflight_fn is not None:
+        _entropy_root = svc.find_project_root_fn()
+        preflight = svc.entropy_preflight_fn(_entropy_root)
+        if preflight.has_red_blocks:
+            payload = preflight.to_block_payload()
+            if output_json:
+                print(json.dumps(payload, ensure_ascii=False))
+            else:
+                print(f"BLOCKED: {payload['message']}")
+                print(f"  Blocked by: {payload['block']}")
+                print(f"  Next step: {payload['recommended_next_step']}")
+            return False
+
     if data:
         features = data.get("features", [])
         pending_finish_feature = next(

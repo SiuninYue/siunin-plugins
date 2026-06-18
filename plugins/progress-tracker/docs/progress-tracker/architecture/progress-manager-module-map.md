@@ -50,6 +50,7 @@ New business logic should move into focused modules under
 | Work-item selection | `work_item_selector.py` | F23 wrappers only | Owns `get_next_feature`, child/root dispatch selection, and unified bug/task/feature priority selection. Callbacks: state load, defer check, timestamp parse, linked-root resolution, child payload load. |
 | Next-feature command | `next_feature_commands.py` | F23 wrappers only | Owns `next_feature` orchestration, JSON/text rendering, task activation, parent active-route bookkeeping, planning gate display, and feature payload output. Callbacks: state IO, git helpers, reconcile analysis, planning readiness, selector, linked snapshot refresh. |
 | Completion pipeline | `completion_flow.py` | F24 wrappers only | Owns `cmd_done`, `complete_feature`, acceptance tests (`_run_acceptance_tests`), done preflight (`_run_done_preflight`), state finalization (`_finalize_completion_state_in_memory`), archive record saving, capability memory append, post-done cleanup, and all related helpers. Services injected via `CompletionFlowServices` dataclass: load/save json, gen/save md, sprint ledger, notify_parent_sync, git context, archive, reconcile analysis. `progress_manager.py` reduced from 8122 → 7121 lines (−1001). |
+| Workspace entropy | `workspace_entropy.py` | F25 wrappers only | F25. Dirty-change classifier, branch cleanup eligibility, entropy-check/entropy-fix commands, safe preflight for next_feature. progress_manager.py keeps CLI wrappers only. |
 
 ## Remaining Facade Weight
 
