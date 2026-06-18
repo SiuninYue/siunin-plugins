@@ -54,6 +54,8 @@ Extra dirs are plugin-level dirs copied to wrapper root:
 
 - `hooks` -> `hooks`
 - `scripts` -> `scripts`
+- When `hooks/` exists, also carry `core/`, `matchers/`, and `utils/` if present so hook entrypoints keep their runtime imports intact.
+- Copy `examples/` when present because migrated skills and commands often link to it.
 
 Decision by `--extra-dirs`:
 
@@ -65,7 +67,7 @@ Decision by `--extra-dirs`:
 
 `codex-plugin` mode also copies optional plugin directories/files when present:
 
-- Directories: `templates/`, `assets/`
+- Directories: `templates/`, `assets/`, `examples/`
 - Files: `.mcp.json`, `.app.json`, `mcp.json`, `app.json`
 
 ## Frontmatter Normalization
@@ -123,6 +125,17 @@ Optional mapping controlled by `--hook-event-map`:
 - `none` (default): keep hook event names unchanged.
 - `userpromptsubmit-beforeagent`: for `hooks.json`, map event key/token `UserPromptSubmit` to `BeforeAgent`.
 
+## Hook Manifest Normalization
+
+- Source preference order:
+  - `hooks/hooks-codex.json`
+  - `hooks/hooks.json`
+  - `hooks-codex.json`
+  - `hooks.json`
+- The selected hook manifest is re-materialized in staged output as `hooks/hooks.json` (or `hooks.json` for legacy root-level layouts).
+- Only the top-level `hooks` object is kept. Extra top-level metadata such as `description` is dropped because Codex hook parsing rejects it.
+- Event-key mapping still applies after normalization when `--hook-event-map` is enabled.
+
 ## Placeholder Handling
 
 Placeholder candidates:
@@ -150,6 +163,7 @@ In `codex-plugin` mode:
 - Generate `.codex-plugin/plugin.json`.
 - Preserve source plugin metadata when available (`version`, `description`, `author`, `keywords`, `license`, optional `homepage`/`repository`).
 - Generate `interface` metadata with derived defaults and capability tags.
+- Apply plugin-specific Codex output fixes when needed. Current built-in example: `hookify` gets Codex-safe hook bootstrap logic plus `.codex/` rule path rewrites with `.claude/` fallback at runtime.
 
 ## Backup and Replace
 

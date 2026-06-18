@@ -1,7 +1,6 @@
 ---
 name: codex-plugin-sync
-description: Use when syncing Claude plugins to Codex wrappers, or converting Claude plugins into Codex plugin SOP packages while keeping legacy sync flow available.
-version: 0.1.0
+description: Use when syncing Claude plugins to Codex wrappers or Codex plugin packages, especially when hooks, hookify, hooks-codex.json, runtime helper directories, or CLAUDE_PLUGIN_ROOT compatibility need Codex-specific normalization.
 ---
 
 # Codex Plugin Sync
@@ -20,6 +19,8 @@ Activate this skill when:
 - Migrated `skills/commands/agents` must be refreshed in Codex.
 - Frontmatter compatibility (`model`/`madel`) needs normalization.
 - `${CLAUDE_PLUGIN_ROOT}` placeholders must work in Codex runtime.
+- Hook manifests must be normalized for Codex (`hooks-codex.json`, top-level `hooks` only).
+- Hook runtime helpers such as `core/`, `matchers/`, `utils/`, or `examples/` must be carried over.
 
 ## Defaults
 
@@ -33,6 +34,12 @@ Run with these defaults unless explicitly overridden:
 - `--prompt-args-token '$ARGUMENTS'`
 
 These defaults target functional completeness with Codex compatibility.
+For hook-heavy plugins, the sync now also:
+
+- Prefers `hooks-codex.json` over `hooks.json` when both exist.
+- Rewrites the staged Codex manifest to top-level `{ "hooks": ... }` only.
+- Copies hook support directories (`core/`, `matchers/`, `utils/`) plus `examples/` when present.
+- Applies plugin-specific Codex fixes for `hookify` output.
 
 ## Primary Command
 
@@ -149,7 +156,19 @@ python3 /Users/siunin/Projects/Claude-Plugins/plugins/package-manager/skills/cod
   --hook-event-map userpromptsubmit-beforeagent
 ```
 
-### 8) Export prompts with a custom user-input token
+### 8) Convert marketplace `hookify` directly from the Claude plugin cache
+
+```bash
+python3 /Users/siunin/Projects/Claude-Plugins/plugins/package-manager/skills/codex-plugin-sync/scripts/sync_codex_imports.py \
+  --plugins hookify \
+  --record-source workspace \
+  --workspace-plugins /Users/siunin/.claude/plugins/marketplaces/claude-plugins-official/plugins \
+  --output-mode codex-plugin \
+  --codex-plugins-root /Users/siunin/Projects/Claude-Plugins/plugins-codex \
+  --hook-event-map userpromptsubmit-beforeagent
+```
+
+### 9) Export prompts with a custom user-input token
 
 ```bash
 python3 /Users/siunin/Projects/Claude-Plugins/plugins/package-manager/skills/codex-plugin-sync/scripts/sync_codex_imports.py \
@@ -167,6 +186,9 @@ Apply the following transforms during sync:
 - `commands/*.md` and `agents/*.md`: remove `model`/`madel`; preserve other keys; fill missing `name`.
 - Wrapper mode rewrite target: `${CODEX_HOME:-$HOME/.codex}/skills/<wrapper_name>`.
 - Codex plugin mode rewrite target: `${CODEX_HOME:-$HOME/.codex}/plugins/<plugin_name>`.
+- Hook manifests are normalized to Codex shape with only the top-level `hooks` object.
+- If `hooks-codex.json` exists, it is preferred and staged as `hooks/hooks.json`.
+- Hook helper directories (`core/`, `matchers/`, `utils/`) and `examples/` are copied when present.
 - Optional hook event mapping in `hooks.json`: `UserPromptSubmit -> BeforeAgent` via `--hook-event-map userpromptsubmit-beforeagent`.
 - Optional prompt export: map plugin `commands/*.md` to Codex prompt files in `.codex/prompts` (project) and/or `$CODEX_HOME/prompts` (global) via `--sync-prompts`.
 - Prompt export argument token is configurable with `--prompt-args-token` (default: `$ARGUMENTS`).

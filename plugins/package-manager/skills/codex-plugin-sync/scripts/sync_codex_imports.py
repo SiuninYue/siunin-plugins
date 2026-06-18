@@ -18,6 +18,15 @@ DEFAULT_WORKSPACE_PLUGINS = "/Users/siunin/Projects/Claude-Plugins/plugins"
 
 SUPPORTED_INCLUDE_DIRS = ("skills", "commands", "agents")
 OPTIONAL_PLUGIN_DIRS = ("templates", "assets")
+BASE_EXTRA_DIRS = ("hooks", "scripts")
+HOOK_SUPPORT_DIRS = ("core", "matchers", "utils")
+SHARED_SUPPORT_DIRS = ("examples",)
+PREFERRED_HOOK_MANIFESTS = (
+    Path("hooks") / "hooks-codex.json",
+    Path("hooks") / "hooks.json",
+    Path("hooks-codex.json"),
+    Path("hooks.json"),
+)
 INCLUDE_DIR_CANDIDATES: dict[str, tuple[Path, ...]] = {
     "skills": (
         Path("skills"),
@@ -628,6 +637,35 @@ def rewrite_hook_events(text: str, mode: str) -> tuple[str, int]:
     return HOOK_EVENT_PATTERN_USER_PROMPT_SUBMIT.sub("BeforeAgent", text), hits
 
 
+def list_extra_dirs(source_root: Path) -> list[str]:
+    extra_dirs: list[str] = []
+    for extra_dir in BASE_EXTRA_DIRS:
+        if (source_root / extra_dir).is_dir():
+            extra_dirs.append(extra_dir)
+    if (source_root / "hooks").is_dir():
+        for support_dir in HOOK_SUPPORT_DIRS:
+            if (source_root / support_dir).is_dir():
+                extra_dirs.append(support_dir)
+    return extra_dirs
+
+
+def find_preferred_hooks_manifest(source_root: Path) -> Path | None:
+    for relative_path in PREFERRED_HOOK_MANIFESTS:
+        candidate = source_root / relative_path
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def normalize_hooks_manifest(raw: object) -> dict[str, object] | None:
+    if not isinstance(raw, dict):
+        return None
+    hooks = raw.get("hooks")
+    if not isinstance(hooks, dict):
+        return None
+    return {"hooks": hooks}
+
+
 def process_text_file(
     file_path: Path,
     wrapper_root: Path,
@@ -694,6 +732,18 @@ def copy_directory(src: Path, dest: Path) -> None:
     if not src.exists():
         return
     shutil.copytree(src, dest, dirs_exist_ok=True)
+
+
+def copy_support_dirs(
+    source_root: Path,
+    staged_root: Path,
+    dir_names: tuple[str, ...],
+) -> None:
+    for dir_name in dir_names:
+        source_dir = source_root / dir_name
+        if not source_dir.is_dir():
+            continue
+        copy_directory(source_dir, staged_root / dir_name)
 
 
 def extract_skill_and_args(command_body: str) -> tuple[str | None, str | None]:
@@ -783,6 +833,168 @@ def load_json_object(path: Path) -> dict | None:
     except Exception:
         return None
     return raw if isinstance(raw, dict) else None
+
+
+def materialize_hooks_manifest(
+    staged_root: Path,
+    source_root: Path,
+    result: PluginResult,
+) -> None:
+    source_manifest = find_preferred_hooks_manifest(source_root)
+    if source_manifest is None:
+        return
+
+    raw = load_json_object(source_manifest)
+    if raw is None:
+        result.warnings.append(f"Failed to parse hooks manifest: {source_manifest}")
+        return
+
+    normalized = normalize_hooks_manifest(raw)
+    if normalized is None:
+        result.warnings.append(
+            f"Hooks manifest missing top-level 'hooks' object: {source_manifest}"
+        )
+        return
+
+    target_relative = (
+        Path("hooks") / "hooks.json"
+        if "hooks" in source_manifest.relative_to(source_root).parts
+        else Path("hooks.json")
+    )
+    target_path = staged_root / target_relative
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    target_path.write_text(
+        json.dumps(normalized, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def replace_text_pairs(
+    file_path: Path,
+    replacements: list[tuple[str, str]],
+) -> bool:
+    if not file_path.is_file():
+        return False
+    text = file_path.read_text(encoding="utf-8")
+    updated = text
+    for old, new in replacements:
+        updated = updated.replace(old, new)
+    if updated == text:
+        return False
+    file_path.write_text(updated, encoding="utf-8")
+    return True
+
+
+def apply_hookify_codex_transforms(
+    staged_root: Path,
+    result: PluginResult,
+) -> None:
+    hook_bootstrap_old = (
+        "import os\n"
+        "import sys\n"
+        "import json\n\n"
+        "# Add plugin root to Python path for imports\n"
+        "PLUGIN_ROOT = os.environ.get('CLAUDE_PLUGIN_ROOT')\n"
+        "if PLUGIN_ROOT and PLUGIN_ROOT not in sys.path:\n"
+        "    sys.path.insert(0, PLUGIN_ROOT)\n"
+    )
+    hook_bootstrap_new = (
+        "import os\n"
+        "import sys\n"
+        "import json\n"
+        "from pathlib import Path\n\n"
+        "# Resolve plugin root in both Claude and Codex runtimes.\n"
+        "PLUGIN_ROOT = (\n"
+        "    os.environ.get('CLAUDE_PLUGIN_ROOT')\n"
+        "    or os.environ.get('PLUGIN_ROOT')\n"
+        "    or str(Path(__file__).resolve().parents[1])\n"
+        ")\n"
+        "if PLUGIN_ROOT not in sys.path:\n"
+        "    sys.path.insert(0, PLUGIN_ROOT)\n"
+    )
+    changed_files = 0
+
+    for hook_script in (
+        staged_root / "hooks" / "pretooluse.py",
+        staged_root / "hooks" / "posttooluse.py",
+        staged_root / "hooks" / "stop.py",
+        staged_root / "hooks" / "userpromptsubmit.py",
+    ):
+        if replace_text_pairs(
+            hook_script,
+            [
+                (hook_bootstrap_old, hook_bootstrap_new),
+                (
+                    "This script is called by Claude Code before any tool executes.",
+                    "This script is called by Codex before any tool executes.",
+                ),
+                (
+                    "This script is called by Claude Code after a tool executes.",
+                    "This script is called by Codex after a tool executes.",
+                ),
+                (
+                    "This script is called by Claude Code when agent wants to stop.",
+                    "This script is called by Codex when the agent wants to stop.",
+                ),
+                (
+                    "This script is called by Claude Code when user submits a prompt.",
+                    "This script is called by Codex before the agent responds to a prompt.",
+                ),
+                (
+                    "It reads .claude/hookify.*.local.md files and evaluates rules.",
+                    "It reads .codex/hookify.*.local.md files with .claude fallback and evaluates rules.",
+                ),
+                (
+                    "It reads .claude/hookify.*.local.md files and evaluates stop rules.",
+                    "It reads .codex/hookify.*.local.md files with .claude fallback and evaluates stop rules.",
+                ),
+            ],
+        ):
+            changed_files += 1
+
+    config_loader = staged_root / "core" / "config_loader.py"
+    if replace_text_pairs(
+        config_loader,
+        [
+            (
+                "Loads and parses .claude/hookify.*.local.md files.",
+                "Loads and parses .codex/hookify.*.local.md files with .claude fallback.",
+            ),
+            (
+                '"""Load all hookify rules from .claude directory.',
+                '"""Load all hookify rules from .codex with .claude fallback.',
+            ),
+            (
+                "    # Find all hookify.*.local.md files\n"
+                "    pattern = os.path.join('.claude', 'hookify.*.local.md')\n"
+                "    files = glob.glob(pattern)\n",
+                "    # Find all hookify.*.local.md files, preferring .codex in Codex with .claude fallback.\n"
+                "    files = []\n"
+                "    for pattern in (\n"
+                "        os.path.join('.codex', 'hookify.*.local.md'),\n"
+                "        os.path.join('.claude', 'hookify.*.local.md'),\n"
+                "    ):\n"
+                "        files.extend(glob.glob(pattern))\n"
+                "    files = sorted(dict.fromkeys(files))\n",
+            ),
+        ],
+    ):
+        changed_files += 1
+
+    for markdown_file in staged_root.rglob("*.md"):
+        if replace_text_pairs(markdown_file, [(".claude/", ".codex/")]):
+            changed_files += 1
+
+    result.stats.files_converted += changed_files
+
+
+def apply_plugin_specific_transforms(
+    staged_root: Path,
+    plugin_name: str,
+    result: PluginResult,
+) -> None:
+    if plugin_name == "hookify":
+        apply_hookify_codex_transforms(staged_root, result)
 
 
 def read_source_plugin_manifest(source_root: Path) -> dict:
@@ -1054,13 +1266,15 @@ def sync_plugin(
             extra_dirs_mode == "auto" and placeholder_detected
         )
         if include_extras:
-            for extra_dir in ("hooks", "scripts"):
+            for extra_dir in list_extra_dirs(source_root):
                 source_extra = source_root / extra_dir
                 if not source_extra.is_dir():
                     continue
                 target_extra = staged_wrapper / extra_dir
                 copy_directory(source_extra, target_extra)
                 result.extras_included.append(extra_dir)
+
+            materialize_hooks_manifest(staged_wrapper, source_root, result)
 
             for extra in result.extras_included:
                 extra_root = staged_wrapper / extra
@@ -1076,6 +1290,13 @@ def sync_plugin(
                         result=result,
                         apply_frontmatter=False,
                     )
+
+        copy_support_dirs(source_root, staged_wrapper, SHARED_SUPPORT_DIRS)
+        apply_plugin_specific_transforms(
+            staged_root=staged_wrapper,
+            plugin_name=record.plugin_name,
+            result=result,
+        )
 
         included_dirs_for_wrapper = list(result.include_dirs_applied)
         for extra in result.extras_included:
@@ -1184,7 +1405,7 @@ def sync_plugin_to_codex_plugin(
 
         include_extras = extra_dirs_mode != "never"
         if include_extras:
-            for extra_dir in ("hooks", "scripts"):
+            for extra_dir in list_extra_dirs(source_root):
                 source_extra = source_root / extra_dir
                 if not source_extra.is_dir():
                     continue
@@ -1192,6 +1413,9 @@ def sync_plugin_to_codex_plugin(
                 copy_directory(source_extra, target_extra)
                 result.extras_included.append(extra_dir)
 
+            materialize_hooks_manifest(staged_plugin, source_root, result)
+
+        copy_support_dirs(source_root, staged_plugin, SHARED_SUPPORT_DIRS)
         for optional_dir in OPTIONAL_PLUGIN_DIRS:
             source_optional = source_root / optional_dir
             if source_optional.is_dir():
@@ -1201,6 +1425,12 @@ def sync_plugin_to_codex_plugin(
             source_optional_file = source_root / optional_file
             if source_optional_file.is_file():
                 shutil.copy2(source_optional_file, staged_plugin / optional_file)
+
+        apply_plugin_specific_transforms(
+            staged_root=staged_plugin,
+            plugin_name=record.plugin_name,
+            result=result,
+        )
 
         for file_path in staged_plugin.rglob("*"):
             if not file_path.is_file():
