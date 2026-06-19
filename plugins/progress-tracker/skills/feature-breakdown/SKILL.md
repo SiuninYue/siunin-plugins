@@ -26,10 +26,10 @@ Each feature should:
 - Be independently commitable to Git
 - Provide tangible value when completed
 
-**Good examples**:
-- "Create user database table with email, password_hash, created_at columns"
-- "Implement POST /api/register endpoint with validation"
-- "Add JWT token generation and validation middleware"
+**Good examples** (each a vertical slice — one verifiable end-to-end behavior that cuts through whatever layers it needs):
+- "User can register with email + password and land logged in" (schema + endpoint + validation + minimal UI, demoable on its own)
+- "User can log in and stay signed in across refreshes"
+- "User can reset a forgotten password via an emailed link"
 
 **Too granular**:
 - "Create database migration file" (too small, not independently valuable)
@@ -41,7 +41,7 @@ Each feature should:
 
 ### Implementation Ordering
 
-Follow this logical sequence for most projects:
+Slice features by behavior (above), not by layer. The sequence below is only for **ordering dependencies** between slices — earlier layers tend to unblock later ones, so when one slice depends on another, build the dependency first:
 
 1. **Data Model** (foundation)
    - Database schemas
@@ -230,7 +230,7 @@ Present the breakdown using the short-form template in [`references/templates.md
 Break down further if a feature:
 - Has more than 5 distinct test steps
 - Would take more than 2 hours to complete
-- Involves multiple distinct technologies (e.g., "database and frontend")
+- Bundles more than one independently verifiable behavior (split by behavior, not by layer — a single slice naturally spans several technologies)
 - Has ambiguous acceptance criteria
 
 ## Integration with progress_manager.py
@@ -255,21 +255,23 @@ Use the full-form template in [`references/templates.md`](references/templates.m
 
 ## Common Patterns
 
-### Web Application Features
+These list the layers a project of each kind typically involves — use them as a **coverage checklist** so a vertical slice doesn't forget a layer, NOT as a feature list (don't turn each layer into its own feature).
+
+### Web application — layers a slice may span
 1. Database models/schemas
 2. Core business logic/services
 3. API endpoints
 4. Frontend components
 5. Integration testing
 
-### CLI Tool Features
+### CLI tool — layers a slice may span
 1. Core command structure
 2. Argument parsing
 3. Main functionality
 4. Error handling
 5. Documentation/help text
 
-### Library/API Features
+### Library/API — layers a slice may span
 1. Core interfaces
 2. Basic implementations
 3. Edge case handling
