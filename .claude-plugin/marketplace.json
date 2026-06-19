@@ -17,8 +17,8 @@
     },
     {
       "name": "progress-tracker",
-      "description": "Track long-running AI agent tasks with feature-based progress tracking, test-driven status updates, Git integration, and prog-ui web dashboard",
-      "version": "1.6.29",
+      "description": "Track long-running AI agent tasks with feature-based progress tracking, test-driven status updates, Git integration",
+      "version": "1.6.30",
       "source": "./plugins/progress-tracker",
       "author": {
         "name": "siunin"

@@ -20,7 +20,6 @@ def test_core_progress_commands_remain_discoverable():
         "prog-note.md",
         "prog-done.md",
         "prog-log.md",
-        "prog-ui.md",
         "help.md",
     }
 
