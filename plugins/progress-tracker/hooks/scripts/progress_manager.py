@@ -4446,58 +4446,46 @@ def remove_bug(bug_id: str):
     return True
 
 
-def reset_tracking(force=False):
-    """Reset active progress tracking files while preserving archive/history."""
+def reset_tracking(force=False, remove_active=False):
+    """Reset active progress tracking files (thin shim; logic in admin_ops)."""
+    import admin_ops
+
     progress_dir = get_progress_dir()
     tracked_files = [
         progress_dir / PROGRESS_JSON,
         progress_dir / PROGRESS_MD,
         progress_dir / CHECKPOINTS_JSON,
     ]
-    if not progress_dir.exists() or not any(path.exists() for path in tracked_files):
-        print("No progress tracking found to reset.")
-        return True
-
-    if not force:
-        confirm = input(
-            f"Are you sure you want to reset active progress files at {progress_dir}? (y/N): "
-        )
-        if confirm.lower() != "y":
-            print("Reset cancelled.")
-            return False
-
-    try:
-        archived_entry = archive_current_progress(reason="reset")
-
-        # Event sourcing: append tracker_reset global event to audit.log
-        # Must be before files are deleted, so audit_log can still write
-        record_feature_state_event(
+    return admin_ops.reset_tracking(
+        force=force,
+        remove_active=remove_active,
+        progress_dir=progress_dir,
+        tracked_files=tracked_files,
+        summary_file=progress_dir / STATUS_SUMMARY_FILE,
+        legacy_summary_file=progress_dir / STATUS_SUMMARY_LEGACY_FILE,
+        schema_version=CURRENT_SCHEMA_VERSION,
+        root_route_code=ROOT_ROUTE_CODE,
+        logger=logger,
+        input_fn=input,
+        load_progress_json=load_progress_json,
+        save_progress_json=save_progress_json,
+        save_progress_md=save_progress_md,
+        save_checkpoints=save_checkpoints,
+        generate_progress_md=generate_progress_md,
+        archive_current_progress=archive_current_progress,
+        record_reset_event=lambda: record_feature_state_event(
             event_type="tracker_reset",
             feature_id=None,
             feature_name=None,
-        )
+        ),
+        find_project_root=find_project_root,
+        resolve_repo_root=_resolve_repo_root,
+        auto_discover_child_plugins=_auto_discover_child_plugins,
+        load_status_summary_projection=load_status_summary_projection,
+    )
 
-        removed = []
-        for path in tracked_files:
-            if path.exists():
-                path.unlink()
-                removed.append(path.name)
 
-        if not removed:
-            print("No active progress files found to reset.")
-            return True
-
-        print(f"Progress tracking reset successfully. Removed: {', '.join(removed)}")
-        if archived_entry:
-            print(
-                "Archived previous progress as "
-                f"{archived_entry.get('archive_id')} "
-                f"(reason={archived_entry.get('reason')})"
-            )
-        return True
-    except Exception as e:
-        print(f"Error resetting progress tracking: {e}")
-        return False
+reset_tracking.is_wrapper = True
 
 
 def set_workflow_state(phase=None, plan_path=None, next_action=None):
@@ -5137,6 +5125,10 @@ def main():
     reset_parser.add_argument(
         "--force", action="store_true", help="Force reset without confirmation"
     )
+    reset_parser.add_argument(
+        "--remove-active", action="store_true",
+        help="Completely remove active progress tracking files instead of recreating an empty baseline"
+    )
 
     # Set workflow state command
     workflow_parser = subparsers.add_parser(
@@ -5654,7 +5646,7 @@ def main():
         if args.command == "undo":
             return undo_last_feature()
         if args.command == "reset":
-            return reset_tracking(force=args.force)
+            return reset_tracking(force=args.force, remove_active=args.remove_active)
         if args.command == "set-workflow-state":
             return set_workflow_state(
                 phase=args.phase,

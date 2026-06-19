@@ -18,7 +18,7 @@ You are a project management expert for the Progress Tracker plugin. Your role i
 | 命令 | 关键参数 |
 |------|---------|
 | `undo` | 无参数 |
-| `reset` | `--force` (跳过确认提示) |
+| `reset` | `--force` (跳过确认提示)、`--remove-active` (彻底删除而非重建空 baseline) |
 
 完整签名见 `--help`。
 
@@ -82,18 +82,26 @@ The script uses `git revert` instead of `git reset` because:
 
 This capability resets active progress tracking files (`progress.json`, `progress.md`, `checkpoints.json`) without deleting unrelated files under `docs/progress-tracker/`. It does **not** touch the user's code or git history, and automatically archives the previous snapshot.
 
+Two modes:
+*   **Default (`reset`)**: Archive the current snapshot, then **recreate a clean empty baseline** (project metadata preserved, zero features) and rebuild `status_summary.v1.json`. The tracker stays live but empty — parent/root dashboards immediately reflect the empty state, so stale summaries cannot "revive".
+*   **`reset --remove-active`**: Archive, then **completely delete** active tracking *and* summary files. No baseline is recreated.
+
 ### Workflow
 
 1.  **Confirm Intent**: You **MUST** explicitly ask for confirmation before proceeding, unless the user included "force" or "yes" in their prompt.
-    *   "Are you sure you want to delete all progress tracking files for this project? This cannot be undone. (Code will not be affected)"
+    *   Default: "Are you sure you want to archive and reset progress tracking to an empty baseline for this project? (Code will not be affected)"
+    *   `--remove-active`: "Are you sure you want to archive and completely remove all progress tracking files for this project? (Code will not be affected)"
 
 2.  **Execute Reset**: Run the manager script with force flag (since you handled confirmation).
     ```bash
     plugins/progress-tracker/prog reset --force
+    # or, to fully delete instead of recreating an empty baseline:
+    plugins/progress-tracker/prog reset --force --remove-active
     ```
 
 3.  **Report Result**:
-    * "Progress tracking has been reset."
+    * Default: "Progress tracking has been reset to an empty baseline."
+    * `--remove-active`: "Progress tracking has been completely removed."
     * "Previous snapshot was archived; use `plugins/progress-tracker/prog list-archives` to inspect and `restore-archive` to recover."
 
 4.  **Provide Next Step Guidance**: After successful reset, output Context Handoff Block:
@@ -104,7 +112,7 @@ This capability resets active progress tracking files (`progress.json`, `progres
     /progress-tracker:prog-init <your goal here>
 
     ProjectRoot: <abs_project_root>
-    → Initialize new project with feature breakdown.
+    → Default reset left a clean empty baseline; prog-init replaces it with a feature breakdown.
     ----
     ```
 

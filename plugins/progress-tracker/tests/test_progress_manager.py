@@ -1094,16 +1094,72 @@ class TestProgressMdGeneration:
 class TestReset:
     """Test reset functionality."""
 
-    def test_reset_removes_tracking(self, progress_file):
-        """Should remove active progress files and keep archive metadata."""
-        result = progress_manager.reset_tracking(force=True)
+    def test_reset_remove_active(self, progress_file):
+        """Should remove active progress files and keep archive metadata when remove_active=True."""
+        result = progress_manager.reset_tracking(force=True, remove_active=True)
         assert result is True
 
         claude_dir = progress_file.parent
         assert claude_dir.exists()
         assert not (claude_dir / "progress.json").exists()
         assert not (claude_dir / "progress.md").exists()
+        assert not (claude_dir / "status_summary.v1.json").exists()
         assert (claude_dir / "progress_history.json").exists()
+
+    def test_reset_reinitializes_baseline(self, progress_file):
+        """Should archive and reinitialize clean baseline files by default."""
+        # 1. Initialize tracker and add some features
+        progress_manager.init_tracking("Reinit Baseline Test", force=True, confirm_destroy=True)
+        progress_manager.add_feature("Feature 1", ["step 1"])
+        
+        claude_dir = progress_file.parent
+        assert (claude_dir / "progress.json").exists()
+        data_before = progress_manager.load_progress_json()
+        assert len(data_before["features"]) == 1
+        assert data_before["project_name"] == "Reinit Baseline Test"
+
+        # 2. Reset with default semantics (remove_active=False)
+        result = progress_manager.reset_tracking(force=True, remove_active=False)
+        assert result is True
+
+        # 3. Assert baseline files exist and have clean empty state but preserved metadata
+        assert (claude_dir / "progress.json").exists()
+        assert (claude_dir / "progress.md").exists()
+        assert (claude_dir / "checkpoints.json").exists()
+        assert (claude_dir / "status_summary.v1.json").exists()
+
+        data_after = progress_manager.load_progress_json()
+        assert data_after["project_name"] == "Reinit Baseline Test"
+        assert len(data_after["features"]) == 0
+        assert data_after["current_feature_id"] is None
+
+        # Assert status summary projection is also updated/rebuilt
+        project_root = str(claude_dir.parents[2])
+        summary = progress_manager.load_status_summary_projection(project_root=project_root)
+        assert summary["progress"]["total"] == 0
+        assert summary["progress"]["completed"] == 0
+        assert summary["next_action"]["type"] == "none"
+        assert summary["next_action"]["feature_name"] == "无待办功能"
+
+    def test_reset_cleans_orphaned_summary(self, progress_file):
+        """Default reset should clean an orphaned status summary even when no tracked files remain.
+
+        Reproduces the stale-summary scenario left behind by the legacy reset
+        (which deleted progress.json/md/checkpoints but kept status_summary.v1.json).
+        """
+        claude_dir = progress_file.parent
+        # Simulate legacy reset aftermath: tracked files gone, summary orphaned.
+        for name in ("progress.json", "progress.md", "checkpoints.json"):
+            target = claude_dir / name
+            if target.exists():
+                target.unlink()
+        orphan = claude_dir / "status_summary.v1.json"
+        orphan.write_text("{}", encoding="utf-8")
+        assert orphan.exists()
+
+        result = progress_manager.reset_tracking(force=True)
+        assert result is True
+        assert not orphan.exists()
 
     def test_reset_without_tracking(self, temp_dir):
         """Should handle gracefully when no tracking exists."""
