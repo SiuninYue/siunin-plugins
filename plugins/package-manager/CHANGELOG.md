@@ -5,6 +5,17 @@ All notable changes to the Package Manager plugin will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.6] - 2026-06-19
+
+### Added
+- `codex-plugin-sync` now supports Codex-specific hook migration details:
+  - prefers `hooks-codex.json` over legacy hook manifests when available
+  - normalizes staged hook manifests down to the top-level `hooks` object
+  - carries hook runtime helper directories (`core/`, `matchers/`, `utils/`) and shared `examples/`
+
+### Changed
+- Added a documented `hookify` marketplace-to-Codex conversion flow and applied plugin-specific Codex output rewrites for hook bootstrap and `.codex` rule-path fallback behavior.
+
 ## [1.2.1] - 2026-04-24
 
 ### Fixed

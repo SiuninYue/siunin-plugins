@@ -18,7 +18,7 @@
     {
       "name": "progress-tracker",
       "description": "Track long-running AI agent tasks with feature-based progress tracking, test-driven status updates, Git integration, and prog-ui web dashboard",
-      "version": "1.6.28",
+      "version": "1.6.29",
       "source": "./plugins/progress-tracker",
       "author": {
         "name": "siunin"
@@ -28,7 +28,7 @@
     {
       "name": "package-manager",
       "description": "包管理器规则和最佳实践插件。提供 mise、uv、pnpm、bun 等现代包管理器的标准化指导和自动化配置",
-      "version": "1.2.5",
+      "version": "1.2.6",
       "source": "./plugins/package-manager",
       "author": {
         "name": "siunin"

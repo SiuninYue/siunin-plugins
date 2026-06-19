@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.29] — 2026-06-19
+
+### Added
+- Added workspace entropy management to the published plugin:
+  - new `prog entropy-check` command for non-destructive dirty-workspace and branch inspection
+  - new `prog entropy-fix` command for safe cleanup of merged local branches
+  - `prog next` now runs a red-blocking entropy preflight before selecting the next work item
+
+### Changed
+- Updated the progress-tracker marketplace manifest to publish the workspace entropy feature on `main`.
+
+### Fixed
+- Archived the legacy live tracker snapshots for the root tracker and the plugin tracker into `progress_archive/`, leaving projection/history files intact for the next chapter reset.
+
 ## [1.6.28] — 2026-06-14
 
 ### Changed
