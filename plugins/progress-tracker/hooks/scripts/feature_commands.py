@@ -105,8 +105,7 @@ def set_current_command(feature_id: int, svc: FeatureCommandsServices) -> bool:
     svc.update_runtime_context_fn(data, "set_current")
     svc.save_progress_json_fn(data)
 
-    md_content = svc.generate_progress_md_fn(data)
-    svc.save_progress_md_fn(md_content)
+    svc.save_progress_md_fn("")
 
     svc.auto_state_commit_fn(f"F{feature_id}", "start")
 
@@ -171,8 +170,7 @@ def set_development_stage_command(
     svc.update_runtime_context_fn(data, "set_development_stage")
     svc.save_progress_json_fn(data)
 
-    md_content = svc.generate_progress_md_fn(data)
-    svc.save_progress_md_fn(md_content)
+    svc.save_progress_md_fn("")
 
     print(
         f"Feature #{target_feature_id} stage set to '{stage}': "

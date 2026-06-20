@@ -54,7 +54,7 @@ def test_ship_check_fails_when_regression_broken(tmp_path):
     assert any(f.check_id == "regression" for f in result.failures)
 
 
-def test_ship_check_fails_when_docs_drift_detected(tmp_path):
+def test_ship_check_ignores_legacy_progress_md_drift(tmp_path):
     result = run_ship_check(
         feature_id=1,
         project_root=tmp_path,
@@ -62,6 +62,22 @@ def test_ship_check_fails_when_docs_drift_detected(tmp_path):
             "test_coverage": 0.9,
             "test_results": {"passed": 30, "failed": 0, "skipped": 0},
             "docs_sync": {"progress_md_matches_json": False, "architecture_refs_valid": True},
+            "regression_results": {"passed": 20, "failed": 0},
+        },
+        thresholds={"coverage_min": 0.8},
+    )
+    assert result.status == "pass"
+    assert result.failures == []
+
+
+def test_ship_check_fails_when_architecture_refs_stale(tmp_path):
+    result = run_ship_check(
+        feature_id=1,
+        project_root=tmp_path,
+        inputs={
+            "test_coverage": 0.9,
+            "test_results": {"passed": 30, "failed": 0, "skipped": 0},
+            "docs_sync": {"architecture_refs_valid": False},
             "regression_results": {"passed": 20, "failed": 0},
         },
         thresholds={"coverage_min": 0.8},

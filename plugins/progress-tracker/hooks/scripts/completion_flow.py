@@ -306,9 +306,7 @@ def complete_feature_ai_metrics(feature_id: int, services: CompletionFlowService
 
     services.save_progress_json_fn(data)
 
-    # Update progress.md
-    md_content = services.generate_progress_md_fn(data)
-    services.save_progress_md_fn(md_content)
+    services.save_progress_md_fn("")
 
     print(f"AI metrics finalized for feature {feature_id}: duration={duration_seconds}s")
     return True
@@ -1135,7 +1133,7 @@ def cmd_done(services: CompletionFlowServices, commit_hash=None, run_all: bool =
         return 0
 
     services.save_progress_json_fn(data_final)
-    services.save_progress_md_fn(services.generate_progress_md_fn(data_final))
+    services.save_progress_md_fn("")
 
     _record_feature_completed_event(feature_id, feature_name, services, resolved_commit or "")
 
@@ -1238,7 +1236,7 @@ def complete_feature(feature_id, services: CompletionFlowServices, commit_hash=N
         return True
 
     services.save_progress_json_fn(data)
-    services.save_progress_md_fn(services.generate_progress_md_fn(data))
+    services.save_progress_md_fn("")
 
     _record_feature_completed_event(
         feature_id,

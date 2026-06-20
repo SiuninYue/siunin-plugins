@@ -80,7 +80,7 @@ The script uses `git revert` instead of `git reset` because:
 
 ## Capability: Reset Project
 
-This capability resets active progress tracking files (`progress.json`, `progress.md`, `checkpoints.json`) without deleting unrelated files under `docs/progress-tracker/`. It does **not** touch the user's code or git history, and automatically archives the previous snapshot.
+This capability resets active progress tracking files (`progress.json`, `checkpoints.json`) without deleting unrelated files under `docs/progress-tracker/`. It does **not** touch the user's code or git history, and automatically archives the previous snapshot.
 
 Two modes:
 *   **Default (`reset`)**: Archive the current snapshot, then **recreate a clean empty baseline** (project metadata preserved, zero features) and rebuild `status_summary.v1.json`. The tracker stays live but empty — parent/root dashboards immediately reflect the empty state, so stale summaries cannot "revive".
@@ -140,4 +140,3 @@ This skill is invoked by:
 2. Run `python3 .../progress_manager.py undo`
    * Output: "Undoing feature: Login API... Successfully reverted commit a1b2c3d"
 3. Response: "✅ Undid feature **Login API**. A git revert commit has been created."
-

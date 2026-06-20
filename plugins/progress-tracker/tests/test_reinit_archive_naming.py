@@ -44,23 +44,19 @@ def test_reinit_archives_progress_and_status_files_with_traceable_metadata(temp_
         for item in archived_artifacts
         if isinstance(item, dict) and isinstance(item.get("kind"), str)
     }
-    assert {"progress_json", "progress_md", "status_summary_v1", "status_summary_legacy"} <= set(
+    assert {"progress_json", "status_summary_v1", "status_summary_legacy"} <= set(
         by_kind
     )
+    assert "progress_md" not in by_kind
 
     state_root = Path("docs/progress-tracker/state")
     progress_json_rel = by_kind["progress_json"]["archive_path"]
-    progress_md_rel = by_kind["progress_md"]["archive_path"]
     status_v1_rel = by_kind["status_summary_v1"]["archive_path"]
     status_legacy_rel = by_kind["status_summary_legacy"]["archive_path"]
 
     assert re.match(
         r"^progress_archive/\d{8}T\d{12}-first-project-reinitialize\.progress\.json$",
         progress_json_rel,
-    )
-    assert re.match(
-        r"^progress_archive/\d{8}T\d{12}-first-project-reinitialize\.progress\.md$",
-        progress_md_rel,
     )
     assert re.match(
         r"^progress_archive/\d{8}T\d{12}-first-project-reinitialize\.status-summary\.v1\.json$",
@@ -72,7 +68,6 @@ def test_reinit_archives_progress_and_status_files_with_traceable_metadata(temp_
     )
 
     assert (state_root / progress_json_rel).exists()
-    assert (state_root / progress_md_rel).exists()
     assert (state_root / status_v1_rel).exists()
     assert (state_root / status_legacy_rel).exists()
 

@@ -125,7 +125,7 @@ After insertion:
 
 **Progress Updated**:
 - Bug added to progress.json
-- Itinerary updated in progress.md
+- Itinerary updated in progress.json
 
 ### Next Steps
 
@@ -230,7 +230,7 @@ plugins/progress-tracker/prog update-bug \
 
 **Progress Updated**:
 - Bug marked as fixed in progress.json
-- Bug moved to "Fixed (✅)" section in progress.md
+- Bug marked fixed in progress.json
 
 ---
 

@@ -39,7 +39,7 @@ def _collect_ship_signals(feature: dict) -> dict:
     return {
         "test_coverage": 1.0,
         "test_results": {"passed": 1, "failed": failed_tests, "skipped": 0},
-        "docs_sync": {"progress_md_matches_json": True, "architecture_refs_valid": True},
+        "docs_sync": {"architecture_refs_valid": True},
         "regression_results": {"passed": 1, "failed": 0},
     }
 

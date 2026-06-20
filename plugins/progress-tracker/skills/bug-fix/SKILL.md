@@ -178,7 +178,7 @@ After insertion: <display with bug>
 **Confirm insertion?** [Y/n]
 ```
 
-Update progress.json and progress.md on confirmation.
+Update progress.json on confirmation.
 
 ### Scenario 3: Fixing Recorded Bug
 
@@ -303,7 +303,7 @@ WAIT for the skill to complete.
 
 After TDD completes, update bug status:
 → plugins/progress-tracker/prog update-bug --bug-id "BUG-XXX" --status "fixed"
-  (This automatically updates both progress.json and progress.md)
+  (This automatically updates progress.json)
 </CRITICAL>
 
 After TDD completes, run **显式回归检查 (Explicit Regression Check)**:

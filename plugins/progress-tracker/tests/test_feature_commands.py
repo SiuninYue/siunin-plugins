@@ -128,9 +128,9 @@ def test_set_current_success(patch_readiness_valid, patch_not_deferred):
     # Persistence happened exactly once.
     svc.save_progress_json_fn.assert_called_once_with(data)
 
-    # progress.md regenerated and saved.
-    svc.generate_progress_md_fn.assert_called_once_with(data)
-    svc.save_progress_md_fn.assert_called_once_with("# progress md")
+    # Deprecated progress.md cleanup hook runs without generating markdown.
+    svc.generate_progress_md_fn.assert_not_called()
+    svc.save_progress_md_fn.assert_called_once_with("")
 
     # Auto commit + parent notification.
     svc.auto_state_commit_fn.assert_called_once_with("F1", "start")
@@ -220,8 +220,8 @@ def test_set_development_stage_to_developing(patch_readiness_valid):
 
     svc.save_progress_json_fn.assert_called_once_with(data)
     svc.update_runtime_context_fn.assert_called_once()
-    svc.generate_progress_md_fn.assert_called_once_with(data)
-    svc.save_progress_md_fn.assert_called_once()
+    svc.generate_progress_md_fn.assert_not_called()
+    svc.save_progress_md_fn.assert_called_once_with("")
 
 
 def test_set_development_stage_planning_and_completed(patch_readiness_valid):

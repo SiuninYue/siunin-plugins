@@ -8,7 +8,6 @@
     "completed_features": 28,
     "current_feature_id": null,
     "progress_json": "progress_archive/20260422T212857585260-prog-parent-coordination-archive-completed.progress.json",
-    "progress_md": "progress_archive/20260422T212857585260-prog-parent-coordination-archive-completed.progress.md",
     "status_summary_v1": "progress_archive/20260422T212857585260-prog-parent-coordination-archive-completed.status-summary.v1.json",
     "status_summary_legacy": null,
     "archived_artifacts": [
@@ -16,11 +15,6 @@
         "kind": "progress_json",
         "source_path": "docs/progress-tracker/state/progress.json",
         "archive_path": "progress_archive/20260422T212857585260-prog-parent-coordination-archive-completed.progress.json"
-      },
-      {
-        "kind": "progress_md",
-        "source_path": "docs/progress-tracker/state/progress.md",
-        "archive_path": "progress_archive/20260422T212857585260-prog-parent-coordination-archive-completed.progress.md"
       },
       {
         "kind": "status_summary_v1",
@@ -38,7 +32,6 @@
     "completed_features": 13,
     "current_feature_id": 13,
     "progress_json": "progress_archive/20260514T135233532459-progress-tracker-sop-compliance-optimization-reinitialize.progress.json",
-    "progress_md": "progress_archive/20260514T135233532459-progress-tracker-sop-compliance-optimization-reinitialize.progress.md",
     "status_summary_v1": "progress_archive/20260514T135233532459-progress-tracker-sop-compliance-optimization-reinitialize.status-summary.v1.json",
     "status_summary_legacy": null,
     "archived_artifacts": [
@@ -46,11 +39,6 @@
         "kind": "progress_json",
         "source_path": "docs/progress-tracker/state/progress.json",
         "archive_path": "progress_archive/20260514T135233532459-progress-tracker-sop-compliance-optimization-reinitialize.progress.json"
-      },
-      {
-        "kind": "progress_md",
-        "source_path": "docs/progress-tracker/state/progress.md",
-        "archive_path": "progress_archive/20260514T135233532459-progress-tracker-sop-compliance-optimization-reinitialize.progress.md"
       },
       {
         "kind": "status_summary_v1",
@@ -68,7 +56,6 @@
     "completed_features": 0,
     "current_feature_id": null,
     "progress_json": "progress_archive/20260514T141933123093-test-reinitialize.progress.json",
-    "progress_md": "progress_archive/20260514T141933123093-test-reinitialize.progress.md",
     "status_summary_v1": "progress_archive/20260514T141933123093-test-reinitialize.status-summary.v1.json",
     "status_summary_legacy": null,
     "archived_artifacts": [
@@ -76,11 +63,6 @@
         "kind": "progress_json",
         "source_path": "docs/progress-tracker/state/progress.json",
         "archive_path": "progress_archive/20260514T141933123093-test-reinitialize.progress.json"
-      },
-      {
-        "kind": "progress_md",
-        "source_path": "docs/progress-tracker/state/progress.md",
-        "archive_path": "progress_archive/20260514T141933123093-test-reinitialize.progress.md"
       },
       {
         "kind": "status_summary_v1",
@@ -98,7 +80,6 @@
     "completed_features": 0,
     "current_feature_id": null,
     "progress_json": "progress_archive/20260514T141933473452-project-1-reinitialize.progress.json",
-    "progress_md": "progress_archive/20260514T141933473452-project-1-reinitialize.progress.md",
     "status_summary_v1": "progress_archive/20260514T141933473452-project-1-reinitialize.status-summary.v1.json",
     "status_summary_legacy": null,
     "archived_artifacts": [
@@ -106,11 +87,6 @@
         "kind": "progress_json",
         "source_path": "docs/progress-tracker/state/progress.json",
         "archive_path": "progress_archive/20260514T141933473452-project-1-reinitialize.progress.json"
-      },
-      {
-        "kind": "progress_md",
-        "source_path": "docs/progress-tracker/state/progress.md",
-        "archive_path": "progress_archive/20260514T141933473452-project-1-reinitialize.progress.md"
       },
       {
         "kind": "status_summary_v1",
@@ -128,7 +104,6 @@
     "completed_features": 0,
     "current_feature_id": null,
     "progress_json": "progress_archive/20260514T141951198441-project-1-updated-reinitialize.progress.json",
-    "progress_md": "progress_archive/20260514T141951198441-project-1-updated-reinitialize.progress.md",
     "status_summary_v1": "progress_archive/20260514T141951198441-project-1-updated-reinitialize.status-summary.v1.json",
     "status_summary_legacy": null,
     "archived_artifacts": [
@@ -136,11 +111,6 @@
         "kind": "progress_json",
         "source_path": "docs/progress-tracker/state/progress.json",
         "archive_path": "progress_archive/20260514T141951198441-project-1-updated-reinitialize.progress.json"
-      },
-      {
-        "kind": "progress_md",
-        "source_path": "docs/progress-tracker/state/progress.md",
-        "archive_path": "progress_archive/20260514T141951198441-project-1-updated-reinitialize.progress.md"
       },
       {
         "kind": "status_summary_v1",
@@ -158,7 +128,6 @@
     "completed_features": 28,
     "current_feature_id": 19,
     "progress_json": "progress_archive/20260617T141632493671-progress-tracker-sop-compliance-optimization-reset.progress.json",
-    "progress_md": "progress_archive/20260617T141632493671-progress-tracker-sop-compliance-optimization-reset.progress.md",
     "status_summary_v1": "progress_archive/20260617T141632493671-progress-tracker-sop-compliance-optimization-reset.status-summary.v1.json",
     "status_summary_legacy": null,
     "archived_artifacts": [
@@ -166,11 +135,6 @@
         "kind": "progress_json",
         "source_path": "docs/progress-tracker/state/progress.json",
         "archive_path": "progress_archive/20260617T141632493671-progress-tracker-sop-compliance-optimization-reset.progress.json"
-      },
-      {
-        "kind": "progress_md",
-        "source_path": "docs/progress-tracker/state/progress.md",
-        "archive_path": "progress_archive/20260617T141632493671-progress-tracker-sop-compliance-optimization-reset.progress.md"
       },
       {
         "kind": "status_summary_v1",

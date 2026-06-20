@@ -427,15 +427,6 @@ def _execute_transition(
             _atomic_write(audit_path, _read_and_append_audit(audit_path, failure_record))
             raise  # 重新抛出异常，调用方会收到 EXECUTION_FAILED
 
-        # 4. 更新 progress.md（非阻塞）
-        try:
-            from doc_generator import generate_progress_md
-            from state_io import save_progress_md
-            md_content = generate_progress_md(data)
-            save_progress_md(state_dir, md_content)
-        except Exception:
-            pass  # markdown 更新失败不影响核心功能
-
         return TransitionRecord(
             feature_id=feature_id,
             op=op,

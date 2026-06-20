@@ -105,21 +105,17 @@ def save_progress_json(
 
 
 def load_progress_md(progress_dir: Path) -> Optional[str]:
-    """Load the progress.md file content."""
-    md_path = progress_dir / PROGRESS_MD
-
-    if not md_path.exists():
-        return None
-
-    with open(md_path, "r", encoding="utf-8") as f:
-        return f.read()
+    """Deprecated: progress.md is no longer maintained."""
+    return None
 
 
 def save_progress_md(progress_dir: Path, content: str) -> None:
-    """Save content to progress.md file."""
-    progress_dir.mkdir(parents=True, exist_ok=True)
+    """Deprecated: remove stale progress.md instead of writing it."""
     md_path = progress_dir / PROGRESS_MD
-    _atomic_write_text(md_path, content)
+    try:
+        md_path.unlink()
+    except FileNotFoundError:
+        pass
 
 
 # ---------------------------------------------------------------------------

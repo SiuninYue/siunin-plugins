@@ -66,7 +66,7 @@ class TestSetWorkflowState:
 
         assert result is True
         assert saved and saved[0]["workflow_state"]["phase"] == "planning"
-        assert md_saved == ["# md"]
+        assert md_saved == [""]
 
     def test_invalid_plan_path_rejected(self, tmp_path):
         data = _base_data()

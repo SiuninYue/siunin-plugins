@@ -135,18 +135,16 @@ class TestResetActiveProgress:
         ]
         assert len(project_completed_events) >= 1
 
-    def test_regenerates_progress_md(self, project_scope):
+    def test_does_not_regenerate_progress_md(self, project_scope):
         data = _make_fully_completed_data()
         state_dir = project_scope["state_dir"]
         (state_dir / "progress.json").write_text(json.dumps(data))
+        (state_dir / "progress.md").write_text("OLD MARKER 12345", encoding="utf-8")
 
         pm._reset_active_progress(data)
 
         md_path = state_dir / "progress.md"
-        assert md_path.exists()
-        md_content = md_path.read_text()
-        # After reset, features list is empty → 0/0 completed
-        assert "0/0" in md_content or "0" in md_content
+        assert not md_path.exists()
 
 
 class TestResetActiveProgressBestEffortAuditError:
@@ -179,7 +177,7 @@ class TestResetActiveProgressBestEffortAuditError:
         captured = capsys.readouterr()
         assert "[DONE] WARNING: Failed to write project_completed audit event" in captured.out
 
-    def test_regenerates_md_when_audit_fails(self, project_scope, capsys):
+    def test_removes_stale_md_when_audit_fails(self, project_scope, capsys):
         data = _make_fully_completed_data()
         state_dir = project_scope["state_dir"]
         (state_dir / "progress.json").write_text(json.dumps(data))
@@ -193,7 +191,4 @@ class TestResetActiveProgressBestEffortAuditError:
         ):
             pm._reset_active_progress(data)
 
-        # Old marker must be replaced (md was regenerated)
-        md_content = (state_dir / "progress.md").read_text()
-        assert marker not in md_content
-        assert "0/0" in md_content or "/0" in md_content
+        assert not (state_dir / "progress.md").exists()

@@ -346,12 +346,10 @@ python3 -m json.tool docs/progress-tracker/state/progress.json
 # Use JSON linter
 ```
 
-3. **Recover from progress.md**:
+3. **Recover from archives**:
 ```bash
-# progress.md is human-readable
-cat docs/progress-tracker/state/progress.md
-
-# Manually reconstruct progress.json based on progress.md content
+python3 plugins/progress-tracker/hooks/scripts/progress_manager.py list-archives
+python3 plugins/progress-tracker/hooks/scripts/progress_manager.py restore-archive <archive_id>
 ```
 
 4. **Last resort - reset**:

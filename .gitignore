@@ -158,6 +158,8 @@ docs/ops/guardrails-backup-*.json
 !.claude/progress.json
 !.claude/progress.md
 !.claude/project_memory.json
+# progress-tracker generated human mirror; keep local-only.
+**/docs/progress-tracker/state/progress.md
 .worktrees/
 .claude/worktrees/
 .gstack-ref/

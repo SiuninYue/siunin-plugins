@@ -34,18 +34,11 @@ def test_auto_archive_triggers_when_last_feature_is_completed(temp_dir):
         progress_json_rel,
     )
 
-    progress_md_rel = entry.get("progress_md")
-    assert isinstance(progress_md_rel, str)
-    assert re.match(
-        r"^progress_archive/\d{8}T\d{12}-completion-run-completed\.progress\.md$",
-        progress_md_rel,
-    )
+    assert "progress_md" not in entry
 
     state_dir = temp_dir / "docs" / "progress-tracker" / "state"
     archived_json = state_dir / progress_json_rel
-    archived_md = state_dir / progress_md_rel
     assert archived_json.exists()
-    assert archived_md.exists()
     assert (state_dir / "progress_history.json").exists()
 
     archived_payload = json.loads(archived_json.read_text(encoding="utf-8"))

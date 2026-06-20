@@ -70,8 +70,6 @@ def _check_docs_sync(inputs: Dict[str, Any]) -> List[ShipFailure]:
     """Borrowed from gstack /document-release: auto-check docs drift."""
     docs = inputs.get("docs_sync", {})
     failures = []
-    if not docs.get("progress_md_matches_json", True):
-        failures.append(ShipFailure(check_id="docs_sync", detail="progress.md out of sync with progress.json"))
     if not docs.get("architecture_refs_valid", True):
         failures.append(ShipFailure(check_id="docs_sync", detail="architecture.md references stale feature IDs"))
     return failures
@@ -141,7 +139,7 @@ def _collect_real_signals(
     - pytest returncode != 0 with no parsed failures → set failed=1 (collection errors,
       import errors, or interrupts are treated as implicit test failures).
 
-    Docs drift: compares progress.md mtime vs progress.json mtime (60s tolerance).
+    Generated progress.md sync is no longer a release gate.
     """
     passed, failed = 0, 0
     tests_dir = test_path or (project_root / "tests")
@@ -169,21 +167,11 @@ def _collect_real_signals(
         except Exception:
             failed = 1  # Treat any exec error as failure (fail-closed)
 
-    # Docs drift: progress.md should be at least as recent as progress.json
-    progress_json_path = project_root / "docs" / "progress-tracker" / "state" / "progress.json"
-    progress_md_path = project_root / "docs" / "progress-tracker" / "state" / "progress.md"
-    md_in_sync = True
-    if progress_json_path.exists() and progress_md_path.exists():
-        tolerance = 60  # seconds
-        md_in_sync = (
-            progress_md_path.stat().st_mtime >= progress_json_path.stat().st_mtime - tolerance
-        )
-
     return {
         "test_coverage": 1.0,  # Coverage not collected in CLI mode
         "tests_dir_exists": tests_dir_exists,
         "test_results": {"passed": passed, "failed": failed, "skipped": 0},
-        "docs_sync": {"progress_md_matches_json": md_in_sync, "architecture_refs_valid": True},
+        "docs_sync": {"architecture_refs_valid": True},
         "regression_results": {"passed": passed, "failed": 0},
     }
 
@@ -208,8 +196,7 @@ def _update_progress_json(
 ) -> None:
     """Best-effort: write ship_check result back to quality_gates in progress.json.
 
-    progress.md is intentionally NOT updated here — it is a derived artifact
-    regenerated automatically by any subsequent prog command.
+    progress.md is deprecated and is not part of ship_check persistence.
     Never blocks the gate on persistence failure.
     """
     progress_json_path = project_root / "docs" / "progress-tracker" / "state" / "progress.json"

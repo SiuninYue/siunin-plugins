@@ -309,14 +309,12 @@ class TestProgressInit:
         archive_json = Path("docs/progress-tracker/state") / history[0]["progress_json"]
         assert archive_json.exists()
 
-    def test_init_creates_progress_md(self, temp_dir):
-        """Should create progress.md file."""
+    def test_init_does_not_create_progress_md(self, temp_dir):
+        """Should not create progress.md file."""
         progress_manager.init_tracking("Test Project", force=True)
 
         md_file = temp_dir / "docs" / "progress-tracker" / "state" / "progress.md"
-        assert md_file.exists()
-        content = md_file.read_text()
-        assert "Test Project" in content
+        assert not md_file.exists()
 
 
 class TestProgressLoadSave:
@@ -1041,29 +1039,27 @@ class TestDeferResume:
 
 
 class TestProgressMdGeneration:
-    """Test progress.md markdown generation."""
+    """Test deprecated progress.md compatibility wrappers."""
 
-    def test_generate_progress_md_content(self, progress_file):
-        """Should generate correct markdown content."""
+    def test_generate_progress_md_is_disabled(self, progress_file):
+        """Should not generate markdown content."""
         data = progress_manager.load_progress_json()
         md_content = progress_manager.generate_progress_md(data)
 
-        assert "# Project Progress: Test Project" in md_content
-        assert "## Completed" in md_content
-        assert "- [x] Feature 1" in md_content
-        assert "## Pending" in md_content
-        assert "- [ ] Feature 2" in md_content
+        assert md_content == ""
 
-    def test_save_progress_md(self, temp_dir):
-        """Should save markdown to file."""
+    def test_save_progress_md_removes_stale_file(self, temp_dir):
+        """Deprecated save should remove stale markdown instead of writing it."""
         progress_manager.init_tracking("MD Test", force=True)
+        md_file = temp_dir / "docs" / "progress-tracker" / "state" / "progress.md"
+        md_file.write_text("stale", encoding="utf-8")
+
         progress_manager.save_progress_md("# Test Content")
 
-        md_file = temp_dir / "docs" / "progress-tracker" / "state" / "progress.md"
-        assert md_file.read_text() == "# Test Content"
+        assert not md_file.exists()
 
-    def test_generate_progress_md_includes_owners_and_recent_updates(self, progress_file):
-        """Markdown should include owner assignments and recent updates section."""
+    def test_generate_progress_md_stays_empty_with_owners_and_updates(self, progress_file):
+        """Deprecated generator should stay empty regardless of payload."""
         data = progress_manager.load_progress_json()
         feature = next(f for f in data["features"] if f["id"] == 2)
         feature["owners"] = {"architecture": None, "coding": "alice", "testing": "qa-bot"}
@@ -1086,9 +1082,7 @@ class TestProgressMdGeneration:
 
         md_content = progress_manager.generate_progress_md(data)
 
-        assert "Owners: coding=alice, testing=qa-bot" in md_content
-        assert "## Recent Updates" in md_content
-        assert "[UPD-002] assignment: Assigned coding owner" in md_content
+        assert md_content == ""
 
 
 class TestReset:
@@ -1124,7 +1118,7 @@ class TestReset:
 
         # 3. Assert baseline files exist and have clean empty state but preserved metadata
         assert (claude_dir / "progress.json").exists()
-        assert (claude_dir / "progress.md").exists()
+        assert not (claude_dir / "progress.md").exists()
         assert (claude_dir / "checkpoints.json").exists()
         assert (claude_dir / "status_summary.v1.json").exists()
 
@@ -1343,14 +1337,16 @@ class TestPluginRoot:
 
 
 class TestProgressMdFile:
-    """Test progress.md file operations."""
+    """Test deprecated progress.md file operations."""
 
     def test_load_progress_md(self, temp_dir):
-        """Should load progress.md content."""
+        """Should not load progress.md content."""
         progress_manager.init_tracking("Test", force=True)
+        md_file = temp_dir / "docs" / "progress-tracker" / "state" / "progress.md"
+        md_file.write_text("legacy", encoding="utf-8")
+
         content = progress_manager.load_progress_md()
-        assert content is not None
-        assert "Test" in content
+        assert content is None
 
     def test_load_progress_md_missing(self, temp_dir):
         """Should return None when progress.md doesn't exist."""

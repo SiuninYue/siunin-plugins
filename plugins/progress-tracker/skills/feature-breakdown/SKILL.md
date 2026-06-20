@@ -247,7 +247,7 @@ plugins/progress-tracker/prog init "<project_name>"
 plugins/progress-tracker/prog add-feature "<feature_name>" "<test_step_1>" "<test_step_2>" ...
 ```
 
-3. **Verify creation** by checking `docs/progress-tracker/state/progress.json` and `docs/progress-tracker/state/progress.md`
+3. **Verify creation** by checking `docs/progress-tracker/state/progress.json`
 
 ## Output Format
 

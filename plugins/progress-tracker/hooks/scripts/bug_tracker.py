@@ -241,9 +241,7 @@ def _add_bug_internal(
 
     save_progress_json_fn(data)
 
-    # Update progress.md
-    md_content = generate_progress_md_fn(data)
-    save_progress_md_fn(md_content)
+    save_progress_md_fn("")
 
     logger.info(f"Bug {bug_id} added successfully")
     print(f"Bug recorded: {bug_id}")
@@ -334,8 +332,7 @@ def update_bug(
 
     if updated:
         save_progress_json_fn(data)
-        md_content = generate_progress_md_fn(data)
-        save_progress_md_fn(md_content)
+        save_progress_md_fn("")
         if status == "fixed":
             auto_state_commit_fn(bug_id, "fix")
         print(f"Bug {bug_id} updated.")

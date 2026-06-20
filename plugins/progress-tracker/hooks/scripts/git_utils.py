@@ -29,13 +29,11 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 PROGRESS_JSON = "progress.json"
-PROGRESS_MD = "progress.md"
 CHECKPOINTS_JSON = "checkpoints.json"
 PROGRESS_HISTORY_JSON = "progress_history.json"
 
 STATE_FILE_NAMES = [
     PROGRESS_JSON,
-    PROGRESS_MD,
     CHECKPOINTS_JSON,
     PROGRESS_HISTORY_JSON,
     "sprint_ledger.jsonl",

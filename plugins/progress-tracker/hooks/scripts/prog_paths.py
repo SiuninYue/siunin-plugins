@@ -454,7 +454,6 @@ def ensure_storage_migrated(target_root: Path) -> Dict[str, Any]:
 
     file_moves = [
         (legacy_claude / PROGRESS_JSON, get_progress_json_path(target_root)),
-        (legacy_claude / PROGRESS_MD, get_progress_md_path(target_root)),
         (legacy_claude / CHECKPOINTS_JSON, get_checkpoints_path(target_root)),
         (legacy_claude / PROJECT_MEMORY_JSON, get_project_memory_path(target_root)),
         (legacy_claude / ARCHITECTURE_MD, get_architecture_path(target_root)),
@@ -478,13 +477,14 @@ def ensure_storage_migrated(target_root: Path) -> Dict[str, Any]:
     _rewrite_json_file_paths(get_checkpoints_path(target_root))
 
     migrated = bool(operations or conflicts)
-    entry = {
-        "timestamp": utc_now_iso(),
-        "target_root": str(target_root),
-        "status": "migrated" if migrated else "noop",
-        "operations": operations,
-        "conflicts": conflicts,
-    }
-    _append_migration_log(target_root, entry)
+    if migrated:
+        entry = {
+            "timestamp": utc_now_iso(),
+            "target_root": str(target_root),
+            "status": "migrated",
+            "operations": operations,
+            "conflicts": conflicts,
+        }
+        _append_migration_log(target_root, entry)
 
     return {"migrated": migrated, "operations": operations, "conflicts": conflicts}

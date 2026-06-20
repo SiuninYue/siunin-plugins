@@ -136,7 +136,7 @@ Y
 
 **Progress Updated**:
 - Bug added to progress.json
-- Itinerary updated in progress.md
+- Itinerary updated in progress.json
 
 ### Next Steps
 

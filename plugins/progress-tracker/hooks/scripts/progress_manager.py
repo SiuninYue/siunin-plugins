@@ -83,7 +83,6 @@ from prog_paths import (
     get_progress_archive_dir,
     get_progress_history_path,
     get_progress_json_path,
-    get_progress_md_path,
     get_state_dir,
     get_tracker_docs_root,
     rel_progress_path,
@@ -236,7 +235,6 @@ CHECKPOINT_INTERVAL_SECONDS = 1800
 # State files managed by progress-tracker (whitelist for auto-commit)
 STATE_FILE_NAMES = [
     PROGRESS_JSON,
-    PROGRESS_MD,
     CHECKPOINTS_JSON,
     PROGRESS_HISTORY_JSON,
     "sprint_ledger.jsonl",
@@ -710,9 +708,7 @@ def sync_linked(
 
     _update_runtime_context(data, source="sync_linked")
     save_progress_json(data)
-
-    md_content = generate_progress_md(data)
-    save_progress_md(md_content)
+    save_progress_md("")
 
     ok_count = sum(1 for item in statuses if item.get("status") == "ok")
     missing_count = sum(1 for item in statuses if item.get("status") == "missing")
@@ -783,7 +779,7 @@ def _save_progress_payload_at_root(
             get_progress_json_path(project_root),
             json.dumps(data, indent=2, ensure_ascii=False),
         )
-        _atomic_write_text(get_progress_md_path(project_root), generate_progress_md(data))
+        state_io.save_progress_md(get_state_dir(project_root), "")
 
 
 def _format_route_feature_ref(feature_id: int, project_code: str) -> str:
@@ -1029,7 +1025,7 @@ def link_project(
 
         _update_runtime_context(parent_data, source="link_project")
         save_progress_json(parent_data)
-        save_progress_md(generate_progress_md(parent_data))
+        save_progress_md("")
 
         # Derive output values from updated parent_data.
         configured_project_root = _serialize_project_root_for_config(child_root, repo_root)
@@ -1695,13 +1691,13 @@ def save_progress_json(
 
 
 def load_progress_md(progress_dir: Optional[Path] = None) -> Optional[str]:
-    """Load the progress.md file content."""
+    """Deprecated: progress.md is no longer maintained."""
     dir_path = progress_dir if progress_dir is not None else get_progress_dir()
     return state_io.load_progress_md(progress_dir=dir_path)
 
 
 def save_progress_md(content: str, progress_dir: Optional[Path] = None) -> None:
-    """Save content to progress.md file."""
+    """Deprecated: remove stale progress.md instead of writing it."""
     dir_path = progress_dir if progress_dir is not None else get_progress_dir()
     return state_io.save_progress_md(progress_dir=dir_path, content=content)
 
@@ -1803,9 +1799,8 @@ def archive_current_progress(reason: str) -> Optional[Dict[str, Any]]:
     """
     progress_dir = get_progress_dir()
     json_path = progress_dir / PROGRESS_JSON
-    md_path = progress_dir / PROGRESS_MD
 
-    if not json_path.exists() and not md_path.exists():
+    if not json_path.exists():
         return None
 
     active_data = load_progress_json() if json_path.exists() else {}
@@ -1823,7 +1818,6 @@ def archive_current_progress(reason: str) -> Optional[Dict[str, Any]]:
 
     for source_path, kind, suffix in (
         (json_path, "progress_json", "progress.json"),
-        (md_path, "progress_md", "progress.md"),
         (progress_dir / STATUS_SUMMARY_FILE, "status_summary_v1", "status-summary.v1.json"),
         (
             progress_dir / STATUS_SUMMARY_LEGACY_FILE,
@@ -1861,7 +1855,6 @@ def archive_current_progress(reason: str) -> Optional[Dict[str, Any]]:
         "completed_features": completed_features,
         "current_feature_id": active_data.get("current_feature_id"),
         "progress_json": artifact_by_kind.get("progress_json"),
-        "progress_md": artifact_by_kind.get("progress_md"),
         "status_summary_v1": artifact_by_kind.get("status_summary_v1"),
         "status_summary_legacy": artifact_by_kind.get("status_summary_legacy"),
         "archived_artifacts": archived_artifacts,
@@ -1925,10 +1918,9 @@ def _reset_active_progress(data: Dict[str, Any]) -> None:
     # 5. Update timestamp.
     data["updated_at"] = _iso_now()
 
-    # 6. Save and regenerate.
+    # 6. Save cleared state and remove stale progress.md.
     save_progress_json(data)
-    md_content = generate_progress_md(data)
-    save_progress_md(md_content)
+    save_progress_md("")
 
     print("Active progress cleared — project state is now 0/0.")
 
@@ -1969,8 +1961,7 @@ def restore_archive(archive_id: str, force: bool = False) -> bool:
 
     progress_dir = get_progress_dir()
     active_json = progress_dir / PROGRESS_JSON
-    active_md = progress_dir / PROGRESS_MD
-    has_active = active_json.exists() or active_md.exists()
+    has_active = active_json.exists()
 
     if has_active and not force:
         print("Active progress tracking exists. Use --force to overwrite current progress files.")
@@ -1991,20 +1982,7 @@ def restore_archive(archive_id: str, force: bool = False) -> bool:
 
     progress_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source_json, active_json)
-
-    md_rel = target.get("progress_md")
-    if md_rel:
-        source_md = progress_dir / md_rel
-        if source_md.exists():
-            shutil.copy2(source_md, active_md)
-        else:
-            restored_data = load_progress_json()
-            if restored_data:
-                save_progress_md(generate_progress_md(restored_data))
-    else:
-        restored_data = load_progress_json()
-        if restored_data:
-            save_progress_md(generate_progress_md(restored_data))
+    save_progress_md("")
 
     print(f"Restored archive: {archive_id}")
     return True
@@ -2530,10 +2508,7 @@ def init_tracking(project_name, features=None, force=False, confirm_destroy=Fals
         data["routing_queue"] = [ROOT_ROUTE_CODE]
 
     save_progress_json(data)
-
-    # Create initial progress.md
-    md_content = generate_progress_md(data)
-    save_progress_md(md_content)
+    save_progress_md("")
 
     # Parent discovery: auto-discover child plugins after parent data is saved
     discovered_count = 0
@@ -2545,7 +2520,6 @@ def init_tracking(project_name, features=None, force=False, confirm_destroy=Fals
             if discovered_count > 0:
                 # Re-save with discovered children
                 save_progress_json(data)
-                save_progress_md(generate_progress_md(data))
         except Exception as exc:
             logger.warning(f"Child discovery during init failed: {exc}")
 
@@ -3457,9 +3431,7 @@ def set_feature_ai_metrics(
     feature["ai_metrics"] = ai_metrics
     save_progress_json(data)
 
-    # Update progress.md
-    md_content = generate_progress_md(data)
-    save_progress_md(md_content)
+    save_progress_md("")
 
     print(
         f"AI metrics updated for feature {feature_id}: "
@@ -3800,7 +3772,7 @@ def cmd_ship_check(feature_id: int, *, coverage_min: float = 0.8) -> int:
             if feat2 is not None:
                 feat2.setdefault("quality_gates", {})["ship_check"] = result.to_quality_gate_payload()
                 save_progress_json(data2)
-                save_progress_md(generate_progress_md(data2))
+                save_progress_md("")
 
     if result.status == "fail":
         for f in result.failures:
@@ -3849,7 +3821,7 @@ def cmd_set_finish_state(feature_id: int, status: str, reason: Optional[str] = N
         feature["finish_state_resolved_reason"] = normalized_reason
 
     save_progress_json(data)
-    save_progress_md(generate_progress_md(data))
+    save_progress_md("")
 
     _append_audit_event(
         event_type="set_finish_state",
@@ -3916,7 +3888,7 @@ def cmd_review_pass(feature_id: int, lane: str, evidence: Optional[str] = None) 
         }
 
     save_progress_json(data)
-    save_progress_md(generate_progress_md(data))
+    save_progress_md("")
 
     print(f"[REVIEW] Lane '{lane}' marked passed for feature {feature_id}")
     if pending:
@@ -3966,7 +3938,7 @@ def cmd_set_sprint_contract(
     }
 
     save_progress_json(data)
-    save_progress_md(generate_progress_md(data))
+    save_progress_md("")
 
     _append_audit_event(
         event_type="set_sprint_contract",
@@ -4093,9 +4065,7 @@ def undo_last_feature():
         feature_name=last_feature.get("name"),
     )
 
-    # Update progress.md
-    md_content = generate_progress_md(data)
-    save_progress_md(md_content)
+    save_progress_md("")
 
     print("Progress tracking updated.")
     return True
@@ -4439,8 +4409,7 @@ def remove_bug(bug_id: str):
         data["current_bug_id"] = None
 
     save_progress_json(data)
-    md_content = generate_progress_md(data)
-    save_progress_md(md_content)
+    save_progress_md("")
 
     print(f"Bug {bug_id} removed from tracking.")
     return True
@@ -4453,7 +4422,7 @@ def reset_tracking(force=False, remove_active=False):
     progress_dir = get_progress_dir()
     tracked_files = [
         progress_dir / PROGRESS_JSON,
-        progress_dir / PROGRESS_MD,
+        progress_dir / PROGRESS_MD,  # legacy cleanup only; no longer generated/tracked
         progress_dir / CHECKPOINTS_JSON,
     ]
     return admin_ops.reset_tracking(
@@ -4555,8 +4524,8 @@ generate_direct_tdd_note.is_wrapper = True
 
 
 def generate_progress_md(data: Dict[str, Any]) -> str:
-    import doc_generator
-    return doc_generator.generate_progress_md(data)
+    """Deprecated: progress.md generation is disabled."""
+    return ""
 generate_progress_md.is_wrapper = True
 
 

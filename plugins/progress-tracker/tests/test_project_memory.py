@@ -30,6 +30,7 @@ class TestProjectMemoryCore:
         assert data["rejected_fingerprints"] == []
         assert data["sync_history"] == []
         assert data["limits"]["max_sync_history"] == 50
+        assert data["limits"]["max_capabilities"] == 100
         assert data["limits"]["max_rejected_fingerprints"] == 500
 
     def test_append_is_idempotent(self, temp_dir):
@@ -122,6 +123,27 @@ class TestProjectMemoryCore:
         assert memory["sync_history"][0]["sync_id"] == "sync-5"
         assert memory["sync_history"][-1]["sync_id"] == "sync-54"
         assert memory["last_synced_commit"] == "commit-54"
+
+    def test_capability_retention_keeps_latest_100(self, temp_dir):
+        """Capabilities should retain latest 100 entries."""
+        memory, _, _ = project_memory.load_memory()
+
+        for index in range(105):
+            project_memory.append_capability(
+                memory,
+                {
+                    "title": f"Capability {index}",
+                    "summary": f"Summary {index}",
+                    "tags": ["misc"],
+                    "source_commit": f"commit-{index}",
+                    "feature_id": index,
+                },
+            )
+
+        assert len(memory["capabilities"]) == 100
+        assert memory["capabilities"][0]["title"] == "Capability 5"
+        assert memory["capabilities"][-1]["title"] == "Capability 104"
+        assert memory["next_capability_seq"] == 106
 
     def test_rejected_fingerprint_retention_keeps_latest_500(self, temp_dir):
         """Rejected fingerprints should retain latest 500 unique items."""

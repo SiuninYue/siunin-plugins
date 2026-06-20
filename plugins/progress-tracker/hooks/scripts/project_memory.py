@@ -34,6 +34,7 @@ from prog_paths import (
 PROJECT_MEMORY_JSON = "project_memory.json"
 SCHEMA_VERSION = "1.0"
 DEFAULT_MAX_SYNC_HISTORY = 50
+DEFAULT_MAX_CAPABILITIES = 100
 DEFAULT_MAX_REJECTED_FINGERPRINTS = 500
 
 _PROJECT_ROOT_OVERRIDE: Optional[Path] = None
@@ -59,6 +60,7 @@ def _default_memory() -> Dict[str, Any]:
         "sync_history": [],
         "limits": {
             "max_sync_history": DEFAULT_MAX_SYNC_HISTORY,
+            "max_capabilities": DEFAULT_MAX_CAPABILITIES,
             "max_rejected_fingerprints": DEFAULT_MAX_REJECTED_FINGERPRINTS,
         },
     }
@@ -174,6 +176,10 @@ def _normalize_limits(data: Dict[str, Any]) -> None:
     if not isinstance(max_sync_history, int) or max_sync_history <= 0:
         limits["max_sync_history"] = DEFAULT_MAX_SYNC_HISTORY
 
+    max_capabilities = limits.get("max_capabilities")
+    if not isinstance(max_capabilities, int) or max_capabilities <= 0:
+        limits["max_capabilities"] = DEFAULT_MAX_CAPABILITIES
+
     max_rejected = limits.get("max_rejected_fingerprints")
     if not isinstance(max_rejected, int) or max_rejected <= 0:
         limits["max_rejected_fingerprints"] = DEFAULT_MAX_REJECTED_FINGERPRINTS
@@ -205,6 +211,7 @@ def _normalize_memory_shape(data: Dict[str, Any]) -> Dict[str, Any]:
     _ensure_list(data, "rejected_fingerprints")
     _ensure_list(data, "sync_history")
     _normalize_limits(data)
+    _apply_retention(data)
     return data
 
 
@@ -249,6 +256,7 @@ def save_memory(data: Dict[str, Any], path: Optional[Path] = None) -> None:
     if not normalized.get("created_at"):
         normalized["created_at"] = utc_now_iso()
     normalized["updated_at"] = utc_now_iso()
+    _apply_retention(normalized)
 
     temp_path = memory_path.parent / (
         f".{memory_path.name}.tmp.{os.getpid()}.{int(datetime.now(timezone.utc).timestamp())}"
@@ -357,6 +365,7 @@ def append_capability(data: Dict[str, Any], payload: Dict[str, Any]) -> Dict[str
     capabilities.append(draft)
     data["capabilities"] = capabilities
     data["next_capability_seq"] = int(data.get("next_capability_seq", 1)) + 1
+    _apply_retention(data)
 
     return {
         "status": "inserted",
@@ -371,6 +380,20 @@ def _trim_list(values: List[Any], max_items: int) -> List[Any]:
     if len(values) <= max_items:
         return values
     return values[-max_items:]
+
+
+def _apply_retention(data: Dict[str, Any]) -> None:
+    limits = data.get("limits", {})
+    max_capabilities = int(limits.get("max_capabilities", DEFAULT_MAX_CAPABILITIES))
+    max_sync_history = int(limits.get("max_sync_history", DEFAULT_MAX_SYNC_HISTORY))
+    max_rejected = int(
+        limits.get("max_rejected_fingerprints", DEFAULT_MAX_REJECTED_FINGERPRINTS)
+    )
+    data["capabilities"] = _trim_list(data.get("capabilities", []), max_capabilities)
+    data["sync_history"] = _trim_list(data.get("sync_history", []), max_sync_history)
+    data["rejected_fingerprints"] = _trim_list(
+        data.get("rejected_fingerprints", []), max_rejected
+    )
 
 
 def batch_upsert_capabilities(

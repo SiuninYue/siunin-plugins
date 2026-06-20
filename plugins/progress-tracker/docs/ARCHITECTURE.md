@@ -53,8 +53,7 @@ Progress Tracker is a Claude Code plugin that provides cross-session progress tr
 │  │                                                             │ │
 │  │  docs/progress-tracker/                                      │ │
 │  │  ├── state/                                                  │ │
-│  │  │   ├── progress.json   (feature list, bugs, workflow state)│ │
-│  │  │   └── progress.md     (human-readable status)            │ │
+│  │  │   └── progress.json   (feature list, bugs, workflow state)│ │
 │  │  ├── architecture/                                           │ │
 │  │  │   └── architecture.md (technical decisions)              │ │
 │  │  └── cache/                                                  │ │

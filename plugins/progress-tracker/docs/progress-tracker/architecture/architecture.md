@@ -159,7 +159,7 @@ Canonical truth rules:
 #### `/prog-init`
 
 - Input: project goal plus optional feature seed derived from this architecture.
-- Output: initialized `progress.json`, `progress.md`, feature list, and next-step recommendation.
+- Output: initialized `progress.json`, feature list, and next-step recommendation.
 - Must read this file before feature generation when it exists.
 
 #### `/prog-done`
@@ -213,7 +213,7 @@ Inference:
 #### `transaction_manager.atomic_update(mutation, reason, correlation_id=None) -> dict`
 
 - Reads, locks, mutates, validates, writes, and audits in one controlled path.
-- Writes `progress.json`, `progress_summary.json`, and `progress.md` in a deterministic order.
+- Writes `progress.json` and `progress_summary.json` in a deterministic order.
 
 #### `schema_migration.apply_defaults(data) -> dict`
 

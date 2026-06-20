@@ -86,7 +86,7 @@ def _iso_now() -> str:
 
 def _persist_progress(data: Dict[str, Any], svc: WorkflowCommandsServices) -> None:
     svc.save_progress_json_fn(data)
-    svc.save_progress_md_fn(svc.generate_progress_md_fn(data))
+    svc.save_progress_md_fn("")
 
 
 def _collect_feature_artifact_evidence(

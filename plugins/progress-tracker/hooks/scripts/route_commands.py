@@ -378,7 +378,7 @@ def discover_children(
 
     update_runtime_context_fn(data, "discover_children")
     save_progress_json_fn(data)
-    save_progress_md_fn(generate_progress_md_fn(data))
+    save_progress_md_fn("")
 
     if output_json:
         payload = {
@@ -569,7 +569,7 @@ def prioritize_route(
 
     update_runtime_context_fn(data, "prioritize_route")
     save_progress_json_fn(data)
-    save_progress_md_fn(generate_progress_md_fn(data))
+    save_progress_md_fn("")
 
     if output_json:
         print(json.dumps({
@@ -659,7 +659,7 @@ def set_routing_queue(
 
     update_runtime_context_fn(data, "set_routing_queue")
     save_progress_json_fn(data)
-    save_progress_md_fn(generate_progress_md_fn(data))
+    save_progress_md_fn("")
 
     if output_json:
         print(json.dumps({
@@ -758,7 +758,7 @@ def route_select(
 
     update_runtime_context_fn(data, "route_select")
     save_progress_json_fn(data)
-    save_progress_md_fn(generate_progress_md_fn(data))
+    save_progress_md_fn("")
 
     action = "updated" if existing_entry is not None else "inserted"
     parallel_routes = route_sync._detect_parallel_active_routes(new_routes)

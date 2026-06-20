@@ -138,7 +138,7 @@ def reset_tracking(
             data["routing_queue"] = [root_route_code]
 
         save_progress_json(data)
-        save_progress_md(generate_progress_md(data))
+        save_progress_md("")
         save_checkpoints(
             {
                 "last_checkpoint_at": None,
@@ -154,7 +154,7 @@ def reset_tracking(
                 discover_result = auto_discover_child_plugins(target_root, repo_root, data)
                 if discover_result.get("added_codes"):
                     save_progress_json(data)
-                    save_progress_md(generate_progress_md(data))
+                    save_progress_md("")
             except Exception as exc:
                 logger.warning(f"Child discovery during reset failed: {exc}")
 

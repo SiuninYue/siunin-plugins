@@ -185,8 +185,8 @@ class TestGitIntegrationEdgeCases:
         feature = [f for f in data["features"] if f["id"] == 1][0]
         assert feature["completed"] is False
 
-    def test_progress_updates_after_git_operations(self, temp_dir):
-        """Should update progress.md after git-related operations."""
+    def test_progress_md_not_generated_after_git_operations(self, temp_dir):
+        """Should not generate progress.md after git-related operations."""
         # Create a simple progress file without commit hash to avoid git operations
         progress_manager.init_tracking("Test Project", force=True)
         progress_manager.add_feature("Feature 1", ["Step 1"])
@@ -201,10 +201,7 @@ class TestGitIntegrationEdgeCases:
         progress_manager.undo_last_feature()
 
         md_file = temp_dir / "docs" / "progress-tracker" / "state" / "progress.md"
-        assert md_file.exists()
-        content = md_file.read_text()
-        # Feature 1 should no longer be in completed section
-        assert "- [x]" not in content
+        assert not md_file.exists()
 
     def test_git_revert_preserves_history(self, mock_git_repo, progress_file):
         """Should use revert (not reset) to preserve history."""

@@ -17,11 +17,13 @@ import progress_manager
 class TestStateFileConstants:
     def test_state_file_names_contains_required_files(self):
         assert "progress.json" in progress_manager.STATE_FILE_NAMES
-        assert "progress.md" in progress_manager.STATE_FILE_NAMES
         assert "checkpoints.json" in progress_manager.STATE_FILE_NAMES
         assert "audit.log" in progress_manager.STATE_FILE_NAMES
         assert "project_memory.json" in progress_manager.STATE_FILE_NAMES
         assert "sprint_ledger.jsonl" in progress_manager.STATE_FILE_NAMES
+
+    def test_state_file_names_excludes_generated_progress_md(self):
+        assert "progress.md" not in progress_manager.STATE_FILE_NAMES
 
     def test_state_file_names_excludes_lock(self):
         assert "progress.lock" not in progress_manager.STATE_FILE_NAMES
@@ -70,6 +72,18 @@ class TestGetDirtyStateFiles:
 
         dirty = progress_manager._get_dirty_state_files(mock_git_repo)
         assert all("progress.lock" not in str(f) for f in dirty)
+
+    def test_excludes_generated_progress_md(self, mock_git_repo):
+        assert progress_manager.configure_project_scope(str(mock_git_repo)) is True
+        progress_manager.init_tracking("Test", force=True)
+        subprocess.run(["git", "add", "."], cwd=mock_git_repo, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "init state"], cwd=mock_git_repo, capture_output=True)
+
+        state_dir = mock_git_repo / "docs" / "progress-tracker" / "state"
+        (state_dir / "progress.md").write_text("# local mirror\n", encoding="utf-8")
+
+        dirty = progress_manager._get_dirty_state_files(mock_git_repo)
+        assert all("progress.md" not in str(f) for f in dirty)
 
     def test_returns_empty_when_state_is_clean(self, mock_git_repo):
         assert progress_manager.configure_project_scope(str(mock_git_repo)) is True

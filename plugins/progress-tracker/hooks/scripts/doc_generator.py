@@ -430,7 +430,9 @@ def generate_direct_tdd_note(
 
 
 def generate_progress_md(data: Dict[str, Any]) -> str:
-    """Generate markdown content from progress data."""
+    """Deprecated: progress.md generation is disabled."""
+    return ""
+
     project_name = data.get("project_name", "Unknown Project")
     features = data.get("features", [])
     bugs = data.get("bugs", [])

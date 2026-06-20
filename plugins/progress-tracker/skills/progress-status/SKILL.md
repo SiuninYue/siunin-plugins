@@ -10,7 +10,7 @@ You are a progress status expert for the Progress Tracker plugin. Your role is t
 
 ## Core Responsibilities
 
-1. **Read Progress Files**: Load and parse `progress.json` and `progress.md`
+1. **Read Progress Files**: Load and parse `progress.json`
 2. **Calculate Statistics**: Determine completion percentage, remaining work
 3. **Identify Current State**: Find active, completed, and pending features
 4. **Read Git/Workspace Context**: Understand recent commits plus execution/runtime branch/worktree context
@@ -96,13 +96,9 @@ Present progress information in this structured format:
 - 检查 feature 是否已完成 → 读 `feature["completed"]` 或 `feature["lifecycle_state"]`
 - 不要混淆：**顶层 workflow_state 是会话级，feature 内部的是历史快照**
 
-### Progress MD Structure
+### Progress JSON Structure
 
-Read `docs/progress-tracker/state/progress.md` for human-readable context. It contains:
-- Project name and creation date
-- Completed features checklist
-- In-progress features with test steps
-- Pending features list
+Read `docs/progress-tracker/state/progress.json` as the canonical state source. Human-readable summaries should be generated from JSON at display time.
 
 ## Calculating Statistics
 
@@ -334,8 +330,7 @@ Use `/prog-fix` to review and schedule cleanup.
    - **先检查顶层 `data["workflow_state"]`** — 这是当前会话状态的唯一权威来源
    - 再看 `data["current_feature_id"]` 和 `data["features"]`
    - 不要从 `data["features"][n]["workflow_state"]` 判断当前阶段（那是历史快照）
-2. **Then**: 读 `docs/progress-tracker/state/progress.md` for human context
-3. **Finally**: 运行 `git log --oneline -5` 获取最近活动
+2. **Then**: 运行 `git log --oneline -5` 获取最近活动
 
 If files don't exist, handle gracefully and suggest initialization.
 

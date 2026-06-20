@@ -6,7 +6,6 @@ inputs:
   - User update intent and optional structured fields
 outputs:
   - New update entry in progress.json updates[]
-  - Refreshed progress.md with recent updates section
 evidence: optional
 references: []
 model: haiku

@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Set
 
 import state_io
-from prog_paths import get_progress_json_path, get_progress_md_path
+from prog_paths import get_progress_json_path
 
 LINKED_SNAPSHOT_SCHEMA_VERSION = "1.0"
 _COLLECT_LINKED_DISPATCH_DEPTH = 0

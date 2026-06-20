@@ -452,7 +452,7 @@ def fix_readiness_command(
     if changed:
         _normalize_feature_contract(feature)
         services.save_progress_json_fn(data)
-        services.save_progress_md_fn(services.generate_progress_md_fn(data))
+        services.save_progress_md_fn("")
         print(f"Feature #{feature_id} updated")
     else:
         print(f"No changes needed for feature #{feature_id}")

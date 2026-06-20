@@ -269,8 +269,7 @@ def next_feature_command(
                     data["active_routes"] = ar_list
                     svc.update_runtime_context_fn(data, source="next_dispatch")
                     svc.save_progress_json_fn(data)
-                    md_content = svc.generate_progress_md_fn(data)
-                    svc.save_progress_md_fn(md_content)
+                    svc.save_progress_md_fn("")
                 except Exception as exc:
                     svc.debug_fn(f"Bug dispatch bookkeeping failed: {exc}")
                 return True
@@ -354,8 +353,7 @@ def next_feature_command(
                         data["linked_snapshot"] = linked_snapshot
                         svc.update_runtime_context_fn(data, source="next_dispatch")
                         svc.save_progress_json_fn(data)
-                        md_content = svc.generate_progress_md_fn(data)
-                        svc.save_progress_md_fn(md_content)
+                        svc.save_progress_md_fn("")
                     except Exception as exc:
                         svc.debug_fn(f"Child dispatch bookkeeping failed: {exc}")
                 return True

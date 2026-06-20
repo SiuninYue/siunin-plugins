@@ -75,7 +75,7 @@ def _iso_now() -> str:
 
 def _persist_progress(data: Dict[str, Any], svc: WorkItemCommandsServices) -> None:
     svc.save_progress_json_fn(data)
-    svc.save_progress_md_fn(svc.generate_progress_md_fn(data))
+    svc.save_progress_md_fn("")
 
 
 def _next_update_id(updates: List[Dict[str, Any]]) -> str:
@@ -437,7 +437,7 @@ def add_feature_command(
 
     features.append(new_feature)
     svc.save_progress_json_fn(data)
-    svc.save_progress_md_fn(svc.generate_progress_md_fn(data))
+    svc.save_progress_md_fn("")
 
     print(f"Added feature: {name} (ID: {new_id})")
     svc.notify_parent_sync_fn("refresh")
