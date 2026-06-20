@@ -407,7 +407,7 @@ class TestCallSiteCmdDone:
 
 
 class TestCallSiteSetCurrent:
-    def test_set_current_calls_auto_state_commit(self, mock_git_repo):
+    def test_set_current_does_not_auto_commit(self, mock_git_repo):
         assert progress_manager.configure_project_scope(str(mock_git_repo)) is True
         progress_manager.init_tracking("Test", force=True)
         progress_manager.add_feature("Feature 1", ["step 1"])
@@ -415,7 +415,7 @@ class TestCallSiteSetCurrent:
         with patch.object(progress_manager, "_auto_state_commit") as mock_asc:
             progress_manager.set_current(1)
 
-        mock_asc.assert_called_once_with("F1", "start")
+        mock_asc.assert_not_called()
 
 
 class TestCallSiteUpdateBug:

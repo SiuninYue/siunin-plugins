@@ -132,8 +132,8 @@ def test_set_current_success(patch_readiness_valid, patch_not_deferred):
     svc.generate_progress_md_fn.assert_not_called()
     svc.save_progress_md_fn.assert_called_once_with("")
 
-    # Auto commit + parent notification.
-    svc.auto_state_commit_fn.assert_called_once_with("F1", "start")
+    # Activation no longer auto-commits state (noise reduction); parent notification stays.
+    svc.auto_state_commit_fn.assert_not_called()
     svc.notify_parent_sync_fn.assert_called_once_with("activate")
 
 

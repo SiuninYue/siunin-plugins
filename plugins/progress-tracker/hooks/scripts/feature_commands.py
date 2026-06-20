@@ -107,8 +107,6 @@ def set_current_command(feature_id: int, svc: FeatureCommandsServices) -> bool:
 
     svc.save_progress_md_fn("")
 
-    svc.auto_state_commit_fn(f"F{feature_id}", "start")
-
     # Notify parent tracker to upsert active_routes for this child feature.
     if not feature.get("completed", False):
         svc.notify_parent_sync_fn("activate")
