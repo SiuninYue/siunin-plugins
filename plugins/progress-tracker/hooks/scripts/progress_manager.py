@@ -232,21 +232,9 @@ PROGRESS_MD = "progress.md"
 CHECKPOINTS_JSON = "checkpoints.json"
 CHECKPOINT_MAX_ENTRIES = 50
 CHECKPOINT_INTERVAL_SECONDS = 1800
-# State files managed by progress-tracker (whitelist for auto-commit)
-STATE_FILE_NAMES = [
-    PROGRESS_JSON,
-    CHECKPOINTS_JSON,
-    PROGRESS_HISTORY_JSON,
-    "sprint_ledger.jsonl",
-    "status_summary.v1.json",
-    "audit.log",
-    "project_memory.json",
-    "migration_log.json",
-]
-STATE_DIR_NAMES = [
-    "test_reports",
-    "progress_archive",
-]
+# State file/dir whitelists are single-sourced in git_utils to prevent drift
+# (auto-commit logic reads git_utils.STATE_FILE_NAMES via _get_dirty_state_files).
+from git_utils import STATE_FILE_NAMES, STATE_DIR_NAMES  # noqa: E402,F401
 PROGRESS_ARCHIVE_MAX_ENTRIES = 200
 STATUS_SUMMARY_FILE = "status_summary.v1.json"
 STATUS_SUMMARY_LEGACY_FILE = "status_summary.json"

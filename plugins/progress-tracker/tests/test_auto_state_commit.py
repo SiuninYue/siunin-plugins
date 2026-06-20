@@ -32,6 +32,15 @@ class TestStateFileConstants:
         assert "test_reports" in progress_manager.STATE_DIR_NAMES
         assert "progress_archive" in progress_manager.STATE_DIR_NAMES
 
+    def test_state_file_names_excludes_derived_projections(self):
+        assert "status_summary.v1.json" not in progress_manager.STATE_FILE_NAMES
+        assert "migration_log.json" not in progress_manager.STATE_FILE_NAMES
+
+    def test_whitelist_single_sourced_from_git_utils(self):
+        import git_utils
+        assert progress_manager.STATE_FILE_NAMES is git_utils.STATE_FILE_NAMES
+        assert progress_manager.STATE_DIR_NAMES is git_utils.STATE_DIR_NAMES
+
 
 class TestGetDirtyStateFiles:
     def test_detects_modified_tracked_file(self, mock_git_repo):

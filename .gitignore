@@ -160,6 +160,13 @@ docs/ops/guardrails-backup-*.json
 !.claude/project_memory.json
 # progress-tracker generated human mirror; keep local-only.
 **/docs/progress-tracker/state/progress.md
+# progress-tracker derived projection + runtime artifacts; rebuilt locally, keep local-only.
+**/docs/progress-tracker/state/status_summary.v1.json
+**/docs/progress-tracker/state/migration_log.json
+**/docs/progress-tracker/state/progress.lock
+# archived human/projection mirrors; keep only the structured *.progress.json source.
+**/docs/progress-tracker/state/progress_archive/*.progress.md
+**/docs/progress-tracker/state/progress_archive/*.status-summary.v1.json
 .worktrees/
 .claude/worktrees/
 .gstack-ref/

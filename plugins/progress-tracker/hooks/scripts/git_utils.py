@@ -32,15 +32,16 @@ PROGRESS_JSON = "progress.json"
 CHECKPOINTS_JSON = "checkpoints.json"
 PROGRESS_HISTORY_JSON = "progress_history.json"
 
+# Single source of truth for the auto-commit whitelist (progress_manager re-exports
+# this). Derived projection (status_summary.v1.json) and runtime log (migration_log.json)
+# are rebuilt locally and intentionally excluded to keep main-line history low-noise.
 STATE_FILE_NAMES = [
     PROGRESS_JSON,
     CHECKPOINTS_JSON,
     PROGRESS_HISTORY_JSON,
     "sprint_ledger.jsonl",
-    "status_summary.v1.json",
     "audit.log",
     "project_memory.json",
-    "migration_log.json",
 ]
 
 STATE_DIR_NAMES = [
