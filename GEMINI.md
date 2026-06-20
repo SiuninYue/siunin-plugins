@@ -14,6 +14,8 @@
 
 - For this environment, commands starting with `gh` should run with elevated host permissions.
 - Prefer SSH Git remotes: `git@github.com:<owner>/<repo>.git`.
+- Manual commits follow Conventional Commits: `type(scope): summary` (types: feat/fix/refactor/chore/docs/test). One logical change per commit. Branch/PR/merge decisions follow the `progress-tracker:git-auto` skill.
+- When reviewing history, filter auto state-sync noise and cap length — use: `git log --oneline -50 --perl-regexp --invert-grep --grep='state sync'`. Avoid bare `git log` for review (it floods context with `chore(PT): state sync` commits).
 
 ## Progress Tracker Modularization Boundary
 
