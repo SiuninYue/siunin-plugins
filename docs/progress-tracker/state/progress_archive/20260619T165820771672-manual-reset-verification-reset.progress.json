@@ -1,0 +1,109 @@
+{
+  "schema_version": "2.1",
+  "project_name": "Manual Reset Verification",
+  "created_at": "2026-06-19T16:57:42.846093Z",
+  "updated_at": "2026-06-19T16:57:47.657738Z",
+  "features": [
+    {
+      "id": 1,
+      "name": "Test Reset Logic",
+      "test_steps": [
+        "Step 1"
+      ],
+      "workflow_profile": "standard_task",
+      "completed": false,
+      "deferred": false,
+      "defer_reason": null,
+      "deferred_at": null,
+      "defer_group": null,
+      "owners": {
+        "architecture": null,
+        "coding": null,
+        "testing": null
+      },
+      "lifecycle_state": "approved",
+      "requirement_ids": [
+        "REQ-001"
+      ],
+      "change_spec": {
+        "why": "Deliver Test Reset Logic with traceable acceptance coverage.",
+        "in_scope": [
+          "Test Reset Logic"
+        ],
+        "out_of_scope": [
+          "Unrelated refactors and behavior changes outside this feature."
+        ],
+        "risks": [
+          "Potential regression in adjacent workflows; verify with listed test_steps."
+        ]
+      },
+      "acceptance_scenarios": [
+        "Scenario: Step 1"
+      ],
+      "quality_gates": {
+        "evaluator": {
+          "status": "pending",
+          "score": null,
+          "defects": [],
+          "last_run_at": null,
+          "evaluator_model": null
+        },
+        "reviews": {
+          "required": [],
+          "passed": [],
+          "pending": []
+        },
+        "ship_check": {
+          "status": "pending",
+          "failures": [],
+          "last_run_at": null
+        }
+      },
+      "sprint_contract": {
+        "scope": "",
+        "done_criteria": [],
+        "test_plan": [],
+        "accepted_by": null,
+        "accepted_at": null
+      },
+      "handoff": {
+        "from_phase": null,
+        "to_phase": null,
+        "artifact_path": null,
+        "created_at": null
+      }
+    }
+  ],
+  "current_feature_id": null,
+  "settings": {
+    "auto_state_commit": true
+  },
+  "tracker_role": "parent",
+  "project_code": "ROOT",
+  "routing_queue": [
+    "ROOT",
+    "NO",
+    "SPM"
+  ],
+  "linked_projects": [
+    {
+      "project_root": "plugins/note-organizer",
+      "project_code": "NO",
+      "label": "Note Organizer Plugin"
+    },
+    {
+      "project_root": "plugins/super-product-manager",
+      "project_code": "SPM",
+      "label": "SPM-PROG Harness Linkage"
+    }
+  ],
+  "linked_snapshot": {
+    "schema_version": "1.0",
+    "updated_at": null,
+    "projects": []
+  },
+  "active_routes": [],
+  "updates": [],
+  "retrospectives": [],
+  "tasks": []
+}
