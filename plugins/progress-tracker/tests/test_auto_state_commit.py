@@ -117,6 +117,28 @@ class TestGetDirtyStateFiles:
         dirty = progress_manager._get_dirty_state_files(mock_git_repo)
         assert any("report-f1.json" in str(f) for f in dirty)
 
+    def test_new_archive_dir_excludes_gitignored_mirrors(self, mock_git_repo):
+        """A brand-new progress_archive/ dir must not feed gitignored derived
+        mirrors to `git add` (which errors and would abort the whole state-sync):
+        the .progress.json source is detected; *.progress.md is excluded."""
+        assert progress_manager.configure_project_scope(str(mock_git_repo)) is True
+        progress_manager.init_tracking("Test", force=True)
+        (mock_git_repo / ".gitignore").write_text(
+            "**/docs/progress-tracker/state/progress_archive/*.progress.md\n"
+        )
+        subprocess.run(["git", "add", "."], cwd=mock_git_repo, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "init state"], cwd=mock_git_repo, capture_output=True)
+
+        state_dir = mock_git_repo / "docs" / "progress-tracker" / "state"
+        archive = state_dir / "progress_archive"
+        archive.mkdir(exist_ok=True)
+        (archive / "f1.progress.json").write_text('{"id": 1}')
+        (archive / "f1.progress.md").write_text("# mirror")
+
+        dirty = [str(f) for f in progress_manager._get_dirty_state_files(mock_git_repo)]
+        assert any("f1.progress.json" in s for s in dirty)
+        assert not any("f1.progress.md" in s for s in dirty)
+
     def test_detects_deleted_tracked_state_file(self, mock_git_repo):
         """Deleted tracked state files must appear in dirty list (valid state change)."""
         assert progress_manager.configure_project_scope(str(mock_git_repo)) is True

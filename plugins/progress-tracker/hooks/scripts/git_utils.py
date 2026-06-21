@@ -142,22 +142,20 @@ def _get_dirty_state_files(project_root: Path) -> List[Path]:
             rel_dir = str(d.relative_to(git_root))
         except ValueError:
             continue
-        code, out, _ = _run_git(["status", "--porcelain", "--", rel_dir], cwd=str(git_root))
+        # -uall expands untracked dirs into individual files AND honors .gitignore,
+        # so ignored derived mirrors (*.progress.md / *.status-summary.v1.json) are
+        # excluded. Passing an ignored path to `git add` errors out and would abort
+        # the entire state-sync (dropping even the .progress.json source). rglob()
+        # bypassed .gitignore, which caused exactly that regression.
+        code, out, _ = _run_git(
+            ["status", "--porcelain", "-uall", "--", rel_dir], cwd=str(git_root)
+        )
         if code == 0:
             for line in out.strip().splitlines():
                 parts = line.strip().split(None, 1)
                 if len(parts) == 2:
                     file_path = parts[1].strip()
-                    if file_path.endswith('/'):
-                        dir_path = git_root / file_path
-                        if dir_path.is_dir():
-                            for item in dir_path.rglob('*'):
-                                if item.is_file():
-                                    dirty.append(item)
-                        else:
-                            dirty.append(git_root / file_path)
-                    else:
-                        dirty.append(git_root / file_path)
+                    dirty.append(git_root / file_path)
 
     return dirty
 
