@@ -1105,7 +1105,7 @@ class TestReset:
         # 1. Initialize tracker and add some features
         progress_manager.init_tracking("Reinit Baseline Test", force=True, confirm_destroy=True)
         progress_manager.add_feature("Feature 1", ["step 1"])
-        
+
         claude_dir = progress_file.parent
         assert (claude_dir / "progress.json").exists()
         data_before = progress_manager.load_progress_json()
